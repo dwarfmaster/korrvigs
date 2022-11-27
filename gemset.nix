@@ -122,6 +122,16 @@
     };
     version = "1.13.9";
   };
+  optparse = {
+    groups = ["default"];
+    platforms = [];
+    source = {
+      remotes = ["https://rubygems.org"];
+      sha256 = "0xa1i5si5c3x48j7x2xcpxsjcvhlr9rvscrkmxi8hzirg191zslx";
+      type = "gem";
+    };
+    version = "0.2.0";
+  };
   parallel = {
     groups = ["default"];
     platforms = [];

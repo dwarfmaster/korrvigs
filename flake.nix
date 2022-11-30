@@ -11,7 +11,7 @@
       gemdir = ./.;
     };
     shell = pkgs.mkShell {
-      packages = [gems.wrappedRuby gems];
+      packages = [gems.wrappedRuby gems pkgs.swiProlog];
     };
     update = pkgs.mkShell {
       packages = [pkgs.bundix pkgs.ruby];

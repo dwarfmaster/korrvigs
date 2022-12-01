@@ -27,12 +27,20 @@ http_load_html(URL, DOM) :-
 webcomic_dom(WEBCOMIC, DOM) :-
   webcomic_archive(WEBCOMIC, URL),
   http_load_html(URL, DOM).
-webcomic_get_pair(WEBCOMIC, DOM, [ TITLE, URL ]) :-
+webcomic_pages_pair(WEBCOMIC, DOM, [ TITLE, URL ]) :-
   webcomic_pages(WEBCOMIC, DOM, TITLE, URL).
 webcomic_get_pages(WEBCOMIC, PAGES) :-
   webcomic_dom(WEBCOMIC, DOM),
-  bagof(PAIR, webcomic_get_pair(WEBCOMIC, DOM, PAIR), TMP),
+  bagof(PAIR, webcomic_pages_pair(WEBCOMIC, DOM, PAIR), TMP),
   webcomic_pages_post(WEBCOMIC, TMP, PAGES).
+webcomic_chapters_pair(WEBCOMIC, DOM, [ TITLE, URL ]) :-
+  webcomic_chapters(WEBCOMIC, DOM, TITLE, URL).
+webcomic_get_chapters(WEBCOMIC, CHAPTERS) :-
+  webcomic_dom(WEBCOMIC, DOM),
+  bagof(PAIR, webcomic_chapters_pair(WEBCOMIC, DOM, PAIR), TMP),
+  webcomic_chapters_post(WEBCOMIC, TMP, CHAPTERS).
+
 
 sandra_pages(PAGES) :- webcomic_get_pages(sandraandwoo, PAGES).
 empowered_pages(PAGES) :- webcomic_get_pages(empowered, PAGES).
+empowered_chapters(CHAPTERS) :- webcomic_get_chapters(empowered, CHAPTERS).

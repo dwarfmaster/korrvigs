@@ -11,7 +11,8 @@
       gemdir = ./.;
     };
     shell = pkgs.mkShell {
-      packages = [gems.wrappedRuby gems pkgs.swiProlog];
+      packages = [gems.wrappedRuby gems pkgs.swiProlog pkgs.python3];
+      PYTHONPATH = "${pkgs.swiProlog}/lib/swipl/lib";
     };
     update = pkgs.mkShell {
       packages = [pkgs.bundix pkgs.ruby];

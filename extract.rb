@@ -22,6 +22,9 @@ end
 def attributes(path)
   document = Asciidoctor.load_file path
   puts JSON.dump(document.attributes)
+rescue Errno::ENOENT
+  puts "{}"
+  exit
 end
 
 def set_attr(path, attr, value)

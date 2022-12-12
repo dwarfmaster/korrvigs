@@ -108,3 +108,18 @@ register_adoc(TITLE, AUTHOR, ATTRS, UUID) :-
     write_adoc(TITLE, AUTHOR, ATTRS, FILE),
     close(FILE)).
 
+%! run_action(-ACTION, -CONTEXT, +REQUEST)
+%  ACTION is the specification of the action to run, it can be extended by plugins to
+%  support more and more actions. CONTEXT is a list of more specific information about
+%  the context in which the action must be run. It can be extended by plugins. Most of
+%  the time, run_action will actually execute the action, but sometimes it will need some
+%  additional information. In this case it sets REQUEST. After the additional information has
+%  been obtained, run_action should be called again with the result of the request as
+%  additional context.
+run_action(open_wiki, CTX, []) :-
+  member(select_file(FILE), CTX), !,
+  process_create(path(neovide), [ FILE ], [ detached(true) ]).
+run_action(open_wiki, _, [ _{ select_file: FILES} ]) :-
+  bagof(PATH, UUID^wiki_file(PATH,UUID), FILES).
+
+

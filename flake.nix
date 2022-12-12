@@ -8,7 +8,7 @@
     pkgs = import nixpkgs {system = "x86_64-linux";};
     gems = pkgs.bundlerEnv {
       name = "asciidoc-knowledge-database";
-      gemdir = ./.;
+      gemdir = ./extractor;
     };
     shell = pkgs.mkShell {
       packages = [gems.wrappedRuby gems pkgs.swiProlog pkgs.python3];

@@ -116,10 +116,22 @@ register_adoc(TITLE, AUTHOR, ATTRS, UUID) :-
 %  additional information. In this case it sets REQUEST. After the additional information has
 %  been obtained, run_action should be called again with the result of the request as
 %  additional context.
-run_action(open_wiki, CTX, []) :-
+run_action(ACT, CTX, REQ) :-
+  between(0, 100, N),
+  PRIO is 100 - N,
+  run_action_impl(PRIO, ACT, CTX, REQ), !.
+
+%! run_action_impl(-PRIORITY, -ACTION, -CONTEXT, +REQUEST)
+%  Same as run_action, but with an explicit PRIORITY between 0 and 100 that make the ordering
+%  of the rules less important. Higher priorities are given precedence.
+run_action_impl(0, open_wiki, _, [ _{ select_file: FILES} ]) :-
+  bagof(PATH, UUID^wiki_file(PATH,UUID), FILES).
+run_action_impl(10, open_wiki, CTX, []) :-
   member(select_file(FILE), CTX), !,
   process_create(path(neovide), [ FILE ], [ detached(true) ]).
-run_action(open_wiki, _, [ _{ select_file: FILES} ]) :-
-  bagof(PATH, UUID^wiki_file(PATH,UUID), FILES).
+run_action_impl(20, open_wiki, CTX, []) :-
+  member(select_file(FILE), CTX),
+  member(neovim(NVIM), CTX), !,
+  process_create(path(nvim), [ "--server", NVIM, "--remote", FILE ], [ ]).
 
 

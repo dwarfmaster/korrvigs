@@ -1,6 +1,9 @@
 
 :- use_module(library(process)).
 :- use_module(library(http/json)).
+:- [plugins/plugins].
+:- [plugins/open_text].
+:- [plugins/select_file].
 
 %! data_dir(+DIR) is det
 %  data_dir indicates the directory in which the wiki files must be looked up
@@ -8,6 +11,14 @@ data_dir("/home/luc/downloads/wiki").
 %! extract_script(+SCRIPT)
 %  extract_script indicates the absolute path to the extractor script
 extract_script("/home/luc/repos/korrvigs/extractor/extract.rb").
+%! spawn_terminal(-CMD)
+%  run a terminal executing command
+spawn_terminal(CMD) :-
+  absolute_file_name(path(bash), BASH),
+  process_create(path(st), [ "-e", BASH, "-c", CMD ], [ detached(true) ]).
+%! plugin_dir(+DIR)
+%  The path to the plugin directory
+plugin_dir("/home/luc/repos/korrvigs/engine/plugins/").
 
 %! make_path(-COMPONENTS, +PATH) is det
 %  make_path concatenates components into path, inserting '/' between them
@@ -108,30 +119,5 @@ register_adoc(TITLE, AUTHOR, ATTRS, UUID) :-
     write_adoc(TITLE, AUTHOR, ATTRS, FILE),
     close(FILE)).
 
-%! run_action(-ACTION, -CONTEXT, +REQUEST)
-%  ACTION is the specification of the action to run, it can be extended by plugins to
-%  support more and more actions. CONTEXT is a list of more specific information about
-%  the context in which the action must be run. It can be extended by plugins. Most of
-%  the time, run_action will actually execute the action, but sometimes it will need some
-%  additional information. In this case it sets REQUEST. After the additional information has
-%  been obtained, run_action should be called again with the result of the request as
-%  additional context.
-run_action(ACT, CTX, REQ) :-
-  between(0, 100, N),
-  PRIO is 100 - N,
-  run_action_impl(PRIO, ACT, CTX, REQ), !.
-
-%! run_action_impl(-PRIORITY, -ACTION, -CONTEXT, +REQUEST)
-%  Same as run_action, but with an explicit PRIORITY between 0 and 100 that make the ordering
-%  of the rules less important. Higher priorities are given precedence.
-run_action_impl(0, open_wiki, _, [ _{ select_file: FILES} ]) :-
-  bagof(PATH, UUID^wiki_file(PATH,UUID), FILES).
-run_action_impl(10, open_wiki, CTX, []) :-
-  member(select_file(FILE), CTX), !,
-  process_create(path(neovide), [ FILE ], [ detached(true) ]).
-run_action_impl(20, open_wiki, CTX, []) :-
-  member(select_file(FILE), CTX),
-  member(neovim(NVIM), CTX), !,
-  process_create(path(nvim), [ "--server", NVIM, "--remote", FILE ], [ ]).
 
 

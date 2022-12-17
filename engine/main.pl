@@ -4,6 +4,7 @@
 :- [plugins/plugins].
 :- [plugins/open_text].
 :- [plugins/select_file].
+:- [plugins/adoc].
 
 %! data_dir(+DIR) is det
 %  data_dir indicates the directory in which the wiki files must be looked up
@@ -118,6 +119,5 @@ register_adoc(TITLE, AUTHOR, ATTRS, UUID) :-
     open(PATH, write, FILE, []),
     write_adoc(TITLE, AUTHOR, ATTRS, FILE),
     close(FILE)).
-
 
 

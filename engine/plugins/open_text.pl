@@ -17,5 +17,6 @@ plugins:run_action_impl(50, open_text(PATH), CTX) :-
   member(neovim(SOCK), CTX),
   process_create(path(nvim), [ "--server", SOCK, "--remote", PATH ], [ ]).
 
+% TODO check if path is text file
 plugins:is_available(CTX, open_text(PATH), 70) :-
-  member(pointing(text_file(PATH)), CTX).
+  member(pointing(file(PATH)), CTX).

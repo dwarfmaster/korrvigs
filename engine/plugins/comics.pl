@@ -11,7 +11,8 @@
 :- multifile webcomic_pages_post/3.
 :- multifile webcomic_chapters/4.
 :- multifile webcomic_chapters_post/3.
-:- use_module(plugins).
+:- use_module(korrvigs(plugins)).
+:- use_module(korrvigs(wiki)).
 
 :- use_module(library(http/http_open), [ http_open/3 ]).
 :- use_module(library(http/http_ssl_plugin)).
@@ -31,38 +32,38 @@
 wiki(CTX, UUID) :- member(pointing(wiki(UUID)), CTX).
 wiki(CTX, UUID) :- member(reading(wiki(UUID)), CTX).
 
-webcomic_read_uuid(UUID_STR,URL,TITLE) :-
+webcomic_continue_uuid(UUID_STR,URL,TITLE) :-
   atom_string(UUID, UUID_STR),
   wiki_file(PATH, UUID),
-  get_attributes(PATH, ATTRS),
+  wiki:get_attributes(PATH, ATTRS),
   _{ webcomic: _, 'last-read': URL, 'doctitle': TITLE } :< ATTRS.
 
-plugins:run_action_impl(1, webcomic_read, CTX) :-
+plugins:run_action_impl(1, webcomic_continue, CTX) :-
   wiki(CTX,UUID),
-  webcomic_read_uuid(UUID,URL,_),
+  webcomic_continue_uuid(UUID,URL,_),
   plugins:run_action(open_url(URL), CTX).
 plugins:is_available(CTX, open_url(URL), DESC, 100) :-
   wiki(CTX, UUID),
-  webcomic_read_uuid(UUID, URL, TITLE),
+  webcomic_continue_uuid(UUID, URL, TITLE),
   concat("Continue ", TITLE, DESC).
 
 plugins:run_action_impl(1, webcomic_update, CTX) :-
   wiki(CTX, UUID_STR),
   atom_string(UUID, UUID_STR),
-  wiki_file(PATH,UUID),
-  get_attributes(PATH, ATTRS),
+  wiki:wiki_file(PATH,UUID),
+  wiki:get_attributes(PATH, ATTRS),
   _{ webcomic: COMIC, 'last-read': LAST, 'url': URL } :< ATTRS,
   html_load_file(URL, DOM),
   webcomic_metrics(COMIC, DOM, LAST, CHAP, LEFT, NEW, NEW_CHAPTERS),
-  set_attribute(PATH, 'current-chapter', CHAP),
-  set_attribute(PATH, 'left-in-chapter', LEFT),
-  set_attribute(PATH, 'new-pages', NEW),
-  set_attribute(PATH, 'new-chapters', NEW_CHAPTERS).
+  wiki:et_attribute(PATH, 'current-chapter', CHAP),
+  wiki:et_attribute(PATH, 'left-in-chapter', LEFT),
+  wiki:et_attribute(PATH, 'new-pages', NEW),
+  wiki:et_attribute(PATH, 'new-chapters', NEW_CHAPTERS).
 plugins:is_available(CTX, webcomic_update, DESC, 90) :-
   wiki(CTX, UUID_STR),
   atom_string(UUID, UUID_STR),
   wiki_file(PATH,UUID),
-  get_attributes(PATH, ATTRS),
+  wiki:get_attributes(PATH, ATTRS),
   _{ webcomic: _, 'last-read': _, 'url': _, 'doctitle': TITLE } :< ATTRS,
   concat("Update metric on ", TITLE, DESC).
 

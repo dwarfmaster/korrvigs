@@ -1,5 +1,5 @@
 
-:- module(plugins, [run_action/2, run_action_impl/3, is_available/4]).
+:- module(plugins, [run_action/2, run_action_impl/3, is_available/4, select_action/2]).
 :- multifile run_action_impl/3.
 :- multifile is_available/4.
 

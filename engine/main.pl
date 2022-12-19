@@ -1,11 +1,10 @@
 
-:- [modules/wiki].
-:- [plugins/plugins].
-:- [plugins/open_text].
-:- [plugins/select_file].
-:- [plugins/adoc].
-:- [plugins/open_url].
-:- [plugins/comics].
+user:file_search_path(korrvigs, "/home/luc/repos/korrvigs/engine/modules").
+
+:- reexport(korrvigs(plugins),
+           [ run_action/2
+           , select_action/2
+           ]).
 
 %! data_dir(+DIR) is det
 %  data_dir indicates the directory in which the wiki files must be looked up
@@ -24,7 +23,15 @@ open_url(URL) :-
   process_create(path("firefox-launcher"), [ URL ], [ detached(true) ]).
 %! plugin_dir(+DIR)
 %  The path to the plugin directory
-plugin_dir("/home/luc/repos/korrvigs/engine/plugins/").
+plugin_dir("/home/luc/repos/korrvigs/engine/plugins").
 
 
 
+user:file_search_path(plugins, D) :-
+  plugin_dir(D).
+
+:- [plugins(open_text)].
+:- [plugins(select_file)].
+:- [plugins(adoc)].
+:- [plugins(open_url)].
+:- [plugins(comics)].

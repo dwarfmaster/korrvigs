@@ -1,6 +1,6 @@
 
 :- module(open_text, []).
-:- use_module(plugins).
+:- use_module(korrvigs(plugins)).
 
 plugins:run_action_impl(1, open_text(PATH), CTX) :-
   member(terminal, CTX),

@@ -1,6 +1,6 @@
 
 :- module(select_file, []).
-:- use_module(plugins).
+:- use_module(korrvigs(plugins)).
 
 plugins:run_action_impl(1, select_file(FILES, SELECTED), CTX) :-
   member(gui(_), CTX),

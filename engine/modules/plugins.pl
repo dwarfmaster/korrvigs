@@ -1,7 +1,16 @@
 
-:- module(plugins, [run_action/2, run_action_impl/3, is_available/4, select_action/2]).
+:- module(plugins,
+         [ run_action/2
+         , run_action_impl/3
+         , is_available/4
+         , select_action/2 
+         , load_all/0
+         ]).
 :- multifile run_action_impl/3.
 :- multifile is_available/4.
+
+user:file_search_path(plugins, D) :-
+  plugin_dir(D).
 
 %! run_action(-ACTION, -CONTEXT)
 %  ACTION is the specification of the action to run, it can be extended by plugins to
@@ -36,3 +45,19 @@ run_action_impl(0, ACT, CTX) :-
 %! is_available(-CTX, +ACTION, +NAME, ?SCORE)
 %  In a given context, indicates if an action is available, and gives a score between 1 and 100
 %  of how relevant this action is, and the name of the action.
+
+%! find_plugin(+PATH, +MD)
+%  find a plugin and give the module name it must be loaded as
+find_plugin(PATH, MD) :-
+  absolute_file_name(plugins("."), DIR, [access(exist), file_type(directory), solutions(all)]),
+  directory_files(DIR, FILES),
+  member(FILE, FILES),
+  concat(BASE, ".pl", FILE),
+  directory_file_path(DIR, FILE, PATH),
+  access_file(PATH, read),
+  concat("plugins-", BASE, MD).
+
+%! load_all()
+%  Load all plugins in plugin directory
+load_all() :- forall(find_plugin(PATH, MD), load_files(PATH, [module(MD)])).
+

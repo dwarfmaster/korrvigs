@@ -25,13 +25,4 @@ open_url(URL) :-
 %  The path to the plugin directory
 plugin_dir("/home/luc/repos/korrvigs/engine/plugins").
 
-
-
-user:file_search_path(plugins, D) :-
-  plugin_dir(D).
-
-:- [plugins(open_text)].
-:- [plugins(select_file)].
-:- [plugins(adoc)].
-:- [plugins(open_url)].
-:- [plugins(comics)].
+:- plugins:load_all().

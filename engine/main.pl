@@ -5,6 +5,8 @@
 :- [plugins/open_text].
 :- [plugins/select_file].
 :- [plugins/adoc].
+:- [plugins/open_url].
+:- [plugins/comics].
 
 %! data_dir(+DIR) is det
 %  data_dir indicates the directory in which the wiki files must be looked up
@@ -17,6 +19,10 @@ extract_script("/home/luc/repos/korrvigs/extractor/extract.rb").
 spawn_terminal(CMD) :-
   absolute_file_name(path(bash), BASH),
   process_create(path(st), [ "-e", BASH, "-c", CMD ], [ detached(true) ]).
+%! open_url(URL)
+%  Open an url
+open_url(URL) :-
+  process_create(path("firefox-launcher"), [ URL ], [ detached(true) ]).
 %! plugin_dir(+DIR)
 %  The path to the plugin directory
 plugin_dir("/home/luc/repos/korrvigs/engine/plugins/").
@@ -87,6 +93,12 @@ get_attributes(PATH, ATTRS) :-
     process_create(path(ruby), [ EXTRACT, "attributes", PATH ], [ stdout(pipe(OUT)) ]),
     json_read_dict(OUT, ATTRS),
     close(OUT)).
+
+%! set_attribute(-PATH, -ATTR, -VALUE) is det
+%  Set and attribute in an asciidoc file
+set_attribute(PATH, ATTR, VALUE) :-
+  extract_script(EXTRACT),
+  process_create(path(ruby), [ EXTRACT, "set-attr", PATH, ATTR, VALUE ], []).
 
 %! gen_uuid(+UUID) is nondet
 %  Generate a new UUID

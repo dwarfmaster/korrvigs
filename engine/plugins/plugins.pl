@@ -1,7 +1,7 @@
 
-:- module(plugins, [run_action/2, run_action_impl/3, is_available/3]).
+:- module(plugins, [run_action/2, run_action_impl/3, is_available/4]).
 :- multifile run_action_impl/3.
-:- multifile is_available/3.
+:- multifile is_available/4.
 
 %! run_action(-ACTION, -CONTEXT)
 %  ACTION is the specification of the action to run, it can be extended by plugins to
@@ -19,7 +19,7 @@ run_action(ACT, CTX) :-
 select_action_int(CTX, ACTIONS) :-
   between(0, 100, SC),
   SCORE is 100 - SC,
-  bagof(ACT, is_available(CTX, ACT, SCORE), ACTIONS).
+  bagof(P, ACT^NAME^(is_available(CTX, ACT, NAME, SCORE), P = [ NAME, ACT ]), ACTIONS).
 select_action(CTX, ACTIONS) :-
   bagof(ACTS, select_action_int(CTX, ACTS), ACTIONS).
 
@@ -33,6 +33,6 @@ run_action_impl(0, ACT, CTX) :-
   format(string(MSG), "Unknown action ~w ctx:~w", [ ACT, CTX ]),
   process_create(path("notify-send"), [ "Korrvigs", MSG ], []).
 
-%! is_available(-CTX, +ACTION, ?SCORE)
+%! is_available(-CTX, +ACTION, +NAME, ?SCORE)
 %  In a given context, indicates if an action is available, and gives a score between 1 and 100
-%  of how relevant this action is.
+%  of how relevant this action is, and the name of the action.

@@ -17,9 +17,13 @@ plugins:run_action_impl(1, adoc_add_file(PATH), CTX) :-
   copy_file(PATH, DIR).
 
 % TODO check if file is not text
-plugins:is_available(CTX, adoc_add_file(PATH), 90) :-
+plugins:is_available(CTX, adoc_add_file(PATH), DESC, 90) :-
   member(pointing(file(PATH)), CTX),
-  concat("/home/luc/downloads", _, PATH).
-plugins:is_available(CTX, adoc_add_file(PATH), 30) :-
+  concat("/home/luc/downloads", _, PATH),
+  directory_file_path(_, FILE, PATH),
+  concat("Store file ", FILE, DESC).
+plugins:is_available(CTX, adoc_add_file(PATH), DESC, 30) :-
   member(pointing(file(PATH)), CTX),
-  not(concat("/home/luc/downloads", _, PATH)).
+  not(concat("/home/luc/downloads", _, PATH)),
+  directory_file_path(_, FILE, PATH),
+  concat("Store file ", FILE, DESC).

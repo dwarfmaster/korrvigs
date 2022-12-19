@@ -1,10 +1,84 @@
+
+:- module(comics,
+         [ webcomic_archive/2
+         , webcomic_pages/4
+         , webcomic_pages_post/3
+         , webcomic_chapters/4
+         , webcomic_chapters_post/3
+         ]).
+:- multifile webcomic_archive/2.
+:- multifile webcomic_pages/4.
+:- multifile webcomic_pages_post/3.
+:- multifile webcomic_chapters/4.
+:- multifile webcomic_chapters_post/3.
+:- use_module(plugins).
+
 :- use_module(library(http/http_open), [ http_open/3 ]).
 :- use_module(library(http/http_ssl_plugin)).
 :- use_module(library(http/http_stream)).
 :- use_module(library(sgml)).
-:- use_module(webcomics).
 :- use_module(library(xpath)).
 
+
+%     _        _   _                 
+%    / \   ___| |_(_) ___  _ __  ___ 
+%   / _ \ / __| __| |/ _ \| '_ \/ __|
+%  / ___ \ (__| |_| | (_) | | | \__ \
+% /_/   \_\___|\__|_|\___/|_| |_|___/
+%                                    
+% Actions
+
+wiki(CTX, UUID) :- member(pointing(wiki(UUID)), CTX).
+wiki(CTX, UUID) :- member(reading(wiki(UUID)), CTX).
+
+webcomic_read_uuid(UUID_STR,URL,TITLE) :-
+  atom_string(UUID, UUID_STR),
+  wiki_file(PATH, UUID),
+  get_attributes(PATH, ATTRS),
+  _{ webcomic: _, 'last-read': URL, 'doctitle': TITLE } :< ATTRS.
+
+plugins:run_action_impl(1, webcomic_read, CTX) :-
+  wiki(CTX,UUID),
+  webcomic_read_uuid(UUID,URL,_),
+  plugins:run_action(open_url(URL), CTX).
+plugins:is_available(CTX, open_url(URL), DESC, 100) :-
+  wiki(CTX, UUID),
+  webcomic_read_uuid(UUID, URL, TITLE),
+  concat("Continue ", TITLE, DESC).
+
+plugins:run_action_impl(1, webcomic_update, CTX) :-
+  wiki(CTX, UUID_STR),
+  atom_string(UUID, UUID_STR),
+  wiki_file(PATH,UUID),
+  get_attributes(PATH, ATTRS),
+  _{ webcomic: COMIC, 'last-read': LAST, 'url': URL } :< ATTRS,
+  html_load_file(URL, DOM),
+  webcomic_metrics(COMIC, DOM, LAST, CHAP, LEFT, NEW, NEW_CHAPTERS),
+  set_attribute(PATH, 'current-chapter', CHAP),
+  set_attribute(PATH, 'left-in-chapter', LEFT),
+  set_attribute(PATH, 'new-pages', NEW),
+  set_attribute(PATH, 'new-chapters', NEW_CHAPTERS).
+plugins:is_available(CTX, webcomic_update, DESC, 90) :-
+  wiki(CTX, UUID_STR),
+  atom_string(UUID, UUID_STR),
+  wiki_file(PATH,UUID),
+  get_attributes(PATH, ATTRS),
+  _{ webcomic: _, 'last-read': _, 'url': _, 'doctitle': TITLE } :< ATTRS,
+  concat("Update metric on ", TITLE, DESC).
+
+% TODO store current page
+
+
+%  _   _ _   _ _ _ _   _           
+% | | | | |_(_) (_) |_(_) ___  ___ 
+% | | | | __| | | | __| |/ _ \/ __|
+% | |_| | |_| | | | |_| |  __/\__ \
+%  \___/ \__|_|_|_|\__|_|\___||___/
+%                                  
+% Utilities
+
+%! file_load_html(-PATH, +DOM) is det
+%  Load and parse an html file at PATH, giving its DOM
 file_load_html(PATH, DOM) :-
   setup_call_cleanup(open(PATH, read, In),
                      ( dtd(html, DTD),
@@ -18,28 +92,48 @@ file_load_html(PATH, DOM) :-
                                       ])
                      ),
                      close(In)).
+%! http_load_html(-URL, +DOM) is det
+%  Load and parse an html file online at URL, giving its DOM
 http_load_html(URL, DOM) :-
   tmp_file_stream(text, TMP, WRT),
   process_create(path(curl), [ URL ], [ stdout(stream(WRT)), stderr(null) ]),
   close(WRT),
   file_load_html(TMP, DOM).
 
+%! webcomic_dom(-WEBCOMIC, +DOM) is det
+%  Given a webcomic id, parse the relevant page
 webcomic_dom(WEBCOMIC, DOM) :-
   webcomic_archive(WEBCOMIC, URL),
   http_load_html(URL, DOM).
+%! webcomic_pages_pair(-WEBCOMIC, -DOM, +PAIR) is nondet
+%  Get a pair of a title and an url of a page of a webcomic, found
+%  by scrapping the DOM of its archive page. No guarantee is made on
+%  the order
 webcomic_pages_pair(WEBCOMIC, DOM, [ TITLE, URL ]) :-
   webcomic_pages(WEBCOMIC, DOM, TITLE, URL).
+%! webcomic_get_pages(-WEBCOMIC, -DOM, +PAGES) is det
+%  Get all PAGES as pair of a webcomic, in the chronological order
 webcomic_get_pages(WEBCOMIC, DOM, PAGES) :-
   bagof(PAIR, webcomic_pages_pair(WEBCOMIC, DOM, PAIR), TMP),
   webcomic_pages_post(WEBCOMIC, TMP, PAGES).
+%! webcomic_chapters_pair(-WEBCOMIC, -DOM, +PAIR) is nondet
+%  Same as webcomic_pages_pair but for chapters
 webcomic_chapters_pair(WEBCOMIC, DOM, [ TITLE, URL ]) :-
   webcomic_chapters(WEBCOMIC, DOM, TITLE, URL).
+%! webcomic_get_chapters(-WEBCOMIC, -DOM, +CHAPTERS) is det
+%  Same as webcomic_get_pages but for chapters
 webcomic_get_chapters(WEBCOMIC, DOM, CHAPTERS) :-
   bagof(PAIR, webcomic_chapters_pair(WEBCOMIC, DOM, PAIR), TMP),
   webcomic_chapters_post(WEBCOMIC, TMP, CHAPTERS).
 
 page_url([ _, URL ], URL).
 page_title([ TITLE, _ ], TITLE).
+
+%! chapters_metrics_find(-PAGES, -CHAPTERS, -FROM, -ACTUAL, +CHAP, +LEFT, +NEW, +NEW_CHAPTERS) is det
+%  Given the PAGES and CHAPTERS of a webcomic, compute the current chapter CHAP,
+%  the number of pages to the end of the chapter +LEFT, the number of pages left to
+%  the end of the webcomic +NEW, and the number of new chapters +NEW_CHAPTERS from
+%  a page FROM. ACTUAL is the default chapter, used if FROM is not in any chapters.
 
 % FROM is the first page of a chapter
 chapters_metrics_find(PAGES, CHAPTERS, FROM, _, CHAP, LEFT, NEW, NEW_CHAPTERS) :-
@@ -66,6 +160,12 @@ chapters_metrics_find(PAGES, CHAPTERS, FROM, ACTUAL, ACTUAL, LEFT, NEW, NEW_CHAP
 chapters_metrics_find(PAGES, CHAPTERS, FROM, ACTUAL, CURRENT, LEFT, NEW, NEW_CHAPTERS) :-
   append([ _ ], TL, PAGES), !,
   chapters_metrics_find(TL, CHAPTERS, FROM, ACTUAL, CURRENT, LEFT, NEW, NEW_CHAPTERS).
+
+%! chapters_metrics_compute(-PAGES, -CHAPTERS, -N, +LEFT)
+%  Given a list of PAGES and CHAPTERS, compute the number of pages
+%  before the beggining of the new chapters LEFT, using N as an accumulator
+%  (so should be set to 0 to get the actual value).
+
 % Count number of pages until next chapter start
 chapters_metrics_compute(PAGES, CHAPTERS, LEFT, LEFT) :-
   append([ PAGE ], _, PAGES),
@@ -79,22 +179,15 @@ chapters_metrics_compute(PAGES, CHAPTERS, N, LEFT) :-
   append([ _ ], TL, PAGES),
   NN is N+1,
   chapters_metrics_compute(TL, CHAPTERS, NN, LEFT).
-% CURRENT: current chapter
-% LEFT: number of pages left in current chapter
-% NEW: new comics in total
-% NEW_CHAPTERS: new chapters after current one
-chapters_metrics(WEBCOMIC, DOM, FROM, CURRENT, LEFT, NEW, NEW_CHAPTERS) :-
+
+%! webcomic_metrics(-WEBCOMIC, -DOM, -FROM, +CURRENT, +LEFT, +NEW, +NEW_CHAPTERS) is det
+%  Given a WEBCOMIC and the DOM of its archive, compute the current chapter CURRENT,
+%  the number of pages to the end of the chapter +LEFT, the number of pages left to
+%  the end of the webcomic +NEW, and the number of new chapters +NEW_CHAPTERS from
+%  a page FROM. If there are no chapters, CURRENT is the archive page.
+webcomic_metrics(WEBCOMIC, DOM, FROM, CURRENT, LEFT, NEW, NEW_CHAPTERS) :-
   webcomic_get_pages(WEBCOMIC, DOM, PAGES),
   webcomic_archive(WEBCOMIC, URL),
   webcomic_get_chapters(WEBCOMIC, DOM, CHAPTERS),
   chapters_metrics_find(PAGES, CHAPTERS, FROM, [ "Archive", URL ], CURRENT, LEFT, NEW, NEW_CHAPTERS).
 
-empowered_pages(PAGES) :-
-  file_load_html("empowered.html", DOM),
-  webcomic_get_pages(empowered, DOM, PAGES).
-empowered_chapters(CHAPTERS) :-
-  file_load_html("empowered.html", DOM),
-  webcomic_get_chapters(empowered, DOM, CHAPTERS).
-empowered_metrics(CHAP, L, N, NC) :-
-  file_load_html("empowered.html", DOM),
-  chapters_metrics(empowered, DOM, "https://www.empoweredcomic.com/comic/volume-2-page-80", CHAP, L, N, NC).

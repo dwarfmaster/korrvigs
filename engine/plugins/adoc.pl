@@ -28,3 +28,7 @@ plugins:is_available(CTX, adoc_store_file(PATH), DESC, 30) :-
   not(concat("/home/luc/downloads", _, PATH)),
   directory_file_path(_, FILE, PATH),
   concat("Store file ", FILE, DESC).
+
+% Helpers actions that can be used by others
+plugins:run_action_impl(1, adoc_set_attr(PATH, ATTR, VALUE), _) :-
+  wiki:set_attribute(PATH, ATTR, VALUE).

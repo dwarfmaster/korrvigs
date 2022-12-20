@@ -5,12 +5,14 @@
          , webcomic_pages_post/3
          , webcomic_chapters/4
          , webcomic_chapters_post/3
+         , webcomic_identity/2
          ]).
 :- multifile webcomic_archive/2.
 :- multifile webcomic_pages/4.
 :- multifile webcomic_pages_post/3.
 :- multifile webcomic_chapters/4.
 :- multifile webcomic_chapters_post/3.
+:- multifile webcomic_identity/2.
 :- use_module(korrvigs(plugins)).
 :- use_module(korrvigs(wiki)).
 
@@ -29,8 +31,10 @@
 %                                    
 % Actions
 
-wiki(CTX, UUID) :- member(pointing(wiki(UUID)), CTX).
+wiki(CTX, UUID) :- member(pointing(wiki(UUID)), CTX), !.
 wiki(CTX, UUID) :- member(reading(wiki(UUID)), CTX).
+url(CTX, URL) :- member(pointing(url(URL)), CTX), !.
+url(CTX, URL) :- member(reading(url(URL)), CTX).
 
 webcomic_continue_uuid(UUID_STR,URL,TITLE) :-
   atom_string(UUID, UUID_STR),
@@ -70,7 +74,25 @@ plugins:is_available(CTX, webcomic_update, DESC, 90) :-
   _{ webcomic: _, 'last-read': _, 'doctitle': TITLE } :< ATTRS,
   concat("Update metric on ", TITLE, DESC).
 
-% TODO store current page
+% TODO run webcomic_update afterwards
+plugins:run_action_impl(1, webcomic_save, CTX) :-
+  url(CTX, URL), !,
+  wiki:wiki_file(PATH, UUID),
+  wiki:get_attributes(PATH, ATTRS),
+  _{ 'webcomic': COMIC_STR } :< ATTRS, !,
+  atom_string(COMIC, COMIC_STR),
+  wiki:include_extra(UUID, ATTRS),
+  webcomic_identify(COMIC, URL), !,
+  wiki:set_attribute(PATH, 'last-read', URL).
+plugins:is_available(CTX, adoc_set_attr(PATH, 'last-read', URL), DESC, 100) :-
+  url(CTX, URL), !,
+  wiki:wiki_file(PATH, UUID),
+  wiki:get_attributes(PATH, ATTRS),
+  _{ 'webcomic': COMIC_STR, 'doctitle': TITLE } :< ATTRS,
+  atom_string(COMIC, COMIC_STR),
+  wiki:include_extra(UUID, ATTRS),
+  webcomic_identify(COMIC, URL), !,
+  concat("Remember reading status for ", TITLE, DESC).
 
 
 %  _   _ _   _ _ _ _   _           

@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require "asciidoctor"
-require "json"
-require "optparse"
-require "tempfile"
-require "fileutils"
+require 'asciidoctor'
+require 'json'
+require 'optparse'
+require 'tempfile'
+require 'fileutils'
 
 parser = OptionParser.new do |opts|
   opts.banner = <<USAGE
@@ -23,15 +23,15 @@ def attributes(path)
   document = Asciidoctor.load_file path
   puts JSON.dump(document.attributes)
 rescue Errno::ENOENT
-  puts "{}"
+  puts '{}'
   exit
 end
 
 def set_attr(path, attr, value)
-  temp = Tempfile.new("adoc")
+  temp = Tempfile.new('adoc')
 
   # Copy document to temp using doing the substitution
-  document = File.new(path, "r")
+  document = File.new(path, 'r')
   document.rewind
   before_header = true
   after_header = false
@@ -60,6 +60,8 @@ def set_attr(path, attr, value)
       end
     end
   end
+  # Necessary for the case the file end after the attributes
+  temp.puts ":#{attr}: #{value}" unless found
   document.close
   temp.close
 
@@ -70,13 +72,13 @@ def set_attr(path, attr, value)
 end
 
 case ARGV[0]
-when "attributes"
+when 'attributes'
   if ARGV.length != 2
     puts parser.banner
     exit!
   end
   attributes ARGV[1]
-when "set-attr"
+when 'set-attr'
   if ARGV.length != 4
     puts parser.banner
     exit!

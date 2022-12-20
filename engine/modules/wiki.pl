@@ -1,9 +1,11 @@
 
 :- module(wiki,
          [ wiki_file/2
+         , wiki_dir/2
          , get_attributes/2
          , set_attribute/3
          , register_adoc/4
+         , include_extra/2
          ]).
 :- use_module(library(process)).
 :- use_module(library(http/json)).
@@ -33,6 +35,12 @@ wiki_file(PATH, UUID) :-
   subs_of(ROOT, _, SUBDIR),
   subs_of(SUBDIR, UUID, WIKIDIR),
   adoc_file(WIKIDIR, PATH).
+
+%! wiki_dir(-UUID, +DIR) is det
+%  Given the UUID of an entry, build its path
+wiki_dir(UUID, DIR) :-
+  sub_atom(UUID, 0, 2, _, ID), data_dir(ROOT),
+  make_path([ ROOT, ID, UUID ], DIR).
 
 %! adoc_file(-WIKIDIR, +PATH) is nondet
 %  Find one asciidoc file in WIKIDIR
@@ -113,3 +121,12 @@ register_adoc(TITLE, AUTHOR, ATTRS, UUID) :-
     open(PATH, write, FILE, []),
     write_adoc(TITLE, AUTHOR, ATTRS, FILE),
     close(FILE)).
+
+%! include_extra(-UUID, -ATTRS) is det
+%  Given the UUID of an entry and its attribute, load its extra-prolog
+%  as a module if it has one.
+include_extra(UUID, ATTRS) :-
+  _{ 'extra-prolog': PL } :< ATTRS -> (
+    wiki_dir(UUID, DIR), directory_file_path(DIR, PL, PLUGIN),
+    concat("module-", UUID, MD), load_files(PLUGIN, [module(MD), if(changed)])
+  ).

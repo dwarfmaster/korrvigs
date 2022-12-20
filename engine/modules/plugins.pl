@@ -46,18 +46,17 @@ run_action_impl(0, ACT, CTX) :-
 %  In a given context, indicates if an action is available, and gives a score between 1 and 100
 %  of how relevant this action is, and the name of the action.
 
-%! find_plugin(+PATH, +MD)
-%  find a plugin and give the module name it must be loaded as
-find_plugin(PATH, MD) :-
+%! find_plugin(+PATH)
+%  find a plugin
+find_plugin(PATH) :-
   absolute_file_name(plugins("."), DIR, [access(exist), file_type(directory), solutions(all)]),
   directory_files(DIR, FILES),
   member(FILE, FILES),
-  concat(BASE, ".pl", FILE),
+  concat(_, ".pl", FILE),
   directory_file_path(DIR, FILE, PATH),
-  access_file(PATH, read),
-  concat("plugins-", BASE, MD).
+  access_file(PATH, read).
 
 %! load_all()
 %  Load all plugins in plugin directory
-load_all() :- forall(find_plugin(PATH, MD), load_files(PATH, [module(MD)])).
+load_all() :- forall(find_plugin(PATH), load_files(PATH, [])).
 

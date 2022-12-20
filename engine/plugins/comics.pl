@@ -52,19 +52,22 @@ plugins:run_action_impl(1, webcomic_update, CTX) :-
   atom_string(UUID, UUID_STR),
   wiki:wiki_file(PATH,UUID),
   wiki:get_attributes(PATH, ATTRS),
-  _{ webcomic: COMIC, 'last-read': LAST, 'url': URL } :< ATTRS,
-  html_load_file(URL, DOM),
-  webcomic_metrics(COMIC, DOM, LAST, CHAP, LEFT, NEW, NEW_CHAPTERS),
-  wiki:et_attribute(PATH, 'current-chapter', CHAP),
-  wiki:et_attribute(PATH, 'left-in-chapter', LEFT),
-  wiki:et_attribute(PATH, 'new-pages', NEW),
-  wiki:et_attribute(PATH, 'new-chapters', NEW_CHAPTERS).
+  _{ webcomic: COMIC_STR, 'last-read': LAST } :< ATTRS,
+  atom_string(COMIC, COMIC_STR),
+  wiki:include_extra(UUID, ATTRS),
+  webcomic_archive(COMIC, URL),
+  load_html_file(URL, DOM),
+  webcomic_metrics(COMIC, DOM, LAST, [_, CHAP], LEFT, NEW, NEW_CHAPTERS),
+  wiki:set_attribute(PATH, 'chapter', CHAP),
+  wiki:set_attribute(PATH, 'new-in-chapter', LEFT),
+  wiki:set_attribute(PATH, 'new-pages', NEW),
+  wiki:set_attribute(PATH, 'new-chapters', NEW_CHAPTERS).
 plugins:is_available(CTX, webcomic_update, DESC, 90) :-
   wiki(CTX, UUID_STR),
   atom_string(UUID, UUID_STR),
   wiki_file(PATH,UUID),
   wiki:get_attributes(PATH, ATTRS),
-  _{ webcomic: _, 'last-read': _, 'url': _, 'doctitle': TITLE } :< ATTRS,
+  _{ webcomic: _, 'last-read': _, 'doctitle': TITLE } :< ATTRS,
   concat("Update metric on ", TITLE, DESC).
 
 % TODO store current page

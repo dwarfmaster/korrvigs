@@ -1,20 +1,29 @@
 
-:- module(comics,
-         [ webcomic_archive/2
-         , webcomic_pages/4
-         , webcomic_pages_post/3
-         , webcomic_chapters/4
-         , webcomic_chapters_post/3
-         , webcomic_identity/2
+:- module(webcomics,
+         [ archive/2
+         , pages/4
+         , pages_post/3
+         , chapters/4
+         , chapters_post/3
+         , identity/2
+         , first_page/2
+         , jump_to_page/1
+         , jump_to_chapter/1
+         , remote_call/1
+         , update_metrics/3
          ]).
-:- multifile webcomic_archive/2.
-:- multifile webcomic_pages/4.
-:- multifile webcomic_pages_post/3.
-:- multifile webcomic_chapters/4.
-:- multifile webcomic_chapters_post/3.
-:- multifile webcomic_identity/2.
-:- use_module(korrvigs(plugins)).
+:- multifile archive/2.
+:- multifile pages/4.
+:- multifile pages_post/3.
+:- multifile chapters/4.
+:- multifile chapters_post/3.
+:- multifile identity/2.
+:- multifile first_page/2.
+:- use_module(korrvigs(actions)).
 :- use_module(korrvigs(wiki)).
+:- use_module(korrvigs(ctx)).
+:- use_module(korrvigs(files)).
+:- use_module(korrvigs(fzf)).
 
 :- use_module(library(http/http_open), [ http_open/3 ]).
 :- use_module(library(http/http_ssl_plugin)).
@@ -31,69 +40,122 @@
 %                                    
 % Actions
 
-wiki(CTX, UUID) :- member(pointing(wiki(UUID)), CTX), !.
-wiki(CTX, UUID) :- member(reading(wiki(UUID)), CTX).
-url(CTX, URL) :- member(pointing(url(URL)), CTX), !.
-url(CTX, URL) :- member(reading(url(URL)), CTX).
-
-webcomic_continue_uuid(UUID_STR,URL,TITLE) :-
+%! wiki_attrs(-PATH, -UUID, -ATTRS)
+%  Get the attributes and uuid of the wiki in the context.
+wiki_attrs(PATH, UUID, ATTRS) :-
+  ctx:wiki(UUID_STR),
   atom_string(UUID, UUID_STR),
-  wiki_file(PATH, UUID),
-  wiki:get_attributes(PATH, ATTRS),
-  _{ webcomic: _, 'last-read': URL, 'doctitle': TITLE } :< ATTRS.
+  wiki:wiki_file(PATH, UUID),
+  wiki:get_attributes(PATH, ATTRS).
 
-plugins:run_action_impl(1, webcomic_continue, CTX) :-
-  wiki(CTX,UUID),
-  webcomic_continue_uuid(UUID,URL,_),
-  plugins:run_action(open_url(URL), CTX).
-plugins:is_available(CTX, open_url(URL), DESC, 100) :-
-  wiki(CTX, UUID),
-  webcomic_continue_uuid(UUID, URL, TITLE),
+%! get(+ATTRS, -COMIC, -LAST_READ)
+%  Given the attributes of the webcomic page, get the webcomic name
+%  and the last read page.
+get(ATTRS, COMIC, LAST) :-
+  _{ 'webcomic': COMIC_STR, 'last-read': LAST } :< ATTRS, !,
+  atom_string(COMIC, COMIC_STR).
+get(ATTRS, COMIC, FIRST) :-
+  _{ 'webcomic': COMIC_STR } :< ATTRS,
+  atom_string(COMIC, COMIC_STR),
+  first_page(COMIC, FIRST).
+
+% Open last read page
+actions:register(100, DESC, files:view_url(URL)) :-
+  ctx:desktop(),
+  wiki_attrs(_, _, ATTRS),
+  get(ATTRS, _, URL),
+  _{ 'doctitle': TITLE } :< ATTRS,
   concat("Continue ", TITLE, DESC).
 
-plugins:run_action_impl(1, webcomic_update, CTX) :-
-  wiki(CTX, UUID_STR),
-  atom_string(UUID, UUID_STR),
-  wiki:wiki_file(PATH,UUID),
-  wiki:get_attributes(PATH, ATTRS),
-  _{ webcomic: COMIC_STR, 'last-read': LAST } :< ATTRS,
+%! webcomic_file(-WEBCOMIC)
+%  WEBCOMIC is a quadruplet of a path, an UUID, the attributes and the atom of the webcomic
+wiki_file([ FILE, UUID, ATTRS, COMIC ]) :-
+  wiki:wiki_file(FILE, UUID),
+  wiki:get_attributes(FILE, ATTRS),
+  _{ 'webcomic': COMIC_STR } :< ATTRS,
+  atom_string(COMIC, COMIC_STR).
+
+%! remote_call(+CALL)
+%  Call CALL on a selected webcomic
+remote_call_option([ COMIC, TITLE ]) :-
+  wiki_file([ _, _, ATTRS, COMIC ]),
+  _{ 'doctitle': TITLE } :< ATTRS.
+remote_call(CALL) :-
+  bagof(COMIC, remote_call_option(COMIC), COMICS),
+  fzf:select(COMICS, COMIC_STR),
   atom_string(COMIC, COMIC_STR),
-  wiki:include_extra(UUID, ATTRS),
-  webcomic_archive(COMIC, URL),
+  print(COMIC),
+  call(CALL, COMIC).
+
+%! jump_to_page(+COMIC)
+%  Fuzzy select a page in a comic and jump to it
+flip([A,B], [B,A]).
+jump_to_page(COMIC) :-
+  webcomic_dom(COMIC, DOM),
+  webcomic_get_pages(COMIC, DOM, PAGES),
+  maplist(flip, PAGES, CHOICES),
+  fzf:select(CHOICES, PAGE),
+  files:view_url(PAGE).
+
+% Jump to page
+actions:register(50, DESC, webcomics:jump_to_page(COMIC)) :-
+  ctx:desktop(),
+  wiki_attrs(_, _, ATTRS),
+  get(ATTRS, COMIC, _),
+  _{ 'doctitle': TITLE } :< ATTRS,
+  concat("Jump to page of ", TITLE, DESC).
+actions:register(10, "Jump to a webcomic page", webcomics:remote_call(jump_to_page)) :-
+  ctx:desktop().
+
+%! jump_to_chapter(+COMIC)
+%  Fuzzy select a chapter in a comic and jump to it
+jump_to_chapter(COMIC) :-
+  webcomic_dom(COMIC, DOM),
+  webcomic_get_chapters(COMIC, DOM, CHAPS),
+  maplist(flip, CHAPS, CHOICES),
+  fzf:select(CHOICES, CHAP),
+  files:view_url(CHAP).
+
+% Jump to chapter
+actions:register(50, DESC, webcomics:jump_to_chapter(COMIC)) :-
+  ctx:desktop(),
+  wiki_attrs(_, _, ATTRS),
+  get(ATTRS, COMIC, _),
+  _{ 'doctitle': TITLE } :< ATTRS,
+  concat("Jump to chapter of ", TITLE, DESC).
+actions:register(10, "Jump to a webcomic chapter", webcomics:remote_call(jump_to_chapter)) :-
+  ctx:desktop().
+
+%! update_metrics(-PATH, -LAST, -COMIC)
+%  Update the metrics for the comic COMIC at path PATH and uuid UUID.
+update_metrics(PATH, LAST, COMIC) :-
+  archive(COMIC, URL),
   load_html_file(URL, DOM),
   webcomic_metrics(COMIC, DOM, LAST, [_, CHAP], LEFT, NEW, NEW_CHAPTERS),
   wiki:set_attribute(PATH, 'chapter', CHAP),
   wiki:set_attribute(PATH, 'new-in-chapter', LEFT),
   wiki:set_attribute(PATH, 'new-pages', NEW),
   wiki:set_attribute(PATH, 'new-chapters', NEW_CHAPTERS).
-plugins:is_available(CTX, webcomic_update, DESC, 90) :-
-  wiki(CTX, UUID_STR),
-  atom_string(UUID, UUID_STR),
-  wiki_file(PATH,UUID),
-  wiki:get_attributes(PATH, ATTRS),
-  _{ webcomic: _, 'last-read': _, 'doctitle': TITLE } :< ATTRS,
-  concat("Update metric on ", TITLE, DESC).
 
-% TODO run webcomic_update afterwards
-plugins:run_action_impl(1, webcomic_save, CTX) :-
-  url(CTX, URL), !,
-  wiki:wiki_file(PATH, UUID),
-  wiki:get_attributes(PATH, ATTRS),
-  _{ 'webcomic': COMIC_STR } :< ATTRS, !,
-  atom_string(COMIC, COMIC_STR),
-  wiki:include_extra(UUID, ATTRS),
-  webcomic_identify(COMIC, URL), !,
-  wiki:set_attribute(PATH, 'last-read', URL).
-plugins:is_available(CTX, adoc_set_attr(PATH, 'last-read', URL), DESC, 100) :-
-  url(CTX, URL), !,
-  wiki:wiki_file(PATH, UUID),
+% Update metrics from last read page
+actions:register(80, DESC, webcomics:update_metrics(PATH, LAST, COMIC)) :-
+  ctx:desktop(),
+  wiki_attrs(PATH, _, ATTRS),
+  get(ATTRS, COMIC, LAST),
+  _{ 'doctitle': TITLE } :< ATTRS,
+  concat("Update metrics for ", TITLE, DESC).
+
+
+% Save currently open page as last-read
+actions:register(100, DESC, wiki:set_attribute(PATH, 'last-read', URL)) :-
+  ctx:desktop(),
+  ctx:url(URL),
+  identify(COMIC, URL),
+  wiki:wiki_file(PATH, _),
   wiki:get_attributes(PATH, ATTRS),
   _{ 'webcomic': COMIC_STR, 'doctitle': TITLE } :< ATTRS,
   atom_string(COMIC, COMIC_STR),
-  wiki:include_extra(UUID, ATTRS),
-  webcomic_identify(COMIC, URL), !,
-  concat("Remember reading status for ", TITLE, DESC).
-
+  concat("Bookmark for ", TITLE, DESC).
 
 %  _   _ _   _ _ _ _   _           
 % | | | | |_(_) (_) |_(_) ___  ___ 
@@ -129,28 +191,28 @@ http_load_html(URL, DOM) :-
 %! webcomic_dom(-WEBCOMIC, +DOM) is det
 %  Given a webcomic id, parse the relevant page
 webcomic_dom(WEBCOMIC, DOM) :-
-  webcomic_archive(WEBCOMIC, URL),
+  archive(WEBCOMIC, URL),
   http_load_html(URL, DOM).
 %! webcomic_pages_pair(-WEBCOMIC, -DOM, +PAIR) is nondet
 %  Get a pair of a title and an url of a page of a webcomic, found
 %  by scrapping the DOM of its archive page. No guarantee is made on
 %  the order
 webcomic_pages_pair(WEBCOMIC, DOM, [ TITLE, URL ]) :-
-  webcomic_pages(WEBCOMIC, DOM, TITLE, URL).
+  pages(WEBCOMIC, DOM, TITLE, URL).
 %! webcomic_get_pages(-WEBCOMIC, -DOM, +PAGES) is det
 %  Get all PAGES as pair of a webcomic, in the chronological order
 webcomic_get_pages(WEBCOMIC, DOM, PAGES) :-
   bagof(PAIR, webcomic_pages_pair(WEBCOMIC, DOM, PAIR), TMP),
-  webcomic_pages_post(WEBCOMIC, TMP, PAGES).
+  pages_post(WEBCOMIC, TMP, PAGES).
 %! webcomic_chapters_pair(-WEBCOMIC, -DOM, +PAIR) is nondet
 %  Same as webcomic_pages_pair but for chapters
 webcomic_chapters_pair(WEBCOMIC, DOM, [ TITLE, URL ]) :-
-  webcomic_chapters(WEBCOMIC, DOM, TITLE, URL).
+  chapters(WEBCOMIC, DOM, TITLE, URL).
 %! webcomic_get_chapters(-WEBCOMIC, -DOM, +CHAPTERS) is det
 %  Same as webcomic_get_pages but for chapters
 webcomic_get_chapters(WEBCOMIC, DOM, CHAPTERS) :-
   bagof(PAIR, webcomic_chapters_pair(WEBCOMIC, DOM, PAIR), TMP),
-  webcomic_chapters_post(WEBCOMIC, TMP, CHAPTERS).
+  chapters_post(WEBCOMIC, TMP, CHAPTERS).
 
 page_url([ _, URL ], URL).
 page_title([ TITLE, _ ], TITLE).
@@ -213,7 +275,7 @@ chapters_metrics_compute(PAGES, CHAPTERS, N, LEFT) :-
 %  a page FROM. If there are no chapters, CURRENT is the archive page.
 webcomic_metrics(WEBCOMIC, DOM, FROM, CURRENT, LEFT, NEW, NEW_CHAPTERS) :-
   webcomic_get_pages(WEBCOMIC, DOM, PAGES),
-  webcomic_archive(WEBCOMIC, URL),
+  archive(WEBCOMIC, URL),
   webcomic_get_chapters(WEBCOMIC, DOM, CHAPTERS),
   chapters_metrics_find(PAGES, CHAPTERS, FROM, [ "Archive", URL ], CURRENT, LEFT, NEW, NEW_CHAPTERS).
 

@@ -9,16 +9,16 @@
 
 view_text(PATH) :- nvim:sock(SOCK), !, nvim:edit(SOCK, PATH).
 edit_text(PATH) :- nvim:sock(SOCK), !, nvim:edit(SOCK, PATH).
-actions:register(1, DESC, files:edit_text(PATH)) :-
+actions:register(100, DESC, files:edit_text(PATH)) :-
   ctx:desktop(),
-  ctx:pointing(_, path(PATH)),
+  ctx:pointing(path(PATH)),
   exists_file(PATH),
   file_base_name(PATH, NAME),
   concat("Open ", NAME, DESC).
 
 view_url(URL) :-
   process_create(path("firefox-launcher"), [ URL ], [ detached(true) ]).
-actions:register(1, "Open", files:view_url(URL)) :-
+actions:register(100, "Open", files:view_url(URL)) :-
   ctx:desktop(),
-  ctx:pointing(_, url(URL)).
+  ctx:pointing(url(URL)).
 

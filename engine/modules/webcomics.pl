@@ -10,7 +10,7 @@
          , jump_to_page/1
          , jump_to_chapter/1
          , remote_call/1
-         , update_metrics/3
+         , update_metrics/1
          ]).
 :- multifile archive/2.
 :- multifile pages/4.
@@ -40,46 +40,23 @@
 %                                    
 % Actions
 
-%! wiki_attrs(-PATH, -UUID, -ATTRS)
-%  Get the attributes and uuid of the wiki in the context.
-wiki_attrs(PATH, UUID, ATTRS) :-
-  ctx:wiki(UUID_STR),
-  atom_string(UUID, UUID_STR),
-  wiki:wiki_file(PATH, UUID),
-  wiki:get_attributes(PATH, ATTRS).
+%! wiki(-UUID)
+%  Get the current wiki
+ctx_wiki(UUID) :- ctx:wiki(UUID_STR), atom_string(UUID, UUID_STR).
 
-%! get(+ATTRS, -COMIC, -LAST_READ)
-%  Given the attributes of the webcomic page, get the webcomic name
-%  and the last read page.
-get(ATTRS, COMIC, LAST) :-
-  _{ 'webcomic': COMIC_STR, 'last-read': LAST } :< ATTRS, !,
-  atom_string(COMIC, COMIC_STR).
-get(ATTRS, COMIC, FIRST) :-
-  _{ 'webcomic': COMIC_STR } :< ATTRS,
-  atom_string(COMIC, COMIC_STR),
-  first_page(COMIC, FIRST).
-
-% Open last read page
+% Open last rad page
 actions:register(100, DESC, files:view_url(URL)) :-
   ctx:desktop(),
-  wiki_attrs(_, _, ATTRS),
-  get(ATTRS, _, URL),
-  _{ 'doctitle': TITLE } :< ATTRS,
+  ctx_wiki(UUID),
+  wiki:attr(UUID, [ atom('webcomic'), 'last-read' ], [ _, URL ]),
+  wiki:title(UUID, TITLE),
   concat("Continue ", TITLE, DESC).
-
-%! webcomic_file(-WEBCOMIC)
-%  WEBCOMIC is a quadruplet of a path, an UUID, the attributes and the atom of the webcomic
-wiki_file([ FILE, UUID, ATTRS, COMIC ]) :-
-  wiki:wiki_file(FILE, UUID),
-  wiki:get_attributes(FILE, ATTRS),
-  _{ 'webcomic': COMIC_STR } :< ATTRS,
-  atom_string(COMIC, COMIC_STR).
 
 %! remote_call(+CALL)
 %  Call CALL on a selected webcomic
 remote_call_option([ COMIC, TITLE ]) :-
-  wiki_file([ _, _, ATTRS, COMIC ]),
-  _{ 'doctitle': TITLE } :< ATTRS.
+  wiki:attr(UUID, atom('webcomic'), COMIC),
+  wiki:title(UUID, TITLE).
 remote_call(CALL) :-
   bagof(COMIC, remote_call_option(COMIC), COMICS),
   fzf:select(COMICS, COMIC_STR),
@@ -100,9 +77,9 @@ jump_to_page(COMIC) :-
 % Jump to page
 actions:register(50, DESC, webcomics:jump_to_page(COMIC)) :-
   ctx:desktop(),
-  wiki_attrs(_, _, ATTRS),
-  get(ATTRS, COMIC, _),
-  _{ 'doctitle': TITLE } :< ATTRS,
+  ctx_wiki(UUID),
+  wiki:attr(UUID, atom('webcomic'), COMIC),
+  wiki:title(UUID, TITLE),
   concat("Jump to page of ", TITLE, DESC).
 actions:register(10, "Jump to a webcomic page", webcomics:remote_call(jump_to_page)) :-
   ctx:desktop().
@@ -119,42 +96,42 @@ jump_to_chapter(COMIC) :-
 % Jump to chapter
 actions:register(50, DESC, webcomics:jump_to_chapter(COMIC)) :-
   ctx:desktop(),
-  wiki_attrs(_, _, ATTRS),
-  get(ATTRS, COMIC, _),
-  _{ 'doctitle': TITLE } :< ATTRS,
+  ctx_wiki(UUID),
+  wiki:attr(UUID, atom('webcomic'), COMIC),
+  wiki:title(UUID, TITLE),
   concat("Jump to chapter of ", TITLE, DESC).
 actions:register(10, "Jump to a webcomic chapter", webcomics:remote_call(jump_to_chapter)) :-
   ctx:desktop().
 
-%! update_metrics(-PATH, -LAST, -COMIC)
-%  Update the metrics for the comic COMIC at path PATH and uuid UUID.
-update_metrics(PATH, LAST, COMIC) :-
+%! update_metrics(-COMIC)
+%  Update the metrics for the comic COMIC
+update_metrics(COMIC) :-
+  wiki:attr(UUID, atom('webcomic'), COMIC),
+  wiki:attr(UUID, 'last-read', LAST),
   archive(COMIC, URL),
   load_html_file(URL, DOM),
   webcomic_metrics(COMIC, DOM, LAST, [_, CHAP], LEFT, NEW, NEW_CHAPTERS),
-  wiki:set_attribute(PATH, 'chapter', CHAP),
-  wiki:set_attribute(PATH, 'new-in-chapter', LEFT),
-  wiki:set_attribute(PATH, 'new-pages', NEW),
-  wiki:set_attribute(PATH, 'new-chapters', NEW_CHAPTERS).
+  wiki:set_attr(UUID,
+    [ 'chapter', 'new-in-chapter', 'new-pages', 'new-chapters' ],
+    [ CHAP,      LEFT,             NEW,         NEW_CHAPTERS   ]).
 
 % Update metrics from last read page
-actions:register(80, DESC, webcomics:update_metrics(PATH, LAST, COMIC)) :-
+actions:register(80, DESC, webcomics:update_metrics(COMIC)) :-
   ctx:desktop(),
-  wiki_attrs(PATH, _, ATTRS),
-  get(ATTRS, COMIC, LAST),
-  _{ 'doctitle': TITLE } :< ATTRS,
+  ctx_wiki(UUID),
+  wiki:attr(UUID, [ atom('webcomic'), 'last-read' ], [ COMIC, _ ]),
+  wiki:title(UUID, TITLE),
   concat("Update metrics for ", TITLE, DESC).
 
 
 % Save currently open page as last-read
-actions:register(100, DESC, wiki:set_attribute(PATH, 'last-read', URL)) :-
+actions:register(100, DESC, wiki:set_attr(UUID, 'last-read', URL)) :-
   ctx:desktop(),
   ctx:url(URL),
   identify(COMIC, URL),
-  wiki:wiki_file(PATH, _),
-  wiki:get_attributes(PATH, ATTRS),
-  _{ 'webcomic': COMIC_STR, 'doctitle': TITLE } :< ATTRS,
   atom_string(COMIC, COMIC_STR),
+  wiki:attr(UUID, atom('webcomic'), COMIC_STR),
+  wiki:title(UUID, TITLE),
   concat("Bookmark for ", TITLE, DESC).
 
 %  _   _ _   _ _ _ _   _           

@@ -52,3 +52,4 @@ spawn_terminal(CMD) :-
 %                      |_|    
 
 :- load_modules().
+:- wiki:reload_all().

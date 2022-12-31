@@ -87,9 +87,6 @@ uuid_dir(UUID, DIR_IN) :-
 %  files(++UUID, -PATH) is semidet
 %  files(-UUID, ++PATH) is semidet
 file(UUID_IN, PATH) :-
-  to_atom(UUID_IN, UUID),
-  reload_if_new(UUID, PATH), !.
-file(UUID_IN, PATH) :-
   to_atom(UUID_IN, UUID), !,
   uuid_dir(UUID, DIR),
   file_in_dir(DIR, PATH),

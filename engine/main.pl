@@ -7,6 +7,7 @@
 % |_|  |_|\___/ \__,_|\__,_|_|\___||___/
 %                                       
 user:file_search_path(korrvigs, "/home/luc/repos/korrvigs/engine/modules").
+user:file_search_path(library, "/home/luc/repos/korrvigs/tree-sitter").
 
 %! find_module(+PATH)
 %  find a module
@@ -20,7 +21,7 @@ find_module(PATH) :-
 
 %! load_modules()
 %  Load all modules
-load_modules() :- forall(find_module(PATH), load_files(PATH, [])).
+load_modules() :- forall(find_module(PATH), use_module(PATH)).
 
 
 %   ____             __ _       

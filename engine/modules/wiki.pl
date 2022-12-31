@@ -7,9 +7,9 @@
          , title/2
          , attr/3
          ]).
-:- use_module(korrvigs(adoc)).
 :- use_module(korrvigs(actions)).
 :- use_module(korrvigs(ctx)).
+:- use_module(korrvigs(norg)).
 
 :- use_module(library(process)).
 :- use_module(library(http/json)).
@@ -61,10 +61,14 @@ reload_file(UUID, PATH) :-
 %  its entry is cleared and reload_if_new fails.
 reload_if_new(UUID, PATH) :-
   (atom(UUID) -> true; instantiation_error(UUID)),
-  wiki_file_store(UUID, PATH, TIMESTAMP),
   (exists_file(PATH) -> true; unload_file(UUID, PATH), fail),
-  time_file(PATH, NEW_TIME),
-  (NEW_TIME > TIMESTAMP, !, reload_file(UUID, PATH); true).
+  ( ( wiki_file_store(UUID, PATH, TIMESTAMP),
+      time_file(PATH, NEW_TIME),
+      NEW_TIME > TIMESTAMP
+    ; not(wiki_file_store(UUID, PATH, _))
+    ) -> reload_file(UUID, PATH)
+  ; true
+  ).
 
 %! uuid_dir(++UUID, -DIR) is det
 %  uuid_dir(-UUID, ++DIR) is det
@@ -104,13 +108,14 @@ file(UUID, PATH) :-
 reload_all() :-
   forall(
     find_file(UUID, PATH),
-    reload_file(UUID, PATH)).
+    ( format("Reloading ~w~n", [ UUID ]),
+      reload_file(UUID, PATH))).
 
 %! file_in_dir(++DIR, -PATH) is semidet
 %  Find the wiki file in DIR
 file_in_dir(DIR, PATH) :-
   subs_of(DIR, FILE, PATH),
-  file_name_extension(_, "adoc", FILE), !.
+  file_name_extension(_, "norg", FILE), !.
 
 %! find_file(-UUID, -PATH) is nondet
 %  Find all wiki files without using cached data
@@ -156,11 +161,12 @@ unload_metadata(UUID, _) :-
 %! load_metadata(++UUID, ++PATH) is semidet
 %  Load the metadata of an entry
 load_metadata(UUID, PATH) :-
-  adoc:get_attributes(PATH, ATTRS),
+  norg:parse(PATH, NORG),
+  norg:get_attributes(NORG, ATTRS),
   forall(
     get_dict(NAME, ATTRS, VALUE),
     assertz(wiki_attr_stored(UUID, NAME, VALUE))),
-  _{ 'doctitle': TITLE } :< ATTRS,
+  norg:get_title(NORG, TITLE),
   assertz(wiki_title_stored(UUID, TITLE)).
 
 handler(load_metadata, unload_metadata).
@@ -194,12 +200,15 @@ attr(UUID, ATTR, VALUE) :-
 set_attr(UUID, ATTRS, VALS) :-
   is_list(ATTRS), !,
   zip(ATTRS, VALS, SETS),
-  forall(
-    member([ ATTR, VAL ], SETS),
-    set_attr(UUID, ATTR, VAL)).
+  file(UUID, PATH),
+  norg:parse(PATH, NORG),
+  norg:set_attributes(NORG, SETTED, SETS),
+  norg:commit(SETTED).
 set_attr(UUID, ATTR, VAL) :-
   file(UUID, PATH),
-  adoc:set_attribute(PATH, ATTR, VAL).
+  norg:parse(PATH, NORG),
+  norg:set_attribute(NORG, SETTED, ATTR, VAL),
+  norg:commut(SETTED).
 
 
 %  _____      _               ____            _             

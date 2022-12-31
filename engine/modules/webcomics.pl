@@ -163,7 +163,8 @@ http_load_html(URL, DOM) :-
   tmp_file_stream(text, TMP, WRT),
   process_create(path(curl), [ URL ], [ stdout(stream(WRT)), stderr(null) ]),
   close(WRT),
-  file_load_html(TMP, DOM).
+  file_load_html(TMP, DOM),
+  delete_file(TMP).
 
 %! webcomic_dom(-WEBCOMIC, +DOM) is det
 %  Given a webcomic id, parse the relevant page

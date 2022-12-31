@@ -6,12 +6,14 @@
 :- use_foreign_library('norg_parser.so').
 :- use_module(library(xpath)).
 
-parse_norg(stream(STREAM), DOM) :-
+parse_norg(stream(STREAM), DOM) :- !,
   read_string(STREAM, "", "", _, STR),
   parse_norg_impl(STR, DOM).
-parse_norg(file(PATH), DOM) :-
-  open(PATH, read, STREAM, []),
-  parse_norg(stream(STREAM), DOM).
+parse_norg(file(PATH), DOM) :- !,
+  setup_call_cleanup(
+    open(PATH, read, STREAM, []),
+    parse_norg(stream(STREAM), DOM),
+    close(STREAM)).
 parse_norg(STR, DOM) :- parse_norg_impl(STR, DOM).
 
 % Some query examples

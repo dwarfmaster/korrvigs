@@ -34,9 +34,6 @@ load_modules() :- forall(find_module(PATH), use_module(PATH)).
 %! data_dir(+DIR) is det
 %  data_dir indicates the directory in which the wiki files must be looked up
 data_dir("/home/luc/downloads/wiki").
-%! extract_script(+SCRIPT)
-%  extract_script indicates the absolute path to the extractor script
-extract_script("/home/luc/repos/korrvigs/extractor/extract.rb").
 %! spawn_terminal(-CMD)
 %  run a terminal executing command
 spawn_terminal(CMD) :-

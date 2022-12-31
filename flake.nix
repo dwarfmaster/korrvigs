@@ -8,11 +8,6 @@
 
     pkgs = import nixpkgs {system = "x86_64-linux";};
 
-    gems = pkgs.bundlerEnv {
-      name = "asciidoc-knowledge-database";
-      gemdir = ./extractor;
-    };
-
     norg-source = pkgs.fetchFromGitHub {
       owner = "nvim-neorg";
       repo = "tree-sitter-norg";
@@ -22,8 +17,6 @@
 
     shell = pkgs.mkShell {
       packages = [
-        gems.wrappedRuby
-        gems
         pkgs.swiProlog
         pkgs.python3
       ];

@@ -7,7 +7,14 @@
 :- use_module(korrvigs(actions)).
 :- use_module(korrvigs(ctx)).
 
-actions_handler(_) :-
+ctx_from_request(REQ) :-
+  member(search(SEARCH), REQ),
+  forall(
+    member(CTX = VAL, SEARCH),
+    ctx:set(CTX, VAL)).
+
+actions_handler(REQ) :-
+  ctx_from_request(REQ),
   actions:list(ACTS), !,
   maplist([[ NAME, ACT ], O]>> (term_string(ACT, CODE), 
                                 O = _{'name': NAME, 'code': CODE}), 

@@ -1,6 +1,8 @@
 
 :- module(nvim, []).
-:- dynamic sock/1 as local.
+:- use_module(korrvigs(ctx)).
+
+ctx:declare(nvim, path, "NVIM instance socket").
 
 %! view(+SOCK, +FILE)
 %  Open a file in neovim as readonly file
@@ -11,6 +13,3 @@ view(SOCK, PATH) :-
 %  Open a file in neovim
 edit(SOCK, PATH) :-
   process_create(path(nvim), [ "--server", SOCK, "--remote", PATH ], [ ]).
-
-%! sock(SOCK)
-%  A socket SOCK connected to a neovim instance

@@ -119,10 +119,10 @@ find_file(UUID, PATH) :-
   file_in_dir(DIR, PATH).
 
 actions:register(5, "Reload wiki", wiki:reload_all()) :-
-  ctx:desktop().
+  ctx:get(desktop, true).
 actions:register(30, DESC, wiki:reload_file(UUID, PATH)) :-
-  ctx:desktop(),
-  ctx:wiki(UUID),
+  ctx:get(desktop, true),
+  ctx:get(wiki, UUID),
   file(UUID, PATH),
   file_base_name(PATH, NAME),
   concat("Reload ", NAME, DESC).

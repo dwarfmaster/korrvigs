@@ -1,12 +1,14 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <signal.h>
 
 int main(int argc, char *argv[]) {
-  if(argc < 2) {
-    fprintf(stderr, "Usage: %s /path/to/socket exec args...\n", argv[0]);
+  if(argc < 3) {
+    fprintf(stderr, "Usage: %s /path/to/socket PID exec args...\n", argv[0]);
     return 1;
   }
 
@@ -31,10 +33,14 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  int client_pid = atoi(argv[2]);
+  // Notify client the server is up
+  kill(client_pid, SIGUSR1);
+
   int cfd = accept(fd, NULL, NULL);
   dup2(cfd, 0);
   dup2(cfd, 1);
-  execvp(argv[2], argv+2);
+  execvp(argv[3], argv+3);
 
   return 0;
 }

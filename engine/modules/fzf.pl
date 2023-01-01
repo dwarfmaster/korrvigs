@@ -29,5 +29,4 @@ select(CHOICES, CHOICE) :-
 %  Same as select, but assume the values are path to text files, enabling
 %  a previewer in fzf
 select_text(CHOICES, CHOICE) :-
-  format("Selecting~n"),
   run(CHOICES, [ "--preview", "bat --color=always {+1}" ], CHOICE).

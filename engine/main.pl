@@ -8,6 +8,7 @@
 %                                       
 user:file_search_path(korrvigs, "/home/luc/repos/korrvigs/engine/modules").
 user:file_search_path(library, "/home/luc/repos/korrvigs/tree-sitter").
+user:file_search_path(library, "/home/luc/repos/korrvigs/engine/posix").
 
 %! find_module(+PATH)
 %  find a module

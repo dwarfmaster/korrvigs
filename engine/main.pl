@@ -50,4 +50,5 @@ spawn_terminal(CMD) :-
 %                      |_|    
 
 :- load_modules().
+:- xdg:runtime(RT), set_prolog_flag(tmp_dir, RT).
 :- wiki:reload_all().

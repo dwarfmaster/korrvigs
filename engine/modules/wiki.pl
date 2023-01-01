@@ -15,6 +15,7 @@
 :- use_module(library(http/json)).
 :- use_module(library(dcg/basics)).
 :- use_module(library(dcg/high_order)).
+:- use_module(library(uuid)).
 
 %  _____ _ _           
 % |  ___(_) | ___  ___ 
@@ -74,7 +75,7 @@ reload_if_new(UUID, PATH) :-
 %  uuid_dir(-UUID, ++DIR) is det
 %  Given the UUID of an entry, return its directory
 uuid_dir(UUID_IN, DIR) :-
-  to_atom(UUID_IN, UUID),
+  to_atom(UUID_IN, UUID), !,
   sub_atom(UUID, 0, 2, _, ID), data_dir(ROOT),
   directory_file_path(ROOT, ID, PATH_ID),
   directory_file_path(PATH_ID, UUID, DIR).
@@ -132,6 +133,20 @@ actions:register(30, DESC, wiki:reload_file(UUID, PATH)) :-
   file(UUID, PATH),
   file_base_name(PATH, NAME),
   concat("Reload ", NAME, DESC).
+
+%! new(+TITLE, +AUTHORS, +ATTRS, -UUID)
+%  Create a new norg file
+new(TITLE, AUTHORS, ATTRS, UUID) :-
+  uuid(UUID), !,
+  uuid_dir(UUID, DIR),
+  make_dir_rec(DIR),
+  glob_filename(TITLE, BASENAME),
+  file_name_extension(BASENAME, "norg", FILENAME),
+  directory_file_path(DIR, FILENAME, PATH), !,
+  setup_call_cleanup(
+    open(PATH, write, STREAM),
+    norg:init(TITLE, AUTHORS, ATTRS, STREAM),
+    close(STREAM)).
 
 
 %  __  __      _            _       _        
@@ -247,14 +262,6 @@ handler(load_extra, unload_extra).
 %  \___/ \__|_|_|___/
 %                    
 
-%! gen_uuid(--UUID) is det
-%  Generate a new UUID
-gen_uuid(UUID) :-
-  setup_call_cleanup(
-    process_create(path(uuidgen), [], [ stdout(pipe(OUT)) ]),
-    read_string(OUT, 36, UUID),
-    close(OUT)).
-
 %! to_atom(+STR, -ATOM) is semidet
 %  If STR is a string, convert it to an atom. If it is an atom,
 %  return it as itself. Otherwise fails.
@@ -307,3 +314,38 @@ expand_path(ROOT, REL, ABS) :-
 %! zip(?A, ?B, ?C) is semidet
 zip([], [], []).
 zip([A|As], [B|Bs], [[A,B]|Cs]) :- zip(As, Bs, Cs).
+
+%! make_dir_rec(+DIR)
+%  Same as make_directory, but may create intermediary directories
+make_dir_rec(DIR) :-
+  exists_directory(DIR), !.
+make_dir_rec(DIR) :-
+  directory_file_path(SUB, _, DIR),
+  make_dir_rec(SUB),
+  make_directory(DIR).
+
+%! valid_char(-CHAR) is det
+%  Succeeds on caracters that are valid in a filename
+valid_char(CHAR) :-
+  char_type(CHAR, ascii),
+  char_type(CHAR, csym).
+valid_char('.').
+
+%! glob_filename_character(-CHAR, +GLOBBED) is det
+%  Given a character CHAR in the title of an entry, transform it into the character that must
+%  go into the file name of that entry.
+glob_filename_character(CHAR, GLOBBED) :-
+  valid_char(CHAR), !,
+  downcase_atom(CHAR, GLOBBED).
+glob_filename_character(CHAR, '_') :-
+  char_type(CHAR, white), !.
+glob_filename_character(_, 'X').
+
+%! glob_filename(-TITLE, +GLOBBED) is det
+%  Given the title of an entry, compute the filename it must be stored under.
+glob_filename(FILENAME, GLOBBED) :-
+  atom_string(FILENAME, STR),
+  string_chars(STR, CHRS),
+  maplist(glob_filename_character, CHRS, GLOBBED_CHRS),
+  string_chars(GLOBBED, GLOBBED_CHRS).
+

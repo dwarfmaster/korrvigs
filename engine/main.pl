@@ -34,6 +34,9 @@ load_modules() :- forall(find_module(PATH), use_module(PATH)).
 %! data_dir(+DIR) is det
 %  data_dir indicates the directory in which the wiki files must be looked up
 data_dir("/home/luc/downloads/wiki").
+%! piper(+PATH) is det
+%  Path to the piper script
+piper("/home/luc/repos/korrvigs/piper/piper.out").
 %! spawn_terminal(-CMD)
 %  run a terminal executing command
 spawn_terminal(CMD) :-

@@ -1,5 +1,5 @@
 {
-  description = "Experimenting with asciidoctor ruby API";
+  description = "Intelligent knowledge database system";
 
   outputs = {
     self,
@@ -24,13 +24,9 @@
       PKG_CONFIG_PATH = "${pkgs.swiProlog}/share/pkgconfig:${pkgs.tree-sitter}/lib/pkgconfig";
       NORG_PARSER_SOURCE = "${norg-source}/src";
     };
-    update = pkgs.mkShell {
-      packages = [pkgs.bundix pkgs.ruby];
-    };
   in {
     devShells."x86_64-linux" = {
       default = shell;
-      update = update;
     };
   };
 }

@@ -1,9 +1,5 @@
 
-:- module(actions,
-         [ register/3
-         , list/1
-         , run/1
-         ]).
+:- module(actions, []).
 :- multifile register/3.
 
 %! register(+PRIORITY, +DESC, +CODE)

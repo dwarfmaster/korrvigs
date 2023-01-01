@@ -1,12 +1,5 @@
 
-:- module('wiki',
-         [ handler/2
-         , uuid_dir/2
-         , file/2
-         , reload_all/0
-         , title/2
-         , attr/3
-         ]).
+:- module('wiki', []).
 :- use_module(korrvigs(actions)).
 :- use_module(korrvigs(ctx)).
 :- use_module(korrvigs(norg)).

@@ -1,14 +1,5 @@
 
-:- module(norg,
-         [ parse/2
-         , get_attributes/2
-         , get_title/2
-         , get_authors/2
-         , set_attribute/4
-         , set_attributes/3
-         , commit/1
-         , init/4
-         ]).
+:- module(norg, []).
 :- use_module(library('norg-parser')).
 :- use_module(library('xpath')).
 :- use_module(library('yaml')).

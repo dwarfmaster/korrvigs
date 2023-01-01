@@ -1,9 +1,5 @@
 
-:- module(nvim,
-         [ sock/1
-         , view/2
-         , edit/2
-         ]).
+:- module(nvim, []).
 :- dynamic sock/1 as local.
 
 %! view(+SOCK, +FILE)

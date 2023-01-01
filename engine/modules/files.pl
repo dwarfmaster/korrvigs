@@ -1,8 +1,5 @@
 
-:- module(files,
-         [ view_text/1
-         , edit_text/1
-         ]).
+:- module(files, []).
 :- discontiguous actions:register/3.
 :- use_module(korrvigs(nvim)).
 :- use_module(korrvigs(actions)).

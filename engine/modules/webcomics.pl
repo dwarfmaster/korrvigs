@@ -1,17 +1,5 @@
 
-:- module(webcomics,
-         [ archive/2
-         , pages/4
-         , pages_post/3
-         , chapters/4
-         , chapters_post/3
-         , identity/2
-         , first_page/2
-         , jump_to_page/1
-         , jump_to_chapter/1
-         , remote_call/1
-         , update_metrics/1
-         ]).
+:- module(webcomics, []).
 :- multifile archive/2.
 :- multifile pages/4.
 :- multifile pages_post/3.

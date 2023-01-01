@@ -1,9 +1,5 @@
 
-:- module(fzf,
-         [ run/3
-         , select/2
-         , select_text/2
-         ]).
+:- module(fzf, []).
 :- use_module(korrvigs(popup)).
 
 handler(CHOICES, IN, OUT, RES) :-

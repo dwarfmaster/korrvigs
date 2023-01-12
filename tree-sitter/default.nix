@@ -16,7 +16,9 @@ stdenv.mkDerivation {
     mkdir -p $out/lib/korrvigs/modules
     install -m 444 norg-parser.pl $out/lib/korrvigs/modules
     mkdir -p $out/lib/korrvigs/foreign
-    install -m 444 norg_parser.so $out/lib/korrvigs/foreign
+    patchelf --set-rpath ${swiProlog}/lib:${tree-sitter}/lib:${stdenv.cc.cc.lib}/lib norg_parser.so
+    patchelf --shrink-rpath norg_parser.so
+    install -m 555 norg_parser.so $out/lib/korrvigs/foreign
   '';
 
   meta = {

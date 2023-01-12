@@ -28,14 +28,17 @@
 
     piper = pkgs.callPackage ./piper {};
     posix = pkgs.callPackage ./posix {};
+    engine = pkgs.callPackage ./engine {};
   in {
     devShells."x86_64-linux" = {
       default = shell;
     };
 
     packages."x86_64-linux" = {
+      default = engine;
       korrvigs-norg-parser = norg-parser;
       korrvigs-posix = posix;
+      korrvigs = engine;
       inherit piper;
     };
   };

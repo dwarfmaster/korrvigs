@@ -23,7 +23,8 @@ load_modules() :- forall(find_module(PATH), use_module(PATH)).
 % |____/ \___|\__|\__,_| .__/ 
 %                      |_|    
 
-:- load_modules().
-:- xdg:runtime(RT), set_prolog_flag(tmp_dir, RT).
-:- wiki:reload_all().
-:- server:run().
+main :- 
+  load_modules(),
+  xdg:runtime(RT), set_prolog_flag(tmp_dir, RT),
+  wiki:reload_all(),
+  server:run().

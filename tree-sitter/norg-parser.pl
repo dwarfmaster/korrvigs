@@ -3,7 +3,7 @@
          [ parse_norg/2
          , norg_link/2
          ]).
-:- use_foreign_library('norg_parser.so').
+:- use_foreign_library(foreign('norg_parser.so')).
 :- use_module(library(xpath)).
 
 parse_norg(stream(STREAM), DOM) :- !,

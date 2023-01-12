@@ -25,6 +25,8 @@
       PKG_CONFIG_PATH = "${pkgs.swiProlog}/share/pkgconfig:${pkgs.tree-sitter}/lib/pkgconfig";
       NORG_PARSER_SOURCE = "${norg-source}/src";
     };
+
+    piper = pkgs.callPackage ./piper {};
   in {
     devShells."x86_64-linux" = {
       default = shell;
@@ -32,6 +34,7 @@
 
     packages."x86_64-linux" = {
       korrvigs-norg-parser = norg-parser;
+      inherit piper;
     };
   };
 }

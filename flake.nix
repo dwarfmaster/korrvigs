@@ -27,6 +27,7 @@
     };
 
     piper = pkgs.callPackage ./piper {};
+    posix = pkgs.callPackage ./posix {};
   in {
     devShells."x86_64-linux" = {
       default = shell;
@@ -34,6 +35,7 @@
 
     packages."x86_64-linux" = {
       korrvigs-norg-parser = norg-parser;
+      korrvigs-posix = posix;
       inherit piper;
     };
   };

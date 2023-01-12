@@ -1,6 +1,6 @@
 
 :- module(norg, []).
-:- use_module(library('norg-parser')).
+:- use_module(korrvigs('norg-parser')).
 :- use_module(library('xpath')).
 :- use_module(library('yaml')).
 

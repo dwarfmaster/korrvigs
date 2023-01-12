@@ -1,5 +1,4 @@
 
-
 % Assumes config has been loaded first
 
 %! find_module(+PATH)
@@ -23,8 +22,11 @@ load_modules() :- forall(find_module(PATH), use_module(PATH)).
 % |____/ \___|\__|\__,_| .__/ 
 %                      |_|    
 
-main :- 
-  load_modules(),
+setup :- 
+  load_modules,
   xdg:runtime(RT), set_prolog_flag(tmp_dir, RT),
-  wiki:reload_all(),
-  server:run().
+  wiki:reload_all,
+  server:run.
+main :-
+  setup,
+  posix:pause.

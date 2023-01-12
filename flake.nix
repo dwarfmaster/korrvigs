@@ -41,5 +41,18 @@
       korrvigs = engine;
       inherit piper;
     };
+
+    overlays.default = final: prev: {
+      inherit (self.packages."x86_64-linux")
+        korrvigs
+        korrvigs-posix
+        korrvigs-norg-parser
+        piper;
+    };
+
+    hmModules = {
+      korrvigs = import ./nix/hm.nix;
+      default = self.hmModules.korrvigs;
+    };
   };
 }

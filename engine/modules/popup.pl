@@ -2,7 +2,7 @@
 :- module(popup, []).
 :- use_module(korrvigs(xdg)).
 :- use_module(library(socket)).
-:- use_module(library(posix)).
+:- use_module(korrvigs(posix)).
 
 temp_sock(PATH) :-
   tmp_file_stream(PATH, SIN, [ extension(sock) ]),

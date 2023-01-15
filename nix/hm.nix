@@ -17,6 +17,11 @@ let
 
     ${cfg.extraConfig}
   '';
+
+  moduleFiles = pkgs.runCommandLocal "korrvigs-modules" {} ''
+    mkdir -p $out
+    ${lib.concatMapStrings (p: "install -m444 ${p} $out\n") cfg.extraModulesFiles}
+  '';
 in {
   options.services.korrvigs = {
     enable = mkEnableOption "korrvigs assistant";
@@ -55,6 +60,12 @@ in {
       default = [];
     };
 
+    extraModuleFiles = mkOption {
+      description = "List of files to modules contained in single files";
+      type = types.liftOf types.path;
+      default = [];
+    };
+
     dataDir = mkOption {
       description = "Path to the directory of wiki files";
       type = types.str;
@@ -78,7 +89,7 @@ in {
       configFile = "${configFile}";
       extraModules = [ pkgs.korrvigs-norg-parser pkgs.korrvigs-posix ];
       modulePaths = builtins.map (mod: "${mod}/lib/korrvigs/modules") cfg.extraModules
-        ++ [ "${cfg.package}/lib/korrvigs/modules" ];
+        ++ [ "${cfg.package}/lib/korrvigs/modules" "${moduleFiles}" ];
       foreignPaths = builtins.map (mod: "${mod}/lib/korrvigs/foreign") cfg.extraModules;
     };
 

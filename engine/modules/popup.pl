@@ -14,8 +14,9 @@ server_is_ready(_).
 %  Open a popup running cmd and args, and run PRED/3 on the input and output
 %  stream of the running process, unifying OUT with the last argument of
 %  PRED.
-with(CMD, ARGS, PRED, RES) :-
-  piper(PIPER), current_prolog_flag(pid, CPID),
+with(CMD_DESC, ARGS, PRED, RES) :-
+  absolute_file_name(CMD_DESC, CMD),
+  piper(PIPER), current_prolog_flag(system_thread_id, CPID),
   append([ "-c", "popup", PIPER, SPATH, CPID, CMD ], ARGS, NARGS),
   unix_domain_socket(SOCK),
   setup_call_cleanup(
@@ -23,7 +24,7 @@ with(CMD, ARGS, PRED, RES) :-
     (setup_call_cleanup(
       ( on_signal(usr1, _, server_is_ready) ),
       (setup_call_cleanup(
-        ( process_create(path(st), NARGS, [ process(PID), stderr(null) ]) ),
+        ( process_create(path(st), NARGS, [ process(PID), stdout(null), stderr(null) ]) ),
         ( % Wait for server to be ready
           pause(),
           on_signal(usr1, _, default),

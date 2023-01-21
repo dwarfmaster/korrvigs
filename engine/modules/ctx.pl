@@ -89,3 +89,8 @@ set(NAME, VALUE) :-
 %! get(+NAME, -VALUE)
 %  Get the value of an option
 get(NAME, VALUE) :- context_stored(NAME, VALUE).
+
+%! clear(+NAME, +VALUE)
+%  Undo the action of set.
+clear(NAME, VALUE) :-
+  retractall(context_stored(NAME, VALUE)).

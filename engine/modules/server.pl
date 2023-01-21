@@ -14,9 +14,17 @@ ctx_from_request(REQ) :-
     ctx:set(CTX, VAL)).
 ctx_from_request(_).
 
+clear_ctx_from_request(REQ) :-
+  member(search(SEARCH), REQ), !,
+  forall(
+    member(CTX = VAL, SEARCH),
+    ctx:clear(CTX, VAL)).
+clear_ctx_from_request(_).
+
 actions_handler(REQ) :-
   ctx_from_request(REQ),
   actions:list(ACTS), !,
+  clear_ctx_from_request(REQ),
   maplist([[ NAME, ACT ], O]>> (term_string(ACT, CODE), 
                                 O = _{'name': NAME, 'code': CODE}), 
           ACTS, JSON),
@@ -35,7 +43,8 @@ registered_handler(PRED, REQ) :-
       EXCEPT,
       ( format("~w~n", EXCEPT), fail ))
     -> format("Success~n")
-    ;  format("Failure~n") ).
+    ;  format("Failure~n") ),
+  clear_ctx_from_request(REQ).
 
 register(NAME, PRED) :-
   concat("actions/", NAME, PATH),

@@ -5,8 +5,6 @@ let
   cfg = config.services.korrvigs;
 
   configFile = pkgs.writeText "config.pl" ''
-    :- module(config, []).
-
     ${lib.concatMapStringsSep "\n"
         (p: "user:file_search_path(korrvigs, \"${p}\").")
         cfg.modulePaths}
@@ -17,16 +15,16 @@ let
     data_dir("${cfg.dataDir}").
     piper("${cfg.piper}").
 
-    nix(_, _) :- fail.
     ${lib.concatStringsSep "\n"
-        (lib.mapAttrsToList (name: v: "nix(${name}, \"${v}\").") cfg.constants)}
+        (lib.mapAttrsToList (name: v: "config('${name}', \"${v}\").") cfg.constants)}
+    config(_, _) :- fail.
 
     ${cfg.extraConfig}
   '';
 
   moduleFiles = pkgs.runCommandLocal "korrvigs-modules" {} ''
     mkdir -p $out
-    ${lib.concatMapStrings (p: "install -m444 ${p} $out\n") cfg.extraModulesFiles}
+    ${lib.concatMapStrings (p: "install -m444 ${p} $out\n") cfg.extraModuleFiles}
   '';
 in {
   options.services.korrvigs = {
@@ -68,7 +66,7 @@ in {
 
     extraModuleFiles = mkOption {
       description = "List of files to modules contained in single files";
-      type = types.liftOf types.path;
+      type = types.listOf types.path;
       default = [];
     };
 

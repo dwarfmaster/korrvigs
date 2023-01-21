@@ -24,7 +24,8 @@ let
 
   moduleFiles = pkgs.runCommandLocal "korrvigs-modules" {} ''
     mkdir -p $out
-    ${lib.concatMapStrings (p: "install -m444 ${p} $out\n") cfg.extraModuleFiles}
+    ${lib.concatStrings
+        (lib.mapAttrsToList (name: p: "install -m444 ${p} $out/${name}.pl\n") cfg.extraModules)}
   '';
 in {
   options.services.korrvigs = {
@@ -58,16 +59,16 @@ in {
       default = [];
     };
 
-    extraModules = mkOption {
+    extraModulePackages = mkOption {
       description = "List of modules to load in korrvigs instance";
       type = types.listOf (types.either types.package types.str);
       default = [];
     };
 
-    extraModuleFiles = mkOption {
+    extraModules = mkOption {
       description = "List of files to modules contained in single files";
-      type = types.listOf types.path;
-      default = [];
+      type = types.attrsOf types.path;
+      default = {};
     };
 
     dataDir = mkOption {
@@ -97,10 +98,10 @@ in {
   config = lib.mkIf cfg.enable {
     services.korrvigs = {
       configFile = "${configFile}";
-      extraModules = [ pkgs.korrvigs-norg-parser pkgs.korrvigs-posix ];
-      modulePaths = builtins.map (mod: "${mod}/lib/korrvigs/modules") cfg.extraModules
+      extraModulePackages = [ pkgs.korrvigs-norg-parser pkgs.korrvigs-posix ];
+      modulePaths = builtins.map (mod: "${mod}/lib/korrvigs/modules") cfg.extraModulePackages
         ++ [ "${cfg.package}/lib/korrvigs/modules" "${moduleFiles}" ];
-      foreignPaths = builtins.map (mod: "${mod}/lib/korrvigs/foreign") cfg.extraModules;
+      foreignPaths = builtins.map (mod: "${mod}/lib/korrvigs/foreign") cfg.extraModulePackages;
     };
 
     systemd.user.services.korrvigs = {

@@ -41,8 +41,6 @@ register(NAME, PRED) :-
   concat("actions/", NAME, PATH),
   http_handler(root(PATH), registered_handler(PRED), [ methods([get]), spawn() ]).
 
-:- register("select", actions:select).
-
 run :-
   http_handler(root(actions), actions_handler, [ methods([get]), spawn() ]),
   http_server(http_dispatch, [port(1588)]).

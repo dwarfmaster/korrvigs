@@ -5,6 +5,8 @@ let
   cfg = config.services.korrvigs;
 
   configFile = pkgs.writeText "config.pl" ''
+    :- module(config, []).
+
     ${lib.concatMapStringsSep "\n"
         (p: "user:file_search_path(korrvigs, \"${p}\").")
         cfg.modulePaths}
@@ -14,6 +16,10 @@ let
 
     data_dir("${cfg.dataDir}").
     piper("${cfg.piper}").
+
+    nix(_, _) :- fail.
+    ${lib.concatStringsSep "\n"
+        (lib.mapAttrsToList (name: v: "nix(${name}, \"${v}\").") cfg.constants)}
 
     ${cfg.extraConfig}
   '';
@@ -81,6 +87,12 @@ in {
       description = "Extra prolog code to add to the config file";
       type = types.lines;
       default = "";
+    };
+
+    constants = mkOption {
+      description = "Define nix predicate on entries";
+      type = types.attrsOf types.str;
+      default = { };
     };
   };
 

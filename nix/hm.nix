@@ -16,8 +16,8 @@ let
     piper("${cfg.piper}").
 
     ${lib.concatStringsSep "\n"
-        (lib.mapAttrsToList (name: v: "config('${name}', \"${v}\").") cfg.constants)}
-    config(_, _) :- fail.
+        (lib.mapAttrsToList (name: v: "nix_constant('${name}', \"${v}\").") cfg.constants)}
+    ${if cfg.constants == [] then "nix_constants(_, _) :- fail." else ""}
 
     ${cfg.extraConfig}
   '';

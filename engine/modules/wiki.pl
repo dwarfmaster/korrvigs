@@ -10,6 +10,23 @@
 :- use_module(library(dcg/high_order)).
 :- use_module(library(uuid)).
 
+
+%   ____            _            _   
+%  / ___|___  _ __ | |_ _____  _| |_ 
+% | |   / _ \| '_ \| __/ _ \ \/ / __|
+% | |__| (_) | | | | ||  __/>  <| |_ 
+%  \____\___/|_| |_|\__\___/_/\_\\__|
+%                                    
+%! current(-UUID, -FILE)
+%  Give the currently editing/pointing wiki file
+current(UUID, FILE) :-
+  ctx:pointing(file(FILE)),
+  file(UUID, FILE), !.
+current(UUID, FILE) :-
+  ctx:editing(FILE),
+  file(UUID, FILE), !.
+
+
 %  _____ _ _           
 % |  ___(_) | ___  ___ 
 % | |_  | | |/ _ \/ __|
@@ -119,11 +136,10 @@ find_file(UUID, PATH) :-
   file_in_dir(DIR, PATH).
 
 actions:register(5, "Reload wiki", wiki:reload_all()) :-
-  ctx:get(desktop, true).
+  ctx:desktop.
 actions:register(30, DESC, wiki:reload_file(UUID, PATH)) :-
-  ctx:get(desktop, true),
-  ctx:get(wiki, UUID),
-  file(UUID, PATH),
+  ctx:desktop,
+  current(UUID, PATH),
   file_base_name(PATH, NAME),
   concat("Reload ", NAME, DESC).
 

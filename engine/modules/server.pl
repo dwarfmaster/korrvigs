@@ -7,24 +7,15 @@
 :- use_module(korrvigs(actions)).
 :- use_module(korrvigs(ctx)).
 
-ctx_from_request(REQ) :-
+handle_request(REQ) :-
   member(search(SEARCH), REQ), !,
-  forall(
-    member(CTX = VAL, SEARCH),
-    ctx:set(CTX, VAL)).
-ctx_from_request(_).
-
-clear_ctx_from_request(REQ) :-
-  member(search(SEARCH), REQ), !,
-  forall(
-    member(CTX = VAL, SEARCH),
-    ctx:clear(CTX, VAL)).
-clear_ctx_from_request(_).
+  ( member(pointing = FILE, SEARCH) -> asserta(ctx:pointing(FILE)) ).
+handle_request(_).
 
 actions_handler(REQ) :-
-  ctx_from_request(REQ),
+  handle_request(REQ),
   actions:list(ACTS), !,
-  clear_ctx_from_request(REQ),
+  ctx:clear,
   maplist([[ NAME, ACT ], O]>> (term_string(ACT, CODE), 
                                 O = _{'name': NAME, 'code': CODE}), 
           ACTS, JSON),
@@ -36,7 +27,7 @@ actions_handler(_) :-
   format("[]~n").
 
 registered_handler(PRED, REQ) :-
-  ctx_from_request(REQ),
+  handle_request(REQ),
   format("Content-Type: test/plain~n~n"),
   ( catch(
       call(PRED),
@@ -44,7 +35,7 @@ registered_handler(PRED, REQ) :-
       ( format("~w~n", EXCEPT), fail ))
     -> format("Success~n")
     ;  format("Failure~n") ),
-  clear_ctx_from_request(REQ).
+  ctx:clear.
 
 register(NAME, PRED) :-
   concat("actions/", NAME, PATH),

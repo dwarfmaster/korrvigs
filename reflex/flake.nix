@@ -39,12 +39,18 @@
             {
               languages.nix.enable = true;
               languages.haskell.enable = true;
+              languages.haskell.package =
+                pkgs.haskellPackages.ghcWithPackages
+                (hpkgs: [
+                  hpkgs.reflex
+                ]);
 
               pre-commit.hooks = {
                 alejandra.enable = true;
                 deadnix.enable = true;
                 cabal-fmt.enable = true;
                 cabal2nix.enable = true;
+                ormolu.enable = true;
               };
               pre-commit.settings = {
                 alejandra.exclude = ["reflex/default.nix"];

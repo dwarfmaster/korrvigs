@@ -68,7 +68,9 @@ executable backend
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:    base ^>=4.15.1.0
+  build-depends:
+    , base    ^>=4.15.1.0
+    , reflex  ^>=0.8.0.0
 
   -- Directories containing source files.
   hs-source-dirs:   app

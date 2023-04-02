@@ -34,6 +34,7 @@
             (hpkgs: [
               hpkgs.reflex
               hpkgs.fsnotify
+              hpkgs.regex-posix
             ]);
 
           pre-commit.hooks = {

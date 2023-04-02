@@ -2,3 +2,5 @@ result
 *.o
 *.so
 *.out
+.devenv
+reflex/dist*

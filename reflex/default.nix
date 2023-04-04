@@ -1,5 +1,5 @@
 { mkDerivation, base, filepath, fsnotify, lib, reflex, regex-base
-, regex-posix
+, regex-posix, uuid
 }:
 mkDerivation {
   pname = "backend";
@@ -8,7 +8,7 @@ mkDerivation {
   isLibrary = false;
   isExecutable = true;
   executableHaskellDepends = [
-    base filepath fsnotify reflex regex-base regex-posix
+    base filepath fsnotify reflex regex-base regex-posix uuid
   ];
   description = "Knowledge management system";
   license = lib.licenses.mit;

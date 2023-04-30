@@ -4,3 +4,4 @@ result
 *.out
 .devenv
 reflex/dist*
+library/libkorrvigs.*

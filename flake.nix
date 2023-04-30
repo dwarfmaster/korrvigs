@@ -4,11 +4,16 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
     devenv.url = "github:cachix/devenv";
+    zig = {
+      url = "github:mitchellh/zig-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
     self,
     nixpkgs,
+    zig,
     devenv,
   } @ inputs: let
     system = "x86_64-linux";
@@ -35,7 +40,10 @@
               hpkgs.reflex
               hpkgs.fsnotify
               hpkgs.regex-posix
+              hpkgs.uuid
             ]);
+          languages.zig.enable = true;
+          languages.zig.package = zig.packages.${system}.master;
 
           pre-commit.hooks = {
             alejandra.enable = true;
@@ -43,6 +51,12 @@
             cabal-fmt.enable = true;
             cabal2nix.enable = true;
             ormolu.enable = true;
+            zig-fmt = {
+              enable = true;
+              name = "Zig Formatter";
+              entry = "zig fmt";
+              files = "\\.zig$";
+            };
           };
           pre-commit.settings = {
             alejandra.exclude = ["reflex/default.nix"];

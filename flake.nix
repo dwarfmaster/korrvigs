@@ -2,7 +2,7 @@
   description = "Intelligent knowledge database system";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
     devenv.url = "github:cachix/devenv";
     zig = {
       url = "github:mitchellh/zig-overlay";
@@ -18,7 +18,13 @@
   } @ inputs: let
     system = "x86_64-linux";
 
-    pkgs = nixpkgs.legacyPackages.${system};
+    pkgs = import nixpkgs {
+      inherit system;
+      # TODO figure out where does the openssl dependency comes from
+      config.permittedInsecurePackages = [
+        "openssl-1.1.1u"
+      ];
+    };
 
     norg-source = pkgs.fetchFromGitHub {
       owner = "nvim-neorg";
@@ -41,6 +47,7 @@
               hpkgs.fsnotify
               hpkgs.regex-posix
               hpkgs.uuid
+              hpkgs.parsec
             ]);
           languages.zig.enable = true;
           languages.zig.package = zig.packages.${system}.master;

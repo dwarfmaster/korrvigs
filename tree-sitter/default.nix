@@ -1,11 +1,17 @@
-{ stdenv, lib, pkg-config, swiProlog, tree-sitter, tree-sitter-norg-source }:
-
+{
+  stdenv,
+  lib,
+  pkg-config,
+  swiProlog,
+  tree-sitter,
+  tree-sitter-norg-source,
+}:
 stdenv.mkDerivation {
   pname = "korrvigs-norg-treesitter";
   version = "1.0";
   src = ./.;
 
-  NORG_PARSER_SOURCE="${tree-sitter-norg-source}/src";
+  NORG_PARSER_SOURCE = "${tree-sitter-norg-source}/src";
   buildInputs = [
     swiProlog
     tree-sitter
@@ -23,7 +29,7 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Norg parser using tree-sitter for swi prolog";
-    maintainers = [ lib.maintainers.dwarfmaster ];
+    maintainers = [lib.maintainers.dwarfmaster];
     license = lib.licenses.mit;
   };
 }

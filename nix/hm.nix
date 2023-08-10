@@ -1,23 +1,30 @@
-{ config, lib, pkgs, ... }:
-
-let
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}: let
   inherit (lib) mkOption mkEnableOption types;
   cfg = config.services.korrvigs;
 
   configFile = pkgs.writeText "config.pl" ''
     ${lib.concatMapStringsSep "\n"
-        (p: "user:file_search_path(korrvigs, \"${p}\").")
-        cfg.modulePaths}
+      (p: "user:file_search_path(korrvigs, \"${p}\").")
+      cfg.modulePaths}
     ${lib.concatMapStringsSep "\n"
-        (p: "user:file_search_path(foreign, \"${p}\").")
-        cfg.foreignPaths}
+      (p: "user:file_search_path(foreign, \"${p}\").")
+      cfg.foreignPaths}
 
     data_dir("${cfg.dataDir}").
     piper("${cfg.piper}").
 
     ${lib.concatStringsSep "\n"
-        (lib.mapAttrsToList (name: v: "nix_constant('${name}', \"${v}\").") cfg.constants)}
-    ${if cfg.constants == [] then "nix_constants(_, _) :- fail." else ""}
+      (lib.mapAttrsToList (name: v: "nix_constant('${name}', \"${v}\").") cfg.constants)}
+    ${
+      if cfg.constants == []
+      then "nix_constants(_, _) :- fail."
+      else ""
+    }
 
     ${cfg.extraConfig}
   '';
@@ -25,7 +32,7 @@ let
   moduleFiles = pkgs.runCommandLocal "korrvigs-modules" {} ''
     mkdir -p $out
     ${lib.concatStrings
-        (lib.mapAttrsToList (name: p: "install -m444 ${p} $out/${name}.pl\n") cfg.extraModules)}
+      (lib.mapAttrsToList (name: p: "install -m444 ${p} $out/${name}.pl\n") cfg.extraModules)}
   '';
 in {
   options.services.korrvigs = {
@@ -91,16 +98,17 @@ in {
     constants = mkOption {
       description = "Define nix predicate on entries";
       type = types.attrsOf types.str;
-      default = { };
+      default = {};
     };
   };
 
   config = lib.mkIf cfg.enable {
     services.korrvigs = {
       configFile = "${configFile}";
-      extraModulePackages = [ pkgs.korrvigs-norg-parser pkgs.korrvigs-posix ];
-      modulePaths = builtins.map (mod: "${mod}/lib/korrvigs/modules") cfg.extraModulePackages
-        ++ [ "${cfg.package}/lib/korrvigs/modules" "${moduleFiles}" ];
+      extraModulePackages = [pkgs.korrvigs-norg-parser pkgs.korrvigs-posix];
+      modulePaths =
+        builtins.map (mod: "${mod}/lib/korrvigs/modules") cfg.extraModulePackages
+        ++ ["${cfg.package}/lib/korrvigs/modules" "${moduleFiles}"];
       foreignPaths = builtins.map (mod: "${mod}/lib/korrvigs/foreign") cfg.extraModulePackages;
     };
 

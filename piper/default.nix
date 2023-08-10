@@ -1,5 +1,7 @@
-{ stdenv, lib }:
-
+{
+  stdenv,
+  lib,
+}:
 stdenv.mkDerivation {
   pname = "piper";
   version = "1.0";
@@ -12,7 +14,7 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Bind command stdin and stdout to socket";
-    maintainers = [ lib.maintainers.dwarfmaster ];
+    maintainers = [lib.maintainers.dwarfmaster];
     license = lib.licenses.mit;
   };
 }

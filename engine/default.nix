@@ -1,5 +1,7 @@
-{ stdenv, lib }:
-
+{
+  stdenv,
+  lib,
+}:
 stdenv.mkDerivation {
   pname = "korrvigs";
   version = "0.5";
@@ -15,7 +17,7 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Missing posix functions from swiProlog libraries";
-    maintainers = [ lib.maintainers.dwarfmaster ];
+    maintainers = [lib.maintainers.dwarfmaster];
     license = lib.licenses.mit;
   };
 }

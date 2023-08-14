@@ -51,6 +51,8 @@
             ]);
           languages.zig.enable = true;
           languages.zig.package = zig.packages.${system}.master;
+          languages.racket.enable = true;
+          languages.racket.package = pkgs.racket;
 
           pre-commit.hooks = {
             alejandra.enable = true;
@@ -72,6 +74,7 @@
           packages = [
             pkgs.swiProlog
             pkgs.tree-sitter
+            pkgs.souffle
           ];
           env = {
             PYTHONPATH = "${pkgs.swiProlog}/lib/swipl/lib";
@@ -97,6 +100,7 @@
       korrvigs = engine;
       backend = pkgs.haskellPackages.callPackage ./reflex {};
       inherit piper;
+      korrvigs-server = pkgs.callPackage ./racket {};
     };
 
     overlays.default = _: _: {

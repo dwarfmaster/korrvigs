@@ -3,6 +3,3 @@ result
 *.so
 *.out
 .devenv
-reflex/dist*
-server/dist*
-library/libkorrvigs.*

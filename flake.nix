@@ -110,6 +110,7 @@
         korrvigs-posix
         korrvigs-norg-parser
         piper
+        korrvigs-server
         ;
     };
 

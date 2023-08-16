@@ -21,6 +21,7 @@
       inherit inputs pkgs;
       modules = [
         {
+          languages.go.enable = true;
           languages.nix.enable = true;
           languages.racket.enable = true;
           languages.racket.package = pkgs.racket;
@@ -28,6 +29,7 @@
           pre-commit.hooks = {
             alejandra.enable = true;
             deadnix.enable = true;
+            gofmt.enable = true;
           };
           pre-commit.settings = {
             alejandra.exclude = ["reflex/default.nix"];
@@ -47,15 +49,18 @@
 
     packages.${system} = let
       server = pkgs.callPackage ./racket {};
+      tui = pkgs.callPackage ./tui {};
     in {
       default = server;
       korrvigs-server = server;
+      korrvigs-tui = tui;
     };
 
     overlays.default = _: _: {
       inherit
         (self.packages.${system})
         korrvigs-server
+        korrvigs-tui
         ;
     };
 

@@ -15,7 +15,7 @@
 (struct no-unix-sockets exn:fail:user ())
 
 (provide serve)
-(define (serve path types)
+(define (serve path types rules)
   (unless unix-socket-available?
     (raise (no-unix-sockets 
              "Unix Sockets not available" 
@@ -28,7 +28,7 @@
       (lambda (v) (delete-file path))
       main-custodian
       #:at-exit? #t)
-    (define theory (watch-and-update-wiki types))
+    (define theory (watch-and-update-wiki types rules))
     (define (loop)
       (accept-and-handle listener theory)
       (loop))

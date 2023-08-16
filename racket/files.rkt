@@ -63,10 +63,26 @@
       (define ev (filesystem-change-evt mtdt-path))
       (list ev))))
 
-(define (watch-and-update-wiki types)
+(define (watch-and-update-wiki types rules)
   (define theory (box (make-theory)))
+  (define rules-query 
+    (maybe 
+      '() 
+      (lambda (path) 
+        (define parsed
+          (parse-string (datalog/p (just types) nothing)
+                        (port->string (open-input-file path) #:close? #t)))
+        (either
+          (lambda (err)
+            (display (format "Parse error in ~a:~n~a~n" path (parse-error->string err)))
+            (flush-output)
+            '())
+          (lambda (dtl) (map (lambda (atom) `(! ,atom)) dtl))
+          parsed))
+      rules))
   (define (loop)
     (define-values (evs ntheory) (read-wiki-tree types))
+    (run-datalog ntheory rules-query)
     (flush-output)
     (set-box! theory ntheory)
     (apply sync evs)

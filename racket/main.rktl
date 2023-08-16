@@ -3,18 +3,12 @@
 
 (require json)
 (require datalog)
+(require data/maybe)
 (require "server.rkt")
 
 (define socket-path (make-parameter "~/.local/state/korrvigs/test.sock"))
 (define types-path (make-parameter "~/.config/korrvigs/types.sexp"))
-
-(define (bootstrap-datalog)
-  (define theory (make-theory))
-  (datalog theory
-           (! (test a b))
-           (! (test b c))
-           (! (:- (query X Z) (test X Y) (test Y Z)))
-           (? (query X Y))))
+(define rules (make-parameter nothing))
 
 (provide main)
 (define (main)
@@ -26,12 +20,14 @@
                        (socket-path sock)]
     [("-t" "--types") tps
                       "Specify the file <tps> with the types to load"
-                      (types-path tps)])
+                      (types-path tps)]
+    [("-r" "--rules") rls
+                      "Specify the file <rls> containing prolog rules to include"
+                      (rules (just rls))])
   (define fp (open-input-file (types-path)))
   (define types (apply hash (read fp)))
-  (bootstrap-datalog)
   (close-input-port fp)
-  (serve (socket-path) types)
+  (serve (socket-path) types (rules))
   (define (loop)
     (sleep 10)
     (loop))

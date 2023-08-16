@@ -17,6 +17,10 @@
           cfg.predicates))
       + ")";
   };
+  rulesFile = pkgs.writeTextFile {
+    name = "rules.pl";
+    text = lib.concatStringsSep "\n" cfg.rules;
+  };
 in {
   options.services.korrvigs = {
     enable = mkEnableOption "Korrvigs assistant";
@@ -36,6 +40,11 @@ in {
       type = types.str;
       readOnly = true;
     };
+    rulesFile = mkOption {
+      description = "Path to prolog files containing rules";
+      type = types.str;
+      readOnly = true;
+    };
     socketPath = mkOption {
       description = "Path to socket to open";
       type = types.str;
@@ -47,10 +56,16 @@ in {
       type = types.attrsOf (types.listOf basicType);
       default = {};
     };
+    rules = mkOption {
+      description = "Rules to add";
+      type = types.listOf types.str;
+      default = [];
+    };
   };
 
   config = lib.mkIf cfg.enable {
     services.korrvigs.typesFile = "${typesFile}";
+    services.korrvigs.rulesFile = "${rulesFile}";
 
     systemd.user.services.korrvigs = {
       Unit = {
@@ -62,7 +77,7 @@ in {
       Service = {
         Type = "simple";
         Restart = "on-failure";
-        ExecStart = "${cfg.package}/bin/main.rktl --socket ${cfg.socketPath} --types ${cfg.typesFile}";
+        ExecStart = "${cfg.package}/bin/main.rktl --socket ${cfg.socketPath} --types ${cfg.typesFile} --rules ${cfg.rulesFile}";
       };
 
       Install.WantedBy = ["default.target"];

@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
-	// "github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"strconv"
 )
 
 type Item struct {
 	title       string
 	description string
-	mk          func() Model
+	mk          func(model) Model
 }
 
 func (i Item) Title() string {
@@ -28,7 +29,39 @@ type selector struct {
 	list  list.Model
 }
 
-func makeSelector() Model {
+func newItemDelegate(mod model) list.DefaultDelegate {
+	d := list.NewDefaultDelegate()
+	sel := key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "choose"),
+	)
+
+	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch {
+			case key.Matches(msg, sel):
+				if i, ok := m.SelectedItem().(Item); ok {
+					nmod := i.mk(mod)
+					mod.stack = append(mod.stack, nmod)
+				}
+				return m.NewStatusMessage("Stack size: " + strconv.Itoa(len(mod.stack)))
+			}
+		}
+		return nil
+	}
+
+	help := []key.Binding{sel}
+	d.ShortHelpFunc = func() []key.Binding {
+		return help
+	}
+	d.FullHelpFunc = func() [][]key.Binding {
+		return [][]key.Binding{help}
+	}
+	return d
+}
+
+func makeSelector(m model) Model {
 	kinds := []Item{
 		{
 			title:       "Select action",
@@ -41,7 +74,7 @@ func makeSelector() Model {
 	for _, x := range kinds {
 		lst = append(lst, x)
 	}
-	delegate := list.NewDefaultDelegate()
+	delegate := newItemDelegate(m)
 	actions := list.New(lst, delegate, 0, 0)
 	actions.Title = "Actions"
 

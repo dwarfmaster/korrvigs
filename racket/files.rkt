@@ -32,20 +32,26 @@
   (values all-evs theory))
 
 (define (read-entry-files types path uuid theory)
-  (define files (directory-list path))
+  (define raw-files (directory-list path))
+  (define def (string->path "default.meta"))
+  (define files (if (member def raw-files)
+                  raw-files
+                  (append raw-files (list def))))
   (flatten
     (for/list ([file files])
       (read-entry-file types path uuid file theory))))
 
 (define (read-entry-file types path uuid file theory)
-  (if (or (bytes=? (path-get-extension file) #".meta")
-          (char=? #\. (string-ref (path->string file) 0)))
+  (if (and (not (string=? (path->string file) "default.meta"))
+           (or (bytes=? (path-get-extension file) #".meta")
+               (char=? #\. (string-ref (path->string file) 0))))
     '()
     (let* ([mtdt (path-replace-extension file ".meta")]
            [mtdt-path (build-path path mtdt)]
            [base (path->string file)]
            [full-path (build-path path file)]
-           [ent (entry uuid (just (path->string file)) nothing)])
+           [sub (if (string=? base "default.meta") nothing (just base))]
+           [ent (entry uuid sub nothing)])
       (unless (file-exists? mtdt-path) (display-to-file "" mtdt-path))
       (define dtl-parsed
         (parse-string (datalog/p (just types) (just ent))

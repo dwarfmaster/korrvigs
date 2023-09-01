@@ -9,7 +9,7 @@
 (require data/maybe)
 (require datalog)
 
-(struct entry (uuid sub query))
+(struct entry (uuid sub query) #:transparent)
 
 (define (maybe/p parser) 
   (or/p

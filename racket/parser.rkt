@@ -73,15 +73,15 @@
       (try/p 
         (do
           self/p
+          [sub <- (maybe/p (>> (char/p #\/)
+                               (between/p (char/p #\') (char/p #\') label/p)))]
           [query <- (maybe/p (>> (char/p #\#) 
                                  (between/p (char/p #\') (char/p #\') label/p)))]
-          (pure (maybe
-                  self-id
-                  (lambda (query) (entry 
-                                    (entry-uuid self-id) 
-                                    (entry-sub self-id) 
-                                    (just query)))
-                  query)))))
+          (pure
+            (entry
+              (entry-uuid self-id)
+              (maybe (entry-sub self-id) (lambda (sub) (just sub)) sub)
+              (maybe (entry-query self-id) (lambda (query) (just query)) query))))))
     self-id))
 
 (define entry/p

@@ -36,6 +36,9 @@
           };
 
           packages = [
+            pkgs.socat
+            pkgs.gum
+            pkgs.nushell
           ];
           env = {
           };

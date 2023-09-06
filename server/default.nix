@@ -2,6 +2,7 @@
   lib,
   stdenv,
   cmake,
+  boost,
   ...
 }:
 stdenv.mkDerivation {
@@ -9,7 +10,7 @@ stdenv.mkDerivation {
   version = "0.1";
   src = ./.;
 
-  buildInputs = [cmake];
+  buildInputs = [cmake boost.dev];
 
   meta = {
     license = lib.licenses.mit;

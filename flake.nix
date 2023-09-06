@@ -41,8 +41,7 @@
             pkgs.socat
             pkgs.gum
             pkgs.nushell
-            pkgs.gcc
-            pkgs.cmake
+            pkgs.boost.dev
           ];
           env = {
           };

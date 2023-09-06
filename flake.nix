@@ -23,6 +23,7 @@
         {
           languages.go.enable = true;
           languages.nix.enable = true;
+          languages.c.enable = true;
           languages.racket.enable = true;
           languages.racket.package = pkgs.racket;
 
@@ -30,6 +31,7 @@
             alejandra.enable = true;
             deadnix.enable = true;
             gofmt.enable = true;
+            clang-format.enable = true;
           };
           pre-commit.settings = {
             alejandra.exclude = ["reflex/default.nix"];
@@ -39,6 +41,8 @@
             pkgs.socat
             pkgs.gum
             pkgs.nushell
+            pkgs.gcc
+            pkgs.cmake
           ];
           env = {
           };
@@ -52,10 +56,12 @@
 
     packages.${system} = let
       server = pkgs.callPackage ./racket {};
+      server-cpp = pkgs.callPackage ./server {};
       tui = pkgs.callPackage ./tui {};
     in {
       default = server;
       korrvigs-server = server;
+      korrvigs-server-cpp = server-cpp;
       korrvigs-tui = tui;
     };
 

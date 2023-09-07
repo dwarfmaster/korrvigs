@@ -1,8 +1,10 @@
 
 set(KORR_SRC
   main.cpp
+  parser.cpp
 )
 set(KORR_HEADERS
+  parser.hpp
 )
 
 add_executable(korrvigs-server ${KORR_SRC} ${KORR_HEADERS})

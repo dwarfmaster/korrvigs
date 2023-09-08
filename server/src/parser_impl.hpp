@@ -53,4 +53,13 @@ struct rule_grammar
   qi::rule<Iterator, datalog::Rule(), ascii::space_type> rule;
 };
 
+template <typename Iterator>
+struct program_grammar
+    : qi::grammar<Iterator, std::vector<datalog::Rule>(), ascii::space_type> {
+  program_grammar() : program_grammar::base_type(prog) { prog %= *rule; }
+
+  rule_grammar<Iterator> rule;
+  qi::rule<Iterator, std::vector<datalog::Rule>(), ascii::space_type> prog;
+};
+
 #endif

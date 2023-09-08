@@ -42,7 +42,7 @@ struct Prop {
 };
 
 struct Rule {
-  Predicate head;
+  Prop head;
   std::vector<Prop> body;
 };
 } // namespace datalog
@@ -57,7 +57,7 @@ BOOST_FUSION_ADAPT_STRUCT(datalog::Predicate,
 BOOST_FUSION_ADAPT_STRUCT(datalog::Prop,
                           (std::string, pred)(std::vector<datalog::Atom>, args))
 BOOST_FUSION_ADAPT_STRUCT(datalog::Rule,
-                          (datalog::Predicate, head)(std::vector<datalog::Prop>,
-                                                     body))
+                          (datalog::Prop, head)(std::vector<datalog::Prop>,
+                                                body))
 
 #endif

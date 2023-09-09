@@ -13,8 +13,7 @@ qi::rule<Iterator, uint128_t()>
     hexN = qi::uint_parser<uint128_t, 16, N, N>()[_val = _1 << Shift];
 
 template <typename Iterator>
-struct entry_grammar
-    : qi::grammar<Iterator, datalog::Entry(), ascii::space_type> {
+struct entry_grammar : qi::grammar<Iterator, datalog::Entry()> {
   entry_grammar() : entry_grammar::base_type(entry) {
     uuid = hexN<Iterator, 8, 96>[_val = _1] > '-' >
            hexN<Iterator, 4, 80>[_val += _1] > '-' >
@@ -22,12 +21,12 @@ struct entry_grammar
            hexN<Iterator, 4, 48>[_val += _1] > '-' >
            hexN<Iterator, 12, 0>[_val += _1];
     ident = qi::alpha > *(qi::alnum | qi::char_("-_.?!~&|@()[]{}^"));
-    entry %= lexeme[uuid > -('/' > ident) > -('#' > ident)];
+    entry %= uuid > -('/' > ident) > -('#' > ident);
   }
 
   qi::rule<Iterator, uint128_t()> uuid;
   qi::rule<Iterator, std::string()> ident;
-  qi::rule<Iterator, datalog::Entry(), ascii::space_type> entry;
+  qi::rule<Iterator, datalog::Entry()> entry;
 };
 
 template <typename Iterator>
@@ -39,16 +38,16 @@ struct rule_grammar
     var %= qi::lexeme[qi::upper > *(qi::alnum | qi::char_("-_"))];
     atom %= var | value;
     pred_name %= qi::lexeme[qi::lower > *(qi::alnum | qi::char_("-_"))];
-    prop %= pred_name > '(' > (atom % ',') > ')';
+    prop %= lexeme[pred_name] > '(' > (lexeme[atom] % ',') > ')';
     rule %= prop > -(lit(":-") > (prop % ',')) > '.';
   }
 
   entry_grammar<Iterator> entry;
-  qi::rule<Iterator, std::string(), ascii::space_type> string;
-  qi::rule<Iterator, datalog::Value(), ascii::space_type> value;
-  qi::rule<Iterator, datalog::Variable(), ascii::space_type> var;
-  qi::rule<Iterator, datalog::Atom(), ascii::space_type> atom;
-  qi::rule<Iterator, std::string(), ascii::space_type> pred_name;
+  qi::rule<Iterator, std::string()> string;
+  qi::rule<Iterator, datalog::Value()> value;
+  qi::rule<Iterator, datalog::Variable()> var;
+  qi::rule<Iterator, datalog::Atom()> atom;
+  qi::rule<Iterator, std::string()> pred_name;
   qi::rule<Iterator, datalog::Prop(), ascii::space_type> prop;
   qi::rule<Iterator, datalog::Rule(), ascii::space_type> rule;
 };
@@ -60,6 +59,19 @@ struct program_grammar
 
   rule_grammar<Iterator> rule;
   qi::rule<Iterator, std::vector<datalog::Rule>(), ascii::space_type> prog;
+};
+
+template <typename Iterator>
+struct csv_grammar
+    : qi::grammar<Iterator, std::vector<datalog::Prop>(), ascii::blank_type> {
+  csv_grammar() : csv_grammar::base_type(csv) {
+    entry %= lexeme[rule.pred_name] > ',' > (lexeme[rule.value] % ',');
+    csv %= *qi::eol > (entry % +qi::eol) > *qi::eol;
+  }
+
+  rule_grammar<Iterator> rule;
+  qi::rule<Iterator, datalog::Prop(), ascii::blank_type> entry;
+  qi::rule<Iterator, std::vector<datalog::Prop>(), ascii::blank_type> csv;
 };
 
 #endif

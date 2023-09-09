@@ -41,7 +41,7 @@
             pkgs.socat
             pkgs.gum
             pkgs.nushell
-            pkgs.boost.dev
+            pkgs.boost182.dev
           ];
           env = {
           };
@@ -55,7 +55,7 @@
 
     packages.${system} = let
       server = pkgs.callPackage ./racket {};
-      server-cpp = pkgs.callPackage ./server {};
+      server-cpp = pkgs.callPackage ./server {boost = pkgs.boost182;};
       tui = pkgs.callPackage ./tui {};
     in {
       default = server;

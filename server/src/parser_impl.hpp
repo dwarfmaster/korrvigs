@@ -2,11 +2,13 @@
 #define DEF_PARSER_IMPL_HPP
 
 #include "datalog.hpp"
+#include <boost/phoenix/bind/bind_member_variable.hpp>
 #include <boost/phoenix/operator.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/qi_uint.hpp>
 
 using namespace boost::spirit;
+using boost::phoenix::bind;
 
 template <typename Iterator, unsigned N, unsigned Shift>
 qi::rule<Iterator, uint128_t()>
@@ -62,16 +64,25 @@ struct program_grammar
 };
 
 template <typename Iterator>
-struct csv_grammar
-    : qi::grammar<Iterator, std::vector<datalog::Prop>(), ascii::blank_type> {
-  csv_grammar() : csv_grammar::base_type(csv) {
-    entry %= lexeme[rule.pred_name] > ',' > (lexeme[rule.value] % ',');
+struct csv_grammar : qi::grammar<Iterator, std::vector<datalog::GroundedProp>(),
+                                 ascii::blank_type> {
+  csv_grammar(const datalog::Entry &_self)
+      : csv_grammar::base_type(csv), self_value(_self) {
+    self = lit("self")[_val = self_value] >
+           -(lit("/'") >
+             rule.entry.ident[bind(&datalog::Entry::sub, _val) = _1] > '\'') >
+           -(lit("#'") >
+             rule.entry.ident[bind(&datalog::Entry::query, _val) = _1] > '\'');
+    entry %= lexeme[rule.pred_name] > ',' > ((self | rule.value) % ',');
     csv %= *qi::eol > (entry % +qi::eol) > *qi::eol;
   }
 
   rule_grammar<Iterator> rule;
-  qi::rule<Iterator, datalog::Prop(), ascii::blank_type> entry;
-  qi::rule<Iterator, std::vector<datalog::Prop>(), ascii::blank_type> csv;
+  datalog::Entry self_value;
+  qi::rule<Iterator, datalog::Entry> self;
+  qi::rule<Iterator, datalog::GroundedProp(), ascii::blank_type> entry;
+  qi::rule<Iterator, std::vector<datalog::GroundedProp>(), ascii::blank_type>
+      csv;
 };
 
 #endif

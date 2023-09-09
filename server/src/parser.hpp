@@ -34,10 +34,11 @@ std::optional<std::vector<datalog::Rule>> parse_rules(It first, It last) {
 }
 
 template <typename It>
-std::optional<std::vector<datalog::Prop>> parse_csv(It first, It last) {
+std::optional<std::vector<datalog::GroundedProp>>
+parse_csv(It first, It last, const datalog::Entry &self) {
   using namespace boost::spirit;
-  std::vector<datalog::Prop> result;
-  csv_grammar<It> csv_parser;
+  std::vector<datalog::GroundedProp> result;
+  csv_grammar<It> csv_parser(self);
   bool r = qi::phrase_parse(first, last, csv_parser, ascii::blank, result);
   if (r && first == last) {
     return result;

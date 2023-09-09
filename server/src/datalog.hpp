@@ -41,6 +41,11 @@ struct Prop {
   std::vector<Atom> args;
 };
 
+struct GroundedProp {
+  std::string pred;
+  std::vector<Value> args;
+};
+
 struct Rule {
   Prop head;
   std::vector<Prop> body;
@@ -56,6 +61,9 @@ BOOST_FUSION_ADAPT_STRUCT(datalog::Predicate,
                           (std::string, name)(std::vector<datalog::Type>, args))
 BOOST_FUSION_ADAPT_STRUCT(datalog::Prop,
                           (std::string, pred)(std::vector<datalog::Atom>, args))
+BOOST_FUSION_ADAPT_STRUCT(datalog::GroundedProp,
+                          (std::string, pred)(std::vector<datalog::Value>,
+                                              args))
 BOOST_FUSION_ADAPT_STRUCT(datalog::Rule,
                           (datalog::Prop, head)(std::vector<datalog::Prop>,
                                                 body))

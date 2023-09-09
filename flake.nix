@@ -42,8 +42,10 @@
             pkgs.gum
             pkgs.nushell
             pkgs.boost182.dev
+            pkgs.souffle
           ];
           env = {
+            SOUFFLE_ROOT = "${pkgs.souffle}/";
           };
         }
       ];

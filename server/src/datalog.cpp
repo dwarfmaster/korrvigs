@@ -1,5 +1,6 @@
 #include "datalog.hpp"
 #include <boost/format.hpp>
+#include <type_traits>
 
 #define LOW_TIME(uuid) (uint64_t((uuid >> 96) & 0xFFFFFFFF))
 #define MID_TIME(uuid) (uint64_t((uuid >> 80) & 0xFFFF))
@@ -62,8 +63,38 @@ std::ostream &operator<<(std::ostream &os, const Entry &e) {
   return os;
 }
 
+std::ostream &operator<<(std::ostream &os, const Type &t) {
+  switch (t) {
+  case Type::Entry:
+    os << "entry";
+    break;
+  case Type::String:
+    os << "string";
+    break;
+  case Type::Number:
+    os << "number";
+    break;
+  }
+  return os;
+}
+
 std::tuple<char, char> Entry::uuid_prefix() const {
   return std::make_tuple(int_to_hex(uuid >> 124), int_to_hex(uuid >> 120));
+}
+
+Type get_value_type(const Value &v) {
+  return std::visit(
+      [](auto &&arg) {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, Entry>) {
+          return Type::Entry;
+        } else if constexpr (std::is_same_v<T, std::string>) {
+          return Type::String;
+        } else {
+          return Type::Number;
+        }
+      },
+      v);
 }
 
 } // namespace datalog

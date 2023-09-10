@@ -30,6 +30,8 @@ struct Variable {
 using Atom = std::variant<Variable, Value>;
 
 enum class Type { Entry, Number, String };
+Type get_value_type(const Value &);
+std::ostream &operator<<(std::ostream &, const Type &);
 
 struct Predicate {
   std::string name;

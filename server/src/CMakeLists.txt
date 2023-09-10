@@ -3,12 +3,14 @@ set(KORR_SRC
   main.cpp
   datalog.cpp
   souffle.cpp
+  typer.cpp
 )
 set(KORR_HEADERS
   parser.hpp
   parser_impl.hpp
   datalog.hpp
   souffle.hpp
+  typer.hpp
 )
 
 add_executable(korrvigs-server ${KORR_SRC} ${KORR_HEADERS})

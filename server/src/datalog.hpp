@@ -1,6 +1,7 @@
 #ifndef DEF_DATALOG_HPP
 #define DEF_DATALOG_HPP
 
+#include <array>
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <optional>
 #include <ostream>
@@ -16,6 +17,7 @@ struct Entry {
   Entry();
   Entry(uint128_t);
   std::tuple<char, char> uuid_prefix() const;
+  std::array<uint32_t, 4> uuid_parts() const;
 
   uint128_t uuid;
   std::optional<std::string> sub;

@@ -82,6 +82,11 @@ std::tuple<char, char> Entry::uuid_prefix() const {
   return std::make_tuple(int_to_hex(uuid >> 124), int_to_hex(uuid >> 120));
 }
 
+std::array<uint32_t, 4> Entry::uuid_parts() const {
+  return {uint32_t(uuid >> 96), uint32_t(uuid >> 64), uint32_t(uuid >> 32),
+          uint32_t(uuid)};
+}
+
 Type get_value_type(const Value &v) {
   return std::visit(
       [](auto &&arg) {

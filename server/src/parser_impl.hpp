@@ -74,7 +74,7 @@ struct csv_grammar : qi::grammar<Iterator, std::vector<datalog::GroundedProp>(),
            -(lit("#'") >
              rule.entry.ident[bind(&datalog::Entry::query, _val) = _1] > '\'');
     entry %= lexeme[rule.pred_name] > ',' > ((self | rule.value) % ',');
-    csv %= *qi::eol > (entry % +qi::eol) > *qi::eol;
+    csv %= *qi::eol > -(entry % +qi::eol) > *qi::eol;
   }
 
   rule_grammar<Iterator> rule;

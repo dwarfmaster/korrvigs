@@ -102,4 +102,20 @@ Type get_value_type(const Value &v) {
       v);
 }
 
+std::ostream &operator<<(std::ostream &os, const Value &v) {
+  std::visit(
+      [&os](auto &&arg) {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, Entry>) {
+          os << "'" << arg << "'";
+        } else if constexpr (std::is_same_v<T, std::string>) {
+          os << '"' << arg << '"';
+        } else {
+          os << arg;
+        }
+      },
+      v);
+  return os;
+}
+
 } // namespace datalog

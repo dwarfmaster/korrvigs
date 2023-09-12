@@ -2,6 +2,7 @@
 #define DEF_PARSER_IMPL_HPP
 
 #include "datalog.hpp"
+#include <boost/phoenix/bind/bind_function.hpp>
 #include <boost/phoenix/bind/bind_member_variable.hpp>
 #include <boost/phoenix/operator.hpp>
 #include <boost/spirit/include/qi.hpp>
@@ -9,6 +10,8 @@
 
 using namespace boost::spirit;
 using boost::phoenix::bind;
+
+std::string decode(const std::vector<char> &);
 
 template <typename Iterator, unsigned N, unsigned Shift>
 qi::rule<Iterator, uint128_t()>
@@ -82,6 +85,33 @@ struct csv_grammar : qi::grammar<Iterator, std::vector<datalog::GroundedProp>(),
   qi::rule<Iterator, datalog::Entry> self;
   qi::rule<Iterator, datalog::GroundedProp(), ascii::blank_type> entry;
   qi::rule<Iterator, std::vector<datalog::GroundedProp>(), ascii::blank_type>
+      csv;
+};
+
+using space_skipper = qi::literal_char<char_encoding::standard, false, false>;
+
+template <typename Iterator>
+struct souffle_csv_grammar
+    : qi::grammar<Iterator, std::vector<std::vector<datalog::Value>>(),
+                  space_skipper> {
+  souffle_csv_grammar() : souffle_csv_grammar::base_type(csv) {
+    string = (+(qi::char_("0-9A-Za-z-_.~%")))[_val = bind(decode, _1)];
+    uint32 %= qi::uint_parser<uint128_t, 10, 1, -1>();
+    mstring %= lit("nil") | ('[' > string > ']');
+    uuid_part = uint32[_val = _1 << 96] > ',' > uint32[_val += _1 << 64] > ',' >
+                uint32[_val += _1 << 32] > ',' > uint32[_val += _1];
+    entry = '[' > uuid_part > ',' > mstring > ',' > mstring > ']';
+    values %= (entry | double_ | string) % '\t';
+    csv %= *qi::eol > -(values % +qi::eol) > *qi::eol;
+  }
+
+  qi::rule<Iterator, std::string()> string;
+  qi::rule<Iterator, uint128_t> uint32;
+  qi::rule<Iterator, std::optional<std::string>(), space_skipper> mstring;
+  qi::rule<Iterator, uint128_t(), space_skipper> uuid_part;
+  qi::rule<Iterator, datalog::Entry(), space_skipper> entry;
+  qi::rule<Iterator, std::vector<datalog::Value>(), space_skipper> values;
+  qi::rule<Iterator, std::vector<std::vector<datalog::Value>>(), space_skipper>
       csv;
 };
 

@@ -3,6 +3,7 @@
 #include "parser.hpp"
 #include <boost/spirit/include/support_multi_pass.hpp>
 #include <boost/url.hpp>
+#include <cstdlib>
 #include <fstream>
 #include <ios>
 #include <souffle/SouffleInterface.h>
@@ -19,6 +20,38 @@ std::string souflify_pred_name(const std::string &pred) {
     c = '_';
   }
   return r;
+}
+
+void write_string(std::ostream &os, const std::string &str, bool in_dtl) {
+  if (in_dtl) {
+    os << '"';
+  }
+  os << boost::urls::encode(str, boost::urls::unreserved_chars);
+  if (in_dtl) {
+    os << '"';
+  }
+}
+
+void write_entry(std::ostream &os, const datalog::Entry &entry, bool in_dtl) {
+  std::array<uint32_t, 4> uuid_parts = entry.uuid_parts();
+  os << '[' << uuid_parts[0] << ',' << uuid_parts[1] << ',' << uuid_parts[2]
+     << ',' << uuid_parts[3] << ',';
+  if (entry.sub.has_value()) {
+    os << '[';
+    write_string(os, *entry.sub, in_dtl);
+    os << ']';
+  } else {
+    os << "nil";
+  }
+  os << ',';
+  if (entry.query.has_value()) {
+    os << '[';
+    write_string(os, *entry.query, in_dtl);
+    os << ']';
+  } else {
+    os << "nil";
+  }
+  os << ']';
 }
 
 std::unordered_set<std::string> extract_facts(const fs::path &wiki,
@@ -81,30 +114,9 @@ std::unordered_set<std::string> extract_facts(const fs::path &wiki,
                 [&csv](auto &&arg) {
                   using T = std::decay_t<decltype(arg)>;
                   if constexpr (std::is_same_v<T, datalog::Entry>) {
-                    std::array<uint32_t, 4> uuid_parts = arg.uuid_parts();
-                    csv << "[" << uuid_parts[0] << "," << uuid_parts[1] << ","
-                        << uuid_parts[2] << "," << uuid_parts[3] << ",";
-                    if (arg.sub.has_value()) {
-                      csv << "["
-                          << boost::urls::encode(*arg.sub,
-                                                 boost::urls::unreserved_chars)
-                          << "]";
-                    } else {
-                      csv << "nil";
-                    }
-                    csv << ",";
-                    if (arg.query.has_value()) {
-                      csv << "["
-                          << boost::urls::encode(*arg.query,
-                                                 boost::urls::unreserved_chars)
-                          << "]";
-                    } else {
-                      csv << "nil";
-                    }
-                    csv << "]";
+                    write_entry(csv, arg, false);
                   } else if constexpr (std::is_same_v<T, std::string>) {
-                    csv << boost::urls::encode(arg,
-                                               boost::urls::unreserved_chars);
+                    write_string(csv, arg, false);
                   } else {
                     csv << arg;
                   }
@@ -117,4 +129,138 @@ std::unordered_set<std::string> extract_facts(const fs::path &wiki,
     }
   }
   return inputs;
+}
+
+void write_value(std::ostream &os, const datalog::Value &val) {
+  std::visit(
+      [&os](auto &&arg) {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, datalog::Entry>) {
+          write_entry(os, arg, true);
+        } else if constexpr (std::is_same_v<T, std::string>) {
+          write_string(os, arg, true);
+        } else {
+          os << arg;
+        }
+      },
+      val);
+}
+
+void write_prop(std::ostream &os, const datalog::Prop &prop) {
+  std::string souffle_name = souflify_pred_name(prop.pred);
+  os << souffle_name << '(';
+  for (size_t arg = 0; arg < prop.args.size(); ++arg) {
+    if (arg != 0) {
+      os << ", ";
+    }
+    std::visit(
+        [&os](auto &&arg) {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, datalog::Variable>) {
+            std::string var_name = souflify_pred_name(arg.name);
+            os << var_name;
+          } else {
+            write_value(os, arg);
+          }
+        },
+        prop.args[arg]);
+  }
+  os << ')';
+}
+
+std::vector<std::vector<datalog::Value>>
+run_query(const std::vector<datalog::Predicate> &preds,
+          const std::unordered_set<std::string> &inputs,
+          const std::vector<datalog::Rule> &rules, const fs::path &working_dir,
+          const fs::path &facts) {
+  fs::path datalog_path = working_dir / "query.dtl";
+  std::ofstream datalog(datalog_path, std::ios_base::trunc);
+  if (!datalog) {
+    std::cerr << "Couldn't open " << datalog_path << " for writing"
+              << std::endl;
+    return {};
+  }
+
+  datalog << ".type ident = [ value: symbol ]\n"
+          << ".type entry = [ uuid1: unsigned, uuid2: unsigned, uuid3: "
+             "unsigned, uuid4: unsigned, sub: ident, query: ident ]\n";
+
+  // Declare all predicates
+  bool has_query = false;
+  for (const datalog::Predicate &pred : preds) {
+    std::string souffle_name = souflify_pred_name(pred.name);
+    datalog << ".decl " << souffle_name << '(';
+    for (size_t arg = 0; arg < pred.args.size(); ++arg) {
+      if (arg != 0) {
+        datalog << ',';
+      }
+      datalog << "x" << arg << ": ";
+      switch (pred.args[arg]) {
+      case datalog::Type::Entry:
+        datalog << "entry";
+        break;
+      case datalog::Type::Number:
+        datalog << "float";
+        break;
+      case datalog::Type::String:
+        datalog << "symbol";
+        break;
+      }
+    }
+    datalog << ")\n";
+    if (inputs.find(pred.name) != inputs.end()) {
+      datalog << ".input " << souffle_name << "\n";
+    }
+    if (pred.name == "query") {
+      datalog << ".output query\n";
+      has_query = true;
+    }
+  }
+  if (!has_query) {
+    std::cerr << "No query predicate." << std::endl;
+    return {};
+  }
+
+  // Add all rules
+  for (const datalog::Rule &rule : rules) {
+    write_prop(datalog, rule.head);
+    for (size_t prop = 0; prop < rule.body.size(); ++prop) {
+      if (prop == 0) {
+        datalog << " :- ";
+      } else {
+        datalog << ", ";
+      }
+      write_prop(datalog, rule.body[prop]);
+    }
+    datalog << ".\n";
+  }
+  datalog.close();
+
+  // Run souffle
+  std::ostringstream cmd;
+  cmd << "souffle -F" << facts << " -D" << working_dir << " " << datalog_path;
+  int return_value = system(cmd.str().c_str());
+  if (return_value != 0) {
+    perror("exec souffle");
+    std::cerr << "Souffle failed with error code " << return_value << std::endl;
+    return {};
+  }
+
+  // Parse result
+  fs::path result_path = working_dir / "query.csv";
+  std::ifstream result_stream(result_path);
+  if (!result_stream) {
+    std::cerr << "Couldn't open " << result_path << std::endl;
+    return {};
+  }
+  std::optional<std::vector<std::vector<datalog::Value>>> result =
+      parse_souffle_csv(boost::spirit::make_default_multi_pass(
+                            std::istreambuf_iterator<char>{result_stream}),
+                        boost::spirit::make_default_multi_pass(
+                            std::istreambuf_iterator<char>()));
+  if (!result.has_value()) {
+    std::cerr << "Failed to parse " << result_path << std::endl;
+    return {};
+  }
+  return *result;
 }

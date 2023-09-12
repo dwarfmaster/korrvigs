@@ -3,7 +3,7 @@ project(problem CXX)
 
 find_package(Boost 1.79.0
   REQUIRED
-  COMPONENTS
+  COMPONENTS url
 )
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindSouffle.cmake)
 configure_souffle()

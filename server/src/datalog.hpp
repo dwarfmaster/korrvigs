@@ -26,6 +26,7 @@ struct Entry {
 std::ostream &operator<<(std::ostream &, const Entry &);
 
 using Value = std::variant<Entry, double, std::string>;
+std::ostream &operator<<(std::ostream &, const Value &);
 struct Variable {
   std::string name;
 };

@@ -7,9 +7,11 @@
 
 // Given the path of the root of the wiki, and the path to an existing
 // directory, extract all the facts in the wiki and write them to the directory
-// in a way souffle understands.
+// in a way souffle understands. It also takes an inotify instance and add all
+// the files to it.
 std::unordered_set<std::string> extract_facts(const std::filesystem::path &,
-                                              const std::filesystem::path &);
+                                              const std::filesystem::path &,
+                                              int inotify);
 
 // Rule souffle on a set of rules, assuming each is fully typed. Takes the
 // types, the set of predicates which have input facts, and the rules

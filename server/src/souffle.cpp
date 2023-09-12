@@ -7,6 +7,7 @@
 #include <fstream>
 #include <ios>
 #include <souffle/SouffleInterface.h>
+#include <sys/inotify.h>
 
 namespace fs = std::filesystem;
 
@@ -54,13 +55,32 @@ void write_entry(std::ostream &os, const datalog::Entry &entry, bool in_dtl) {
   os << ']';
 }
 
-std::unordered_set<std::string> extract_facts(const fs::path &wiki,
-                                              const fs::path &dst) {
+std::unordered_set<std::string>
+extract_facts(const fs::path &wiki, const fs::path &dst, int inotify) {
+  int inotify_flags = IN_MASK_CREATE;
+  if (inotify) {
+    inotify_add_watch(inotify, wiki.c_str(),
+                      inotify_flags | IN_CREATE | IN_DELETE);
+  }
+
   std::unordered_set<std::string> inputs;
   for (const auto &prefix : fs::directory_iterator(wiki)) {
+    if (!prefix.is_directory()) {
+      continue;
+    }
+    if (inotify) {
+      inotify_add_watch(inotify, prefix.path().c_str(),
+                        inotify_flags | IN_CREATE | IN_DELETE | IN_DELETE_SELF);
+    }
+
     for (const auto &entry : fs::directory_iterator(prefix.path())) {
       if (!entry.is_directory()) {
         continue;
+      }
+      if (inotify) {
+        inotify_add_watch(inotify, entry.path().c_str(),
+                          inotify_flags | IN_CREATE | IN_DELETE |
+                              IN_DELETE_SELF);
       }
       std::string dir_name = entry.path().filename();
       datalog::Entry self =
@@ -82,9 +102,16 @@ std::unordered_set<std::string> extract_facts(const fs::path &wiki,
         fs::path meta = sub.path();
         meta.replace_extension("meta");
 
-        if (!fs::exists(meta)) {
+        bool meta_exists = fs::exists(meta);
+        if (!meta_exists) {
           // Create empty meta file
           std::ofstream(meta).flush();
+        }
+        if (inotify) {
+          inotify_add_watch(inotify, meta.c_str(),
+                            inotify_flags | IN_CLOSE_WRITE | IN_DELETE_SELF);
+        }
+        if (!meta_exists) {
           continue;
         }
 

@@ -118,7 +118,8 @@ struct souffle_csv_grammar
                   space_skipper> {
   souffle_csv_grammar(const std::vector<datalog::Type> &type_)
       : souffle_csv_grammar::base_type(csv), type(type_) {
-    string = (+qi::char_("0-9A-Za-z_.~%"))[_val = phoenix::bind(decode, _1)];
+    string = (+(qi::char_("0-9A-Za-z_.~%") |
+                qi::char_('-')))[_val = phoenix::bind(decode, _1)];
     uint32 %= qi::uint_parser<uint128_t, 10, 1, -1>();
     mstring %= lit("nil") | ('[' > string > ']');
 
@@ -126,11 +127,11 @@ struct souffle_csv_grammar
                 uint32[_val += _1 << 32] > ',' > uint32[_val += _1];
     entry = '[' > uuid_part > ',' > mstring > ',' > mstring > ']';
 
-    values %= qi::eps[_a = 0] >
+    values %= qi::eps[_a = 0] >>
               (qi::lazy(phoenix::bind(
                    &souffle_csv_grammar<Iterator>::parse_col_value, this, _a)) %
                '\t');
-    csv %= *qi::eol > -(values % +qi::eol) > *qi::eol;
+    csv %= *qi::eol > *(values > +qi::eol);
   }
 
   qi::rule<Iterator, datalog::Value(), space_skipper>
@@ -156,8 +157,6 @@ struct souffle_csv_grammar
   qi::rule<Iterator, std::optional<std::string>(), space_skipper> mstring;
   qi::rule<Iterator, uint128_t(), space_skipper> uuid_part;
   qi::rule<Iterator, datalog::Entry(), space_skipper> entry;
-  // qi::rule<Iterator, datalog::Value(), qi::locals<size_t>, space_skipper>
-  // value;
   qi::rule<Iterator, std::vector<datalog::Value>(), qi::locals<size_t>,
            space_skipper>
       values;

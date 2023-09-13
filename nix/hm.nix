@@ -8,14 +8,12 @@
   cfg = config.services.korrvigs;
   basicType = types.enum ["entry" "number" "string"];
   typesFile = pkgs.writeTextFile {
-    name = "types.sexp";
+    name = "types.csv";
     text =
-      "(\n"
-      + (lib.concatStrings
-        (lib.mapAttrsToList
-          (pred: type: " ${pred} (${lib.concatStringsSep " " type})\n")
-          cfg.predicates))
-      + ")";
+      lib.concatStrings
+      (lib.mapAttrsToList
+        (pred: type: "${pred},${lib.concatStringsSep "," type}\n")
+        cfg.predicates);
   };
   rulesFile = pkgs.writeTextFile {
     name = "rules.pl";
@@ -25,23 +23,18 @@ in {
   options.services.korrvigs = {
     enable = mkEnableOption "Korrvigs assistant";
     package = mkOption {
-      description = "Package containing korrvigs racket code";
+      description = "Package containing korrvigs server";
       type = types.package;
-      default = pkgs.korrvigs-server;
-    };
-    racket = mkOption {
-      description = "Which package to use for racket";
-      type = types.package;
-      default = pkgs.racket;
+      default = pkgs.korrvigs-server-cpp;
     };
 
     typesFile = mkOption {
-      description = "Path to sexp files containing predicates";
+      description = "Path to csv files containing predicates";
       type = types.str;
       readOnly = true;
     };
     rulesFile = mkOption {
-      description = "Path to prolog files containing rules";
+      description = "Path to datalog files containing rules";
       type = types.str;
       readOnly = true;
     };
@@ -49,6 +42,15 @@ in {
       description = "Path to socket to open";
       type = types.str;
       default = "${config.xdg.stateHome}/korrvigs/server.sock";
+    };
+    wikiDir = mkOption {
+      description = "Path of the wiki";
+      type = types.str;
+    };
+    cacheDir = mkOption {
+      description = "Directory for runtime files used by the server";
+      type = types.str;
+      default = "${config.xdg.stateHome}/korrvigs/cache";
     };
 
     predicates = mkOption {
@@ -70,33 +72,22 @@ in {
     systemd.user.services.korrvigs = {
       Unit = {
         Description = "Korrvigs assistant";
-        After = ["basic.target" "korrvigs-setup.service"];
-        Requires = ["korrvigs-setup.service"];
+        After = ["basic.target"];
       };
 
       Service = {
         Type = "simple";
         Restart = "on-failure";
-        ExecStart = "${cfg.package}/bin/main.rktl --socket ${cfg.socketPath} --types ${cfg.typesFile} --rules ${cfg.rulesFile}";
+        ExecStart =
+          "${cfg.package}/bin/korrvigs-server"
+          + " --socket ${cfg.socketPath}"
+          + " --types ${cfg.typesFile}"
+          + " --rules ${cfg.rulesFile}"
+          + " --wiki ${cfg.wikiDir}"
+          + " --cache ${cfg.cacheDir}";
       };
 
       Install.WantedBy = ["default.target"];
-    };
-
-    systemd.user.tmpfiles.rules = [
-      "d ${builtins.dirOf cfg.socketPath} 0750 luc users 0 -"
-    ];
-
-    systemd.user.services.korrvigs-setup = {
-      Unit = {
-        Description = "Setup racket for korrvigs";
-      };
-
-      Service = {
-        Type = "oneshot";
-        Restart = "on-failure";
-        ExecStart = "${cfg.racket}/bin/raco pkg install --deps search-auto --skip-installed megaparsack uuid";
-      };
     };
   };
 }

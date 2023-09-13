@@ -70,6 +70,7 @@
       inherit
         (self.packages.${system})
         korrvigs-server
+        korrvigs-server-cpp
         korrvigs-tui
         ;
     };

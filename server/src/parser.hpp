@@ -49,6 +49,20 @@ parse_csv(It first, It last, const datalog::Entry &self) {
 }
 
 template <typename It>
+std::optional<std::vector<datalog::Predicate>> parse_types(It first, It last) {
+  using namespace boost::spirit;
+  std::vector<datalog::Predicate> result;
+  types_grammar<It> csv_parser;
+  bool r = qi::phrase_parse(first, last, csv_parser, ascii::blank, result);
+  if (r && first == last) {
+    return result;
+  } else {
+    std::cerr << "Failed at " << std::string(first, last) << std::endl;
+    return {};
+  }
+}
+
+template <typename It>
 std::optional<std::vector<std::vector<datalog::Value>>>
 parse_souffle_csv(It first, It last) {
   using namespace boost::spirit;

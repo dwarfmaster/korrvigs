@@ -15,6 +15,11 @@ public:
   bool declare(const datalog::Predicate &);
   bool add_rule(const datalog::Rule &);
 
+  // Check if it has conflist
+  bool has_conflict() const;
+  // Check if it has conflict and print the conflict on stream
+  bool has_conflict(std::ostream &) const;
+
   // Check if it is fully typed without conflict
   bool fully_typed() const;
   // Check if fully typed and if not print error on stream

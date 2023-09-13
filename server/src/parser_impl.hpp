@@ -88,6 +88,22 @@ struct csv_grammar : qi::grammar<Iterator, std::vector<datalog::GroundedProp>(),
       csv;
 };
 
+template <typename Iterator>
+struct types_grammar : qi::grammar<Iterator, std::vector<datalog::Predicate>(),
+                                   ascii::blank_type> {
+  types_grammar() : types_grammar::base_type(csv) {
+    type.add("entry", datalog::Type::Entry)("string", datalog::Type::String)(
+        "number", datalog::Type::Number);
+    entry %= lexeme[rule.pred_name] > ',' > (type % ',');
+    csv %= *qi::eol > -(entry % +qi::eol) > *qi::eol;
+  }
+
+  rule_grammar<Iterator> rule;
+  qi::symbols<char, datalog::Type> type;
+  qi::rule<Iterator, datalog::Predicate(), ascii::blank_type> entry;
+  qi::rule<Iterator, std::vector<datalog::Predicate>(), ascii::blank_type> csv;
+};
+
 using space_skipper = qi::literal_char<char_encoding::standard, false, false>;
 
 template <typename Iterator>

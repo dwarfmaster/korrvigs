@@ -60,6 +60,7 @@ int main(int argc, char *argv[]) {
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
   po::notify(vm);
+  Program program;
 
   if (vm.count("help")) {
     std::cout << desc << std::endl;
@@ -97,7 +98,28 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  std::vector<datalog::Rule> rules;
+  std::vector<datalog::Predicate> predicates;
+  if (vm.count("types")) {
+    fs::path types_path = vm["types"].as<fs::path>();
+    std::ifstream ifs(types_path);
+    if (!ifs) {
+      std::cerr << "Could not open " << types_path << std::endl;
+      return 1;
+    }
+    std::optional<std::vector<datalog::Predicate>> parsed =
+        parse_types(boost::spirit::make_default_multi_pass(
+                        std::istreambuf_iterator<char>{ifs}),
+                    boost::spirit::make_default_multi_pass(
+                        std::istreambuf_iterator<char>()));
+    if (!parsed.has_value()) {
+      std::cerr << "Failed to parse " << types_path << std::endl;
+      return 1;
+    }
+    for (const datalog::Predicate &pred : *parsed) {
+      program.declare(pred);
+    }
+  }
+
   if (vm.count("rules")) {
     fs::path rules_path = vm["rules"].as<fs::path>();
     std::ifstream ifs(rules_path);
@@ -114,10 +136,14 @@ int main(int argc, char *argv[]) {
       std::cerr << "Failed to parse " << rules_path << std::endl;
       return 1;
     }
-    rules = std::move(*parsed);
+    for (const datalog::Rule &rule : *parsed) {
+      program.add_rule(rule);
+    }
   }
 
-  // TODO handle type declaration
+  if (program.has_conflict(std::cerr)) {
+    return 1;
+  }
 
   // Init cache
   fs::path cache_path_00 = runtime_path / "facts" / "00";
@@ -141,6 +167,7 @@ int main(int argc, char *argv[]) {
   facts01.usage = 0;
   data.facts.emplace_front(std::move(facts00));
   data.facts.emplace_front(std::move(facts01));
+  data.program = std::move(program);
 
   // Create threads to handle incoming connections
   std::thread handler1(

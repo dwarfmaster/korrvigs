@@ -51,6 +51,8 @@ bool Program::add_rule(const datalog::Rule &rule) {
   return true;
 }
 
+bool Program::has_conflict() const { return _conflict.has_value(); }
+
 bool Program::fully_typed() const {
   if (_conflict.has_value()) {
     return false;
@@ -65,11 +67,18 @@ bool Program::fully_typed() const {
   return true;
 }
 
-bool Program::fully_typed(std::ostream &os) const {
+bool Program::has_conflict(std::ostream &os) const {
   if (_conflict.has_value()) {
     os << "Predicate's " << _conflict->pred << " " << _conflict->arg
        << "th argument has both " << _conflict->type1 << " and "
        << _conflict->type2 << " types\n";
+    return true;
+  }
+  return false;
+}
+
+bool Program::fully_typed(std::ostream &os) const {
+  if (has_conflict(os)) {
     return false;
   }
   for (auto [pred, args] : _predicates) {

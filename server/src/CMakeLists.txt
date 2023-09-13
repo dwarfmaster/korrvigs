@@ -5,6 +5,7 @@ set(KORR_SRC
   datalog.cpp
   souffle.cpp
   typer.cpp
+  json.cpp
 )
 set(KORR_HEADERS
   parser.hpp
@@ -12,6 +13,7 @@ set(KORR_HEADERS
   datalog.hpp
   souffle.hpp
   typer.hpp
+  json.hpp
 )
 
 add_executable(korrvigs-server ${KORR_SRC} ${KORR_HEADERS})

@@ -1,9 +1,9 @@
 #include "datalog.hpp"
+#include "json.hpp"
 #include "parser.hpp"
 #include "souffle.hpp"
 #include "typer.hpp"
-#include <boost/iostreams/device/file_descriptor.hpp>
-#include <boost/iostreams/stream.hpp>
+#include <boost/asio.hpp>
 #include <boost/phoenix/bind/bind_function.hpp>
 #include <boost/program_options.hpp>
 #include <boost/spirit/include/support_multi_pass.hpp>
@@ -21,6 +21,7 @@
 
 namespace po = boost::program_options;
 namespace fs = std::filesystem;
+using unix_socket = boost::asio::local::stream_protocol;
 
 constexpr unsigned handlers = 4;
 
@@ -30,13 +31,20 @@ struct facts_data {
   size_t usage;
 };
 struct connection_data {
-  int server_fd;
+  connection_data() = delete;
+  connection_data(const fs::path &socket_path);
+  boost::asio::io_context io_context;
+  unix_socket::endpoint endpoint;
+  unix_socket::acceptor acceptor;
   Program program;
   fs::path runtime_dir;
   std::deque<facts_data> facts;
   std::mutex facts_mutex;
 };
 void handle_connection(connection_data &, unsigned);
+
+connection_data::connection_data(const fs::path &socket_path)
+    : endpoint(socket_path), acceptor(io_context, endpoint) {}
 
 int main(int argc, char *argv[]) {
   // Handle CLI arguments
@@ -121,7 +129,7 @@ int main(int argc, char *argv[]) {
   fs::copy(cache_path_01, cache_path_00);
 
   // Synchronisation data
-  connection_data data;
+  connection_data data(socket_path);
   data.runtime_dir = runtime_path;
   facts_data facts00;
   facts00.facts_dir = cache_path_00;
@@ -133,26 +141,6 @@ int main(int argc, char *argv[]) {
   facts01.usage = 0;
   data.facts.emplace_front(std::move(facts00));
   data.facts.emplace_front(std::move(facts01));
-
-  // Bind socket
-  int socket_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-  data.server_fd = socket_fd;
-  if (socket_fd == -1) {
-    perror("socket");
-    return 1;
-  }
-  struct sockaddr_un server_addr;
-  server_addr.sun_family = AF_UNIX;
-  strcpy(server_addr.sun_path, socket_path.c_str());
-  if (bind(socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) !=
-      0) {
-    perror("bind");
-    return 1;
-  }
-  if (listen(socket_fd, handlers) != 0) {
-    perror("listen");
-    return 1;
-  }
 
   // Create threads to handle incoming connections
   std::thread handler1(
@@ -178,37 +166,27 @@ void handle_connection(connection_data &data, unsigned id) {
   std::ostringstream oss;
   oss << data.runtime_dir.native() << "/threads/" << id;
   fs::path working_dir = oss.str();
-  std::cout << "Using " << working_dir << " as working directory" << std::endl;
   fs::create_directories(working_dir);
 
   // The main loop of the thread
-  int client_fd;
-  struct sockaddr_un client;
-  unsigned clen;
   std::string first_line;
   facts_data *facts = nullptr;
+  unix_socket::iostream stream;
   for (;;) {
     facts = nullptr;
-    int client = accept(data.server_fd, (struct sockaddr *)&client, &clen);
-    if (client == -1) {
-      perror("accept");
-      return;
-    }
-    boost::iostreams::file_descriptor_source source(
-        client, boost::iostreams::never_close_handle);
-    boost::iostreams::stream<boost::iostreams::file_descriptor_source> is(
-        source);
+    data.acceptor.accept(stream.socket());
 
     // Parse query
-    std::getline(is, first_line);
+    std::getline(stream, first_line);
     if (first_line == "QUERY") {
       std::optional<std::vector<datalog::Rule>> query =
           parse_rules(boost::spirit::make_default_multi_pass(
-                          std::istreambuf_iterator<char>{is}),
+                          std::istreambuf_iterator<char>{stream}),
                       boost::spirit::make_default_multi_pass(
                           std::istreambuf_iterator<char>()));
       if (!query.has_value()) {
-        goto error;
+        stream << "ERROR\nCouldn't parse the query" << std::endl;
+        goto finish;
       }
 
       // Setup program
@@ -217,7 +195,8 @@ void handle_connection(connection_data &data, unsigned id) {
         prog.add_rule(rule);
       }
       if (!prog.fully_typed()) {
-        goto error;
+        stream << "ERROR\nCouldn't fully type the query" << std::endl;
+        goto finish;
       }
 
       // Find facts directory
@@ -232,16 +211,11 @@ void handle_connection(connection_data &data, unsigned id) {
       std::vector<std::vector<datalog::Value>> result =
           run_query(prog.predicates(), facts->input, prog.rules(), working_dir,
                     facts->facts_dir);
-      // TODO send results
-      write(client, "SUCCESS\n", 8);
-
-    } else {
-      goto error;
+      stream << "SUCCESS\n";
+      for (const std::vector<datalog::Value> &row : result) {
+        write_json(stream, row) << '\n';
+      }
     }
-
-    goto finish;
-  error:
-    write(client, "ERROR\n", 6);
 
   finish:
     // Release facts usage is acquired
@@ -250,6 +224,7 @@ void handle_connection(connection_data &data, unsigned id) {
       facts->usage -= 1;
       data.facts_mutex.unlock();
     }
-    close(client);
+    stream.flush();
+    stream.close();
   }
 }

@@ -23,6 +23,7 @@ struct Entry {
   std::optional<std::string> sub;
   std::optional<std::string> query;
 };
+std::ostream &print_uuid(std::ostream &, uint128_t);
 std::ostream &operator<<(std::ostream &, const Entry &);
 
 using Value = std::variant<Entry, double, std::string>;

@@ -51,9 +51,14 @@ namespace datalog {
 Entry::Entry() : uuid(0), sub({}), query({}) {}
 Entry::Entry(uint128_t uuid) : uuid(uuid), sub({}), query({}) {}
 
+std::ostream &print_uuid(std::ostream &os, uint128_t uuid) {
+  os << boost::format("%08x-%04x-%04x-%04x-%012x") % LOW_TIME(uuid) %
+            MID_TIME(uuid) % VERSION(uuid) % VARIANT(uuid) % NODE(uuid);
+  return os;
+}
+
 std::ostream &operator<<(std::ostream &os, const Entry &e) {
-  os << boost::format("%08x-%04x-%04x-%04x-%012x") % LOW_TIME(e.uuid) %
-            MID_TIME(e.uuid) % VERSION(e.uuid) % VARIANT(e.uuid) % NODE(e.uuid);
+  print_uuid(os, e.uuid);
   if (e.sub.has_value()) {
     os << "/" << e.sub.value();
   }

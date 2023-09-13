@@ -85,6 +85,7 @@ in {
           + " --rules ${cfg.rulesFile}"
           + " --wiki ${cfg.wikiDir}"
           + " --cache ${cfg.cacheDir}";
+        Environment = "PATH=${pkgs.souffle}/bin";
       };
 
       Install.WantedBy = ["default.target"];

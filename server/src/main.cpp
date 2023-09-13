@@ -180,9 +180,48 @@ int main(int argc, char *argv[]) {
       boost::phoenix::bind(&handle_connection, boost::phoenix::ref(data), 3));
 
   // Manage wiki state
-  // TODO
+  char buffer[4096];
   for (;;) {
-    sleep(1);
+    // We use the fact that reading is blocking
+    ssize_t result = read(ino, buffer, 4096);
+    if (result < 0) {
+      if (errno == EINTR) {
+        continue;
+      } else {
+        perror("read");
+        return 1;
+      }
+    }
+
+    std::cout << "Reloading" << std::endl;
+    facts_data facts;
+    facts.usage = 0;
+    data.facts_mutex.lock();
+    if (data.facts.back().usage == 0) {
+      facts = std::move(data.facts.back());
+      data.facts.pop_back();
+      data.facts_mutex.unlock();
+      for (const auto &entry : fs::directory_iterator(facts.facts_dir)) {
+        fs::remove_all(entry.path());
+      }
+    } else {
+      data.facts_mutex.unlock();
+      for (unsigned count = 2;; ++count) {
+        std::ostringstream oss;
+        oss << std::setw(2) << std::setfill('0') << count;
+        facts.facts_dir = runtime_path / "facts" / oss.str();
+        if (!fs::exists(facts.facts_dir)) {
+          fs::create_directories(facts.facts_dir);
+          break;
+        }
+      }
+    }
+    close(ino);
+    ino = inotify_init1(IN_CLOEXEC);
+    facts.input = extract_facts(wiki_path, facts.facts_dir, ino);
+    data.facts_mutex.lock();
+    data.facts.push_front(std::move(facts));
+    data.facts_mutex.unlock();
   }
 
   return 0;

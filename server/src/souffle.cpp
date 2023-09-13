@@ -6,7 +6,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <ios>
-#include <souffle/SouffleInterface.h>
 #include <sys/inotify.h>
 
 namespace fs = std::filesystem;

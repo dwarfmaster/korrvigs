@@ -118,7 +118,7 @@ struct souffle_csv_grammar
                   space_skipper> {
   souffle_csv_grammar(const std::vector<datalog::Type> &type_)
       : souffle_csv_grammar::base_type(csv), type(type_) {
-    string = (+qi::char_("0-9A-Za-z_.~%-"))[_val = phoenix::bind(decode, _1)];
+    string = (+qi::char_("0-9A-Za-z_.~%"))[_val = phoenix::bind(decode, _1)];
     uint32 %= qi::uint_parser<uint128_t, 10, 1, -1>();
     mstring %= lit("nil") | ('[' > string > ']');
 

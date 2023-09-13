@@ -23,6 +23,9 @@ namespace po = boost::program_options;
 namespace fs = std::filesystem;
 using unix_socket = boost::asio::local::stream_protocol;
 
+constexpr size_t EVENT_SIZE = sizeof(struct inotify_event);
+constexpr size_t BUF_LENGTH = 512 * (EVENT_SIZE + 32);
+
 constexpr unsigned handlers = 4;
 
 struct facts_data {
@@ -180,10 +183,10 @@ int main(int argc, char *argv[]) {
       boost::phoenix::bind(&handle_connection, boost::phoenix::ref(data), 3));
 
   // Manage wiki state
-  char buffer[4096];
+  char buffer[BUF_LENGTH];
   for (;;) {
     // We use the fact that reading is blocking
-    ssize_t result = read(ino, buffer, 4096);
+    ssize_t result = read(ino, buffer, BUF_LENGTH);
     if (result < 0) {
       if (errno == EINTR) {
         continue;
@@ -193,7 +196,28 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    std::cout << "Reloading" << std::endl;
+    bool reload = false;
+    for (size_t i = 0; i < result;) {
+      struct inotify_event *event = (struct inotify_event *)(buffer + i);
+      if (event->len) {
+        if (event->mask & IN_DELETE_SELF || event->mask & IN_CLOSE_WRITE) {
+          reload = true;
+          break;
+        }
+        if ((event->mask & IN_CREATE || event->mask & IN_DELETE) &&
+            !(event->mask & IN_ISDIR)) {
+          fs::path file(event->name);
+          if (file.extension() == ".meta") {
+            reload = true;
+            break;
+          }
+        }
+      }
+      i += EVENT_SIZE + event->len;
+    }
+    if (!reload)
+      continue;
+
     facts_data facts;
     facts.usage = 0;
     data.facts_mutex.lock();

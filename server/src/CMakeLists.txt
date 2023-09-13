@@ -18,6 +18,14 @@ add_executable(korrvigs-server ${KORR_SRC} ${KORR_HEADERS})
 set_property(
   TARGET korrvigs-server
   PROPERTY CXX_STANDARD 17)
-target_include_directories(korrvigs-server PUBLIC ${Boost_INCLUDE_DIR} ${SOUFFLE_HEADER_FILES})
-target_link_libraries(korrvigs-server ${Boost_URL_LIBRARY_RELEASE})
+target_include_directories(korrvigs-server 
+  PUBLIC
+  ${Boost_INCLUDE_DIR}
+  ${SOUFFLE_HEADER_FILES}
+)
+target_link_libraries(korrvigs-server 
+  ${Boost_URL_LIBRARY_RELEASE}
+  ${Boost_PROGRAM_OPTIONS_LIBRARY_RELEASE}
+  ${Boost_IOSTREAMS_LIBRARY_RELEASE}
+)
 install(TARGETS korrvigs-server DESTINATION bin)

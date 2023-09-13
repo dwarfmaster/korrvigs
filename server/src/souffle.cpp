@@ -264,7 +264,8 @@ run_query(const std::vector<datalog::Predicate> &preds,
 
   // Run souffle
   std::ostringstream cmd;
-  cmd << "souffle -F" << facts << " -D" << working_dir << " " << datalog_path;
+  cmd << "souffle -F" << facts << " -D" << working_dir << " --no-warn "
+      << datalog_path;
   int return_value = system(cmd.str().c_str());
   if (return_value != 0) {
     perror("exec souffle");

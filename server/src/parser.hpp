@@ -6,6 +6,13 @@
 #include <optional>
 #include <vector>
 
+template <typename It> It advance_with_last(It it, size_t n, It last) {
+  for (size_t i = 0; i < n && it != last; ++i) {
+    ++it;
+  }
+  return it;
+}
+
 template <typename It>
 std::optional<datalog::Entry> parse_entry(It first, It last) {
   using namespace boost::spirit;
@@ -64,15 +71,17 @@ std::optional<std::vector<datalog::Predicate>> parse_types(It first, It last) {
 
 template <typename It>
 std::optional<std::vector<std::vector<datalog::Value>>>
-parse_souffle_csv(It first, It last) {
+parse_souffle_csv(It first, It last, const std::vector<datalog::Type> &type) {
   using namespace boost::spirit;
   std::vector<std::vector<datalog::Value>> result;
-  souffle_csv_grammar<It> csv_parser;
+  souffle_csv_grammar<It> csv_parser(type);
   bool r = qi::phrase_parse(first, last, csv_parser, qi::char_(' '), result);
   if (r && first == last) {
     return result;
   } else {
-    std::cerr << "Failed at " << std::string(first, last) << std::endl;
+    std::cerr << "Failed at "
+              << std::string(first, advance_with_last(first, 50, last))
+              << std::endl;
     return {};
   }
 }

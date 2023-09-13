@@ -213,6 +213,7 @@ run_query(const std::vector<datalog::Predicate> &preds,
 
   // Declare all predicates
   bool has_query = false;
+  std::vector<datalog::Type> query_type;
   for (const datalog::Predicate &pred : preds) {
     std::string souffle_name = souflify_pred_name(pred.name);
     datalog << ".decl " << souffle_name << '(';
@@ -240,6 +241,7 @@ run_query(const std::vector<datalog::Predicate> &preds,
     if (pred.name == "query") {
       datalog << ".output query\n";
       has_query = true;
+      query_type = pred.args;
     }
   }
   if (!has_query) {
@@ -265,7 +267,7 @@ run_query(const std::vector<datalog::Predicate> &preds,
   // Run souffle
   std::ostringstream cmd;
   cmd << "souffle -F" << facts << " -D" << working_dir << " --no-warn "
-      << datalog_path;
+      << datalog_path << " > /dev/null 2>&1";
   int return_value = system(cmd.str().c_str());
   if (return_value != 0) {
     perror("exec souffle");
@@ -284,7 +286,8 @@ run_query(const std::vector<datalog::Predicate> &preds,
       parse_souffle_csv(boost::spirit::make_default_multi_pass(
                             std::istreambuf_iterator<char>{result_stream}),
                         boost::spirit::make_default_multi_pass(
-                            std::istreambuf_iterator<char>()));
+                            std::istreambuf_iterator<char>()),
+                        query_type);
   if (!result.has_value()) {
     std::cerr << "Failed to parse " << result_path << std::endl;
     return {};

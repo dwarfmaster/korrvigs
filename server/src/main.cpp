@@ -72,9 +72,14 @@ int main(int argc, char *argv[]) {
 
   fs::path socket_path;
   if (vm.count("socket")) {
-    socket_path = vm["socket"].as<fs::path>();
+    socket_path = fs::absolute(vm["socket"].as<fs::path>());
     if (fs::exists(socket_path)) {
       fs::remove(socket_path);
+    }
+    fs::path socket_dir = socket_path;
+    socket_dir.remove_filename();
+    if (!fs::exists(socket_dir)) {
+      fs::create_directories(socket_dir);
     }
   } else {
     std::cerr << "Socket path was not set\n\n" << desc << std::endl;
@@ -83,7 +88,7 @@ int main(int argc, char *argv[]) {
 
   fs::path wiki_path;
   if (vm.count("wiki")) {
-    wiki_path = vm["wiki"].as<fs::path>();
+    wiki_path = fs::absolute(vm["wiki"].as<fs::path>());
   } else {
     std::cerr << "Wiki path was not set\n\n" << desc << std::endl;
     return 1;
@@ -91,7 +96,7 @@ int main(int argc, char *argv[]) {
 
   fs::path runtime_path;
   if (vm.count("cache")) {
-    runtime_path = vm["cache"].as<fs::path>();
+    runtime_path = fs::absolute(vm["cache"].as<fs::path>());
     fs::create_directories(runtime_path);
     for (const auto &entry : fs::directory_iterator(runtime_path)) {
       fs::remove_all(entry.path());

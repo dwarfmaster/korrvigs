@@ -40,16 +40,18 @@ struct rule_grammar
   rule_grammar() : rule_grammar::base_type(rule) {
     string %= '"' > *(lit("\\\"")[_val = '"'] | (qi::char_ - '"')) > '"';
     value %= ('\'' > entry > '\'') | qi::double_ | string;
-    var %= qi::lexeme[qi::upper > *(qi::alnum | qi::char_("-_"))];
+    var_name %= qi::upper > *(qi::alnum | qi::char_("-_"));
+    var %= var_name;
     atom %= var | value;
-    pred_name %= qi::lexeme[qi::lower > *(qi::alnum | qi::char_("-_"))];
-    prop %= lexeme[pred_name] > '(' > (lexeme[atom] % ',') > ')';
+    pred_name %= qi::lower > *(qi::alnum | qi::char_("-_"));
+    prop %= pred_name > '(' > (atom % ',') > ')';
     rule %= prop > -(lit(":-") > (prop % ',')) > '.';
   }
 
   entry_grammar<Iterator> entry;
   qi::rule<Iterator, std::string()> string;
   qi::rule<Iterator, datalog::Value()> value;
+  qi::rule<Iterator, std::string()> var_name;
   qi::rule<Iterator, datalog::Variable()> var;
   qi::rule<Iterator, datalog::Atom()> atom;
   qi::rule<Iterator, std::string()> pred_name;

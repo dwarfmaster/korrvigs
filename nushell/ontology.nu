@@ -109,7 +109,7 @@ export def 'query relation' [] {
 
 export def 'resolve module' [] {
   let entry = ($in | korr to datalog)
-  $"query\(K) :- relation-rules\('($entry)', K)." | query | each { get 0 }
+  $"query\(K) :- relation-rules\('($entry)', K)." | korr query | each { get 0 }
 }
 
 export def 'export relations def' [] {

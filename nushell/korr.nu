@@ -19,7 +19,8 @@ export def 'socket' [] {
 export def 'query' [] {
   let start = $in
   let sock = $"UNIX-CONNECT:(socket)"
-  $start | socat $sock - | lines | each { from json }
+  let r = (["QUERY\n", $start] | str join | socat $sock -)
+  $r | lines | skip 1 | each { from json }
 }
 
 # Create a new entry in the wiki
@@ -31,8 +32,8 @@ export def 'create entry' [
   let dir = ($uuid | from uuid | resolve dir)
   mkdir $dir
   let def = ($dir | path join "default.meta")
-  $"name\(self, \"($name)\").
-instance-of\(self, '($instance)')." | save $def
+  $"name, self, \"($name)\"
+instance-of, self, '($instance)'" | save $def
   { uuid: $uuid sub: null query: null name: $name }
 }
 
@@ -47,8 +48,8 @@ export def 'create sub' [
   let entry = ($start | update sub $sub)
   let meta = ($entry | resolve meta)
   let dtl = ($entry | to datalog)
-  $"name\(self, \"($name)\").
-instance-of\(self, '($instance)')." | save $meta
+  $"name, self, \"($name)\"
+instance-of, self, '($instance)'" | save $meta
   mv $file ($entry | resolve file)
   $entry | upsert name $name
 }
@@ -60,15 +61,23 @@ export def 'create note' [] {
   let entryName = ($entry | query name)
   let sub = ($entryName | utils to-filename --suffix "_notes.md")
   let name = ([ $entryName " notes"] | str join)
-  let instance = ( "query(U) :- name(U, \"Pandoc document\")." 
+  let instance = ( "query(U) :- name(U, \"Markup document\")." 
                  | query | get 0.0.uuid )
+  let format = ( 
+    "query(F) :- name(F, \"Pandoc markdown\"), class-of(F, \"Markup language\")."
+    | query | get 0.0 | to datalog
+  )
   let temp = (mktemp)
   $"---
 title: ($name)
 ---
 " | save --force $temp
-  let note = ($entry | create sub $temp --sub $sub $instance $name)
-  $entry | meta add $"notes\(self, self/'($sub)')."
+  let note = (
+    $entry 
+    | create sub $temp --sub $sub $instance $name
+    | meta add $"format, self, '($format)'"
+  )
+  $entry | meta add $"notes, self, self/'($sub)'"
   $note
 }
 
@@ -79,21 +88,19 @@ export def 'create korr' [] {
   let entryName = ($entry | query name)
   let sub = ($entryName | utils to-filename --suffix "_rules.pl")
   let name = ([ $entryName " rules" ] | str join)
-  let instance = ( "query(U) :- name(U, \"Korrvigs module\")."
+  let instance = ( "query(U) :- name(U, \"Source code file\")."
                  | query | get 0.0.uuid )
   let temp = (mktemp)
   let kmodule = ($entry | create sub $temp --sub $sub $instance $name)
-  $entry | meta add $"relation-rules\(self, self/'($sub)')."
+  $entry | meta add $"relation-rules, self, self/'($sub)'"
   $kmodule
 }
 
 # List all classes
 export def 'query classes' [] {
-  (
-    "query(N, C) :- instance-of(T, T), instance-of(C, T), name(C, N)."
-    | query
-    | each { { Name: $in.0, Entity: $in.1.uuid } }
-  )
+  let classes = ("query(N, C) :- instance-of(T, T), instance-of(C, T), name(C, N)."
+                | query)
+  $classes | each { { Name: $in.0, Entity: $in.1.uuid } }
 }
 
 # The the korrvigs types
@@ -120,13 +127,14 @@ export def 'query relation' [] {
   ( "query(R) :- name(R, \"Ontology relation\"), instance-of(R, T), instance-of(T,T)."
   | query
   | get 0.0
-  | upsert name "Ontological relation" )
+  | upsert name "Ontology relation" )
 }
 
 # Get the notes of an entry
 export def 'query notes' [] {
   let entry = ($in | to datalog)
-  $"query\(N) :- notes\('($entry)', N)." | query | each { get 0 }
+  let notes = ($"query\(N) :- notes\('($entry)', N)." | query)
+  $notes | each { get 0 }
 }
 
 export def 'query korrs' [] {

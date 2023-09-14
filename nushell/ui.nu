@@ -5,15 +5,18 @@ export def 'fuzzy filter' [] {
   (
     each { |l| $"($l.0) ($l.1)" } | to text
     | fzf --with-nth=2..
+    | str trim
     | parse "{key} {value}"
     | get 0
   )
 }
 
 export def 'fuzzy select' [] {
-  let named = ("query(C, N) :- name(C, N)." | korr query
-              | each { [ ($in.0 | korr to datalog) $in.1 ] } )
-  $named | fuzzy filter | get key | korr from datalog
+  let named = ("query(C, N, NC) :- name(C, N), class-of(C, NC)." | korr query)
+  let named = ($named | each { [ ($in.0 | korr to datalog) $"[($in.2)] ($in.1)" ] } )
+  let selected = ($named | fuzzy filter)
+  let name = ($selected | get value | parse "[{class}] {name}" | get 0 | get name)
+  $selected | get key | korr from datalog | upsert name $name
 }
 
 export def 'create' [] {
@@ -27,7 +30,7 @@ export def 'create subclass' [] {
   let title = (gum input --placeholder $"Name for new subclass of ($class.value)")
   let class_class = (korr query class | get uuid)
   ( korr create entry $class_class $title
-  | korr meta add $"is-a\(self, '($class.key)')." )
+  | korr meta add $"is-a, self, '($class.key)'" )
 }
 
 export def 'create relation' [name: string] {
@@ -39,7 +42,7 @@ export def 'create relation' [name: string] {
     1..($arity) 
     | each ({ |id| 
       let class = ($classes | fuzzy filter)
-      $"relation-type-at\(self, ($id), '($class.key)')."
+      $"relation-type-at, self, ($id), '($class.key)'"
     })
     | str join "\n"
   )

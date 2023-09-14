@@ -194,7 +194,11 @@ export def 'export classes graph' [] {
     | each { |in| $"  \"($in.0)\" -> \"($in.1)\";" }
   )
   let rels = (
-    "query(N, A, B) :- relation-type-at(R, 1, U), relation-type-at(R, 2, V), name(R, N), name(U, A), name(V, B)."
+    'query(N, A, B) :- 
+        relation-type-at(R, 1, U),
+        relation-type-at(R, 2, V),
+        class-of(V, "Ontology class"),
+        name(R, N), name(U, A), name(V, B).'
     | korr query
     | each { |in| $"  \"($in.1)\" -> \"($in.2)\" [color=\"blue\",label=\"($in.0)\"];" }
   )

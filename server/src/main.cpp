@@ -209,10 +209,9 @@ int main(int argc, char *argv[]) {
           reload = true;
           break;
         }
-        if ((event->mask & IN_CREATE || event->mask & IN_DELETE) &&
-            !(event->mask & IN_ISDIR)) {
+        if (event->mask & IN_CREATE || event->mask & IN_DELETE) {
           fs::path file(event->name);
-          if (file.extension() == ".meta") {
+          if (event->mask & IN_ISDIR || file.extension() == ".meta") {
             reload = true;
             break;
           }

@@ -1,6 +1,7 @@
 
 use ui.nu
 use korr.nu
+use notes.nu
 
 # Run a query on the server
 def 'main query' [
@@ -26,7 +27,7 @@ def 'main create' [
 ] {
   let entry = (ui create)
   if $annot {
-    $entry | ui annotate
+    $entry | notes attach
   }
   $entry | to json
 }
@@ -37,7 +38,7 @@ def 'main create subclass' [
 ] {
   let entry = (ui create subclass)
   if $annot {
-    $entry | ui annotate
+    $entry | notes attach
   }
   $entry | to json
 }
@@ -50,7 +51,7 @@ def 'main create relation' [
 ] {
   let entry = (ui create relation $name)
   if $annot {
-    $entry | ui annotate
+    $entry | notes attach
   }
   if $rules {
     $entry | ui add rules
@@ -84,7 +85,7 @@ def 'main export relations summary' [] {
 
 # Create notes for an entry
 def 'main annotate' [] {
-  ui fuzzy select | ui annotate | to json
+  ui fuzzy select | notes attach | to json
 }
 
 # Add rules for a relation

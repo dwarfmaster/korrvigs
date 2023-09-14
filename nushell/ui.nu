@@ -50,18 +50,6 @@ export def 'create relation' [name: string] {
   | korr meta add $args )
 }
 
-export def 'annotate' [] {
-  let entry = $in
-  let notes = ($entry | korr query notes)
-  let note = (if ($notes | is-empty) {
-    $entry | korr create note
-  } else {
-    $notes | get 0
-  });
-  run-external $env.EDITOR ($note | korr resolve file)
-  $note
-}
-
 export def 'add rules' [] {
   let entry = $in
   let korrs = ($entry | korr query korrs)

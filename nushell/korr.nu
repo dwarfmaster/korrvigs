@@ -54,33 +54,6 @@ instance-of, self, '($instance)'" | save $meta
   $entry | upsert name $name
 }
 
-# Create notes for entry
-export def 'create note' [] {
-  let entry = $in
-  let dtl = ($entry | to datalog)
-  let entryName = ($entry | query name)
-  let sub = ($entryName | utils to-filename --suffix "_notes.md")
-  let name = ([ $entryName " notes"] | str join)
-  let instance = ( "query(U) :- name(U, \"Markup document\")." 
-                 | query | get 0.0.uuid )
-  let format = ( 
-    "query(F) :- name(F, \"Pandoc markdown\"), class-of(F, \"Markup language\")."
-    | query | get 0.0 | to datalog
-  )
-  let temp = (mktemp)
-  $"---
-title: ($name)
----
-" | save --force $temp
-  let note = (
-    $entry 
-    | create sub $temp --sub $sub $instance $name
-    | meta add $"format, self, '($format)'"
-  )
-  $entry | meta add $"notes, self, self/'($sub)'"
-  $note
-}
-
 # Create a korrvigs module attached to an entry
 export def 'create korr' [] {
   let entry = $in
@@ -128,13 +101,6 @@ export def 'query relation' [] {
   | query
   | get 0.0
   | upsert name "Ontology relation" )
-}
-
-# Get the notes of an entry
-export def 'query notes' [] {
-  let entry = ($in | to datalog)
-  let notes = ($"query\(N) :- notes\('($entry)', N)." | query)
-  $notes | each { get 0 }
 }
 
 export def 'query korrs' [] {

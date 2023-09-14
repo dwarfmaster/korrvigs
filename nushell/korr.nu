@@ -54,60 +54,6 @@ instance-of, self, '($instance)'" | save $meta
   $entry | upsert name $name
 }
 
-# Create a korrvigs module attached to an entry
-export def 'create korr' [] {
-  let entry = $in
-  let dtl = ($entry | to datalog)
-  let entryName = ($entry | query name)
-  let sub = ($entryName | utils to-filename --suffix "_rules.pl")
-  let name = ([ $entryName " rules" ] | str join)
-  let instance = ( "query(U) :- name(U, \"Source code file\")."
-                 | query | get 0.0.uuid )
-  let temp = (mktemp)
-  let kmodule = ($entry | create sub $temp --sub $sub $instance $name)
-  $entry | meta add $"relation-rules, self, self/'($sub)'"
-  $kmodule
-}
-
-# List all classes
-export def 'query classes' [] {
-  let classes = ("query(N, C) :- instance-of(T, T), instance-of(C, T), name(C, N)."
-                | query)
-  $classes | each { { Name: $in.0, Entity: $in.1.uuid } }
-}
-
-# The the korrvigs types
-export def 'query types' [] {
-  (
-    "query(N, C) :- name(T, \"Korrvigs type\"), instance-of(C, T), name(C, N)."
-    | query
-    | each { { Name: $in.0, Entity: $in.1.uuid } }
-  )
-}
-
-# Get the class of classes
-export def 'query class' [] {
-  (
-    "query(T) :- instance-of(T, T)."
-    | query
-    | get 0.0
-    | upsert name "Ontological class"
-  )
-}
-
-# Get the class of relations
-export def 'query relation' [] {
-  ( "query(R) :- name(R, \"Ontology relation\"), instance-of(R, T), instance-of(T,T)."
-  | query
-  | get 0.0
-  | upsert name "Ontology relation" )
-}
-
-export def 'query korrs' [] {
-  let entry = ($in | to datalog)
-  $"query\(K) :- relation-rules\('($entry)', K)." | query | each { get 0 }
-}
-
 # Get the name of an entry
 export def 'query name' [] {
   let entry = $in

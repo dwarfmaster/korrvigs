@@ -2,6 +2,7 @@
 use ui.nu
 use korr.nu
 use notes.nu
+use ontology.nu
 
 # Run a query on the server
 def 'main query' [
@@ -25,7 +26,7 @@ def 'main find' [] {
 def 'main create' [
   --annot: bool # Annotate the newly created entry
 ] {
-  let entry = (ui create)
+  let entry = (ontology create entry)
   if $annot {
     $entry | notes attach
   }
@@ -36,7 +37,7 @@ def 'main create' [
 def 'main create subclass' [
   --annot: bool # Annotate the newly created entry
 ] {
-  let entry = (ui create subclass)
+  let entry = (ontology create subclass)
   if $annot {
     $entry | notes attach
   }
@@ -49,38 +50,34 @@ def 'main create relation' [
   --annot: bool # Annotate the relation
   --rules: bool # Add rules to the relation
 ] {
-  let entry = (ui create relation $name)
+  let entry = (ontology create relation $name)
   if $annot {
     $entry | notes attach
   }
   if $rules {
-    $entry | ui add rules
+    $entry | ontology edit rules
   }
   $entry | to json
 }
 
 # Export the class tree in graphviz format
 def 'main export classes tree' [] {
-  ( "query(A, B) :- is-a(U, V), name(U, A), name(V, B)."
-  | korr query 
-  | each { |in| $"  \"($in.0)\" -> \"($in.1)\";" }
-  | prepend "digraph {" | append "}"
-  | to text )
+  ontology export classes tree
 }
 
 # Export the types of the relations
 def 'main export relations def' [] {
-  ui export relations def | to json -r
+  ontology export relations def | to json -r
 }
 
 # Export rules of the relations
 def 'main export relations rules' [] {
-  ui export relations rules | to json -r
+  ontology export relations rules | to json -r
 }
 
 # Print summary of relations
 def 'main export relations summary' [] {
-  ui export relations summary | print
+  ontology export relations summary | print
 }
 
 # Create notes for an entry
@@ -90,16 +87,7 @@ def 'main annotate' [] {
 
 # Add rules for a relation
 def 'main add rules' [] {
-  let rels = (korr query relation)
-  (
-    $"query\(R, N) :- instance-of\(R, '($rels | korr to datalog)'), name\(R, N)."
-    | korr query
-    | each { [ ($in.0 | korr to datalog) $in.1 ] }
-    | ui fuzzy filter | get key
-    | korr from datalog
-    | ui add rules
-    | to json
-  )
+  ontology create rules | to json
 }
 
 def 'main remove' [] {

@@ -77,7 +77,7 @@ in {
 
       Service = {
         Type = "simple";
-        Restart = "on-failure";
+        Restart = "no";
         ExecStart =
           "${cfg.package}/bin/korrvigs-server"
           + " --socket ${cfg.socketPath}"

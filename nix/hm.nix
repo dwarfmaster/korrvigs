@@ -25,7 +25,7 @@ in {
     package = mkOption {
       description = "Package containing korrvigs server";
       type = types.package;
-      default = pkgs.korrvigs-server-cpp;
+      default = pkgs.korrvigs-server;
     };
 
     typesFile = mkOption {

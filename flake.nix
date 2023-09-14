@@ -24,8 +24,6 @@
           languages.go.enable = true;
           languages.nix.enable = true;
           languages.c.enable = true;
-          languages.racket.enable = true;
-          languages.racket.package = pkgs.racket;
 
           pre-commit.hooks = {
             alejandra.enable = true;
@@ -56,13 +54,11 @@
     };
 
     packages.${system} = let
-      server = pkgs.callPackage ./racket {};
-      server-cpp = pkgs.callPackage ./server {boost = pkgs.boost182;};
+      server = pkgs.callPackage ./server {boost = pkgs.boost182;};
       tui = pkgs.callPackage ./tui {};
     in {
       default = server;
       korrvigs-server = server;
-      korrvigs-server-cpp = server-cpp;
       korrvigs-tui = tui;
     };
 
@@ -70,7 +66,6 @@
       inherit
         (self.packages.${system})
         korrvigs-server
-        korrvigs-server-cpp
         korrvigs-tui
         ;
     };

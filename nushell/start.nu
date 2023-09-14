@@ -3,6 +3,7 @@ use ui.nu
 use korr.nu
 use notes.nu
 use ontology.nu
+use date.nu
 
 # Run a query on the server
 def 'main query' [
@@ -93,6 +94,11 @@ def 'main annotate' [] {
 # Add rules for a relation
 def 'main add rules' [] {
   ontology create rules | to json
+}
+
+# Add a date to a timepoint
+def 'main date point' [] {
+  date attach date
 }
 
 def 'main remove' [] {

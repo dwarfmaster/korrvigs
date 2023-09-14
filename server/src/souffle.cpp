@@ -64,7 +64,8 @@ extract_facts(const fs::path &wiki, const fs::path &dst, int inotify) {
 
   std::unordered_set<std::string> inputs;
   for (const auto &prefix : fs::directory_iterator(wiki)) {
-    if (!prefix.is_directory()) {
+    if (!prefix.is_directory() ||
+        prefix.path().filename().native().size() != 2) {
       continue;
     }
     if (inotify) {
@@ -82,8 +83,16 @@ extract_facts(const fs::path &wiki, const fs::path &dst, int inotify) {
                               IN_DELETE_SELF);
       }
       std::string dir_name = entry.path().filename();
-      datalog::Entry self =
-          parse_entry(dir_name.begin(), dir_name.end()).value();
+      datalog::Entry self;
+      {
+        std::optional<datalog::Entry> parsed =
+            parse_entry(dir_name.begin(), dir_name.end());
+        if (!parsed.has_value()) {
+          // Directory is not an UUID
+          continue;
+        }
+        self = std::move(parsed.value());
+      }
 
       for (const auto &sub : fs::directory_iterator(entry.path())) {
         fs::path path = sub.path();

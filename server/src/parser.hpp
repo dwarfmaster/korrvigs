@@ -20,12 +20,19 @@ std::optional<V> generic_parser(It first, It last, Skipper skipper,
   using namespace boost::spirit;
   V result;
   Parser parser(args...);
-  bool r = qi::phrase_parse(first, last, parser, skipper, result);
-  if (r && first == last) {
-    return result;
-  } else {
-    std::cerr << "Failed at "
-              << std::string(first, advance_with_last(first, 50, last))
+  try {
+    bool r = qi::phrase_parse(first, last, parser, skipper, result);
+    if (r && first == last) {
+      return result;
+    } else {
+      std::cerr << "Failed at "
+                << std::string(first, advance_with_last(first, 50, last))
+                << std::endl;
+      return {};
+    }
+  } catch (boost::spirit::qi::expectation_failure<It> &e) {
+    std::cerr << "Unexpected value: "
+              << std::string(e.first, advance_with_last(e.first, 50, e.last))
               << std::endl;
     return {};
   }

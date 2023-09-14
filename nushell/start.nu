@@ -65,6 +65,11 @@ def 'main export classes tree' [] {
   ontology export classes tree
 }
 
+# Export the class tree with relations in graphviz format
+def 'main export classes graph' [] {
+  ontology export classes graph
+}
+
 # Export the types of the relations
 def 'main export relations def' [] {
   ontology export relations def | to json -r

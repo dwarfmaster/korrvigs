@@ -187,3 +187,21 @@ export def 'export classes tree' [] {
   | to text )
 }
 
+export def 'export classes graph' [] {
+  let tree = (
+    "query(A, B) :- is-a(U, V), name(U, A), name(V, B)."
+    | korr query 
+    | each { |in| $"  \"($in.0)\" -> \"($in.1)\";" }
+  )
+  let rels = (
+    "query(N, A, B) :- relation-type-at(R, 1, U), relation-type-at(R, 2, V), name(R, N), name(U, A), name(V, B)."
+    | korr query
+    | each { |in| $"  \"($in.1)\" -> \"($in.2)\" [color=\"blue\",label=\"($in.0)\"];" }
+  )
+  (
+    [ "digraph {", $tree, $rels, "}" ]
+    | flatten
+    | to text
+  )
+}
+

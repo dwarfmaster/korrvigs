@@ -5,6 +5,7 @@ use notes.nu
 use ontology.nu
 use date.nu
 use files.nu
+use person.nu
 
 # Run a query on the server
 def 'main query' [
@@ -76,6 +77,60 @@ def 'main create format' [
     $entry | notes attach
   }
   $entry | to json
+}
+
+# Add a new person
+def 'main create person' [
+  --annot: bool # Annotate the person
+] {
+  let name = (gum input --placeholder "Person's name")
+  let entry = ($name | person create person)
+  if $annot {
+    $entry | notes attach
+  }
+  $entry | to json
+}
+
+# Add a new name to a person
+def 'main person add name' [] {
+  person add name | to json
+}
+
+# Set the birth date of someone
+def 'main person set birth' [] {
+  person set birth | to json
+}
+
+# Set the death date of someone
+def 'main person set death' [] {
+  person set death | to json
+}
+
+# Find a person by name
+def 'main person find' [] {
+  (
+    person resolve persons
+    | each { |p| [ ($p.person | korr to datalog) $p.name ] }
+    | ui fuzzy filter
+    | get key
+    | korr from datalog
+    | to json
+  )
+}
+
+# Annotate a person
+def 'main person annotate' [] {
+  let person = (
+    person resolve persons
+    | each { |p| [ ($p.person | korr to datalog) $p.name ] }
+    | ui fuzzy filter
+  )
+  let person = ($person.key | korr from datalog | insert name $person.value)
+  (
+    $person
+    | notes attach
+    | to json
+  )
 }
 
 # Export the class tree in graphviz format

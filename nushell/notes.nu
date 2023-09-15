@@ -5,7 +5,6 @@ use utils.nu
 # Create notes for entry
 export def 'create' [] {
   let entry = $in
-  let dtl = ($entry | korr to datalog)
   let entryName = ($entry | korr query name)
   let sub = ($entryName | utils to-filename --suffix "_notes.md")
   let name = ([ $entryName " notes"] | str join)
@@ -23,7 +22,7 @@ title: ($name)
   let note = (
     $entry 
     | korr create sub $temp --sub $sub $instance $name
-    | korr meta add $"format, self, '($format)'"
+    | korr meta add $"format, self, ($format)"
   )
   $entry | korr meta add $"notes, self, self/'($sub)'"
   $note

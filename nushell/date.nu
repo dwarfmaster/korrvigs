@@ -40,7 +40,9 @@ export def 'select date' [] {
   )
 }
 
-export def 'attach subdate' [] {
+export def 'attach subdate' [
+  --prompt: string
+] {
   let entry = $in
   let query = (
     [ $entry.query "time-datum" ] 
@@ -48,7 +50,12 @@ export def 'attach subdate' [] {
     | str join "-"
   )
   let time_class = (resolve time-datum)
-  let date = ($entry | korr query name | select date)
+  let prompt = (if ($prompt | is-empty) {
+    $entry | korr query name
+  } else {
+    $prompt
+  })
+  let date = ($prompt | select date)
   let time_entry = ($entry | upsert query $query)
   let time_dt = ($time_entry | korr to datalog --self)
   (
@@ -76,4 +83,16 @@ export def 'attach date' [] {
 
 export def 'resolve time-datum' [] {
   "Time datum" | korr resolve class
+}
+
+export def 'resolve time-point' [] {
+  "Time point" | korr resolve class
+}
+
+export def 'resolve time-region' [] {
+  "Temporal region" | korr resolve class
+}
+
+export def 'resolve time-segment' [] {
+  "Continuous temporal region" | korr resolve class
 }

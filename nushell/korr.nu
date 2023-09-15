@@ -26,15 +26,23 @@ export def 'query' [] {
 # Create a new entry in the wiki
 export def 'create entry' [
   instance: string # UUID of the entry describing its class
-  name: string # The of the entry
+  name: string # The name of the entry
 ] {
   let uuid = (uuidgen)
   let dir = ($uuid | from uuid | resolve dir)
   mkdir $dir
   let def = ($dir | path join "default.meta")
-  $"name, self, \"($name)\"
-instance-of, self, '($instance)'" | save $def
-  { uuid: $uuid sub: null query: null name: $name }
+  $"instance-of, self, '($instance)'" | save $def
+  let entry = { uuid: $uuid sub: null query: null }
+  if (not ($name | is-empty)) {
+    (
+      $entry
+      | meta add $"name, self, \"($name)\""
+      | insert name $name
+    )
+  } else {
+    $entry
+  }
 }
 
 export def 'create sub' [

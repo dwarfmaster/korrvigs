@@ -150,6 +150,7 @@ export def 'resolve class' [] {
     $"query\(C) :- name\(C, \"($name)\"), instance-of\(C, I), instance-of\(I, I)."
     | query
     | get 0.0
+    | upsert name $name
   )
 }
 

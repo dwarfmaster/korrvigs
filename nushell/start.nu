@@ -4,6 +4,7 @@ use korr.nu
 use notes.nu
 use ontology.nu
 use date.nu
+use files.nu
 
 # Run a query on the server
 def 'main query' [
@@ -57,6 +58,22 @@ def 'main create relation' [
   }
   if $rules {
     $entry | ontology edit rules
+  }
+  $entry | to json
+}
+
+# Create a format
+def 'main create format' [
+  --annot: bool # Annotate the relation
+  --choose: bool # Use a more specific class than Data Format Specification
+] {
+  let entry = (if $choose {
+    (files ui create format --choose)
+  } else {
+    (files ui create format)
+  })
+  if $annot {
+    $entry | notes attach
   }
   $entry | to json
 }

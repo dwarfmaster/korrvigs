@@ -32,7 +32,7 @@ title: ($name)
 # Get the notes of an entry
 export def 'resolve' [] {
   let entry = ($in | korr to datalog)
-  let notes = ($"query\(N) :- notes\('($entry)', N)." | korr query)
+  let notes = ($"query\(N) :- notes\(($entry), N)." | korr query)
   $notes | each { get 0 }
 }
 

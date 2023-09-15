@@ -6,7 +6,6 @@ use ui.nu
 # Create a korrvigs module attached to an entry
 export def 'create module' [] {
   let entry = $in
-  let dtl = ($entry | korr to datalog)
   let entryName = ($entry | korr query name)
   let sub = ($entryName | utils to-filename --suffix "_rules.pl")
   let name = ([ $entryName " rules" ] | str join)
@@ -52,7 +51,7 @@ export def 'create relation' [name: string] {
 export def 'create rules' [] {
   let rels = (query relation)
   (
-    $"query\(R, N) :- instance-of\(R, '($rels | korr to datalog)'), name\(R, N)."
+    $"query\(R, N) :- instance-of\(R, ($rels | korr to datalog)), name\(R, N)."
     | korr query
     | each { [ ($in.0 | korr to datalog) $in.1 ] }
     | ui fuzzy filter | get key
@@ -109,7 +108,7 @@ export def 'query relation' [] {
 
 export def 'resolve module' [] {
   let entry = ($in | korr to datalog)
-  $"query\(K) :- relation-rules\('($entry)', K)." | korr query | each { get 0 }
+  $"query\(K) :- relation-rules\(($entry), K)." | korr query | each { get 0 }
 }
 
 export def 'export relations def' [] {

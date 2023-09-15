@@ -47,7 +47,6 @@ export def 'create sub' [
   let sub = (if ($sub | is-empty) { $file | path basename } else { $sub })
   let entry = ($start | update sub $sub)
   let meta = ($entry | resolve meta)
-  let dtl = ($entry | to datalog)
   $"name, self, \"($name)\"
 instance-of, self, '($instance)'" | save $meta
   mv $file ($entry | resolve file)
@@ -59,7 +58,7 @@ export def 'query name' [] {
   let entry = $in
   if ($entry | get name? | is-empty) {
     let entry = ($entry | to datalog)
-    $"query\(N) :- name\('($entry)', N)." | query | get 0.0
+    $"query\(N) :- name\(($entry), N)." | query | get 0.0
   } else {
     $entry | get name
   }
@@ -73,11 +72,12 @@ export def 'from uuid' [
   { uuid: $in sub: $sub query: $query }
 }
 
-# Transform a detalog representation into the entry
+# Transform a detalog representation into the entry. Does not support self
+# representation
 export def 'from datalog' [] {
   let dtl = $in
   let entry = ($dtl 
-              | parse -r '(?P<uuid>[\d\w]{8}-[\d\w]{4}-[\d\w]{4}-[\d\w]{4}-[\d\w]{12})(/(?P<sub>[^/#]*))?(#(?P<query>[^/#]*))?'
+              | parse -r `'(?P<uuid>[\d\w]{8}-[\d\w]{4}-[\d\w]{4}-[\d\w]{4}-[\d\w]{12})(/(?P<sub>[^/#]*))?(#(?P<query>[^/#]*))?'`
               | get 0 | select uuid sub query)
   ( $entry
   | update sub (if ($entry.sub | is-empty) { null } else { $entry.sub })
@@ -85,12 +85,36 @@ export def 'from datalog' [] {
 }
 
 # Transform an entry into its datalog representation
-export def 'to datalog' [] {
+export def 'to datalog' [ --self: bool ] {
   let entry = $in
-  let uuid = $entry.uuid
-  let sub = (if ($entry.sub | is-empty) { "" } else { $"/($entry.sub)" })
-  let query = (if ($entry.query | is-empty) { "" } else { $"#($entry.query)" })
-  [ $uuid $sub $query ] | str join
+  let prefix = (if $self {
+    ""
+  } else {
+    "'"
+  })
+  let uuid = (if $self {
+    "self"
+  } else {
+    $entry.uuid
+  })
+  let sub = (if ([($entry.sub | is-empty) $self] | any {}) { 
+    "" 
+  } else { 
+    $"/($entry.sub)" 
+  })
+  let query = (if ($entry.query | is-empty) { 
+    "" 
+  } else if $self { 
+    $"#'($entry.query)'" 
+  } else {
+    $"#($entry.query)" 
+  })
+  let suffix = (if $self {
+    ""
+  } else {
+    "'"
+  })
+  [ $prefix $uuid $sub $query $suffix ] | str join
 }
 
 # Get path of the directory of the entry

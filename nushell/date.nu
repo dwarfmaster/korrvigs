@@ -47,23 +47,31 @@ export def 'attach subdate' [] {
     | filter { |s| not ($s | is-empty) }
     | str join "-"
   )
-  let dateEntry = ($entry | upsert query $query)
+  let time_class = (resolve time-datum)
   let date = ($entry | korr query name | select date)
-  $entry | korr meta add $"time-point-datum, self, self#'($query)'"
-  $dateEntry | korr meta add $"time-datum-year, self#'($query)', ($date.year)"
-  $dateEntry | korr meta add $"time-datum-day-in-year, self#'($query)', ($date.dayOfYear)"
-  $dateEntry | korr meta add $"time-datum-month, self#'($query)', ($date.month)"
-  $dateEntry | korr meta add $"time-datum-day-in-month, self#'($query)', ($date.day)"
-  $dateEntry | korr meta add $"time-datum-week, self#'($query)', ($date.week)"
-  $dateEntry | korr meta add $"time-datum-day-in-week, self#'($query)', ($date.dayOfWeek)"
-  $dateEntry | korr meta add $"time-datum-day-in-hour, self#'($query)', ($date.hour)"
-  $dateEntry | korr meta add $"time-datum-day-in-minute, self#'($query)', ($date.minute)"
-  $dateEntry | korr meta add $"time-datum-day-in-second, self#'($query)', ($date.second)"
-  $dateEntry | korr meta add $"time-datum-day-in-nanosecond, self#'($query)', ($date.nanosecond)"
-  $dateEntry | korr meta add $"time-datum-utc-offset, self#'($query)', ($date.timezone)"
+  (
+    $entry 
+    | korr meta add $"instance-of, self#'($query)', ($time_class | korr to datalog)"
+    | korr meta add $"time-point-datum, self, self#'($query)'"
+    | korr meta add $"time-datum-year, self#'($query)', ($date.year)"
+    | korr meta add $"time-datum-day-in-year, self#'($query)', ($date.dayOfYear)"
+    | korr meta add $"time-datum-month, self#'($query)', ($date.month)"
+    | korr meta add $"time-datum-day-in-month, self#'($query)', ($date.day)"
+    | korr meta add $"time-datum-week, self#'($query)', ($date.week)"
+    | korr meta add $"time-datum-day-in-week, self#'($query)', ($date.dayOfWeek)"
+    | korr meta add $"time-datum-day-in-hour, self#'($query)', ($date.hour)"
+    | korr meta add $"time-datum-day-in-minute, self#'($query)', ($date.minute)"
+    | korr meta add $"time-datum-day-in-second, self#'($query)', ($date.second)"
+    | korr meta add $"time-datum-day-in-nanosecond, self#'($query)', ($date.nanosecond)"
+    | korr meta add $"time-datum-utc-offset, self#'($query)', ($date.timezone)"
+    | upsert query $query
+  )
 }
 
 export def 'attach date' [] {
   select point | attach subdate
 }
 
+export def 'resolve time-datum' [] {
+  "Time datum" | korr resolve class
+}

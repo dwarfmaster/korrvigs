@@ -119,6 +119,16 @@ export def 'resolve meta' [] {
   $entry | resolve dir | path join $sub
 }
 
+# Find a class by name
+export def 'resolve class' [] {
+  let name = $in
+  (
+    $"query\(C) :- name\(C, \"($name)\"), instance-of\(C, I), instance-of\(I, I)."
+    | query
+    | get 0.0
+  )
+}
+
 # Add new atom to meta file
 export def 'meta add' [
   atom: string # New atom to append

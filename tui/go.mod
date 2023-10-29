@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.2
+	github.com/google/uuid v1.3.0
 )
 
 require (

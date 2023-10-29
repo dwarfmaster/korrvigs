@@ -17,17 +17,29 @@
       inherit system;
     };
 
+    korrvigs-web = pkgs.haskellPackages.callPackage ./haskell {};
+
     shell = devenv.lib.mkShell {
       inherit inputs pkgs;
       modules = [
         {
           languages.nix.enable = true;
           languages.c.enable = true;
+          languages.haskell.enable = true;
+          languages.haskell.package = pkgs.haskellPackages.ghcWithPackages (hpkgs: [
+            hpkgs.yesod
+          ]);
 
           pre-commit.hooks = {
             alejandra.enable = true;
             deadnix.enable = true;
             clang-format.enable = true;
+            cabal-fmt.enable = true;
+            cabal2nix.enable = true;
+            ormolu.enable = true;
+          };
+          pre-commit.settings = {
+            alejandra.exclude = ["haskell/default.nix"];
           };
 
           packages = [
@@ -38,6 +50,7 @@
             pkgs.xdot
             pkgs.perl536Packages.FileMimeInfo
             pkgs.broot
+            pkgs.haskellPackages.yesod-bin
           ];
           env = {
             SOUFFLE_ROOT = "${pkgs.souffle}/";
@@ -55,12 +68,14 @@
     in {
       default = server;
       korrvigs-server = server;
+      inherit korrvigs-web;
     };
 
     overlays.default = _: _: {
       inherit
         (self.packages.${system})
         korrvigs-server
+        korrvigs-web
         ;
     };
 

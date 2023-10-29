@@ -4,3 +4,4 @@ result
 *.out
 .devenv
 .pre-commit-config.yaml
+haskell/dist*

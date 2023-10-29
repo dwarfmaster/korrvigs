@@ -6,6 +6,7 @@ use ontology.nu
 use date.nu
 use files.nu
 use person.nu
+use process.nu
 
 # Run a query on the server
 def 'main query' [
@@ -28,10 +29,14 @@ def 'main find' [] {
 # Create a new entry
 def 'main create' [
   --annot: bool # Annotate the newly created entry
+  --edit: bool # Edit the meta file
 ] {
   let entry = (ontology create entry)
   if $annot {
     $entry | notes attach
+  }
+  if $edit {
+    run-external $env.EDITOR ($entry | korr resolve meta)
   }
   $entry | to json
 }
@@ -85,6 +90,28 @@ def 'main create person' [
 ] {
   let name = (gum input --placeholder "Person's name")
   let entry = ($name | person create person)
+  if $annot {
+    $entry | notes attach
+  }
+  $entry | to json
+}
+
+# Add a new generic role
+def 'main create role' [
+  --annot: bool # Annotate the role
+] {
+  let entry = (process ui create role)
+  if $annot {
+    $entry | notes attach
+  }
+  $entry | to json
+}
+
+# Add a new process template
+def 'main create template' [
+  --annot: bool # Annotate the role
+] {
+  let entry = (process ui create template)
   if $annot {
     $entry | notes attach
   }

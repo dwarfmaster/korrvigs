@@ -16,7 +16,7 @@ export def 'create person' [] {
     | korr meta add $"instance-of, self#'lifespan', ($tr_class | korr to datalog)"
     | korr meta add $"instance-of, self#'birth', ($pt_class | korr to datalog)"
     | korr meta add $"instance-of, self#'death', ($pt_class | korr to datalog)"
-    | korr meta add "exists-at, self, self#'lifespan'"
+    | korr meta add "occupies-temporal-region, self, self#'lifespan'"
     | korr meta add "temporal-region-start, self#'lifespan', self#'birth'"
     | korr meta add "temporal-region-end, self#'lifespan', self#'death'"
     | korr meta add $"instance-of, self#'name', ($name_class | korr to datalog)"

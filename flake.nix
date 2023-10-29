@@ -41,6 +41,9 @@
             pkgs.nushell
             pkgs.boost182.dev
             pkgs.souffle
+            pkgs.xdot
+            pkgs.perl536Packages.FileMimeInfo
+            pkgs.broot
           ];
           env = {
             SOUFFLE_ROOT = "${pkgs.souffle}/";

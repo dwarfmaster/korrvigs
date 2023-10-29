@@ -11,6 +11,20 @@ export def 'fuzzy filter' [] {
   )
 }
 
+export def 'fuzzy check' [] {
+  (
+    each { |l| $"($l.0) ($l.1)" } | to text
+    | fzf --with-nth=2.. --multi
+    | lines
+    | each { str trim | parse "{key} {value}" | get 0 }
+  )
+}
+
+export def 'merge name' [] {
+  let $entry = $in
+  $entry.key | korr from datalog | insert name $entry.value
+}
+
 export def 'fuzzy select' [] {
   let named = ("query(C, N, NC) :- name(C, N), class-of(C, NC)." | korr query)
   let named = ($named | each { [ ($in.0 | korr to datalog) $"[($in.2)] ($in.1)" ] } )

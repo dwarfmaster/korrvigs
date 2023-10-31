@@ -28,6 +28,7 @@
           languages.haskell.enable = true;
           languages.haskell.package = pkgs.haskellPackages.ghcWithPackages (hpkgs: [
             hpkgs.yesod
+            hpkgs.opaleye
           ]);
 
           pre-commit.hooks = {

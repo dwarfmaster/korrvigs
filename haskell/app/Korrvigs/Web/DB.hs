@@ -13,9 +13,9 @@ import qualified Yesod as Y
   Nothing -> O.matchNullable (O.sqlBool True) (\_ -> O.sqlBool False) a
   Just b' -> O.matchNullable (O.sqlBool False) (\a' -> a' .== b') a
 
-findEntity :: EntityRef -> HM (Maybe Entity)
+findEntity :: Backend a => EntityRef -> Y.HandlerFor a (Maybe Entity)
 findEntity (EntityRef uuid sub query) = do
-  Korrvigs conn <- Y.getYesod
+  conn <- pgsql
   res <- Y.liftIO $ O.runSelect conn sql
   pure $ case res of
     [(i, cls)] ->

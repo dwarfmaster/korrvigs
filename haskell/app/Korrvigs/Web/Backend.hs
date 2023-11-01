@@ -1,8 +1,10 @@
 module Korrvigs.Web.Backend where
 
 import Database.PostgreSQL.Simple (Connection)
-import Yesod (HandlerFor)
+import Yesod (HandlerFor, getYesod)
 
-data Korrvigs = Korrvigs Connection
+class Backend a where
+  backendSqlConnection :: a -> Connection
 
-type HM a = HandlerFor Korrvigs a
+pgsql :: Backend a => HandlerFor a Connection
+pgsql = getYesod >>= return . backendSqlConnection

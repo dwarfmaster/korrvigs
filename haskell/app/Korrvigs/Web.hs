@@ -3,12 +3,15 @@
 module Korrvigs.Web where
 
 import Data.Text (Text)
+import Database.PostgreSQL.Simple (Connection)
 import qualified Korrvigs.Classes as Cls
 import Korrvigs.Definition
 import Korrvigs.Web.Backend
 import Korrvigs.Web.DB
 import Korrvigs.Web.UUID (UUID (UUID))
 import Yesod
+
+data Korrvigs = Korrvigs Connection
 
 mkYesod
   "Korrvigs"
@@ -21,6 +24,9 @@ mkYesod
 |]
 
 instance Yesod Korrvigs
+
+instance Backend Korrvigs where
+  backendSqlConnection (Korrvigs conn) = conn
 
 getHomeR :: Handler Html
 getHomeR = defaultLayout [whamlet|Hello from korrvigs!|]

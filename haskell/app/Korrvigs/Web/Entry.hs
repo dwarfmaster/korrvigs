@@ -1,3 +1,3 @@
-module Korrvigs.Web.Entry (allEntriesJSON) where
+module Korrvigs.Web.Entry (getAllEntriesR) where
 
-import Korrvigs.Web.Entry.All
+import Korrvigs.Web.Entry.Select

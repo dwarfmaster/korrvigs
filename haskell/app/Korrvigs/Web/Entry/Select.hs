@@ -1,1 +1,45 @@
-module Korrvigs.Web.Entry.Select where
+module Korrvigs.Web.Entry.Select (getAllEntriesR) where
+
+import qualified Data.Aeson as JSON
+import Data.Text (Text)
+import qualified Data.UUID as U
+import Korrvigs.Schema
+import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Ressources as Rcs
+import qualified Korrvigs.Web.UUID as UUID
+import Opaleye ((.&&), (.==))
+import qualified Opaleye as O
+import Yesod
+
+entryToJson :: U.UUID -> Text -> Text -> Handler JSON.Value
+entryToJson i name cls = do
+  render <- getUrlRender
+  pure $
+    JSON.object
+      [ "url" .= render (EntryR $ UUID.UUID i),
+        "class" .= cls,
+        "name" .= name
+      ]
+
+allEntriesAsJSON :: Handler [JSON.Value]
+allEntriesAsJSON = do
+  conn <- pgsql
+  res <- liftIO $ O.runSelect conn sql
+  mapM (uncurry3 entryToJson) res
+  where
+    sql :: O.Select (O.Field O.SqlUuid, O.Field O.SqlText, O.Field O.SqlText)
+    sql = do
+      (i_, name_, _) <- O.selectTable entriesTable
+      (_, class_, entity_i_, sub_, query_) <- O.selectTable entitiesTable
+      O.where_ $ (i_ .== entity_i_) .&& (O.isNull sub_) .&& (O.isNull query_)
+      return (i_, name_, class_)
+    uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+    uncurry3 f (x, y, z) = f x y z
+
+allEntriesJSON :: Handler JSON.Value
+allEntriesJSON = JSON.toJSONList <$> allEntriesAsJSON
+
+getAllEntriesR :: Handler TypedContent
+getAllEntriesR = selectRep $ do
+  provideRep allEntriesJSON
+  provideRep $ defaultLayout (Rcs.fuzzy >> Rcs.entrySelect)

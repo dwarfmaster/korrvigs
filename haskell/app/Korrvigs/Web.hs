@@ -9,8 +9,7 @@ import Korrvigs.Definition
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Backend ()
 import Korrvigs.Web.DB
-import qualified Korrvigs.Web.Entry as Entries
-import qualified Korrvigs.Web.Ressources as Rcs
+import Korrvigs.Web.Entry (getAllEntriesR)
 import Korrvigs.Web.Routes
 import Korrvigs.Web.UUID (UUID (UUID))
 import Yesod
@@ -19,11 +18,6 @@ mkYesodDispatch "Korrvigs" korrvigsRoutes
 
 getHomeR :: Handler Html
 getHomeR = defaultLayout [whamlet|Hello from korrvigs!|]
-
-getAllEntriesR :: Handler TypedContent
-getAllEntriesR = selectRep $ do
-  provideRep Entries.allEntriesJSON
-  provideRep $ defaultLayout Rcs.entrySelect
 
 getEntryR :: UUID -> Handler Html
 getEntryR (UUID uuid) = generateForEntity $ EntityRef uuid Nothing Nothing

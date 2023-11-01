@@ -1,4 +1,3 @@
-const Fuse = require('fuse.js');
 const fuseOptions = {
 	isCaseSensitive: false,
 	includeScore: false,
@@ -14,14 +13,24 @@ const fuseOptions = {
 	ignoreFieldNorm: false,
 	fieldNormWeight: 1,
 	keys: [
-		"id",
+    "class",
 		"name"
 	]
 };
-const list = $.getJSON(@{AllEntriesR})
-const fuse = new Fuse(list, fuseOptions);
 
-$('#select-query').on('input', function() {
-  query = $('#select-query').val();
-  results = fuse.search(query);
+lst = $('#select-query');
+lst.empty();
+
+$.getJSON('@{AllEntriesR}', function (list) {
+  const fuse = new Fuse(list, fuseOptions);
+  
+  $('#select-query').on('input', function() {
+    query = $('#select-query').val();
+    results = fuse.search(query).slice(0,10);
+    lst = $('#select-results');
+    lst.empty();
+    for (result of results) {
+      lst.append(`<li><a href=${result.item.url}>[${result.item.class}] ${result.item.name}</li>`);
+    }
+  });
 });

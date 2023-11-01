@@ -71,7 +71,6 @@ executable korrvigs-web
     Korrvigs.Web.Backend
     Korrvigs.Web.DB
     Korrvigs.Web.Entry
-    Korrvigs.Web.Entry.All
     Korrvigs.Web.Entry.Select
     Korrvigs.Web.Ressources
     Korrvigs.Web.Routes

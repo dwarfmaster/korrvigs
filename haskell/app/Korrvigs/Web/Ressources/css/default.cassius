@@ -1,7 +1,7 @@
 
 body
   background: #{base 0}
-  color: #{base 4}
+  color: #{base 5}
 
 #central
   margin: auto

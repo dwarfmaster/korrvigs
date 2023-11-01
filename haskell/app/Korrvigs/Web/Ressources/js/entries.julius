@@ -27,7 +27,7 @@ $.getJSON('@{AllEntriesR}', function (list) {
   $('#select-query').on('input', function() {
     query = $('#select-query').val();
     results = fuse.search(query).slice(0,10);
-    lst = $('#select-results');
+    lst = $('#select-list');
     lst.empty();
     for (result of results) {
       lst.append(`<li><a href=${result.item.url}>[${result.item.class}] ${result.item.name}</li>`);

@@ -1,5 +1,6 @@
 module Korrvigs.Definition where
 
+import Data.Int (Int64)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.UUID (UUID)
@@ -29,7 +30,7 @@ data Entry = MkEntry
   deriving (Show, Eq, Ord)
 
 data Entity = MkEntity
-  { entity_id :: Integer,
+  { entity_id :: Int64,
     entity_class :: Class,
     entity_uuid :: UUID,
     entity_sub :: Maybe Text,

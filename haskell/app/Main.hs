@@ -1,7 +1,12 @@
 module Main where
 
-import Korrvigs.Web
+import Database.PostgreSQL.Simple (close, connectPostgreSQL)
+import Korrvigs.Web ()
+import Korrvigs.Web.Backend
 import Yesod
 
 main :: IO ()
-main = warp 3000 Korrvigs
+main = do
+  conn <- connectPostgreSQL "dbname='korrvigs'"
+  warp 3000 $ Korrvigs conn
+  close conn

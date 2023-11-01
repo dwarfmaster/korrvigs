@@ -1,11 +1,14 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Korrvigs.Web where
 
 import Data.Text (Text)
+import qualified Korrvigs.Classes as Cls
 import Korrvigs.Definition
+import Korrvigs.Web.Backend
+import Korrvigs.Web.DB
 import Korrvigs.Web.UUID (UUID (UUID))
 import Yesod
-
-data Korrvigs = Korrvigs
 
 mkYesod
   "Korrvigs"
@@ -35,4 +38,7 @@ getEntrySubQueryR :: UUID -> Text -> Text -> Handler Html
 getEntrySubQueryR (UUID uuid) sub query = generateForEntity $ EntityRef uuid (Just sub) (Just query)
 
 generateForEntity :: EntityRef -> Handler Html
-generateForEntity ref = defaultLayout [whamlet|Page for #{show ref}|]
+generateForEntity ref =
+  findEntity ref >>= \case
+    Nothing -> notFound
+    Just ent -> defaultLayout [whamlet|Page for [#{Cls.name (entity_class ent)}] #{show ref}|]

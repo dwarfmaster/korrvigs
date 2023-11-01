@@ -8,7 +8,9 @@ import qualified Korrvigs.Classes as Cls
 import Korrvigs.Definition
 import Korrvigs.Web.Backend
 import Korrvigs.Web.DB
+import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.UUID (UUID (UUID))
+import qualified Web.ClientSession as CS
 import Yesod
 
 data Korrvigs = Korrvigs Connection
@@ -23,7 +25,31 @@ mkYesod
 /entry/#UUID/#Text/#Text EntrySubQueryR GET
 |]
 
-instance Yesod Korrvigs
+instance Yesod Korrvigs where
+  defaultLayout w = do
+    p <- widgetToPageContent widget
+    msgs <- getMessages
+    withUrlRenderer
+      [hamlet|
+        $newline never
+        $doctype 5
+        <html>
+            <head>
+                <title>#{pageTitle p}
+                $maybe description <- pageDescription p
+                  <meta name="description" content="#{description}">
+                ^{pageHead p}
+            <body>
+                $forall (status, msg) <- msgs
+                    <p class="message #{status}">#{msg}
+                ^{pageBody p}
+        |]
+    where
+      widget = w >> Rcs.jquery
+  jsLoader _ = BottomOfBody
+  makeSessionBackend _ = strictSameSiteSessions def
+    where
+      def = Just <$> defaultClientSessionBackend (24 * 60) CS.defaultKeyFile
 
 instance Backend Korrvigs where
   backendSqlConnection (Korrvigs conn) = conn

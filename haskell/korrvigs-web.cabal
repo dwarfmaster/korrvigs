@@ -70,6 +70,7 @@ executable korrvigs-web
     Korrvigs.Web
     Korrvigs.Web.Backend
     Korrvigs.Web.DB
+    Korrvigs.Web.Ressources
     Korrvigs.Web.UUID
 
   -- LANGUAGE extensions used by modules in this package.
@@ -83,6 +84,7 @@ executable korrvigs-web
   -- Other library packages from which modules are imported.
   build-depends:
     , base                 ^>=4.16.4.0
+    , clientsession        ^>=0.9.1.0
     , containers           ^>=0.6.5.0
     , filepath             ^>=1.4.2.0
     , opaleye              ^>=0.9.6.0

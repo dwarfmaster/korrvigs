@@ -1,16 +1,17 @@
 module Korrvigs.Web.Ressources where
 
 import Korrvigs.Web.Backend
+import Text.Hamlet (hamletFile)
+import Text.Julius (juliusFile)
 import Yesod
 
-jquery :: Backend a => WidgetFor a ()
-jquery =
-  addScriptRemoteAttrs
-    "https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"
-    [("integrity", "sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"), ("crossorigin", "anonymous")]
-
-fuzzy :: Backend a => WidgetFor a ()
+fuzzy :: Widget
 fuzzy =
   addScriptRemoteAttrs
-    "https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"
-    [("integrity", "sha384-PCSoOZTpbkikBEtd/+uV3WNdc676i9KUf01KOA8CnJotvlx8rRrETbDuwdjqTYvt"), ("crossorigin", "anonymous")]
+    "https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.basic.min.js"
+    [("integrity", "sha384-ScL3u6ZEqJiHfmlAb5knv4HAFbMNQRTHmcOJmuGfotCf1v1NtrIQTG9Hd5P843TL"), ("crossorigin", "anonymous")]
+
+entrySelect :: Widget
+entrySelect = do
+  toWidget $(hamletFile "app/Korrvigs/Web/Ressources/html/entries.hamlet")
+  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/entries.julius")

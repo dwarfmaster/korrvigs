@@ -1,0 +1,20 @@
+
+body
+  background: #{base 0}
+  color: #{base 4}
+
+#central
+  margin: auto
+  max-width: 45em
+  padding: 1em
+  background: #{base 1}
+
+a
+  color: #{base 9}
+  font-weight: bold
+
+a:hover
+  color: #{base 8}
+
+a:visited
+  color: #{base 14}

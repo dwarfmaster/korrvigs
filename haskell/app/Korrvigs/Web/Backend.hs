@@ -7,12 +7,16 @@ import Text.Cassius (cassiusFile)
 import qualified Web.ClientSession as CS
 import Yesod
 
-data Korrvigs = Korrvigs Connection
+data Korrvigs = Korrvigs
+  { korr_connection :: Connection,
+    korr_root :: FilePath,
+    korr_theme :: Int -> Text
+  }
 
 mkYesodData "Korrvigs" korrvigsRoutes
 
 pgsql :: Handler Connection
-pgsql = getYesod >>= (\(Korrvigs conn) -> return conn)
+pgsql = getYesod >>= return . korr_connection
 
 jquery :: Widget
 jquery =
@@ -21,26 +25,10 @@ jquery =
     [("integrity", "sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"), ("crossorigin", "anonymous")]
 
 getBase :: Handler (Int -> Text)
-getBase = pure base
-  where
-    base :: Int -> Text
-    base 0 = "#231e18"
-    base 1 = "#302b25"
-    base 2 = "#48413a"
-    base 3 = "#9d8b70"
-    base 4 = "#b4a490"
-    base 5 = "#cabcb1"
-    base 6 = "#d7c8bc"
-    base 7 = "#e4d4c8"
-    base 8 = "#d35c5c"
-    base 9 = "#ca7f32"
-    base 10 = "#e0ac16"
-    base 11 = "#b7ba53"
-    base 12 = "#6eb958"
-    base 13 = "#88a4d3"
-    base 14 = "#bb90e2"
-    base 15 = "b49368"
-    base _ = error "Unsupported base16 color"
+getBase = getYesod >>= return . korr_theme
+
+korrRoot :: Handler FilePath
+korrRoot = getYesod >>= return . korr_root
 
 css :: (Int -> Text) -> Widget
 css base = toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/default.cassius")

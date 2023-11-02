@@ -71,6 +71,7 @@ executable korrvigs-web
     Korrvigs.Web.Backend
     Korrvigs.Web.DB
     Korrvigs.Web.Entry
+    Korrvigs.Web.Entry.Builder
     Korrvigs.Web.Entry.Select
     Korrvigs.Web.Ressources
     Korrvigs.Web.Routes
@@ -81,6 +82,7 @@ executable korrvigs-web
     OverloadedStrings
     QuasiQuotes
     TemplateHaskell
+    TupleSections
     TypeFamilies
     ViewPatterns
 

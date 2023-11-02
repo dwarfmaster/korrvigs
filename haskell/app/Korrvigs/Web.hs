@@ -3,13 +3,14 @@
 
 module Korrvigs.Web (Korrvigs (..)) where
 
+import Control.Monad ((>=>))
 import Data.Text (Text)
 import qualified Korrvigs.Classes as Cls
 import Korrvigs.Definition
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Backend ()
 import Korrvigs.Web.DB
-import Korrvigs.Web.Entry (getAllEntriesR)
+import Korrvigs.Web.Entry (getAllEntriesR, renderEntry)
 import Korrvigs.Web.Routes
 import Korrvigs.Web.UUID (UUID (UUID))
 import Yesod
@@ -20,7 +21,7 @@ getHomeR :: Handler Html
 getHomeR = defaultLayout [whamlet|Hello from korrvigs!|]
 
 getEntryR :: UUID -> Handler Html
-getEntryR (UUID uuid) = generateForEntity $ EntityRef uuid Nothing Nothing
+getEntryR (UUID uuid) = findEntry uuid >>= maybe notFound (renderEntry >=> defaultLayout)
 
 getEntryQueryR :: UUID -> Text -> Handler Html
 getEntryQueryR (UUID uuid) query = generateForEntity $ EntityRef uuid Nothing (Just query)

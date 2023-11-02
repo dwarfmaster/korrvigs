@@ -1,0 +1,45 @@
+#error-field
+  margin: 0
+  padding: 0.5em
+  border: 2px solid var(--base08)
+  border-radius: 0.5em
+  background-color: var(--base02)
+  legend
+    background-color: var(--base08)
+    color: var(--base01)
+    border-radius: 0.5em
+    font-weight: bold
+  div
+    color: var(--base05)
+
+.fragment
+  margin: 0
+  margin-top: 0.5em
+  padding: 0.5em
+  border: 2px solid var(--base0C)
+  border-radius: 0.5em
+  overflow: hidden
+  legend
+    background-color: var(--base0C)
+    color: var(--base01)
+    border-radius: 0.5em
+    font-weight: bold
+    cursor: pointer
+  div.fragment-body
+    color: var(--base05)
+
+.fragment.collapsed
+  height: auto
+  padding: 0
+  padding-top: 0.5em
+  padding-left: 0.5em
+  height: 0
+
+.entry-class
+  float: right
+  color: var(--base01)
+  padding: 0.2em
+  font-size: 0.7em
+  font-weight: bold
+  border-radius: 0.25em
+

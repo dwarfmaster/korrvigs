@@ -1,5 +1,8 @@
 module Korrvigs.Web.Ressources where
 
+import Data.Text (Text)
+import Korrvigs.Classes
+import Korrvigs.Classes.Colors
 import Korrvigs.Web.Backend
 import Text.Cassius (cassiusFile)
 import Text.Julius (juliusFile)
@@ -15,3 +18,12 @@ entrySelect :: Widget
 entrySelect = do
   toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/entries.julius")
   toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/entries.cassius")
+
+entryView :: Text -> Maybe Text -> Maybe Class -> [(String, Widget)] -> Widget
+entryView title err root fragments = do
+  toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/entry.cassius")
+  toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/entry.hamlet")
+  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/entry.julius")
+  where
+    mkBase :: Class -> String
+    mkBase = ("--base" ++) . classBase

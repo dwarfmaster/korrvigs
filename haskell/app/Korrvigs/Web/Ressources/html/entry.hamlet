@@ -1,0 +1,16 @@
+<h1> #{title}
+  $maybe cls <- root
+    <!-- TODO add link to entry page for class -->
+    <span .entry-class style="background-color: var(#{mkBase cls})">
+      #{name cls}
+
+$maybe msg <- err
+  <fieldset #error-field>
+    <legend> Error
+    <div> #{msg}
+
+$forall (nm,fragment) <- fragments
+  <fieldset .fragment>
+    <legend> #{nm}
+    <div .fragment-body>
+      ^{fragment}

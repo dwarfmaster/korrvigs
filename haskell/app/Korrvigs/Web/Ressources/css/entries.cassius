@@ -20,7 +20,6 @@
   position: relative
   legend
     color: var(--base0D)
-    align: top left
   ul
     width: 100%
     list-style-type: none

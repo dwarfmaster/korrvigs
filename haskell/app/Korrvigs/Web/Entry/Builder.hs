@@ -8,10 +8,10 @@ import Korrvigs.Classes
 import Korrvigs.Definition
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Ressources as Rcs
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
-import Text.Hamlet (hamlet)
-import Yesod (liftIO, toWidget, whamlet)
+import Yesod (liftIO, whamlet)
 
 optGet :: Map String a -> String -> [(String, a)]
 optGet mp key = (key,) <$> (maybe [] (: []) $ M.lookup key mp)
@@ -32,7 +32,9 @@ layout c = layout (isA c)
 -- Takes an entry, the id of its root entity and a class, and generate a set of
 -- widgets for this class
 addWidgets :: Entry -> Int64 -> Class -> Handler (Map String Widget)
-addWidgets _ _ _ = pure $ M.empty
+addWidgets _ _ _ = pure $ M.fromList [("Test", [whamlet|Hello world!|]), ("Notes", [whamlet|I tricked you ! There are no notes !|])]
+
+-- addWidgets _ _ _ = pure $ M.empty
 
 classesPath :: Class -> [Class]
 classesPath Entity = [Entity]
@@ -49,17 +51,11 @@ renderEntry entry = do
   conn <- pgsql
   res <- liftIO $ mkEntity <$> O.runSelect conn sql
   case res of
-    Nothing -> pure $ err "Failed to load root entry"
+    Nothing ->
+      pure $ Rcs.entryView (entry_name entry) (Just "Failed to load root entry") Nothing []
     Just root -> do
       widgets <- layout (entity_class root) <$> build entry root
-      -- TODO add link to class page
-      pure $ do
-        toWidget
-          [hamlet|
-          <h1> #{entry_name entry}
-          <div .entry-class> #{name (entity_class root)}
-        |]
-        mconcat $ wrapFragment <$> widgets
+      pure $ Rcs.entryView (entry_name entry) Nothing (Just $ entity_class root) widgets
   where
     sql :: O.Select (O.Field O.SqlInt8, O.Field O.SqlText)
     sql = do
@@ -73,19 +69,3 @@ renderEntry entry = do
     mkEntity [(i, cls)] =
       parse cls >>= \c -> Just $ MkEntity i c (entry_id entry) Nothing Nothing
     mkEntity _ = Nothing
-    err :: Text -> Widget
-    err msg =
-      [whamlet|
-    <h1> #{entry_name entry}
-    <fieldset #error-field>
-      <legend> Error
-      <div> #{msg}
-  |]
-    wrapFragment :: (String, Widget) -> Widget
-    wrapFragment (nm, widget) =
-      [whamlet|
-    <fieldset .fragment>
-      <legend> #{nm}
-      <div .fragment-body>
-        ^{widget}
-  |]

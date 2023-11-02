@@ -27,6 +27,9 @@ body
   padding: 1em
   background: var(--base01)
 
+h1
+  font-size: 2em
+
 a
   color: var(--base09)
   font-weight: bold

@@ -1,25 +1,25 @@
 #select-query
   width: 100%
-  border: 2px solid #{base 12}
+  border: 2px solid var(--base0C)
   border-radius: 4px
   padding: 2px
-  background-color: #{base 4}
+  background-color: var(--base04)
   outline: none
 
-input[type=text]:focus
-  border-color: #{base 15}
+#select-query:focus
+  border-color: var(--base0F)
   outline: none
 
 #select-results
   margin: 0
   padding: 0
   padding-bottom: 0.5em
-  border: 2px solid #{base 13}
+  border: 2px solid var(--base0D)
   border-radius: 0.5em
   margin-top: 1em
   position: relative
   legend
-    color: #{base 13}
+    color: var(--base0D)
     align: top left
   ul
     width: 100%
@@ -28,9 +28,9 @@ input[type=text]:focus
     padding: 0
     li
       padding: 5px
-      color: #{base 5}
+      color: var(--base05)
     li:nth-child(2n + 1)
-      background-color: #{base 2}
+      background-color: var(--base02)
     li:nth-child(2n)
-      background-color: #{base 0}
+      background-color: var(--base00)
     

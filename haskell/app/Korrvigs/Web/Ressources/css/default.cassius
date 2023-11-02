@@ -1,20 +1,38 @@
 
+:root
+  --base00: #{base 0}
+  --base01: #{base 1}
+  --base02: #{base 2}
+  --base03: #{base 3}
+  --base04: #{base 4}
+  --base05: #{base 5}
+  --base06: #{base 6}
+  --base07: #{base 7}
+  --base08: #{base 8}
+  --base09: #{base 9}
+  --base0A: #{base 10}
+  --base0B: #{base 11}
+  --base0C: #{base 12}
+  --base0D: #{base 13}
+  --base0E: #{base 14}
+  --base0F: #{base 15}
+
 body
-  background: #{base 0}
-  color: #{base 5}
+  background: var(--base00)
+  color: var(--base05)
 
 #central
   margin: auto
   max-width: 45em
   padding: 1em
-  background: #{base 1}
+  background: var(--base01)
 
 a
-  color: #{base 9}
+  color: var(--base09)
   font-weight: bold
 
 a:hover
-  color: #{base 8}
+  color: var(--base08)
 
 a:visited
-  color: #{base 14}
+  color: var(--base0E)

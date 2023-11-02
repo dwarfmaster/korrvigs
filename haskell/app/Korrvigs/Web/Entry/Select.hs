@@ -40,15 +40,14 @@ allEntriesJSON :: Handler JSON.Value
 allEntriesJSON = JSON.toJSONList <$> allEntriesAsJSON
 
 getAllEntriesR :: Handler TypedContent
-getAllEntriesR =
-  getBase >>= \base -> selectRep $ do
-    provideRep allEntriesJSON
-    provideRep $ defaultLayout (widget base)
+getAllEntriesR = selectRep $ do
+  provideRep allEntriesJSON
+  provideRep $ defaultLayout widget
   where
-    widget base = do
+    widget = do
       setTitle "Jump to entry"
       Rcs.fuzzy
-      Rcs.entrySelect base
+      Rcs.entrySelect
       [whamlet|<h1>Jump to entry|]
       [whamlet|<input type="test" autocomplete="off" #select-query>|]
       [whamlet|

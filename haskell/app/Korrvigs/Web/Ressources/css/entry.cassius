@@ -28,6 +28,47 @@
   div.fragment-body
     color: var(--base05)
 
+.fragment-body
+  h1
+    margin-top: 0
+  h2
+    color: var(--base08)
+  .level2
+    border-left: 2px solid var(--base08)
+    padding-left: 0.25em
+  h3
+    color: var(--base09)
+  .level3
+    border-left: 2px solid var(--base09)
+    padding-left: 0.25em
+  h4
+    color: var(--base0A)
+  .level4
+    border-left: 2px solid var(--base0A)
+    padding-left: 0.25em
+  h5
+    color: var(--base0B)
+  .level5
+    border-left: 2px solid var(--base0B)
+    padding-left: 0.25em
+  h6
+    color: var(--base0C)
+  .level6
+    border-left: 2px solid var(--base0C)
+    padding-left: 0.25em
+  p
+    text-align: justify
+  div.sourceCode
+    background-color: var(--base00)
+    padding: 0.5em
+    margin: 0.5em
+    border: 2px solid var(--base06)
+    border-radius: 0.25em
+    overflow-x: scroll
+  pre.sourceCode
+    width: 0
+    overflow: visible
+
 .fragment.collapsed
   height: auto
   padding: 0

@@ -73,6 +73,7 @@ executable korrvigs-web
     Korrvigs.Web.DB
     Korrvigs.Web.Entry
     Korrvigs.Web.Entry.Builder
+    Korrvigs.Web.Entry.Notes
     Korrvigs.Web.Entry.Select
     Korrvigs.Web.Ressources
     Korrvigs.Web.Routes
@@ -93,9 +94,11 @@ executable korrvigs-web
     , base                 ^>=4.16.4.0
     , clientsession        ^>=0.9.1.0
     , containers           ^>=0.6.5.0
+    , data-default         ^>=0.7.1.0
     , filepath             ^>=1.4.2.0
     , hashable             ^>=1.4.2.0
     , opaleye              ^>=0.9.6.0
+    , pandoc               ^>=2.19.2
     , postgresql-simple    ^>=0.6.4
     , product-profunctors  ^>=0.11.1.0
     , random               ^>=1.2.1.0

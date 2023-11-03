@@ -29,6 +29,7 @@
           languages.haskell.package = pkgs.haskellPackages.ghcWithPackages (hpkgs: [
             hpkgs.yesod
             hpkgs.opaleye
+            hpkgs.pandoc
           ]);
 
           pre-commit.hooks = {

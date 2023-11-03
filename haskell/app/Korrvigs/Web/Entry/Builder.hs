@@ -8,10 +8,11 @@ import Korrvigs.Classes
 import Korrvigs.Definition
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Entry.Notes
 import qualified Korrvigs.Web.Ressources as Rcs
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
-import Yesod (liftIO, whamlet)
+import Yesod (liftIO)
 
 optGet :: Map String a -> String -> [(String, a)]
 optGet mp key = (key,) <$> (maybe [] (: []) $ M.lookup key mp)
@@ -32,7 +33,8 @@ layout c = layout (isA c)
 -- Takes an entry, the id of its root entity and a class, and generate a set of
 -- widgets for this class
 addWidgets :: Entry -> Int64 -> Class -> Handler (Map String Widget)
-addWidgets _ _ _ = pure $ M.fromList [("Test", [whamlet|Hello world!|]), ("Notes", [whamlet|I tricked you ! There are no notes !|])]
+addWidgets entry _ Entity = M.singleton "Notes" <$> noteWidget entry
+addWidgets _ _ _ = pure M.empty
 
 -- addWidgets _ _ _ = pure $ M.empty
 

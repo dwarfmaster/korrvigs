@@ -1,4 +1,4 @@
-{ mkDerivation, aeson, base, clientsession, containers
+{ mkDerivation, aeson, array, base, clientsession, containers
 , data-default, filepath, hashable, lib, opaleye, pandoc
 , postgresql-simple, product-profunctors, random, shakespeare, text
 , uuid, yesod, yesod-core
@@ -10,9 +10,9 @@ mkDerivation {
   isLibrary = false;
   isExecutable = true;
   executableHaskellDepends = [
-    aeson base clientsession containers data-default filepath hashable
-    opaleye pandoc postgresql-simple product-profunctors random
-    shakespeare text uuid yesod yesod-core
+    aeson array base clientsession containers data-default filepath
+    hashable opaleye pandoc postgresql-simple product-profunctors
+    random shakespeare text uuid yesod yesod-core
   ];
   license = lib.licenses.mit;
   mainProgram = "korrvigs-web";

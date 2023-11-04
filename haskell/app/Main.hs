@@ -1,7 +1,9 @@
 module Main where
 
+import Control.Monad (void)
 import Data.Text (Text)
 import Database.PostgreSQL.Simple (close, connectPostgreSQL)
+import Korrvigs.Classes.Sync
 import Korrvigs.Web
 import Yesod
 
@@ -30,5 +32,6 @@ root = "../wiki"
 main :: IO ()
 main = do
   conn <- connectPostgreSQL "dbname='korrvigs'"
+  void $ syncClasses conn root
   warp 3000 $ Korrvigs conn root theme
   close conn

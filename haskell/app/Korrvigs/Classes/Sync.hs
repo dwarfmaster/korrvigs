@@ -6,11 +6,16 @@ import Control.Arrow ((&&&))
 import Control.Monad (forM, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Array (array)
+import Data.Char
 import Data.Graph (Graph, topSort)
 import Data.Int (Int64)
 import Data.Text (Text)
+import qualified Data.Text as T
+import Data.UUID (UUID)
 import Database.PostgreSQL.Simple (Connection)
 import Korrvigs.Classes.Generated
+import Korrvigs.Definition
+import Korrvigs.Entry
 import Korrvigs.Schema
 import Opaleye hiding (not)
 
@@ -103,19 +108,59 @@ doDelete conn old = liftIO $ do
           dReturning = rCount
         }
 
--- TODO if the entry is not set is not set for a class, look for an entry with
--- the right name and class OntologyClass. If one is found, add the pair to
--- classEntryTable, otherwise create a new entry for the class.
+toMdChar :: Char -> Char
+toMdChar c | isAscii c = toLower c
+toMdChar _ = '_'
+
+syncClassEntry :: MonadIO m => Connection -> FilePath -> Class -> m UUID
+syncClassEntry conn root cls = do
+  hasEntry <- liftIO $ runSelect conn sqlHasEntry
+  case hasEntry of
+    uuid : _ -> pure uuid
+    [] -> do
+      mentry <- liftIO $ runSelect conn sqlFindEntry
+      entry <- case mentry of
+        entry : _ -> pure entry
+        _ -> entry_id <$> newEntry conn root OntologyClass (name cls) md
+      void $ liftIO $ runInsert conn $ insEntry entry
+      pure entry
+  where
+    md :: Text
+    md = T.map toMdChar $ name cls
+    sqlHasEntry :: Select (Field SqlUuid)
+    sqlHasEntry = do
+      (class_, entry_) <- selectTable classEntryTable
+      where_ $ class_ .== sqlStrictText (name cls)
+      pure entry_
+    sqlFindEntry :: Select (Field SqlUuid)
+    sqlFindEntry = do
+      (id_, name_, _) <- selectTable entriesTable
+      (_, class_, uuid_, sub_, query_) <- selectTable entitiesTable
+      where_ $ id_ .== uuid_ .&& isNull sub_ .&& isNull query_
+      where_ $ name_ .== sqlStrictText (name cls)
+      where_ $ class_ .== sqlStrictText (name OntologyClass)
+      pure id_
+    insEntry :: UUID -> Insert Int64
+    insEntry uuid =
+      Insert
+        { iTable = classEntryTable,
+          iRows = [toFields (name cls, uuid)],
+          iReturning = rCount,
+          iOnConflict = Nothing
+        }
 
 -- Return ids of entities whose class was removed, and the name of their
 -- previous class
-syncClasses :: MonadIO m => Connection -> m [(Text, Int64)]
-syncClasses conn = do
+syncClasses :: MonadIO m => Connection -> FilePath -> m [(Text, Int64)]
+syncClasses conn root = do
   (toInsert, toUpdate) <- actionPlan conn
   void $ liftIO $ runInsert conn $ insert toInsert
   void $ forM toUpdate $ liftIO . runUpdate conn . update
+  void $ forM allClasses $ syncClassEntry conn root
   mconcat <$> (mapM (doDelete conn) =<< toDelete conn)
   where
+    allClasses :: [Class]
+    allClasses = [minBound .. maxBound]
     insert :: [Class] -> Insert Int64
     insert to =
       Insert

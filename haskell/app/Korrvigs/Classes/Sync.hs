@@ -83,8 +83,8 @@ doDelete conn old = liftIO $ do
     update =
       Update
         { uTable = entitiesTable,
-          uUpdateWith = \(id_, _, uuid_, sub_, query_) ->
-            (id_, sqlStrictText (name Entity), uuid_, sub_, query_),
+          uUpdateWith = \(_, _, uuid_, sub_, query_) ->
+            ((), sqlStrictText (name Entity), uuid_, sub_, query_),
           uWhere = \(_, class_, _, _, _) -> class_ .== sqlStrictText old,
           uReturning = rCount
         }

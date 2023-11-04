@@ -32,13 +32,13 @@ entriesTable =
 
 entitiesTable ::
   Table
-    (Field SqlInt8, Field SqlText, Field SqlUuid, FieldNullable SqlText, FieldNullable SqlText)
+    ((), Field SqlText, Field SqlUuid, FieldNullable SqlText, FieldNullable SqlText)
     (Field SqlInt8, Field SqlText, Field SqlUuid, FieldNullable SqlText, FieldNullable SqlText)
 entitiesTable =
   table
     "entities"
     ( p5
-        ( tableField "entity_id",
+        ( readOnlyTableField "entity_id",
           tableField "entity_class",
           tableField "entity_uuid",
           tableField "entity_sub",

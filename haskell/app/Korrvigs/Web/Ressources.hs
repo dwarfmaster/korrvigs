@@ -1,9 +1,11 @@
 module Korrvigs.Web.Ressources where
 
 import Data.Text (Text)
+import Data.UUID (UUID)
 import Korrvigs.Classes
 import Korrvigs.Classes.Colors
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.UUID as U
 import Text.Cassius (cassiusFile)
 import Text.Julius (juliusFile)
 import Yesod
@@ -27,3 +29,14 @@ entryView title err root fragments = do
   where
     mkBase :: Class -> String
     mkBase = ("--base" ++) . classBase
+
+classTree :: Widget
+classTree = do
+  toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/classTree.cassius")
+  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/classTree.julius")
+
+classTreeSub :: Text -> UUID -> Bool -> [Widget] -> Widget
+classTreeSub className classUuid folded children = do
+  toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/classTree.hamlet")
+  where
+    classEntry = U.UUID classUuid

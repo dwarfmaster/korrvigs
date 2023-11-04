@@ -1,6 +1,7 @@
 -- TODO autogenerate this file
 module Korrvigs.Classes.Generated where
 
+import Data.Ix (Ix)
 import Data.Text (Text)
 
 data Class
@@ -15,7 +16,7 @@ data Class
   | OntologySpecificationItem
   | OntologyClass
   | OntologyRelation
-  deriving (Show, Eq, Enum, Bounded, Ord)
+  deriving (Show, Eq, Enum, Bounded, Ord, Ix)
 
 name :: Class -> Text
 name Entity = "Entity"

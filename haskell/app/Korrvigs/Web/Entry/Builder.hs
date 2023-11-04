@@ -9,6 +9,7 @@ import Korrvigs.Definition
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Entry.Notes
+import qualified Korrvigs.Web.Entry.OntologyClass as Class
 import qualified Korrvigs.Web.Ressources as Rcs
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
@@ -28,15 +29,17 @@ mkLayout place rm mp = placed ++ others
 
 layout :: Class -> Map String Widget -> [(String, Widget)]
 layout Entity = mkLayout ["Notes"] []
+layout OntologyClass = mkLayout ["Class tree", "Notes"] []
 layout c = layout (isA c)
 
 -- Takes an entry, the id of its root entity and a class, and generate a set of
 -- widgets for this class
 addWidgets :: Entry -> Int64 -> Class -> Handler (Map String Widget)
 addWidgets entry _ Entity = M.singleton "Notes" <$> noteWidget entry
+addWidgets entry _ OntologyClass =
+  M.singleton "Class tree"
+    <$> Class.treeWidgetForEntry entry
 addWidgets _ _ _ = pure M.empty
-
--- addWidgets _ _ _ = pure $ M.empty
 
 classesPath :: Class -> [Class]
 classesPath Entity = [Entity]

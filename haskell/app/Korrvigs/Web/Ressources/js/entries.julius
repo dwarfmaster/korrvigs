@@ -30,7 +30,7 @@ $.getJSON('@{AllEntriesR}', function (list) {
     lst = $('#select-list');
     lst.empty();
     for (result of results) {
-      lst.append(`<li><a href=${result.item.url}>[${result.item.class}] ${result.item.name}</li>`);
+      lst.append(`<li><a href=${result.item.url}><span class="result-class" style="background-color: ${result.item.color}">${result.item.class}</span> ${result.item.name}</li>`);
     }
   });
 });

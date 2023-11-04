@@ -3,6 +3,8 @@ module Korrvigs.Web.Entry.Select (getAllEntriesR) where
 import qualified Data.Aeson as JSON
 import Data.Text (Text)
 import qualified Data.UUID as U
+import Korrvigs.Classes
+import Korrvigs.Classes.Colors
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -12,14 +14,19 @@ import qualified Opaleye as O
 import Yesod
 
 entryToJson :: U.UUID -> Text -> Text -> Handler JSON.Value
-entryToJson i name cls = do
+entryToJson i nm clsName = do
   render <- getUrlRender
   pure $
     JSON.object
       [ "url" .= render (EntryR $ UUID.UUID i),
-        "class" .= cls,
-        "name" .= name
+        "class" .= clsName,
+        "color" .= ("var(--base" ++ clsColor ++ ")"),
+        "name" .= nm
       ]
+  where
+    clsColor = case parse clsName of
+      Just cls -> classBase cls
+      Nothing -> "07"
 
 allEntriesAsJSON :: Handler [JSON.Value]
 allEntriesAsJSON = do

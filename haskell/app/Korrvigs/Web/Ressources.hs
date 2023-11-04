@@ -4,6 +4,7 @@ import Data.Text (Text)
 import Data.UUID (UUID)
 import Korrvigs.Classes
 import Korrvigs.Classes.Colors
+import Korrvigs.Definition
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.UUID as U
 import Text.Cassius (cassiusFile)
@@ -40,3 +41,7 @@ classTreeSub className classUuid folded children = do
   toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/classTree.hamlet")
   where
     classEntry = U.UUID classUuid
+
+classInstances :: [Entry] -> Widget
+classInstances instances = do
+  toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/classInstances.hamlet")

@@ -36,9 +36,7 @@ layout c = layout (isA c)
 -- widgets for this class
 addWidgets :: Entry -> Int64 -> Class -> Handler (Map String Widget)
 addWidgets entry _ Entity = M.singleton "Notes" <$> noteWidget entry
-addWidgets entry _ OntologyClass =
-  M.singleton "Class tree"
-    <$> Class.treeWidgetForEntry entry
+addWidgets entry _ OntologyClass = Class.widgetsForClassEntry entry
 addWidgets _ _ _ = pure M.empty
 
 classesPath :: Class -> [Class]

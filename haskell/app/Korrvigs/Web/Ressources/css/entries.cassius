@@ -18,6 +18,8 @@
   border-radius: 0.5em
   margin-top: 1em
   position: relative
+  max-height: 25em
+  overflow-y: scroll
   legend
     color: var(--base0D)
   ul

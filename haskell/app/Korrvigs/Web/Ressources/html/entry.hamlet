@@ -1,8 +1,8 @@
+$maybe cls <- root
+  <!-- TODO add link to entry page for class -->
+  <div .entry-class style="background-color: var(#{mkBase cls})">
+    #{name cls}
 <h1> #{title}
-  $maybe cls <- root
-    <!-- TODO add link to entry page for class -->
-    <span .entry-class style="background-color: var(#{mkBase cls})">
-      #{name cls}
 
 $maybe msg <- err
   <fieldset #error-field>

@@ -77,10 +77,10 @@
   height: 0
 
 .entry-class
-  float: right
   color: var(--base01)
+  width: fit-content
   padding: 0.2em
-  font-size: 0.7em
+  font-size: 1em
   font-weight: bold
   border-radius: 0.25em
 

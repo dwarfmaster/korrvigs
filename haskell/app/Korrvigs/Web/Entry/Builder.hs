@@ -1,4 +1,4 @@
-module Korrvigs.Web.Entry.Builder (renderEntry) where
+module Korrvigs.Web.Entry.Builder (renderEntry, processEntry) where
 
 import Data.Int (Int64)
 import Data.Map (Map)
@@ -11,6 +11,7 @@ import Korrvigs.Web.Backend
 import Korrvigs.Web.Entry.Notes
 import qualified Korrvigs.Web.Entry.OntologyClass as Class
 import qualified Korrvigs.Web.Ressources as Rcs
+import Network.HTTP.Types (Method, methodGet, methodPost)
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
 import Yesod (liftIO)
@@ -34,30 +35,33 @@ layout c = layout (isA c)
 
 -- Takes an entry, the id of its root entity and a class, and generate a set of
 -- widgets for this class
-addWidgets :: Entry -> Int64 -> Class -> Handler (Map String Widget)
-addWidgets entry _ Entity = M.singleton "Notes" <$> noteWidget entry
-addWidgets entry _ OntologyClass = Class.widgetsForClassEntry entry
-addWidgets _ _ _ = pure M.empty
+addWidgets :: Method -> Entry -> Int64 -> Class -> Handler (Map String Widget)
+addWidgets method entry _ Entity
+  | method == methodGet =
+      M.singleton "Notes" <$> noteWidget entry
+addWidgets method entry _ OntologyClass =
+  Class.widgetsForClassEntry method entry
+addWidgets _ _ _ _ = pure M.empty
 
 classesPath :: Class -> [Class]
 classesPath Entity = [Entity]
 classesPath cls = cls : classesPath (isA cls)
 
 -- Takes an entry and its root entity
-build :: Entry -> Entity -> Handler (Map String Widget)
-build entry root = mapM (addWidgets entry $ entity_id root) clss >>= pure . M.unions
+build :: Method -> Entry -> Entity -> Handler (Map String Widget)
+build method entry root = mapM (addWidgets method entry $ entity_id root) clss >>= pure . M.unions
   where
     clss = classesPath $ entity_class root
 
-renderEntry :: Entry -> Handler Widget
-renderEntry entry = do
+makeEntry :: Method -> Entry -> Handler Widget
+makeEntry method entry = do
   conn <- pgsql
   res <- liftIO $ mkEntity <$> O.runSelect conn sql
   case res of
     Nothing ->
       pure $ Rcs.entryView (entry_name entry) (Just "Failed to load root entry") Nothing []
     Just root -> do
-      widgets <- layout (entity_class root) <$> build entry root
+      widgets <- layout (entity_class root) <$> build method entry root
       pure $ Rcs.entryView (entry_name entry) Nothing (Just $ entity_class root) widgets
   where
     sql :: O.Select (O.Field O.SqlInt8, O.Field O.SqlText)
@@ -72,3 +76,11 @@ renderEntry entry = do
     mkEntity [(i, cls)] =
       parse cls >>= \c -> Just $ MkEntity i c (entry_id entry) Nothing Nothing
     mkEntity _ = Nothing
+
+-- Deal with GET request on entry
+renderEntry :: Entry -> Handler Widget
+renderEntry = makeEntry methodGet
+
+-- Deal with POST request on entry
+processEntry :: Entry -> Handler Widget
+processEntry = makeEntry methodPost

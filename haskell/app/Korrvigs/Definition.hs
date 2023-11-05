@@ -6,6 +6,7 @@ import qualified Data.Text as T
 import Data.UUID (UUID)
 import qualified Data.UUID as U
 import Korrvigs.Classes (Class)
+import System.FilePath ((</>))
 
 data EntityRef = EntityRef
   { ref_uuid :: UUID,
@@ -28,6 +29,9 @@ data Entry = MkEntry
     entry_notes :: FilePath
   }
   deriving (Show, Eq, Ord)
+
+entryMdPath :: FilePath -> Entry -> FilePath
+entryMdPath root entry = root </> U.toString (entry_id entry) </> entry_notes entry
 
 data Entity = MkEntity
   { entity_id :: Int64,

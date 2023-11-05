@@ -9,7 +9,7 @@ korrvigsRoutes =
   [parseRoutes|
 / HomeR GET
 /entry AllEntriesR GET
-/entry/#UUID EntryR GET
+/entry/#UUID EntryR GET POST
 /entry/#UUID/#Text EntryQueryR GET
 /entity/#UUID/#Text EntitySubR GET
 /entity/#UUID/#Text/#Text EntitySubQueryR GET

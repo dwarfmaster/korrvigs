@@ -10,16 +10,28 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Text.IO (writeFile)
 import Data.UUID (UUID)
 import Korrvigs.Classes
+import Korrvigs.Classes.Sync (mkMdName)
 import Korrvigs.Definition
+import Korrvigs.Entry
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
+import qualified Korrvigs.Web.UUID as U
+import Network.HTTP.Types (Method, methodGet, methodPost)
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
-import Yesod (liftIO, notFound, whamlet)
+import Yesod hiding (Entity)
+import Prelude hiding (writeFile)
 
+--  _____
+
+-- | _   _| __ ___  ___
+--    | || '__/ _ \/ _ \
+--    | || | |  __/  __/
+--    |_||_|  \___|\___|
 classesEntry :: Handler (Array Class Entry)
 classesEntry = do
   conn <- pgsql
@@ -62,6 +74,12 @@ treeWidget mcls = do
         $ map (makeTree entries)
         $ childrenOf cls
 
+--  ___           _
+
+-- | _ _|_ __  ___| |_ __ _ _ __   ___ ___  ___
+--   | || '_ \/ __| __/ _` | '_ \ / __/ _ \/ __|
+--   | || | | \__ \ || (_| | | | | (_|  __/\__ \
+--  |___|_| |_|___/\__\__,_|_| |_|\___\___||___/
 classInstances :: Class -> Handler [Entry]
 classInstances cls = do
   conn <- pgsql
@@ -74,27 +92,102 @@ classInstances cls = do
     pure (id_, name_, notes_)
   pure $ (\(i, nm, md) -> MkEntry i nm $ T.unpack md) <$> res
 
-classInstancesWidget :: Class -> Handler [Widget]
+classInstancesWidget :: Class -> Handler (Maybe Widget)
 classInstancesWidget cls = do
   instances <- classInstances cls
-  pure $ if null instances then [] else [Rcs.classInstances instances]
+  pure $ if null instances then Nothing else Just $ Rcs.classInstances instances
 
-widgetsForClassEntry :: Entry -> Handler (Map String Widget)
-widgetsForClassEntry entry = do
+--  _   _                 ___           _
+
+-- | \ | | _____      __ |_ _|_ __  ___| |_ __ _ _ __   ___ ___
+-- |  \| |/ _ \ \ /\ / /  | || '_ \/ __| __/ _` | '_ \ / __/ _ \
+-- | |\  |  __/\ V  V /   | || | | \__ \ || (_| | | | | (_|  __/
+-- |_| \_|\___| \_/\_/   |___|_| |_|___/\__\__,_|_| |_|\___\___|
+data NewInstance = NewInstance Class Text Text
+
+newInstanceForm :: Class -> Html -> MForm Handler (FormResult NewInstance, Widget)
+newInstanceForm cls =
+  identifyForm "NewInstance" $
+    renderDivs $
+      NewInstance cls
+        <$> areq textField "Name" Nothing
+        <*> (unTextarea <$> areq textareaField "Description" Nothing)
+
+newInstanceWidget :: UUID -> Class -> Handler Widget
+newInstanceWidget uuid cls = do
+  (widget, enctype) <- generateFormPost $ newInstanceForm cls
+  pure $
+    Rcs.formStyle
+      >> [whamlet|
+           <form #class-new-instance method="post" action=@{EntryR (U.UUID uuid)} enctype=#{enctype}>
+             ^{widget}
+             <button type="submit">Create
+         |]
+
+newInstance :: NewInstance -> Handler a
+newInstance (NewInstance cls nm desc) = do
   conn <- pgsql
-  res <- liftIO $ map parse <$> O.runSelect conn sql
+  root <- korrRoot
+  let mdName = mkMdName nm
+  entry <- newEntry conn root cls nm mdName
+  let mdPath = entryMdPath root entry
+  liftIO $ writeFile mdPath desc
+  redirect $ EntryR $ U.UUID $ entry_id entry
+
+newInstanceProcess :: Class -> Handler Widget
+newInstanceProcess cls = do
+  ((result, _), _) <- runFormPost $ newInstanceForm cls
+  case result of
+    FormSuccess form -> newInstance form
+    FormFailure err ->
+      pure $
+        [whamlet|
+        <p>Invalid input:
+          <ul>
+            $forall msg <- err
+              <li> #{msg}
+      |]
+    FormMissing -> pure $ pure ()
+
+--  ____  _                 _     _
+
+-- |  _ \| |_   _ _ __ ___ | |__ (_)_ __   __ _
+-- | |_) | | | | | '_ ` _ \| '_ \| | '_ \ / _` |
+-- |  __/| | |_| | | | | | | |_) | | | | | (_| |
+-- |_|   |_|\__,_|_| |_| |_|_.__/|_|_| |_|\__, |
+--                                        |___/
+sqlFindClass :: UUID -> O.Select (O.Field O.SqlText)
+sqlFindClass uuid = do
+  (class_, entry_) <- O.selectTable classEntryTable
+  O.where_ $ entry_ .== O.sqlUUID uuid
+  return class_
+
+widgetsForClassEntry :: Method -> Entry -> Handler (Map String Widget)
+widgetsForClassEntry method entry = do
+  conn <- pgsql
+  res <- liftIO $ map parse <$> O.runSelect conn (sqlFindClass $ entry_id entry)
   case res of
     [Just cls] -> do
-      tree <- treeWidget (Just cls)
-      instances <- classInstancesWidget cls
-      pure $
-        M.fromList $
-          [("Class tree", tree)]
-            ++ (("Instances",) <$> instances)
+      tree <- select methodGet "Class tree" $ treeWidget (Just cls)
+      instances <- selectOpt methodGet "Instances" $ classInstancesWidget cls
+      newInst <-
+        select methodGet "New instance" $
+          newInstanceWidget (entry_id entry) cls
+      newInst' <-
+        select methodPost "New instance" $
+          newInstanceProcess cls
+      pure $ M.fromList $ tree ++ instances ++ newInst ++ newInst'
     _ -> notFound
   where
-    sql :: O.Select (O.Field O.SqlText)
-    sql = do
-      (class_, entry_) <- O.selectTable classEntryTable
-      O.where_ $ entry_ .== O.sqlUUID (entry_id entry)
-      return class_
+    select :: Method -> String -> Handler Widget -> Handler [(String, Widget)]
+    select met nm widgetM
+      | method == met =
+          widgetM >>= \widget -> pure $ [(nm, widget)]
+    select _ _ _ = pure []
+    selectOpt :: Method -> String -> Handler (Maybe Widget) -> Handler [(String, Widget)]
+    selectOpt met nm widgetM
+      | method == met =
+          widgetM >>= \widgetO -> pure $ case widgetO of
+            Just widget -> [(nm, widget)]
+            Nothing -> []
+    selectOpt _ _ _ = pure []

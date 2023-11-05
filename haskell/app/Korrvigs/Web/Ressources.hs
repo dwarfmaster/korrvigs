@@ -45,3 +45,6 @@ classTreeSub className classUuid folded children = do
 classInstances :: [Entry] -> Widget
 classInstances instances = do
   toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/classInstances.hamlet")
+
+formStyle :: Widget
+formStyle = toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/forms.cassius")

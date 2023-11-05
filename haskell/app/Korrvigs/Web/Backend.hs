@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Korrvigs.Web.Backend where
 
 import Data.Text (Text)
@@ -59,3 +61,6 @@ instance Yesod Korrvigs where
   makeSessionBackend _ = strictSameSiteSessions def
     where
       def = Just <$> defaultClientSessionBackend (24 * 60) CS.defaultKeyFile
+
+instance RenderMessage Korrvigs FormMessage where
+  renderMessage _ _ = defaultFormMessage

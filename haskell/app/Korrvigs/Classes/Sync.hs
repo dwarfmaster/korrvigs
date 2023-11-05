@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Korrvigs.Classes.Sync (syncClasses) where
+module Korrvigs.Classes.Sync (syncClasses, mkMdName) where
 
 import Control.Arrow ((&&&))
 import Control.Monad (forM, void)
@@ -109,8 +109,14 @@ doDelete conn old = liftIO $ do
         }
 
 toMdChar :: Char -> Char
-toMdChar c | isAscii c = toLower c
+toMdChar '/' = '_'
+toMdChar '#' = '_'
+toMdChar c | isAscii c && isSpace c = '_'
+toMdChar c | isAscii c && isPrint c = toLower c
 toMdChar _ = '_'
+
+mkMdName :: Text -> Text
+mkMdName nm = T.map toMdChar nm <> ".md"
 
 syncClassEntry :: MonadIO m => Connection -> FilePath -> Class -> m UUID
 syncClassEntry conn root cls = do
@@ -126,7 +132,7 @@ syncClassEntry conn root cls = do
       pure entry
   where
     md :: Text
-    md = T.map toMdChar $ name cls
+    md = mkMdName $ name cls
     sqlHasEntry :: Select (Field SqlUuid)
     sqlHasEntry = do
       (class_, entry_) <- selectTable classEntryTable

@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Korrvigs.Entry (newEntity, newEntry) where
+module Korrvigs.Entry (newEntity, newEntry, deleteEntry) where
 
 import Control.Arrow ((&&&))
 import Control.Monad (void)
@@ -17,6 +17,7 @@ import Korrvigs.Classes
 import Korrvigs.Definition
 import Korrvigs.Schema
 import qualified Korrvigs.Tree as KTree
+import Opaleye ((.==))
 import qualified Opaleye as O
 import qualified System.Directory as Dir
 import System.FilePath ((</>))
@@ -99,3 +100,41 @@ newEntry conn root cls nm md = liftIO $ do
           O.iReturning = O.rCount,
           O.iOnConflict = Nothing
         }
+
+-- When deleting, all files need to be moved to trash, then all the entities
+-- refering to the entry need to be removed, if the entry is referred in
+-- class_entry it need to be removed and finally it needs to be removed from
+-- the entries tables
+deleteEntry :: MonadIO m => Connection -> FilePath -> UUID -> m ()
+deleteEntry conn root uuid = liftIO $ do
+  trsh <- Dir.doesDirectoryExist trash
+  if not trsh then Dir.createDirectory trash else pure ()
+  Dir.renameDirectory dir deletedPath
+  void $
+    O.runDelete conn $
+      O.Delete
+        { O.dTable = classEntryTable,
+          O.dWhere = \(_, entry_) -> entry_ .== O.sqlUUID uuid,
+          O.dReturning = O.rCount
+        }
+  void $
+    O.runDelete conn $
+      O.Delete
+        { O.dTable = entitiesTable,
+          O.dWhere = \(_, _, entry_, _, _) -> entry_ .== O.sqlUUID uuid,
+          O.dReturning = O.rCount
+        }
+  void $
+    O.runDelete conn $
+      O.Delete
+        { O.dTable = entriesTable,
+          O.dWhere = \(id_, _, _) -> id_ .== O.sqlUUID uuid,
+          O.dReturning = O.rCount
+        }
+  where
+    trash :: FilePath
+    trash = root </> "deleted"
+    deletedPath :: FilePath
+    deletedPath = trash </> U.toString uuid
+    dir :: FilePath
+    dir = root </> U.toString uuid

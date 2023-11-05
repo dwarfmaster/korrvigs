@@ -70,10 +70,12 @@ toDelete conn =
     sql :: Select (Field SqlText)
     sql = fst <$> selectTable classesTable
 
--- Delete a class, making all entities of this class entities of class Entity
-doDelete :: MonadIO m => Connection -> Text -> m [(Text, Int64)]
-doDelete conn old = liftIO $ do
+-- Delete a class, making all entities of this class entities of class Entity,
+-- and removing the entries associated with the class
+doDelete :: MonadIO m => Connection -> FilePath -> Text -> m [(Text, Int64)]
+doDelete conn root old = liftIO $ do
   willUpdate <- runSelect conn sel
+  void $ mapM (deleteEntry conn root) =<< runSelect conn classEntry
   void $ runUpdate conn update
   void $ runDelete conn deleteEntries
   void $ runDelete conn delete
@@ -107,6 +109,11 @@ doDelete conn old = liftIO $ do
           dWhere = \(name_, _) -> name_ .== sqlStrictText old,
           dReturning = rCount
         }
+    classEntry :: Select (Field SqlUuid)
+    classEntry = do
+      (class_, entry_) <- selectTable classEntryTable
+      where_ $ class_ .== sqlStrictText old
+      return entry_
 
 toMdChar :: Char -> Char
 toMdChar '/' = '_'
@@ -163,7 +170,7 @@ syncClasses conn root = do
   void $ liftIO $ runInsert conn $ insert toInsert
   void $ forM toUpdate $ liftIO . runUpdate conn . update
   void $ forM allClasses $ syncClassEntry conn root
-  mconcat <$> (mapM (doDelete conn) =<< toDelete conn)
+  mconcat <$> (mapM (doDelete conn root) =<< toDelete conn)
   where
     allClasses :: [Class]
     allClasses = [minBound .. maxBound]

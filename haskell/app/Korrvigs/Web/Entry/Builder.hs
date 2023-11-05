@@ -4,6 +4,7 @@ import Data.Int (Int64)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
+import Data.UUID (UUID)
 import Korrvigs.Classes
 import Korrvigs.Definition
 import Korrvigs.Schema
@@ -60,21 +61,23 @@ makeEntry method entry = do
   case res of
     Nothing ->
       pure $ Rcs.entryView (entry_name entry) (Just "Failed to load root entry") Nothing []
-    Just root -> do
+    Just (clsEntry, root) -> do
       widgets <- layout (entity_class root) <$> build method entry root
-      pure $ Rcs.entryView (entry_name entry) Nothing (Just $ entity_class root) widgets
+      pure $ Rcs.entryView (entry_name entry) Nothing (Just $ (clsEntry, entity_class root)) widgets
   where
-    sql :: O.Select (O.Field O.SqlInt8, O.Field O.SqlText)
+    sql :: O.Select (O.Field O.SqlInt8, O.Field O.SqlText, O.Field O.SqlUuid)
     sql = do
       (i_, class_, uuid_, sub_, query_) <- O.selectTable entitiesTable
+      (cls_, entry_) <- O.selectTable classEntryTable
       O.where_ $
         (uuid_ .== O.sqlUUID (entry_id entry))
           .&& (O.isNull sub_)
           .&& (O.isNull query_)
-      return (i_, class_)
-    mkEntity :: [(Int64, Text)] -> Maybe Entity
-    mkEntity [(i, cls)] =
-      parse cls >>= \c -> Just $ MkEntity i c (entry_id entry) Nothing Nothing
+          .&& (cls_ .== class_)
+      return (i_, class_, entry_)
+    mkEntity :: [(Int64, Text, UUID)] -> Maybe (UUID, Entity)
+    mkEntity [(i, cls, uuid)] =
+      parse cls >>= \c -> Just (uuid, MkEntity i c (entry_id entry) Nothing Nothing)
     mkEntity _ = Nothing
 
 -- Deal with GET request on entry

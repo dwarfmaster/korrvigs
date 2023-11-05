@@ -39,9 +39,6 @@ a
 a:hover
   color: var(--base08)
 
-a:visited
-  color: var(--base0E)
-
 ul
   list-style: disc
   padding-left: 1em

@@ -1,7 +1,7 @@
-$maybe cls <- root
-  <!-- TODO add link to entry page for class -->
+$maybe (uuid,cls) <- root
   <div .entry-class style="background-color: var(#{mkBase cls})">
-    #{name cls}
+    <a href=@{EntryR (U.UUID uuid)}>
+      #{name cls}
 <h1> #{title}
 
 $maybe msg <- err

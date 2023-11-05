@@ -83,4 +83,6 @@
   font-size: 1em
   font-weight: bold
   border-radius: 0.25em
+  a
+    color: inherit
 

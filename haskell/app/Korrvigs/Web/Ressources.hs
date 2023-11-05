@@ -22,7 +22,7 @@ entrySelect = do
   toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/entries.julius")
   toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/entries.cassius")
 
-entryView :: Text -> Maybe Text -> Maybe Class -> [(String, Widget)] -> Widget
+entryView :: Text -> Maybe Text -> Maybe (UUID, Class) -> [(String, Widget)] -> Widget
 entryView title err root fragments = do
   toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/entry.cassius")
   toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/entry.hamlet")

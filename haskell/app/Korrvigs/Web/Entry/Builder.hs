@@ -31,7 +31,7 @@ mkLayout place rm mp = placed ++ others
 
 layout :: Class -> Map String Widget -> [(String, Widget)]
 layout Entity = mkLayout ["Notes"] []
-layout OntologyClass = mkLayout ["Class tree", "Notes"] []
+layout OntologyClass = mkLayout ["Parent", "Class tree", "Generate", "Notes"] []
 layout c = layout (isA c)
 
 -- Takes an entry, the id of its root entity and a class, and generate a set of

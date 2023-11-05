@@ -1,17 +1,21 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Korrvigs.Web.Entry.OntologyClass (treeWidget, widgetsForClassEntry) where
 
+import Control.Monad (void)
 import Data.Array (Array, (!))
 import qualified Data.Array as A
 import Data.List (sortBy)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromJust)
+import Data.Maybe (mapMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (writeFile)
 import Data.UUID (UUID)
+import Database.PostgreSQL.Simple.Transaction (withTransaction)
 import Korrvigs.Classes
 import Korrvigs.Classes.Sync (mkMdName)
 import Korrvigs.Definition
@@ -36,7 +40,7 @@ classesEntry :: Handler (Array Class Entry)
 classesEntry = do
   conn <- pgsql
   res <- liftIO $ O.runSelect conn sql
-  pure $ A.array (minBound, maxBound) $ map prepare res
+  pure $ A.array (minBound, maxBound) $ mapMaybe prepare res
   where
     sql :: O.Select (O.Field O.SqlText, O.Field O.SqlUuid, O.Field O.SqlText, O.Field O.SqlText)
     sql = do
@@ -44,9 +48,9 @@ classesEntry = do
       (id_, name_, notes_) <- O.selectTable entriesTable
       O.where_ $ entry_ .== id_
       pure (class_, id_, name_, notes_)
-    prepare :: (Text, UUID, Text, Text) -> (Class, Entry)
+    prepare :: (Text, UUID, Text, Text) -> Maybe (Class, Entry)
     prepare (className, uuid, nm, notes) =
-      (fromJust $ parse className, MkEntry uuid nm $ T.unpack notes)
+      (,MkEntry uuid nm $ T.unpack notes) <$> parse className
 
 treeWidget :: Maybe Class -> Handler Widget
 treeWidget mcls = do
@@ -97,48 +101,66 @@ classInstancesWidget cls = do
   instances <- classInstances cls
   pure $ if null instances then Nothing else Just $ Rcs.classInstances instances
 
---  _   _                 ___           _
+--  _   _                  ____ _
 
--- | \ | | _____      __ |_ _|_ __  ___| |_ __ _ _ __   ___ ___
--- |  \| |/ _ \ \ /\ / /  | || '_ \/ __| __/ _` | '_ \ / __/ _ \
--- | |\  |  __/\ V  V /   | || | | \__ \ || (_| | | | | (_|  __/
--- |_| \_|\___| \_/\_/   |___|_| |_|___/\__\__,_|_| |_|\___\___|
-data NewInstance = NewInstance Class Text Text
+-- | \ | | _____      __  / ___| | __ _ ___ ___
+-- |  \| |/ _ \ \ /\ / / | |   | |/ _` / __/ __|
+-- | |\  |  __/\ V  V /  | |___| | (_| \__ \__ \
+-- |_| \_|\___| \_/\_/    \____|_|\__,_|___/___/
+data NewClass = NewClass Text Text Text
 
-newInstanceForm :: Class -> Html -> MForm Handler (FormResult NewInstance, Widget)
-newInstanceForm cls =
-  identifyForm "NewInstance" $
+newClassForm :: Text -> Html -> MForm Handler (FormResult NewClass, Widget)
+newClassForm cls =
+  identifyForm "NewSubClass" $
     renderDivs $
-      NewInstance cls
-        <$> areq textField "Name" Nothing
+      NewClass cls
+        <$> areq textField "Class" Nothing
         <*> (unTextarea <$> areq textareaField "Description" Nothing)
 
-newInstanceWidget :: UUID -> Class -> Handler Widget
-newInstanceWidget uuid cls = do
-  (widget, enctype) <- generateFormPost $ newInstanceForm cls
+newClassWidget :: UUID -> Text -> Handler Widget
+newClassWidget uuid cls = do
+  (widget, enctype) <- generateFormPost $ newClassForm cls
   pure $
     Rcs.formStyle
       >> [whamlet|
-           <form #class-new-instance method="post" action=@{EntryR (U.UUID uuid)} enctype=#{enctype}>
+           <form #class-new-sub method="post" action=@{EntryR (U.UUID uuid)} enctype=#{enctype}>
              ^{widget}
              <button type="submit">Create
          |]
 
-newInstance :: NewInstance -> Handler a
-newInstance (NewInstance cls nm desc) = do
+newClass :: NewClass -> Handler a
+newClass (NewClass cls nm desc) = do
   conn <- pgsql
   root <- korrRoot
   let mdName = mkMdName nm
-  entry <- newEntry conn root cls nm mdName
+  entry <- liftIO $ withTransaction conn $ do
+    entry <- newEntry conn root OntologyClass nm mdName
+    void $
+      O.runInsert conn $
+        O.Insert
+          { O.iTable = classesTable,
+            O.iRows = [(O.sqlStrictText nm, O.sqlStrictText cls)],
+            O.iReturning = O.rCount,
+            O.iOnConflict = Nothing
+          }
+    void $
+      O.runInsert conn $
+        O.Insert
+          { O.iTable = classEntryTable,
+            O.iRows = [(O.sqlStrictText nm, O.sqlUUID $ entry_id entry)],
+            O.iReturning = O.rCount,
+            O.iOnConflict = Nothing
+          }
+    pure entry
   let mdPath = entryMdPath root entry
   liftIO $ writeFile mdPath desc
   redirect $ EntryR $ U.UUID $ entry_id entry
 
-newInstanceProcess :: Class -> Handler Widget
-newInstanceProcess cls = do
-  ((result, _), _) <- runFormPost $ newInstanceForm cls
+newClassProcess :: Text -> Handler Widget
+newClassProcess cls = do
+  ((result, _), _) <- runFormPost $ newClassForm cls
   case result of
-    FormSuccess form -> newInstance form
+    FormSuccess form -> newClass form
     FormFailure err ->
       pure $
         [whamlet|
@@ -170,13 +192,49 @@ widgetsForClassEntry method entry = do
     [Just cls] -> do
       tree <- select methodGet "Class tree" $ treeWidget (Just cls)
       instances <- selectOpt methodGet "Instances" $ classInstancesWidget cls
-      newInst <-
-        select methodGet "New instance" $
-          newInstanceWidget (entry_id entry) cls
-      newInst' <-
-        select methodPost "New instance" $
-          newInstanceProcess cls
-      pure $ M.fromList $ tree ++ instances ++ newInst ++ newInst'
+      newCls <-
+        select methodGet "New subclass" $
+          newClassWidget (entry_id entry) $
+            name cls
+      newCls' <-
+        select methodPost "New subclass" $
+          newClassProcess $
+            name cls
+      pure $ M.fromList $ tree ++ instances ++ newCls ++ newCls'
+    [Nothing] -> do
+      parent :: [(Text, UUID)] <- liftIO $ O.runSelect conn $ do
+        (cls_, parent_) <- O.selectTable classesTable
+        O.where_ $ cls_ .== O.sqlStrictText (entry_name entry)
+        (id_, name_, _) <- O.selectTable entriesTable
+        O.where_ $ name_ .== parent_
+        (_, class_, uuid_, sub_, query_) <- O.selectTable entitiesTable
+        O.where_ $ O.isNull sub_ .&& O.isNull query_ .&& (uuid_ .== id_)
+        O.where_ $ class_ .== O.sqlStrictText (name OntologyClass)
+        pure (parent_, id_)
+      case parent of
+        [(parentName, parentId)] -> do
+          let parentW =
+                [whamlet|
+                <a href=@{EntryR (U.UUID parentId)}>
+                  #{parentName}
+            |]
+          let parents = [("Parent", parentW)]
+          let generate =
+                [whamlet|
+              <a href=@{GenerateR}>
+                Regenerate haskell classes
+            |]
+          let generates = [("Generate", generate)]
+          newCls <-
+            select methodGet "New subclass" $
+              newClassWidget (entry_id entry) $
+                entry_name entry
+          newCls' <-
+            select methodPost "New subclass" $
+              newClassProcess $
+                entry_name entry
+          pure $ M.fromList $ parents ++ newCls ++ newCls' ++ generates
+        _ -> notFound
     _ -> notFound
   where
     select :: Method -> String -> Handler Widget -> Handler [(String, Widget)]

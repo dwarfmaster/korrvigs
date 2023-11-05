@@ -45,3 +45,6 @@ generateForEntity ref =
   findEntity ref >>= \case
     Nothing -> notFound
     Just ent -> defaultLayout [whamlet|Page for [#{Cls.name (entity_class ent)}] #{show ref}|]
+
+getGenerateR :: Handler Text
+getGenerateR = pgsql >>= Cls.generateClassHs

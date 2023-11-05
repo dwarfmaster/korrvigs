@@ -66,6 +66,7 @@ executable korrvigs-web
   other-modules:
     Korrvigs.Classes
     Korrvigs.Classes.Colors
+    Korrvigs.Classes.Generate
     Korrvigs.Classes.Generated
     Korrvigs.Classes.Sync
     Korrvigs.Definition

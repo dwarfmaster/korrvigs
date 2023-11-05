@@ -13,4 +13,5 @@ korrvigsRoutes =
 /entry/#UUID/#Text EntryQueryR GET
 /entity/#UUID/#Text EntitySubR GET
 /entity/#UUID/#Text/#Text EntitySubQueryR GET
+/generate GenerateR GET
 |]

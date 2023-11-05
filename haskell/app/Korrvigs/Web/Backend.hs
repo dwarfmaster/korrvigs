@@ -18,7 +18,7 @@ data Korrvigs = Korrvigs
 mkYesodData "Korrvigs" korrvigsRoutes
 
 pgsql :: Handler Connection
-pgsql = getYesod >>= return . korr_connection
+pgsql = korr_connection <$> getYesod
 
 jquery :: Widget
 jquery =

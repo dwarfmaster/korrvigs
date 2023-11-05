@@ -48,3 +48,9 @@ classInstances instances = do
 
 formStyle :: Widget
 formStyle = toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/forms.cassius")
+
+header :: [(Bool, Text, Route Korrvigs)] -> Widget
+header pages = do
+  toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/header.hamlet")
+  toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/header.cassius")
+  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/header.julius")

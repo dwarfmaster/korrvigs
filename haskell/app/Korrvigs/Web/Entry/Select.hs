@@ -7,6 +7,7 @@ import Korrvigs.Classes
 import Korrvigs.Classes.Colors
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Header
 import qualified Korrvigs.Web.Ressources as Rcs
 import qualified Korrvigs.Web.UUID as UUID
 import Opaleye ((.&&), (.==))
@@ -52,6 +53,7 @@ getAllEntriesR = selectRep $ do
   provideRep $ defaultLayout widget
   where
     widget = do
+      header HSEntries
       setTitle "Jump to entry"
       Rcs.fuzzy
       Rcs.entrySelect

@@ -11,6 +11,7 @@ import Korrvigs.Web.Backend
 import Korrvigs.Web.Backend ()
 import Korrvigs.Web.DB
 import Korrvigs.Web.Entry (getAllEntriesR, processEntry, renderEntry)
+import Korrvigs.Web.Header
 import Korrvigs.Web.Routes
 import Korrvigs.Web.UUID (UUID (UUID))
 import Yesod
@@ -18,10 +19,14 @@ import Yesod
 mkYesodDispatch "Korrvigs" korrvigsRoutes
 
 getHomeR :: Handler Html
-getHomeR = defaultLayout [whamlet|Hello from korrvigs!|]
+getHomeR = defaultLayout $ do
+  header HSHome
+  [whamlet|Hello from korrvigs!|]
 
 getEntryR :: UUID -> Handler Html
-getEntryR (UUID uuid) = findEntry uuid >>= maybe notFound (renderEntry >=> defaultLayout)
+getEntryR (UUID uuid) =
+  findEntry uuid
+    >>= maybe notFound (renderEntry >=> addHeaderM HSEntries >=> defaultLayout)
 
 postEntryR :: UUID -> Handler Html
 postEntryR (UUID uuid) = findEntry uuid >>= maybe notFound (processEntry >=> defaultLayout)

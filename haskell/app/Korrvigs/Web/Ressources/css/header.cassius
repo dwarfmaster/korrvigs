@@ -1,0 +1,40 @@
+#header
+  width: 100%
+  overflow: hidden
+  background-color: var(--base00)
+  margin-bottom: 1em
+  a
+    float: left
+    display: block
+    text-decoration: none
+    font-weight: bold
+    font-size: 1em
+    text-align: center
+    color: var(--base05)
+    padding: 0.5em
+  a:hover
+    background-color: var(--base01)
+  a.active
+    background-color: var(--base0C)
+    color: var(--base00)
+  #header-icon
+    display: none
+
+/* When the screen is less than 600px wide */
+@media screen and (max-width: 600px)
+  #header
+    a:not(:first-child)
+      display: none
+    #header-icon
+      float: right
+      display: block
+  #header.responsive
+    position: relative
+    #header-icon
+      position: absolute
+      right: 0
+      top: 0
+    a
+      float: none
+      display: block
+      text-align: left

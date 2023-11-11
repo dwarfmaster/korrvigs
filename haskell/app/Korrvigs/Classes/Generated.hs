@@ -4,7 +4,7 @@ module Korrvigs.Classes.Generated where
 import Data.Ix (Ix)
 import Data.Text (Text)
 
-data Class = Entity | Continuant | DataFormatSpecification | DataItem | DirectiveInformationEntity | File | GenericallyDependentContinuant | Identifier | IndependentContinuant | InformationContentEntity | Namespace | NarrativeObject | Occurrent | OntologyClass | OntologyRelation | OntologySpecificationItem | SpecificallyDependentContinuant deriving (Show, Eq, Enum, Bounded, Ord, Ix)
+data Class = Entity | Continuant | DataFormatSpecification | DataItem | DirectiveInformationEntity | File | GenericallyDependentContinuant | Identifier | IndependentContinuant | InformationContentEntity | Namespace | NarrativeObject | Occurrent | OntologyClass | OntologyRelation | OntologySpecificationItem | Script | SpecificallyDependentContinuant | TextFile deriving (Show, Eq, Enum, Bounded, Ord, Ix)
 
 name :: Class -> Text
 name Entity = "Entity"
@@ -23,7 +23,9 @@ name Occurrent = "Occurrent"
 name OntologyClass = "Ontology class"
 name OntologyRelation = "Ontology relation"
 name OntologySpecificationItem = "Ontology specification item"
+name Script = "Script"
 name SpecificallyDependentContinuant = "Specifically dependent continuant"
+name TextFile = "Text file"
 
 parse :: Text -> Maybe Class
 parse "Entity" = Just Entity
@@ -42,7 +44,9 @@ parse "Occurrent" = Just Occurrent
 parse "Ontology class" = Just OntologyClass
 parse "Ontology relation" = Just OntologyRelation
 parse "Ontology specification item" = Just OntologySpecificationItem
+parse "Script" = Just Script
 parse "Specifically dependent continuant" = Just SpecificallyDependentContinuant
+parse "Text file" = Just TextFile
 parse _ = Nothing
 
 isA :: Class -> Class
@@ -62,4 +66,6 @@ isA Occurrent = Entity
 isA OntologyClass = OntologySpecificationItem
 isA OntologyRelation = OntologySpecificationItem
 isA OntologySpecificationItem = DataItem
+isA Script = TextFile
 isA SpecificallyDependentContinuant = Continuant
+isA TextFile = File

@@ -35,6 +35,7 @@ header =
   unlinesB
     [ "-- This file has been auto-generated",
       "module Korrvigs.Classes.Generated where",
+      "",
       "import Data.Ix (Ix)",
       "import Data.Text (Text)"
     ]

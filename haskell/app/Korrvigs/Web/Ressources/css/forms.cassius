@@ -46,3 +46,13 @@
     margin-top: 0.5em
     background-color: var(--base02)
     border-radius: 0.5em
+  select
+    width: 100%
+    background-color: var(--base07)
+    color: var(--base00)
+    border-style: none
+    outline-style: none
+    outline-width: 2px
+    outline-color: var(--base0F)
+  select:focus
+    outline-style: solid

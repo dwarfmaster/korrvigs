@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Korrvigs.Web.Entry.OntologyClass (treeWidget, widgetsForClassEntry) where
+module Korrvigs.Web.Entry.OntologyClass (treeWidget, widgetsForClassEntry, newClass) where
 
 import Control.Monad (void)
 import Data.Array (Array, (!))
@@ -22,9 +22,10 @@ import Korrvigs.Definition
 import Korrvigs.Entry
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
+import Korrvigs.Web.DB
+import Korrvigs.Web.Method
 import qualified Korrvigs.Web.Ressources as Rcs
 import qualified Korrvigs.Web.UUID as U
-import Network.HTTP.Types (Method, methodGet, methodPost)
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
 import Yesod hiding (Entity)
@@ -128,8 +129,11 @@ newClassWidget uuid cls = do
              <button type="submit">Create
          |]
 
-newClass :: NewClass -> Handler a
-newClass (NewClass cls nm desc) = do
+doNewClass :: NewClass -> Handler a
+doNewClass (NewClass cls nm desc) = newClass cls nm desc
+
+newClass :: Text -> Text -> Text -> Handler a
+newClass cls nm desc = do
   conn <- pgsql
   root <- korrRoot
   let mdName = mkMdName nm
@@ -160,7 +164,7 @@ newClassProcess :: Text -> Handler Widget
 newClassProcess cls = do
   ((result, _), _) <- runFormPost $ newClassForm cls
   case result of
-    FormSuccess form -> newClass form
+    FormSuccess form -> doNewClass form
     FormFailure err ->
       pure $
         [whamlet|
@@ -178,30 +182,26 @@ newClassProcess cls = do
 -- |  __/| | |_| | | | | | | |_) | | | | | (_| |
 -- |_|   |_|\__,_|_| |_| |_|_.__/|_|_| |_|\__, |
 --                                        |___/
-sqlFindClass :: UUID -> O.Select (O.Field O.SqlText)
-sqlFindClass uuid = do
-  (class_, entry_) <- O.selectTable classEntryTable
-  O.where_ $ entry_ .== O.sqlUUID uuid
-  return class_
-
 widgetsForClassEntry :: Method -> Entry -> Handler (Map String Widget)
 widgetsForClassEntry method entry = do
-  conn <- pgsql
-  res <- liftIO $ map parse <$> O.runSelect conn (sqlFindClass $ entry_id entry)
+  res <- findClass $ entry_id entry
   case res of
-    [Just cls] -> do
-      tree <- select methodGet "Class tree" $ treeWidget (Just cls)
-      instances <- selectOpt methodGet "Instances" $ classInstancesWidget cls
+    Just cls -> do
+      tree <- select (method == methodGet) "Class tree" $ treeWidget (Just cls)
+      instances <-
+        selectOpt (method == methodGet) "Instances" $
+          classInstancesWidget cls
       newCls <-
-        select methodGet "New subclass" $
+        select (method == methodGet) "New subclass" $
           newClassWidget (entry_id entry) $
             name cls
       newCls' <-
-        select methodPost "New subclass" $
+        select (method == methodPost) "New subclass" $
           newClassProcess $
             name cls
       pure $ M.fromList $ tree ++ instances ++ newCls ++ newCls'
-    [Nothing] -> do
+    Nothing -> do
+      conn <- pgsql
       parent :: [(Text, UUID)] <- liftIO $ O.runSelect conn $ do
         (cls_, parent_) <- O.selectTable classesTable
         O.where_ $ cls_ .== O.sqlStrictText (entry_name entry)
@@ -226,26 +226,12 @@ widgetsForClassEntry method entry = do
             |]
           let generates = [("Generate", generate)]
           newCls <-
-            select methodGet "New subclass" $
+            select (method == methodGet) "New subclass" $
               newClassWidget (entry_id entry) $
                 entry_name entry
           newCls' <-
-            select methodPost "New subclass" $
+            select (method == methodPost) "New subclass" $
               newClassProcess $
                 entry_name entry
           pure $ M.fromList $ parents ++ newCls ++ newCls' ++ generates
         _ -> notFound
-    _ -> notFound
-  where
-    select :: Method -> String -> Handler Widget -> Handler [(String, Widget)]
-    select met nm widgetM
-      | method == met =
-          widgetM >>= \widget -> pure $ [(nm, widget)]
-    select _ _ _ = pure []
-    selectOpt :: Method -> String -> Handler (Maybe Widget) -> Handler [(String, Widget)]
-    selectOpt met nm widgetM
-      | method == met =
-          widgetM >>= \widgetO -> pure $ case widgetO of
-            Just widget -> [(nm, widget)]
-            Nothing -> []
-    selectOpt _ _ _ = pure []

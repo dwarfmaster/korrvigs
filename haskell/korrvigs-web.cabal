@@ -78,10 +78,12 @@ executable korrvigs-web
     Korrvigs.Web.DB
     Korrvigs.Web.Entry
     Korrvigs.Web.Entry.Builder
+    Korrvigs.Web.Entry.NewInstance
     Korrvigs.Web.Entry.Notes
     Korrvigs.Web.Entry.OntologyClass
     Korrvigs.Web.Entry.Select
     Korrvigs.Web.Header
+    Korrvigs.Web.Method
     Korrvigs.Web.Ressources
     Korrvigs.Web.Routes
     Korrvigs.Web.UUID

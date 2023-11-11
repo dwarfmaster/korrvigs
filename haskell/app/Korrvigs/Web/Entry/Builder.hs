@@ -9,6 +9,7 @@ import Korrvigs.Classes
 import Korrvigs.Definition
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Entry.NewInstance (newInstance)
 import Korrvigs.Web.Entry.Notes
 import qualified Korrvigs.Web.Entry.OntologyClass as Class
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -41,7 +42,11 @@ addWidgets method entry _ Entity
   | method == methodGet =
       M.singleton "Notes" <$> noteWidget entry
 addWidgets method entry _ OntologyClass =
-  Class.widgetsForClassEntry method entry
+  mconcat
+    <$> sequence
+      [ Class.widgetsForClassEntry method entry,
+        newInstance method entry
+      ]
 addWidgets _ _ _ _ = pure M.empty
 
 classesPath :: Class -> [Class]

@@ -1,6 +1,7 @@
-module Korrvigs.Web.DB (findEntity, findEntry) where
+module Korrvigs.Web.DB (findEntity, findEntry, findClass) where
 
 import qualified Data.UUID as U
+import Korrvigs.Classes
 import qualified Korrvigs.Classes as Cls
 import Korrvigs.Definition
 import Korrvigs.Schema
@@ -49,3 +50,14 @@ findEntry uuid = do
       (uuid_, name_, notes_) <- O.selectTable entriesTable
       O.where_ $ uuid_ .== O.sqlUUID uuid
       pure $ (name_, notes_)
+
+findClass :: U.UUID -> Handler (Maybe Class)
+findClass uuid = do
+  conn <- pgsql
+  res <- Y.liftIO $ O.runSelect conn $ do
+    (class_, entry_) <- O.selectTable classEntryTable
+    O.where_ $ entry_ .== O.sqlUUID uuid
+    return class_
+  pure $ case parse <$> res of
+    [Just cls] -> Just cls
+    _ -> Nothing

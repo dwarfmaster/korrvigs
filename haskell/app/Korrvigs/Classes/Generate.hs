@@ -23,7 +23,8 @@ generateClassHs conn = do
             classDefinition classes,
             nameDefinition classes,
             parseDefinition classes,
-            isaDefinition classes
+            isaDefinition classes,
+            ""
           ]
 
 unlinesB :: [Builder] -> Builder
@@ -41,14 +42,14 @@ header =
 classDefinition :: [(Text, Text)] -> Builder
 classDefinition classes =
   mconcat $
-    ["data Class = Entity"]
+    ["\ndata Class = Entity"]
       ++ (map (\(cls, _) -> " | " <> toPascalCase cls) classes)
-      ++ [" deriving (Show,Eq,Enum,Bounded,Ord,Ix)"]
+      ++ [" deriving (Show, Eq, Enum, Bounded, Ord, Ix)"]
 
 nameDefinition :: [(Text, Text)] -> Builder
 nameDefinition classes =
   unlinesB $
-    [ "name :: Class -> Text",
+    [ "\nname :: Class -> Text",
       "name Entity = \"Entity\""
     ]
       ++ (map (\(cls, _) -> "name " <> toPascalCase cls <> " = \"" <> fromText cls <> "\"") classes)
@@ -56,7 +57,7 @@ nameDefinition classes =
 parseDefinition :: [(Text, Text)] -> Builder
 parseDefinition classes =
   unlinesB $
-    [ "parse :: Text -> Maybe Class",
+    [ "\nparse :: Text -> Maybe Class",
       "parse \"Entity\" = Just Entity"
     ]
       ++ (map (\(cls, _) -> "parse \"" <> fromText cls <> "\" = Just " <> toPascalCase cls) classes)
@@ -65,7 +66,7 @@ parseDefinition classes =
 isaDefinition :: [(Text, Text)] -> Builder
 isaDefinition classes =
   unlinesB $
-    [ "isA :: Class -> Class",
+    [ "\nisA :: Class -> Class",
       "isA Entity = Entity"
     ]
       ++ (map (\(cls, parent) -> "isA " <> toPascalCase cls <> " = " <> toPascalCase parent) classes)

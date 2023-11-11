@@ -24,13 +24,13 @@ optGet mp key = (key,) <$> (maybe [] (: []) $ M.lookup key mp)
 dropKeys :: [String] -> [(String, a)] -> [(String, a)]
 dropKeys keys set = filter (\(key, _) -> not $ elem key keys) set
 
-mkLayout :: [String] -> [String] -> Map String a -> [(String, a)]
+mkLayout :: [String] -> [String] -> Map String a -> [(String, Bool, a)]
 mkLayout place rm mp = placed ++ others
   where
-    placed = mconcat $ optGet mp <$> place
-    others = dropKeys (place ++ rm) $ M.assocs mp
+    placed = map (\(nm, v) -> (nm, True, v)) $ mconcat $ optGet mp <$> place
+    others = map (\(nm, v) -> (nm, False, v)) $ dropKeys (place ++ rm) $ M.assocs mp
 
-layout :: Class -> Map String Widget -> [(String, Widget)]
+layout :: Class -> Map String Widget -> [(String, Bool, Widget)]
 layout Entity = mkLayout ["Notes"] []
 layout OntologyClass = mkLayout ["Parent", "Class tree", "Generate", "Notes"] []
 layout c = layout (isA c)

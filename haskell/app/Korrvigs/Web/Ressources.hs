@@ -23,14 +23,16 @@ entrySelect = do
   toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/entries.julius")
   toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/entries.cassius")
 
-entryView :: Text -> Maybe Text -> Maybe (UUID, Class) -> [(String, Widget)] -> Widget
-entryView title err root fragments = do
+entryView :: Text -> Maybe Text -> Maybe (UUID, Class) -> [(String, Bool, Widget)] -> Widget
+entryView title err root fragmentsI = do
   toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/entry.cassius")
   toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/entry.hamlet")
   toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/entry.julius")
   where
     mkBase :: Class -> String
     mkBase = ("--base" ++) . classBase
+    fragments :: [(String, Bool, Widget)]
+    fragments = (\(nm, visible, v) -> (nm, not visible, v)) <$> fragmentsI
 
 classTree :: Widget
 classTree = do

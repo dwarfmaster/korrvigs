@@ -9,8 +9,8 @@ $maybe msg <- err
     <legend> Error
     <div> #{msg}
 
-$forall (nm,fragment) <- fragments
-  <fieldset .fragment>
+$forall (nm,collapsed,fragment) <- fragments
+  <fieldset .fragment :collapsed:.collapsed>
     <legend> #{nm}
     <div .fragment-body>
       ^{fragment}

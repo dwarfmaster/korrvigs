@@ -13,9 +13,10 @@ import Yesod
 
 fuzzy :: Widget
 fuzzy =
-  addScriptRemoteAttrs
-    "https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.basic.min.js"
-    [("integrity", "sha384-ScL3u6ZEqJiHfmlAb5knv4HAFbMNQRTHmcOJmuGfotCf1v1NtrIQTG9Hd5P843TL"), ("crossorigin", "anonymous")]
+  -- addScriptRemoteAttrs
+  --   "https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.basic.min.js"
+  --   [("integrity", "sha384-ScL3u6ZEqJiHfmlAb5knv4HAFbMNQRTHmcOJmuGfotCf1v1NtrIQTG9Hd5P843TL"), ("crossorigin", "anonymous")]
+  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/fuse.basic.min.julius")
 
 entrySelect :: Widget
 entrySelect = do

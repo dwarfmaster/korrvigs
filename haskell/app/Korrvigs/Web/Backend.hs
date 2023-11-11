@@ -6,6 +6,7 @@ import Data.Text (Text)
 import Database.PostgreSQL.Simple (Connection)
 import Korrvigs.Web.Routes
 import Text.Cassius (cassiusFile)
+import Text.Julius (juliusFile)
 import qualified Web.ClientSession as CS
 import Yesod
 
@@ -22,9 +23,11 @@ pgsql = korr_connection <$> getYesod
 
 jquery :: Widget
 jquery =
-  addScriptRemoteAttrs
-    "https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"
-    [("integrity", "sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"), ("crossorigin", "anonymous")]
+  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/jquery.min.julius")
+
+-- addScriptRemoteAttrs
+--   "https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+--   [("integrity", "sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"), ("crossorigin", "anonymous")]
 
 getBase :: Handler (Int -> Text)
 getBase = getYesod >>= return . korr_theme

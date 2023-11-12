@@ -3,17 +3,15 @@
 module Korrvigs.Web.Entry.Notes (noteWidget) where
 
 import Control.Monad ((>=>))
-import Data.Default (def)
 import qualified Data.Text.Lazy.Builder as Bld
 import Data.UUID (toString)
 import Korrvigs.Definition (Entry (..))
+import Korrvigs.Pandoc
 import Korrvigs.Web.Backend
 import System.FilePath ((</>))
 import Text.Pandoc (PandocMonad, readFileStrict, runIO)
 import Text.Pandoc.Error (renderError)
-import Text.Pandoc.Extensions (pandocExtensions)
 import Text.Pandoc.Highlighting (espresso, styleToCss)
-import Text.Pandoc.Options (ReaderOptions (..), WriterOptions (..))
 import Text.Pandoc.Readers.Markdown (readMarkdown)
 import Text.Pandoc.UTF8 (toText)
 import Text.Pandoc.Writers.HTML (writeHtml5)
@@ -21,16 +19,10 @@ import Yesod (CssBuilder (..), Html, liftIO, toHtml, toWidget)
 
 readNotePandoc :: PandocMonad m => FilePath -> m Html
 readNotePandoc =
-  readFileStrict >=> pure . toText >=> readMarkdown rOpts >=> writeHtml5 wOpts
-  where
-    rOpts :: ReaderOptions
-    rOpts = def {readerExtensions = pandocExtensions}
-    wOpts :: WriterOptions
-    wOpts =
-      def
-        { writerExtensions = pandocExtensions,
-          writerSectionDivs = True
-        }
+  readFileStrict
+    >=> pure . toText
+    >=> readMarkdown readerOptions
+    >=> writeHtml5 writerOptions
 
 readNote :: FilePath -> Handler Html
 readNote path =

@@ -71,6 +71,7 @@ executable korrvigs-web
     Korrvigs.Classes.Sync
     Korrvigs.Definition
     Korrvigs.Entry
+    Korrvigs.Pandoc
     Korrvigs.Schema
     Korrvigs.Tree
     Korrvigs.Web

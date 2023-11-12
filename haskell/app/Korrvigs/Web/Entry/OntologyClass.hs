@@ -13,7 +13,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Text.IO (writeFile)
 import Data.UUID (UUID)
 import Database.PostgreSQL.Simple.Transaction (withTransaction)
 import Korrvigs.Classes
@@ -21,6 +20,7 @@ import Korrvigs.Classes.Sync (mkMdName)
 import Korrvigs.Definition
 import Korrvigs.Entry
 import Korrvigs.Schema
+import Korrvigs.Tree (writeNotes)
 import Korrvigs.Web.Backend
 import Korrvigs.Web.DB
 import Korrvigs.Web.Form
@@ -30,7 +30,6 @@ import qualified Korrvigs.Web.UUID as U
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
 import Yesod hiding (Entity)
-import Prelude hiding (writeFile)
 
 --  _____
 
@@ -153,8 +152,7 @@ newClass cls nm desc = do
             O.iOnConflict = Nothing
           }
     pure entry
-  let mdPath = entryMdPath root entry
-  liftIO $ writeFile mdPath desc
+  writeNotes root entry desc
   redirect $ EntryR $ U.UUID $ entry_id entry
 
 newClassProcess :: Text -> Handler Widget

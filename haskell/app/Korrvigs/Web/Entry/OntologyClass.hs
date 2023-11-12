@@ -23,6 +23,7 @@ import Korrvigs.Entry
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
 import Korrvigs.Web.DB
+import Korrvigs.Web.Form
 import Korrvigs.Web.Method
 import qualified Korrvigs.Web.Ressources as Rcs
 import qualified Korrvigs.Web.UUID as U
@@ -112,11 +113,7 @@ data NewClass = NewClass Text Text Text
 
 newClassForm :: Text -> Html -> MForm Handler (FormResult NewClass, Widget)
 newClassForm cls =
-  identifyForm "NewSubClass" $
-    renderDivs $
-      NewClass cls
-        <$> areq textField "Class" Nothing
-        <*> (unTextarea <$> areq textareaField "Description" Nothing)
+  identifyForm "NewSubClass" $ nameDescForm "Class" $ NewClass cls
 
 newClassWidget :: UUID -> Text -> Handler Widget
 newClassWidget uuid cls = do

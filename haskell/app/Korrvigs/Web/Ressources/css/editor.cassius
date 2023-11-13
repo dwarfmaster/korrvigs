@@ -1,0 +1,16 @@
+.cm-editor
+  border: 2px solid var(--base0C)
+  border-radius: 0.5em
+#editor-save
+  text-align: right
+  button
+    margin-top: 1em
+    background-color: var(--base0C)
+    color: var(--base00)
+    outline: none
+    border: none
+    border-radius: 0.5em
+    text-align: center
+  button:hover
+    background-color: var(--base0D)
+    background-color: var(--base08)

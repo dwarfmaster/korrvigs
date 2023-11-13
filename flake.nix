@@ -35,7 +35,6 @@
           pre-commit.hooks = {
             alejandra.enable = true;
             deadnix.enable = true;
-            clang-format.enable = true;
             cabal-fmt.enable = true;
             cabal2nix.enable = true;
             ormolu.enable = true;
@@ -53,6 +52,7 @@
             pkgs.perl536Packages.FileMimeInfo
             pkgs.broot
             pkgs.haskellPackages.yesod-bin
+            pkgs.nodejs_20
           ];
           env = {
             SOUFFLE_ROOT = "${pkgs.souffle}/";

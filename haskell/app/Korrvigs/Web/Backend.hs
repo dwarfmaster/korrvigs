@@ -2,13 +2,20 @@
 
 module Korrvigs.Web.Backend where
 
+import Data.ByteString (ByteString)
+import Data.FileEmbed (embedFile)
 import Data.Text (Text)
+import Data.Text.Encoding (decodeUtf8)
+import Data.Text.Internal.Builder (fromText)
 import Database.PostgreSQL.Simple (Connection)
 import Korrvigs.Web.Routes
 import Text.Cassius (cassiusFile)
-import Text.Julius (juliusFile)
+import Text.Julius (Javascript, RawJavascript (..), toJavascript)
 import qualified Web.ClientSession as CS
 import Yesod
+
+mkJs :: ByteString -> Javascript
+mkJs = toJavascript . RawJavascript . fromText . decodeUtf8
 
 data Korrvigs = Korrvigs
   { korr_connection :: Connection,
@@ -23,7 +30,7 @@ pgsql = korr_connection <$> getYesod
 
 jquery :: Widget
 jquery =
-  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/jquery.min.julius")
+  toWidget $ mkJs $(embedFile "app/Korrvigs/Web/Ressources/js/jquery.min.js")
 
 -- addScriptRemoteAttrs
 --   "https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"

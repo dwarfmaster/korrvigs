@@ -1,5 +1,6 @@
 module Korrvigs.Web.Ressources where
 
+import Data.FileEmbed (embedFile)
 import Data.Text (Text)
 import Data.UUID (UUID)
 import Korrvigs.Classes
@@ -16,7 +17,7 @@ fuzzy =
   -- addScriptRemoteAttrs
   --   "https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.basic.min.js"
   --   [("integrity", "sha384-ScL3u6ZEqJiHfmlAb5knv4HAFbMNQRTHmcOJmuGfotCf1v1NtrIQTG9Hd5P843TL"), ("crossorigin", "anonymous")]
-  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/fuse.basic.min.julius")
+  toWidget $ mkJs $(embedFile "app/Korrvigs/Web/Ressources/js/fuse.basic.min.js")
 
 entrySelect :: Widget
 entrySelect = do
@@ -27,7 +28,7 @@ entryView :: Text -> Maybe Text -> Maybe (UUID, Class) -> [(String, Bool, Widget
 entryView title err root fragmentsI = do
   toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/entry.cassius")
   toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/entry.hamlet")
-  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/entry.julius")
+  toWidget $ mkJs $(embedFile "app/Korrvigs/Web/Ressources/js/entry.js")
   where
     mkBase :: Class -> String
     mkBase = ("--base" ++) . classBase
@@ -37,7 +38,7 @@ entryView title err root fragmentsI = do
 classTree :: Widget
 classTree = do
   toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/classTree.cassius")
-  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/classTree.julius")
+  toWidget $ mkJs $(embedFile "app/Korrvigs/Web/Ressources/js/classTree.js")
 
 classTreeSub :: Text -> UUID -> Bool -> [Widget] -> Widget
 classTreeSub className classUuid folded children = do
@@ -56,4 +57,9 @@ header :: [(Bool, Text, Route Korrvigs)] -> Widget
 header pages = do
   toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/header.hamlet")
   toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/header.cassius")
-  toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/header.julius")
+  toWidget $ mkJs $(embedFile "app/Korrvigs/Web/Ressources/js/header.js")
+
+editor :: Widget
+editor = do
+  toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/editor.cassius")
+  toWidget $ mkJs $(embedFile "app/Korrvigs/Web/Ressources/js/editor.bundle.js")

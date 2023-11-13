@@ -5,3 +5,4 @@ result
 .devenv
 .pre-commit-config.yaml
 haskell/dist*
+haskell/app/Korrvigs/Web/Ressources/js/node_modules

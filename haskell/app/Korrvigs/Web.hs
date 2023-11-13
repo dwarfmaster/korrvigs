@@ -11,7 +11,9 @@ import Korrvigs.Web.Backend
 import Korrvigs.Web.Backend ()
 import Korrvigs.Web.DB
 import Korrvigs.Web.Entry (getAllEntriesR, processEntry, renderEntry)
+import Korrvigs.Web.Entry.Notes (noteEditor)
 import Korrvigs.Web.Header
+import Korrvigs.Web.Method
 import Korrvigs.Web.Routes
 import Korrvigs.Web.UUID (UUID (UUID))
 import Yesod
@@ -30,6 +32,12 @@ getEntryR (UUID uuid) =
 
 postEntryR :: UUID -> Handler Html
 postEntryR (UUID uuid) = findEntry uuid >>= maybe notFound (processEntry >=> defaultLayout)
+
+getEntryEditR :: UUID -> Handler TypedContent
+getEntryEditR (UUID uuid) = noteEditor methodGet uuid defaultLayout
+
+postEntryEditR :: UUID -> Handler TypedContent
+postEntryEditR (UUID uuid) = noteEditor methodPost uuid defaultLayout
 
 getEntryQueryR :: UUID -> Text -> Handler Html
 getEntryQueryR (UUID uuid) query = generateForEntity $ EntityRef uuid Nothing (Just query)

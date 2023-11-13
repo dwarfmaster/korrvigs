@@ -1,8 +1,8 @@
-{ mkDerivation, aeson, array, base, clientsession, containers
-, data-default, directory, filepath, hashable, http-types, lib
-, opaleye, pandoc, pandoc-types, parsec, postgresql-simple
-, product-profunctors, random, shakespeare, text, uuid, yesod
-, yesod-core
+{ mkDerivation, aeson, array, base, bytestring, clientsession
+, containers, data-default, directory, file-embed, filepath
+, hashable, http-types, lib, opaleye, pandoc, pandoc-types, parsec
+, postgresql-simple, product-profunctors, random, shakespeare, text
+, uuid, yesod, yesod-core
 }:
 mkDerivation {
   pname = "korrvigs-web";
@@ -11,10 +11,10 @@ mkDerivation {
   isLibrary = false;
   isExecutable = true;
   executableHaskellDepends = [
-    aeson array base clientsession containers data-default directory
-    filepath hashable http-types opaleye pandoc pandoc-types parsec
-    postgresql-simple product-profunctors random shakespeare text uuid
-    yesod yesod-core
+    aeson array base bytestring clientsession containers data-default
+    directory file-embed filepath hashable http-types opaleye pandoc
+    pandoc-types parsec postgresql-simple product-profunctors random
+    shakespeare text uuid yesod yesod-core
   ];
   license = lib.licenses.mit;
   mainProgram = "korrvigs-web";

@@ -10,7 +10,8 @@ korrvigsRoutes =
 / HomeR GET
 /entry AllEntriesR GET
 /entry/#UUID EntryR GET POST
-/entry/#UUID/#Text EntryQueryR GET
+/entry/#UUID/edit EntryEditR GET POST
+/entry/#UUID/query/#Text EntryQueryR GET
 /entity/#UUID/#Text EntitySubR GET
 /entity/#UUID/#Text/#Text EntitySubQueryR GET
 /generate GenerateR GET

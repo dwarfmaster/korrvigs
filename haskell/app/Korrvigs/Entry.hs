@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Korrvigs.Entry (newEntity, newEntry, deleteEntry) where
+module Korrvigs.Entry (newEntity, lookupEntry, newEntry, deleteEntry) where
 
 import Control.Arrow ((&&&))
 import Control.Monad (void)
@@ -80,6 +80,17 @@ newEntity conn root entry cls content query = liftIO $ do
           O.iReturning = O.rReturning $ \(id_, _, _, _, _) -> id_,
           O.iOnConflict = Nothing
         }
+
+-- Try to find an entry from its uuid
+lookupEntry :: MonadIO m => Connection -> UUID -> m (Maybe Entry)
+lookupEntry conn uuid = do
+  res <- liftIO $ O.runSelect conn $ do
+    (uuid_, name_, notes_) <- O.selectTable entriesTable
+    O.where_ $ uuid_ .== O.sqlUUID uuid
+    pure (name_, notes_)
+  pure $ case res of
+    [(nm, notes)] -> Just $ MkEntry uuid nm notes
+    _ -> Nothing
 
 -- Create a new entry, along with a root entity and the relevant directory in
 -- the korrvigs tree. Returns the UUID of the newly created entry on success.

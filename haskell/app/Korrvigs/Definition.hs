@@ -26,7 +26,8 @@ instance Show EntityRef where
 data Entry = MkEntry
   { entry_id :: UUID,
     entry_name :: Text,
-    entry_notes :: FilePath
+    entry_notes :: FilePath,
+    entry_root :: Entity
   }
   deriving (Show, Eq, Ord)
 

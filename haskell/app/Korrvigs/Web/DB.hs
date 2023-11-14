@@ -4,6 +4,7 @@ import qualified Data.UUID as U
 import Korrvigs.Classes
 import qualified Korrvigs.Classes as Cls
 import Korrvigs.Definition
+import Korrvigs.Entry
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
 import Opaleye (Field, FieldNullable, (.&&), (.==))
@@ -38,18 +39,7 @@ findEntity (EntityRef uuid sub query) = do
       pure $ (i_, cls_)
 
 findEntry :: U.UUID -> Handler (Maybe Entry)
-findEntry uuid = do
-  conn <- pgsql
-  res <- Y.liftIO $ O.runSelect conn sql
-  pure $ case res of
-    [(nm, path)] -> Just $ MkEntry uuid nm path
-    _ -> Nothing
-  where
-    sql :: O.Select (Field O.SqlText, Field O.SqlText)
-    sql = do
-      (uuid_, name_, notes_) <- O.selectTable entriesTable
-      O.where_ $ uuid_ .== O.sqlUUID uuid
-      pure $ (name_, notes_)
+findEntry uuid = pgsql >>= flip lookupEntry uuid
 
 findClass :: U.UUID -> Handler (Maybe Class)
 findClass uuid = do

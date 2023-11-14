@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Korrvigs.Entry (newEntity, lookupEntry, newEntry, deleteEntry) where
+module Korrvigs.Entry (lookupEntryByName, lookupEntryByName', newEntity, lookupEntry, newEntry, deleteEntry) where
 
 import Control.Arrow ((&&&))
 import Control.Monad (void)
@@ -14,6 +14,7 @@ import qualified Data.UUID as U
 import qualified Data.UUID.V4 as U4
 import Database.PostgreSQL.Simple (Connection)
 import Korrvigs.Classes
+import qualified Korrvigs.DB as DB
 import Korrvigs.Definition
 import Korrvigs.Schema
 import qualified Korrvigs.Tree as KTree
@@ -38,6 +39,69 @@ sanitize c = case generalCategory c of
 sanitizeSubQuery :: String -> String
 sanitizeSubQuery = map sanitize
 
+-- Find an entry and its root entity from its class and name
+lookupEntryByName :: MonadIO m => Connection -> Class -> Text -> m (Maybe Entry)
+lookupEntryByName conn cls nm = liftIO $ do
+  res <- O.runSelect conn $ do
+    (id_, name_, notes_) <- O.selectTable entriesTable
+    (eid_, ecls_) <- DB.rootFor id_
+    O.where_ $ name_ .== O.sqlStrictText nm
+    O.where_ $ ecls_ .== O.sqlStrictText (name cls)
+    return (id_, notes_, eid_)
+  pure $ case res of
+    [(uuid, notes, i)] ->
+      Just $
+        MkEntry uuid nm notes $
+          MkEntity i cls uuid Nothing Nothing
+    _ -> Nothing
+
+-- Same as lookupRootEntity but raises an error on Nothing
+lookupEntryByName' :: MonadIO m => Connection -> Class -> Text -> m Entry
+lookupEntryByName' conn cls nm =
+  maybe (error $ T.unpack $ "No " <> nm <> " of class " <> name cls) id
+    <$> lookupEntryByName conn cls nm
+
+-- Create a new entity for in an entry given by its UUID. The entry must
+-- already exist in the entry table
+newEntityInternal ::
+  MonadIO m =>
+  Connection ->
+  FilePath ->
+  UUID ->
+  Class ->
+  Maybe FilePath ->
+  Maybe Text ->
+  m Int64
+newEntityInternal conn root entry cls content query = liftIO $ do
+  entityId <-
+    O.runInsert conn ins >>= \case
+      [i] -> pure i
+      _ -> error "Inserting only one row"
+  case msub of
+    Nothing -> pure ()
+    Just (path, sub) ->
+      let dest = root </> U.toString entry </> sub
+       in Dir.copyFile path dest
+  pure entityId
+  where
+    msub :: Maybe (FilePath, String)
+    msub = (id &&& (sanitizeSubQuery . Path.takeFileName)) <$> content
+    ins :: O.Insert [Int64]
+    ins =
+      O.Insert
+        { O.iTable = entitiesTable,
+          O.iRows =
+            [ ( (),
+                O.sqlStrictText (name cls),
+                O.sqlUUID entry,
+                O.maybeToNullable $ O.sqlString . snd <$> msub,
+                O.maybeToNullable $ O.sqlStrictText <$> query
+              )
+            ],
+          O.iReturning = O.rReturning $ \(id_, _, _, _, _) -> id_,
+          O.iOnConflict = Nothing
+        }
+
 -- Create a new entity in given entry, which is assumed to exists in the store.
 -- If given a path to a file, this file is copied into the store, and the
 -- entity is created as a sub entity of the entry. It returns the id of the
@@ -51,35 +115,8 @@ newEntity ::
   Maybe FilePath ->
   Maybe Text ->
   m Int64
-newEntity conn root entry cls content query = liftIO $ do
-  entityId <-
-    O.runInsert conn ins >>= \case
-      [i] -> pure i
-      _ -> error "Inserting only one row"
-  case msub of
-    Nothing -> pure ()
-    Just (path, sub) ->
-      let dest = root </> U.toString (entry_id entry) </> sub
-       in Dir.copyFile path dest
-  pure entityId
-  where
-    msub :: Maybe (FilePath, String)
-    msub = (id &&& (sanitizeSubQuery . Path.takeFileName)) <$> content
-    ins :: O.Insert [Int64]
-    ins =
-      O.Insert
-        { O.iTable = entitiesTable,
-          O.iRows =
-            [ ( (),
-                O.sqlStrictText (name cls),
-                O.sqlUUID (entry_id entry),
-                O.maybeToNullable $ O.sqlString . snd <$> msub,
-                O.maybeToNullable $ O.sqlStrictText <$> query
-              )
-            ],
-          O.iReturning = O.rReturning $ \(id_, _, _, _, _) -> id_,
-          O.iOnConflict = Nothing
-        }
+newEntity conn root entry cls content query =
+  newEntityInternal conn root (entry_id entry) cls content query
 
 -- Try to find an entry from its uuid
 lookupEntry :: MonadIO m => Connection -> UUID -> m (Maybe Entry)
@@ -87,10 +124,18 @@ lookupEntry conn uuid = do
   res <- liftIO $ O.runSelect conn $ do
     (uuid_, name_, notes_) <- O.selectTable entriesTable
     O.where_ $ uuid_ .== O.sqlUUID uuid
-    pure (name_, notes_)
-  pure $ case res of
-    [(nm, notes)] -> Just $ MkEntry uuid nm notes
-    _ -> Nothing
+    (id_, cls_) <- DB.rootFor uuid_
+    pure (name_, notes_, id_, cls_)
+  case res of
+    [(nm, notes, i, clsName)] ->
+      case parse clsName of
+        Just cls ->
+          pure $
+            Just $
+              MkEntry uuid nm notes $
+                MkEntity i cls uuid Nothing Nothing
+        _ -> liftIO (putStrLn "Couldn't parse class") >> pure Nothing
+    _ -> liftIO (putStrLn "Request failed") >> pure Nothing
 
 -- Create a new entry, along with a root entity and the relevant directory in
 -- the korrvigs tree. Returns the UUID of the newly created entry on success.
@@ -99,9 +144,8 @@ newEntry conn root cls nm md = liftIO $ do
   uuid <- U4.nextRandom
   void $ O.runInsert conn $ ins uuid
   void $ KTree.createEntry root uuid md
-  let entry = MkEntry uuid nm $ T.unpack md
-  void $ newEntity conn root entry cls Nothing Nothing
-  pure entry
+  rootEntity <- newEntityInternal conn root uuid cls Nothing Nothing
+  pure $ MkEntry uuid nm (T.unpack md) $ MkEntity rootEntity cls uuid Nothing Nothing
   where
     ins :: UUID -> O.Insert Int64
     ins uuid =

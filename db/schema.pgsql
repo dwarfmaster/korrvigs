@@ -24,3 +24,36 @@ create table if not exists class_entry (
   class_entry_class text not null references classes,
   class_entry_entry uuid not null references entries
 );
+
+-- Tables
+create table if not exists continuant_part_of_at (
+  whole serial not null references entities on delete cascade,
+  part serial not null references entities on delete cascade,
+  time_region serial not null references entities on delete cascade
+);
+
+create table if not exists occurent_part_of (
+  whole serial not null references entities on delete cascade,
+  part serial not null references entities on delete cascade
+);
+
+create table if not exists occupies_temporal_region (
+  continuant serial not null references entities on delete cascade,
+  time_region serial not null references entities on delete cascade
+);
+
+create table if not exists denotes_at (
+  identifier serial not null references entities on delete cascade,
+  entity serial not null references entities on delete cascade,
+  time_region serial not null references entities on delete cascade
+);
+
+create table if not exists instantiates (
+  specific serial not null references entities on delete cascade,
+  generic serial not null references entities on delete cascade
+);
+
+create table if not exists identifier (
+  identifier serial not null primary key references entities on delete cascade,
+  val text
+);

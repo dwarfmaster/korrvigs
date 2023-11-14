@@ -4,14 +4,16 @@ module Korrvigs.Classes.Generated where
 import Data.Ix (Ix)
 import Data.Text (Text)
 
-data Class = Entity | Continuant | DataFormatSpecification | DataItem | DirectiveInformationEntity | File | GenericallyDependentContinuant | Identifier | IndependentContinuant | InformationContentEntity | Namespace | NarrativeObject | Occurrent | OntologyClass | OntologyRelation | OntologySpecificationItem | Script | SpecificallyDependentContinuant | TextFile deriving (Show, Eq, Enum, Bounded, Ord, Ix)
+data Class = Entity | Continuant | ContinuousTimeRegion | DataFormatSpecification | DataItem | DirectiveInformationEntity | DiscontinuousTimeRegion | File | GenericallyDependentContinuant | Identifier | IndependentContinuant | InformationContentEntity | Namespace | NarrativeObject | Occurrent | OntologyClass | OntologyRelation | OntologySpecificationItem | Script | SpecificallyDependentContinuant | TemporalRegion | TextFile deriving (Show, Eq, Enum, Bounded, Ord, Ix)
 
 name :: Class -> Text
 name Entity = "Entity"
 name Continuant = "Continuant"
+name ContinuousTimeRegion = "Continuous time region"
 name DataFormatSpecification = "Data format specification"
 name DataItem = "Data item"
 name DirectiveInformationEntity = "Directive information entity"
+name DiscontinuousTimeRegion = "Discontinuous time region"
 name File = "File"
 name GenericallyDependentContinuant = "Generically dependent continuant"
 name Identifier = "Identifier"
@@ -25,14 +27,17 @@ name OntologyRelation = "Ontology relation"
 name OntologySpecificationItem = "Ontology specification item"
 name Script = "Script"
 name SpecificallyDependentContinuant = "Specifically dependent continuant"
+name TemporalRegion = "Temporal region"
 name TextFile = "Text file"
 
 parse :: Text -> Maybe Class
 parse "Entity" = Just Entity
 parse "Continuant" = Just Continuant
+parse "Continuous time region" = Just ContinuousTimeRegion
 parse "Data format specification" = Just DataFormatSpecification
 parse "Data item" = Just DataItem
 parse "Directive information entity" = Just DirectiveInformationEntity
+parse "Discontinuous time region" = Just DiscontinuousTimeRegion
 parse "File" = Just File
 parse "Generically dependent continuant" = Just GenericallyDependentContinuant
 parse "Identifier" = Just Identifier
@@ -46,15 +51,18 @@ parse "Ontology relation" = Just OntologyRelation
 parse "Ontology specification item" = Just OntologySpecificationItem
 parse "Script" = Just Script
 parse "Specifically dependent continuant" = Just SpecificallyDependentContinuant
+parse "Temporal region" = Just TemporalRegion
 parse "Text file" = Just TextFile
 parse _ = Nothing
 
 isA :: Class -> Class
 isA Entity = Entity
 isA Continuant = Entity
+isA ContinuousTimeRegion = TemporalRegion
 isA DataFormatSpecification = DirectiveInformationEntity
 isA DataItem = InformationContentEntity
 isA DirectiveInformationEntity = InformationContentEntity
+isA DiscontinuousTimeRegion = TemporalRegion
 isA File = SpecificallyDependentContinuant
 isA GenericallyDependentContinuant = Continuant
 isA Identifier = InformationContentEntity
@@ -68,4 +76,5 @@ isA OntologyRelation = OntologySpecificationItem
 isA OntologySpecificationItem = DataItem
 isA Script = TextFile
 isA SpecificallyDependentContinuant = Continuant
+isA TemporalRegion = Occurrent
 isA TextFile = File

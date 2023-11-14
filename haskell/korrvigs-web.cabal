@@ -69,9 +69,11 @@ executable korrvigs-web
     Korrvigs.Classes.Generate
     Korrvigs.Classes.Generated
     Korrvigs.Classes.Sync
+    Korrvigs.DB
     Korrvigs.Definition
     Korrvigs.Entry
     Korrvigs.Pandoc
+    Korrvigs.Relations
     Korrvigs.Schema
     Korrvigs.Tree
     Korrvigs.Web
@@ -80,6 +82,7 @@ executable korrvigs-web
     Korrvigs.Web.Editor
     Korrvigs.Web.Entry
     Korrvigs.Web.Entry.Builder
+    Korrvigs.Web.Entry.Format
     Korrvigs.Web.Entry.Identifiers
     Korrvigs.Web.Entry.NewInstance
     Korrvigs.Web.Entry.Notes

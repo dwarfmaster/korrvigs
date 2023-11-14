@@ -5,6 +5,7 @@ module Korrvigs.Web.Entry.OntologyClass (treeWidget, widgetsForClassEntry, newCl
 import Control.Monad (void)
 import Data.Array (Array, (!))
 import qualified Data.Array as A
+import Data.Int (Int64)
 import Data.List (sortBy)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -17,6 +18,7 @@ import Data.UUID (UUID)
 import Database.PostgreSQL.Simple.Transaction (withTransaction)
 import Korrvigs.Classes
 import Korrvigs.Classes.Sync (mkMdName)
+import qualified Korrvigs.DB as DB
 import Korrvigs.Definition
 import Korrvigs.Entry
 import Korrvigs.Schema
@@ -43,15 +45,17 @@ classesEntry = do
   res <- liftIO $ O.runSelect conn sql
   pure $ A.array (minBound, maxBound) $ mapMaybe prepare res
   where
-    sql :: O.Select (O.Field O.SqlText, O.Field O.SqlUuid, O.Field O.SqlText, O.Field O.SqlText)
+    sql :: O.Select (O.Field O.SqlText, O.Field O.SqlUuid, O.Field O.SqlText, O.Field O.SqlText, O.Field O.SqlInt8)
     sql = do
       (class_, entry_) <- O.selectTable classEntryTable
       (id_, name_, notes_) <- O.selectTable entriesTable
+      (eid_, _) <- DB.rootFor id_
       O.where_ $ entry_ .== id_
-      pure (class_, id_, name_, notes_)
-    prepare :: (Text, UUID, Text, Text) -> Maybe (Class, Entry)
-    prepare (className, uuid, nm, notes) =
-      (,MkEntry uuid nm $ T.unpack notes) <$> parse className
+      pure (class_, id_, name_, notes_, eid_)
+    prepare :: (Text, UUID, Text, Text, Int64) -> Maybe (Class, Entry)
+    prepare (className, uuid, nm, notes, eid) =
+      (,MkEntry uuid nm (T.unpack notes) $ MkEntity eid OntologyClass uuid Nothing Nothing)
+        <$> parse className
 
 treeWidget :: Maybe Class -> Handler Widget
 treeWidget mcls = do
@@ -90,12 +94,10 @@ classInstances cls = do
   conn <- pgsql
   res <- liftIO $ O.runSelect conn $ do
     (id_, name_, notes_) <- O.selectTable entriesTable
-    (_, class_, uuid_, sub_, query_) <- O.selectTable entitiesTable
-    O.where_ $ O.isNull sub_ .&& O.isNull query_
-    O.where_ $ uuid_ .== id_
+    (eid_, class_) <- DB.rootFor id_
     O.where_ $ class_ .== O.sqlStrictText (name cls)
-    pure (id_, name_, notes_)
-  pure $ (\(i, nm, md) -> MkEntry i nm $ T.unpack md) <$> res
+    pure (id_, name_, notes_, eid_)
+  pure $ (\(i, nm, md, eid) -> MkEntry i nm (T.unpack md) $ MkEntity eid cls i Nothing Nothing) <$> res
 
 classInstancesWidget :: Class -> Handler (Maybe Widget)
 classInstancesWidget cls = do

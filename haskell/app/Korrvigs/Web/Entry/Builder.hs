@@ -6,6 +6,7 @@ import qualified Data.Map as M
 import Data.Text (Text)
 import Data.UUID (UUID)
 import Korrvigs.Classes
+import qualified Korrvigs.DB as DB
 import Korrvigs.Definition
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
@@ -14,7 +15,7 @@ import Korrvigs.Web.Entry.Notes
 import qualified Korrvigs.Web.Entry.OntologyClass as Class
 import qualified Korrvigs.Web.Ressources as Rcs
 import Network.HTTP.Types (Method, methodGet, methodPost)
-import Opaleye ((.&&), (.==))
+import Opaleye ((.==))
 import qualified Opaleye as O
 import Yesod (liftIO)
 
@@ -72,13 +73,9 @@ makeEntry method entry = do
   where
     sql :: O.Select (O.Field O.SqlInt8, O.Field O.SqlText, O.Field O.SqlUuid)
     sql = do
-      (i_, class_, uuid_, sub_, query_) <- O.selectTable entitiesTable
+      (i_, class_) <- DB.rootFor $ O.sqlUUID $ entry_id entry
       (cls_, entry_) <- O.selectTable classEntryTable
-      O.where_ $
-        (uuid_ .== O.sqlUUID (entry_id entry))
-          .&& (O.isNull sub_)
-          .&& (O.isNull query_)
-          .&& (cls_ .== class_)
+      O.where_ $ cls_ .== class_
       return (i_, class_, entry_)
     mkEntity :: [(Int64, Text, UUID)] -> Maybe (UUID, Entity)
     mkEntity [(i, cls, uuid)] =

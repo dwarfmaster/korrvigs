@@ -12,6 +12,7 @@ import Korrvigs.Classes
 import Korrvigs.Definition
 import Korrvigs.Web.Backend
 import Korrvigs.Web.DB (findClass)
+import Korrvigs.Web.Entry.Format (newFormat)
 import Korrvigs.Web.Entry.Identifiers (newNamespace)
 import Korrvigs.Web.Entry.OntologyClass (newClass)
 import qualified Korrvigs.Web.Form as Form
@@ -23,6 +24,7 @@ import Yesod hiding (Entity)
 data NewInstance
   = NewOntologyClass Class Text Text
   | NewNamespace Text Text
+  | NewFormat Text Text Text
 
 clsNewForm :: Class -> Maybe (Html -> MForm Handler (FormResult NewInstance, Widget))
 clsNewForm Entity = Nothing
@@ -36,11 +38,19 @@ clsNewForm OntologyClass =
   where
     sel = selectField $ optionsPairs $ sortBy (\(nm1, _) (nm2, _) -> compare nm1 nm2) $ (name &&& id) <$> [minBound .. maxBound]
 clsNewForm Namespace = Just $ Form.nameDescForm "Namespace" NewNamespace
+clsNewForm DataFormatSpecification =
+  Just $
+    renderDivs $
+      NewFormat
+        <$> areq textField "Format" Nothing
+        <*> areq textField "MIME type" Nothing
+        <*> (unTextarea <$> areq textareaField "Description" Nothing)
 clsNewForm cls = clsNewForm (isA cls)
 
 -- Create the new instance and redirect to it
 doNewInstance :: NewInstance -> Handler a
 doNewInstance (NewOntologyClass cls nm desc) = newClass (name cls) nm desc
+doNewInstance (NewFormat nm mime desc) = newFormat nm mime desc
 doNewInstance (NewNamespace nm desc) = newNamespace nm desc
 
 newInstanceForm :: Class -> Maybe (Html -> MForm Handler (FormResult NewInstance, Widget))

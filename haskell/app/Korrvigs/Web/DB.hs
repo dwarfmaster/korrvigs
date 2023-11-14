@@ -1,11 +1,14 @@
-module Korrvigs.Web.DB (findEntity, findEntry, findClass) where
+module Korrvigs.Web.DB (findEntity, findEntry, findClass, createEntry) where
 
+import Data.Text (Text)
 import qualified Data.UUID as U
 import Korrvigs.Classes
 import qualified Korrvigs.Classes as Cls
+import Korrvigs.Classes.Sync (mkMdName)
 import Korrvigs.Definition
 import Korrvigs.Entry
 import Korrvigs.Schema
+import qualified Korrvigs.Tree as Tree
 import Korrvigs.Web.Backend
 import Opaleye (Field, FieldNullable, (.&&), (.==))
 import qualified Opaleye as O
@@ -51,3 +54,12 @@ findClass uuid = do
   pure $ case parse <$> res of
     [Just cls] -> Just cls
     _ -> Nothing
+
+createEntry :: Class -> Text -> Text -> Handler Entry
+createEntry cls nm desc = do
+  conn <- pgsql
+  root <- korrRoot
+  let mdName = mkMdName nm
+  entry <- Y.liftIO $ newEntry conn root cls nm mdName
+  Tree.writeNotes root entry desc
+  pure entry

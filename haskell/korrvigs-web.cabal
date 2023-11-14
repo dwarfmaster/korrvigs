@@ -88,6 +88,7 @@ executable korrvigs-web
     Korrvigs.Web.Entry.Notes
     Korrvigs.Web.Entry.OntologyClass
     Korrvigs.Web.Entry.Select
+    Korrvigs.Web.Entry.Time
     Korrvigs.Web.Form
     Korrvigs.Web.Header
     Korrvigs.Web.Method

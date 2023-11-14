@@ -51,6 +51,7 @@ noteWidget entry = do
   root <- korrRoot
   html <- readNote $ path root
   pure $ do
+    [whamlet|<a href=@{EntryEditR (U.UUID (entry_id entry))}>Edit|]
     toWidget html
     toWidget $ CssBuilder $ Bld.fromString $ styleToCss espresso
   where

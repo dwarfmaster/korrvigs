@@ -42,9 +42,9 @@ readNote path = do
     renderLink :: EntityRef -> Route Korrvigs
     renderLink (EntityRef uuid Nothing Nothing) = EntryR (U.UUID uuid)
     renderLink (EntityRef uuid Nothing (Just query)) = EntryQueryR (U.UUID uuid) query
-    renderLink (EntityRef uuid (Just sub) Nothing) = EntitySubR (U.UUID uuid) sub
+    renderLink (EntityRef uuid (Just sub) Nothing) = EntrySubR (U.UUID uuid) sub
     renderLink (EntityRef uuid (Just sub) (Just query)) =
-      EntitySubQueryR (U.UUID uuid) sub query
+      EntrySubQueryR (U.UUID uuid) sub query
 
 noteWidget :: Entry -> Handler Widget
 noteWidget entry = do

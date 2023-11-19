@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Korrvigs.Entry (lookupEntryByName, lookupEntryByName', newEntity, lookupEntry, newEntry, deleteEntry) where
+module Korrvigs.Entry (lookupEntryByName, lookupEntryByName', lookupEntryByNameSql, newEntity, lookupEntry, newEntry, deleteEntry) where
 
 import Control.Arrow ((&&&))
 import Control.Monad (void)
@@ -40,15 +40,19 @@ sanitize c = case generalCategory c of
 sanitizeSubQuery :: String -> String
 sanitizeSubQuery = map sanitize
 
+-- Find an entry and its root node from a class and a name
+lookupEntryByNameSql :: Class -> Text -> O.Select (O.Field O.SqlUuid, O.Field O.SqlText, O.Field O.SqlInt8)
+lookupEntryByNameSql cls nm = do
+  (id_, name_, notes_) <- O.selectTable entriesTable
+  (eid_, ecls_) <- DB.rootFor id_
+  O.where_ $ name_ .== O.sqlStrictText nm
+  O.where_ $ ecls_ .== O.sqlStrictText (name cls)
+  return (id_, notes_, eid_)
+
 -- Find an entry and its root entity from its class and name
 lookupEntryByName :: MonadIO m => Connection -> Class -> Text -> m (Maybe Entry)
 lookupEntryByName conn cls nm = liftIO $ do
-  res <- O.runSelect conn $ do
-    (id_, name_, notes_) <- O.selectTable entriesTable
-    (eid_, ecls_) <- DB.rootFor id_
-    O.where_ $ name_ .== O.sqlStrictText nm
-    O.where_ $ ecls_ .== O.sqlStrictText (name cls)
-    return (id_, notes_, eid_)
+  res <- O.runSelect conn $ lookupEntryByNameSql cls nm
   pure $ case res of
     [(uuid, notes, i)] ->
       Just $

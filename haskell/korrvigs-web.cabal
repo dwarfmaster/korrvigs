@@ -92,12 +92,14 @@ executable korrvigs-web
     Korrvigs.Web.Entry.OntologyClass
     Korrvigs.Web.Entry.OntologyRelation
     Korrvigs.Web.Entry.Select
+    Korrvigs.Web.Entry.Sub
     Korrvigs.Web.Entry.Time
     Korrvigs.Web.Form
     Korrvigs.Web.Header
     Korrvigs.Web.Method
     Korrvigs.Web.Ressources
     Korrvigs.Web.Routes
+    Korrvigs.Web.Sub
     Korrvigs.Web.UUID
 
   -- LANGUAGE extensions used by modules in this package.

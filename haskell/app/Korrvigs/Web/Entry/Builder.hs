@@ -16,6 +16,7 @@ import Korrvigs.Web.Entry.NewInstance (newInstance)
 import Korrvigs.Web.Entry.Notes
 import qualified Korrvigs.Web.Entry.OntologyClass as Class
 import qualified Korrvigs.Web.Entry.OntologyRelation as Relation
+import qualified Korrvigs.Web.Entry.Sub as Sub
 import qualified Korrvigs.Web.Ressources as Rcs
 import Network.HTTP.Types (Method, methodGet, methodPost)
 import Opaleye ((.==))
@@ -45,7 +46,11 @@ layout c = layout (isA c)
 addWidgets :: Method -> Entry -> Int64 -> Class -> Handler (Map String Widget)
 addWidgets method entry _ Entity
   | method == methodGet =
-      M.singleton "Notes" <$> noteWidget entry
+      mconcat
+        <$> sequence
+          [ M.singleton "Notes" <$> noteWidget entry,
+            Sub.make entry
+          ]
 addWidgets method entry _ OntologyClass =
   mconcat
     <$> sequence

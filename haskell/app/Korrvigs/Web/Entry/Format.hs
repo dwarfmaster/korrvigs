@@ -1,4 +1,4 @@
-module Korrvigs.Web.Entry.Format (newFormat) where
+module Korrvigs.Web.Entry.Format (newFormat, inNamespaceSql, inNamespaceAllSql) where
 
 import Control.Monad (void)
 import Data.Int (Int64)
@@ -42,17 +42,26 @@ newFormat nm mime desc = do
   Tree.writeNotes root entry desc
   redirect $ EntryR $ U.UUID $ entry_id entry
 
+inNamespaceSql :: O.Field O.SqlInt8 -> O.Select (O.Field O.SqlInt8, O.Field O.SqlInt8)
+inNamespaceSql namespace = do
+  (id_, namespace_, tr_) <- O.selectTable continuantPartOfAtRel
+  O.where_ $ namespace_ .== namespace
+  pure (id_, tr_)
+
+inNamespaceAllSql :: O.Field O.SqlInt8 -> O.Select (O.Field O.SqlInt8)
+inNamespaceAllSql namespace = do
+  (id_, tr_) <- inNamespaceSql namespace
+  (_, _, all_) <- lookupEntryByNameSql TemporalRegion "All"
+  O.where_ $ tr_ .== all_
+  pure id_
+
 -- If the mime already exists, use it, otherwise create a new one
 getMimeFor :: MonadIO m => Connection -> FilePath -> Entry -> Entity -> Text -> m Int64
 getMimeFor conn root entry allEntity mime = do
   mimeEntity <- entry_root <$> lookupEntryByName' conn Namespace "MIME type"
   res <- liftIO $ O.runSelect conn $ do
-    (id_, namespace_, tr_) <- O.selectTable continuantPartOfAtRel
-    (id__, mime_) <- O.selectTable identifierRel
-    O.where_ $ id_ .== id__
+    (id_, tr_) <- inNamespaceSql $ O.sqlInt8 $ entity_id mimeEntity
     O.where_ $ tr_ .== O.sqlInt8 (entity_id allEntity)
-    O.where_ $ namespace_ .== O.sqlInt8 (entity_id mimeEntity)
-    O.where_ $ mime_ .== O.sqlStrictText mime
     pure id_
   case res of
     [i] -> pure i

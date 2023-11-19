@@ -43,11 +43,11 @@ postEntryEditR (UUID uuid) = noteEditor methodPost uuid defaultLayout
 getEntryQueryR :: UUID -> Text -> Handler Html
 getEntryQueryR (UUID uuid) query = generateForEntity $ EntityRef uuid Nothing (Just query)
 
-getEntitySubR :: UUID -> Text -> Handler Html
-getEntitySubR (UUID uuid) sub = generateForEntity $ EntityRef uuid (Just sub) Nothing
+getEntrySubR :: UUID -> Text -> Handler Html
+getEntrySubR (UUID uuid) sub = generateForEntity $ EntityRef uuid (Just sub) Nothing
 
-getEntitySubQueryR :: UUID -> Text -> Text -> Handler Html
-getEntitySubQueryR (UUID uuid) sub query = generateForEntity $ EntityRef uuid (Just sub) (Just query)
+getEntrySubQueryR :: UUID -> Text -> Text -> Handler Html
+getEntrySubQueryR (UUID uuid) sub query = generateForEntity $ EntityRef uuid (Just sub) (Just query)
 
 generateForEntity :: EntityRef -> Handler Html
 generateForEntity ref =

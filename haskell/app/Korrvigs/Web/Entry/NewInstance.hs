@@ -15,6 +15,7 @@ import Korrvigs.Web.DB (findClass)
 import Korrvigs.Web.Entry.Format (newFormat)
 import Korrvigs.Web.Entry.Identifiers (newNamespace)
 import Korrvigs.Web.Entry.OntologyClass (newClass)
+import Korrvigs.Web.Entry.OntologyRelation (newOntologyRelation)
 import Korrvigs.Web.Entry.Time (newTemporalRegion)
 import qualified Korrvigs.Web.Form as Form
 import Korrvigs.Web.Method
@@ -27,6 +28,7 @@ data NewInstance
   | NewNamespace Text Text
   | NewFormat Text Text Text
   | NewTemporalRegion Text Text
+  | NewOntologyRelation Text Text Text
 
 clsNewForm :: Class -> Maybe (Html -> MForm Handler (FormResult NewInstance, Widget))
 clsNewForm Entity = Nothing
@@ -48,6 +50,13 @@ clsNewForm DataFormatSpecification =
         <*> areq textField "MIME type" Nothing
         <*> (unTextarea <$> areq textareaField "Description" Nothing)
 clsNewForm TemporalRegion = Just $ Form.nameDescForm "Abstract temporal region" NewTemporalRegion
+clsNewForm OntologyRelation =
+  Just $
+    renderDivs $
+      NewOntologyRelation
+        <$> areq textField "Relation" Nothing
+        <*> (unTextarea <$> areq textareaField "Description" Nothing)
+        <*> (unTextarea <$> areq textareaField "Structure" Nothing)
 clsNewForm cls = clsNewForm (isA cls)
 
 -- Create the new instance and redirect to it
@@ -56,6 +65,7 @@ doNewInstance (NewOntologyClass cls nm desc) = newClass (name cls) nm desc
 doNewInstance (NewFormat nm mime desc) = newFormat nm mime desc
 doNewInstance (NewNamespace nm desc) = newNamespace nm desc
 doNewInstance (NewTemporalRegion nm desc) = newTemporalRegion nm desc
+doNewInstance (NewOntologyRelation nm desc dhall) = newOntologyRelation nm desc dhall
 
 newInstanceForm :: Class -> Maybe (Html -> MForm Handler (FormResult NewInstance, Widget))
 newInstanceForm cls = identifyForm "NewInstance" <$> clsNewForm cls

@@ -30,6 +30,7 @@
             hpkgs.yesod
             hpkgs.opaleye
             hpkgs.pandoc
+            hpkgs.dhall
           ]);
 
           pre-commit.hooks = {
@@ -52,6 +53,7 @@
             pkgs.perl536Packages.FileMimeInfo
             pkgs.broot
             pkgs.haskellPackages.yesod-bin
+            pkgs.haskellPackages.dhall
             pkgs.nodejs_20
           ];
           env = {

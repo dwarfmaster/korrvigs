@@ -218,7 +218,7 @@ widgetsForClassEntry method entry = do
           let parents = [("Parent", parentW)]
           let generate =
                 [whamlet|
-              <a href=@{GenerateR}>
+              <a href=@{GenerateClassesR}>
                 Regenerate haskell classes
             |]
           let generates = [("Generate", generate)]

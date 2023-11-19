@@ -7,6 +7,7 @@ import Control.Monad ((>=>))
 import Data.Text (Text)
 import qualified Korrvigs.Classes as Cls
 import Korrvigs.Definition
+import qualified Korrvigs.Relations as Rels
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Backend ()
 import Korrvigs.Web.DB
@@ -54,5 +55,17 @@ generateForEntity ref =
     Nothing -> notFound
     Just ent -> defaultLayout [whamlet|Page for [#{Cls.name (entity_class ent)}] #{show ref}|]
 
-getGenerateR :: Handler Text
-getGenerateR = pgsql >>= Cls.generateClassHs
+getGenerateClassesR :: Handler Text
+getGenerateClassesR = pgsql >>= Cls.generateClassHs
+
+getGenerateRelsSqlR :: Handler Text
+getGenerateRelsSqlR = do
+  conn <- pgsql
+  root <- korrRoot
+  Rels.generateRelationsSql conn root
+
+getGenerateRelsHsR :: Handler Text
+getGenerateRelsHsR = do
+  conn <- pgsql
+  root <- korrRoot
+  Rels.generateRelationsHs conn root

@@ -47,3 +47,9 @@ writeNotes root entry md = do
     format =
       readMarkdown readerOptions
         >=> writeMarkdown writerOptions
+
+-- Given an entry, a sub and some text, write the text to the sub file
+writeSub :: MonadIO m => FilePath -> Entry -> Text -> Text -> m ()
+writeSub root entry sub content = do
+  let path = entrySubPath root entry sub
+  liftIO $ writeFile path content

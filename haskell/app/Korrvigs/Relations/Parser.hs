@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Korrvigs.Relations.Parser where
+module Korrvigs.Relations.Parser (Type (..), parseDhall, parseRelation, parseRelations) where
 
 import Control.Exception (TypeError (..), catch)
 import Control.Monad.IO.Class (liftIO)

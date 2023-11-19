@@ -80,9 +80,16 @@
   color: var(--base01)
   width: fit-content
   padding: 0.2em
-  font-size: 1em
   font-weight: bold
   border-radius: 0.25em
   a
     color: inherit
+
+div.entry-class
+  font-size: 1em
+
+span.entry-class
+  box-sizing: border-box
+  display: inline-block
+  margin: 0.05em
 

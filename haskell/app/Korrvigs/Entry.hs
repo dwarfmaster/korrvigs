@@ -7,6 +7,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Char
 import Data.Int (Int64)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.UUID (UUID)
@@ -33,7 +34,7 @@ sanitize c = case generalCategory c of
   Surrogate -> '_'
   PrivateUse -> '_'
   NotAssigned -> '_'
-  OtherPunctuation -> if elem c ['/', '?'] then '_' else c
+  OtherPunctuation -> if c `elem` ['/', '?'] then '_' else c
   _ -> c
 
 sanitizeSubQuery :: String -> String
@@ -58,7 +59,7 @@ lookupEntryByName conn cls nm = liftIO $ do
 -- Same as lookupRootEntity but raises an error on Nothing
 lookupEntryByName' :: MonadIO m => Connection -> Class -> Text -> m Entry
 lookupEntryByName' conn cls nm =
-  maybe (error $ T.unpack $ "No " <> nm <> " of class " <> name cls) id
+  fromMaybe (error $ T.unpack $ "No " <> nm <> " of class " <> name cls)
     <$> lookupEntryByName conn cls nm
 
 -- Create a new entity for in an entry given by its UUID. The entry must
@@ -115,8 +116,8 @@ newEntity ::
   Maybe FilePath ->
   Maybe Text ->
   m Int64
-newEntity conn root entry cls content query =
-  newEntityInternal conn root (entry_id entry) cls content query
+newEntity conn root entry =
+  newEntityInternal conn root (entry_id entry)
 
 -- Try to find an entry from its uuid
 lookupEntry :: MonadIO m => Connection -> UUID -> m (Maybe Entry)

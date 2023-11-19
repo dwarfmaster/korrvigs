@@ -1,8 +1,10 @@
 module Korrvigs.Web.Entry.Builder (renderEntry, processEntry) where
 
+import Data.Functor ((<&>))
 import Data.Int (Int64)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (maybeToList)
 import Data.Text (Text)
 import Data.UUID (UUID)
 import Korrvigs.Classes
@@ -13,6 +15,7 @@ import Korrvigs.Web.Backend
 import Korrvigs.Web.Entry.NewInstance (newInstance)
 import Korrvigs.Web.Entry.Notes
 import qualified Korrvigs.Web.Entry.OntologyClass as Class
+import qualified Korrvigs.Web.Entry.OntologyRelation as Relation
 import qualified Korrvigs.Web.Ressources as Rcs
 import Network.HTTP.Types (Method, methodGet, methodPost)
 import Opaleye ((.==))
@@ -20,10 +23,10 @@ import qualified Opaleye as O
 import Yesod (liftIO)
 
 optGet :: Map String a -> String -> [(String, a)]
-optGet mp key = (key,) <$> (maybe [] (: []) $ M.lookup key mp)
+optGet mp key = (key,) <$> maybeToList (M.lookup key mp)
 
 dropKeys :: [String] -> [(String, a)] -> [(String, a)]
-dropKeys keys set = filter (\(key, _) -> not $ elem key keys) set
+dropKeys keys = filter (\(key, _) -> key `notElem` keys)
 
 mkLayout :: [String] -> [String] -> Map String a -> [(String, Bool, a)]
 mkLayout place rm mp = placed ++ others
@@ -34,6 +37,7 @@ mkLayout place rm mp = placed ++ others
 layout :: Class -> Map String Widget -> [(String, Bool, Widget)]
 layout Entity = mkLayout ["Notes"] []
 layout OntologyClass = mkLayout ["Parent", "Class tree", "Generate", "Notes"] []
+layout OntologyRelation = mkLayout ["Schema", "Notes"] []
 layout c = layout (isA c)
 
 -- Takes an entry, the id of its root entity and a class, and generate a set of
@@ -48,6 +52,9 @@ addWidgets method entry _ OntologyClass =
       [ Class.widgetsForClassEntry method entry,
         newInstance method entry
       ]
+addWidgets method entry _ OntologyRelation
+  | method == methodGet =
+      M.singleton "Schema" <$> Relation.schemaWidget entry
 addWidgets _ _ _ _ = pure M.empty
 
 classesPath :: Class -> [Class]
@@ -56,7 +63,7 @@ classesPath cls = cls : classesPath (isA cls)
 
 -- Takes an entry and its root entity
 build :: Method -> Entry -> Entity -> Handler (Map String Widget)
-build method entry root = mapM (addWidgets method entry $ entity_id root) clss >>= pure . M.unions
+build method entry root = mapM (addWidgets method entry $ entity_id root) clss <&> M.unions
   where
     clss = classesPath $ entity_class root
 
@@ -69,7 +76,7 @@ makeEntry method entry = do
       pure $ Rcs.entryView (entry_name entry) (Just "Failed to load root entry") Nothing []
     Just (clsEntry, root) -> do
       widgets <- layout (entity_class root) <$> build method entry root
-      pure $ Rcs.entryView (entry_name entry) Nothing (Just $ (clsEntry, entity_class root)) widgets
+      pure $ Rcs.entryView (entry_name entry) Nothing (Just (clsEntry, entity_class root)) widgets
   where
     sql :: O.Select (O.Field O.SqlInt8, O.Field O.SqlText, O.Field O.SqlUuid)
     sql = do

@@ -12,6 +12,7 @@ import qualified Korrvigs.DB as DB
 import Korrvigs.Definition
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Entry.Identifiers (identifiersFor)
 import Korrvigs.Web.Entry.NewInstance (newInstance)
 import Korrvigs.Web.Entry.Notes
 import qualified Korrvigs.Web.Entry.OntologyClass as Class
@@ -39,6 +40,7 @@ layout :: Class -> Map String Widget -> [(String, Bool, Widget)]
 layout Entity = mkLayout ["Notes"] []
 layout OntologyClass = mkLayout ["Parent", "Class tree", "Generate", "Notes"] []
 layout OntologyRelation = mkLayout ["Schema", "Notes"] []
+layout DataFormatSpecification = mkLayout ["Identifiers", "Notes"] []
 layout c = layout (isA c)
 
 -- Takes an entry, the id of its root entity and a class, and generate a set of
@@ -49,7 +51,8 @@ addWidgets method entry _ Entity
       mconcat
         <$> sequence
           [ M.singleton "Notes" <$> noteWidget entry,
-            Sub.make entry
+            Sub.make entry,
+            identifiersFor $ entity_id $ entry_root entry
           ]
 addWidgets method entry _ OntologyClass =
   mconcat

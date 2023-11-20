@@ -1,18 +1,14 @@
 module Korrvigs.Web.Entry.Builder (renderEntry, processEntry) where
 
 import Data.Functor ((<&>))
-import Data.Int (Int64)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (maybeToList)
-import Data.Text (Text)
-import Data.UUID (UUID)
 import Korrvigs.Classes
-import qualified Korrvigs.DB as DB
 import Korrvigs.Definition
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
-import Korrvigs.Web.Entry.Identifiers (identifiersFor)
+import Korrvigs.Web.Entry.Identifiers (identifiersFor, identifiersIn)
 import Korrvigs.Web.Entry.NewInstance (newInstance)
 import Korrvigs.Web.Entry.Notes
 import qualified Korrvigs.Web.Entry.OntologyClass as Class
@@ -45,8 +41,8 @@ layout c = layout (isA c)
 
 -- Takes an entry, the id of its root entity and a class, and generate a set of
 -- widgets for this class
-addWidgets :: Method -> Entry -> Int64 -> Class -> Handler (Map String Widget)
-addWidgets method entry _ Entity
+addWidgets :: Method -> Entry -> Class -> Handler (Map String Widget)
+addWidgets method entry Entity
   | method == methodGet =
       mconcat
         <$> sequence
@@ -54,48 +50,41 @@ addWidgets method entry _ Entity
             Sub.make entry,
             identifiersFor $ entity_id $ entry_root entry
           ]
-addWidgets method entry _ OntologyClass =
+addWidgets method entry OntologyClass =
   mconcat
     <$> sequence
       [ Class.widgetsForClassEntry method entry,
         newInstance method entry
       ]
-addWidgets method entry _ OntologyRelation
+addWidgets method entry OntologyRelation
   | method == methodGet =
       M.singleton "Schema" <$> Relation.schemaWidget entry
-addWidgets _ _ _ _ = pure M.empty
+addWidgets method entry Namespace | method == methodGet = identifiersIn entry
+addWidgets _ _ _ = pure M.empty
 
 classesPath :: Class -> [Class]
 classesPath Entity = [Entity]
 classesPath cls = cls : classesPath (isA cls)
 
--- Takes an entry and its root entity
-build :: Method -> Entry -> Entity -> Handler (Map String Widget)
-build method entry root = mapM (addWidgets method entry $ entity_id root) clss <&> M.unions
+build :: Method -> Entry -> Handler (Map String Widget)
+build method entry = mapM (addWidgets method entry) clss <&> M.unions
   where
-    clss = classesPath $ entity_class root
+    clss = classesPath $ entity_class $ entry_root entry
 
 makeEntry :: Method -> Entry -> Handler Widget
 makeEntry method entry = do
   conn <- pgsql
-  res <- liftIO $ mkEntity <$> O.runSelect conn sql
+  res <- liftIO $ O.runSelect conn $ do
+    (cls_, entry_) <- O.selectTable classEntryTable
+    O.where_ $ cls_ .== O.sqlStrictText (name $ entity_class $ entry_root entry)
+    return entry_
   case res of
-    Nothing ->
-      pure $ Rcs.entryView (entry_name entry) (Just "Failed to load root entry") Nothing []
-    Just (clsEntry, root) -> do
-      widgets <- layout (entity_class root) <$> build method entry root
+    [clsEntry] -> do
+      let root = entry_root entry
+      widgets <- layout (entity_class root) <$> build method entry
       pure $ Rcs.entryView (entry_name entry) Nothing (Just (clsEntry, entity_class root)) widgets
-  where
-    sql :: O.Select (O.Field O.SqlInt8, O.Field O.SqlText, O.Field O.SqlUuid)
-    sql = do
-      (i_, class_) <- DB.rootFor $ O.sqlUUID $ entry_id entry
-      (cls_, entry_) <- O.selectTable classEntryTable
-      O.where_ $ cls_ .== class_
-      return (i_, class_, entry_)
-    mkEntity :: [(Int64, Text, UUID)] -> Maybe (UUID, Entity)
-    mkEntity [(i, cls, uuid)] =
-      parse cls >>= \c -> Just (uuid, MkEntity i c (entry_id entry) Nothing Nothing)
-    mkEntity _ = Nothing
+    _ ->
+      pure $ Rcs.entryView (entry_name entry) (Just "Failed to load root entry") Nothing []
 
 -- Deal with GET request on entry
 renderEntry :: Entry -> Handler Widget

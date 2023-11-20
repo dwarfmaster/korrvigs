@@ -15,7 +15,7 @@ import Korrvigs.Web.Backend
 import Korrvigs.Web.DB
 import qualified Korrvigs.Web.Entry.Format as Fmt
 import qualified Korrvigs.Web.UUID as U
-import Opaleye ((.==))
+import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
 import Yesod hiding (Entity)
 
@@ -24,6 +24,12 @@ newNamespace :: Text -> Text -> Handler a
 newNamespace nm desc = do
   entry <- createEntry Namespace nm desc
   redirect $ EntryR $ U.UUID $ entry_id entry
+
+identifierValueSql :: O.Field O.SqlInt8 -> O.Select (O.Field O.SqlText)
+identifierValueSql ident = do
+  (ident_, text_) <- O.selectTable identifierRel
+  O.where_ $ ident_ .== ident
+  pure text_
 
 -- A widget listing identifiers to an entity
 identifiersFor :: Int64 -> Handler (Map String Widget)
@@ -46,10 +52,7 @@ identifiersFor entity = do
       O.where_ $ tr_ .== all_
       pure ()
     -- Find the value of the identifier
-    text_ <- do
-      (ident__, text_) <- O.selectTable identifierRel
-      O.where_ $ ident_ .== ident__
-      pure text_
+    text_ <- identifierValueSql ident_
     pure (entry_, namespace_, text_)
   pure $ case (res :: [(UUID, Text, Text)]) of
     [] -> M.empty
@@ -64,3 +67,37 @@ identifiersFor entity = do
                 [#{nm}]
               #{ident}
       |]
+
+-- If the given entry is a namespace, create a widget listing all the identifiers
+-- in it, with links to
+identifiersIn :: Entry -> Handler (Map String Widget)
+identifiersIn namespace = do
+  conn <- pgsql
+  res <- liftIO $ O.runSelect conn $ do
+    (ident_, _) <- Fmt.inNamespaceSql $ O.sqlInt8 $ entity_id $ entry_root namespace
+    text_ <- identifierValueSql ident_
+    -- Find the entry it identifies, if any
+    target_ <- O.limit 1 $ O.optional $ do
+      (uuid_, _, _) <- O.selectTable entriesTable
+      (root_, _) <- DB.rootFor uuid_
+      (ident__, target_, tr_) <- O.selectTable denotesAtRel
+      O.where_ $ ident_ .== ident__ .&& target_ .== root_
+      (_, _, all_) <- lookupEntryByNameSql TemporalRegion "All"
+      O.where_ $ tr_ .== all_
+      pure uuid_
+    pure (target_, text_)
+  pure $ case (res :: [(Maybe UUID, Text)]) of
+    [] -> M.empty
+    idents ->
+      M.singleton
+        "Identifiers"
+        [whamlet|
+      <ul>
+        $forall (target,ident) <- idents
+          <li>
+            $maybe tgt <- target
+              <a href=@{EntryR (U.UUID tgt)}>
+                #{ident}
+            $nothing
+              #{ident}
+    |]

@@ -9,13 +9,13 @@ import qualified Korrvigs.Classes as Cls
 import Korrvigs.Definition
 import qualified Korrvigs.Relations as Rels
 import Korrvigs.Web.Backend
-import Korrvigs.Web.Backend ()
 import Korrvigs.Web.DB
 import Korrvigs.Web.Entry (getAllEntriesR, processEntry, renderEntry)
 import Korrvigs.Web.Entry.Notes (noteEditor)
 import Korrvigs.Web.Header
 import Korrvigs.Web.Method
 import Korrvigs.Web.Routes
+import qualified Korrvigs.Web.Sub as Sub
 import Korrvigs.Web.UUID (UUID (UUID))
 import Yesod
 
@@ -44,7 +44,9 @@ getEntryQueryR :: UUID -> Text -> Handler Html
 getEntryQueryR (UUID uuid) query = generateForEntity $ EntityRef uuid Nothing (Just query)
 
 getEntrySubR :: UUID -> Text -> Handler Html
-getEntrySubR (UUID uuid) sub = generateForEntity $ EntityRef uuid (Just sub) Nothing
+getEntrySubR (UUID uuid) sub =
+  findEntry uuid
+    >>= maybe notFound (flip Sub.widget sub >=> addHeaderM HSEntries >=> defaultLayout)
 
 getEntrySubQueryR :: UUID -> Text -> Text -> Handler Html
 getEntrySubQueryR (UUID uuid) sub query = generateForEntity $ EntityRef uuid (Just sub) (Just query)

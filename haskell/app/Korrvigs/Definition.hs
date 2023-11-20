@@ -35,7 +35,7 @@ entryMdPath :: FilePath -> Entry -> FilePath
 entryMdPath root entry = root </> U.toString (entry_id entry) </> entry_notes entry
 
 entrySubPath :: FilePath -> Entry -> Text -> FilePath
-entrySubPath root entry sub = subPath root (entry_id entry) sub
+entrySubPath root = subPath root . entry_id
 
 subPath :: FilePath -> UUID -> Text -> FilePath
 subPath root entry sub = root </> U.toString entry </> T.unpack sub

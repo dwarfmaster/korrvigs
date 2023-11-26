@@ -7,6 +7,8 @@ import qualified Data.Text as T
 import Data.Text.IO (readFile)
 import Korrvigs.Definition
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Entry.Query (listQueries)
+import qualified Korrvigs.Web.Entry.Query as Query
 import qualified Korrvigs.Web.UUID as U
 import Network.Mime
 import System.FilePath.Posix (takeExtension)
@@ -43,6 +45,8 @@ widget entry sub = do
   let path = entrySubPath root entry sub
   let mime = mimeFor sub
   wdgt <- widgetForSub path mime $ T.pack $ takeExtension $ T.unpack sub
+  let ent = (entry_root entry) {entity_sub = Just sub}
+  queries <- listQueries ent
   pure
     [whamlet|
     <h1>
@@ -50,9 +54,15 @@ widget entry sub = do
         #{entry_name entry}
       <span .sub>
         #{sub}
+    <h2>
+      Content
     <p>
       <a href=@{EntrySubContentR (U.UUID (entry_id entry)) sub}>
         Download
     $maybe w <- wdgt
       ^{w}
+    $if null queries
+      <h2>
+        Queries
+      ^{Query.mkList ent queries}
   |]

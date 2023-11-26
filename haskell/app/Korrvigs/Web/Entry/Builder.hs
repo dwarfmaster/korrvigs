@@ -13,6 +13,7 @@ import Korrvigs.Web.Entry.NewInstance (newInstance)
 import Korrvigs.Web.Entry.Notes
 import qualified Korrvigs.Web.Entry.OntologyClass as Class
 import qualified Korrvigs.Web.Entry.OntologyRelation as Relation
+import qualified Korrvigs.Web.Entry.Query as Query
 import qualified Korrvigs.Web.Entry.Sub as Sub
 import qualified Korrvigs.Web.Ressources as Rcs
 import Network.HTTP.Types (Method, methodGet, methodPost)
@@ -48,6 +49,7 @@ addWidgets method entry Entity
         <$> sequence
           [ M.singleton "Notes" <$> noteWidget entry,
             Sub.make entry,
+            Query.make entry,
             identifiersFor $ entity_id $ entry_root entry
           ]
 addWidgets method entry OntologyClass =

@@ -91,6 +91,7 @@ executable korrvigs-web
     Korrvigs.Web.Entry.Notes
     Korrvigs.Web.Entry.OntologyClass
     Korrvigs.Web.Entry.OntologyRelation
+    Korrvigs.Web.Entry.Query
     Korrvigs.Web.Entry.Select
     Korrvigs.Web.Entry.Sub
     Korrvigs.Web.Entry.Time

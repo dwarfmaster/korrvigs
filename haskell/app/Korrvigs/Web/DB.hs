@@ -1,4 +1,4 @@
-module Korrvigs.Web.DB (findEntity, findEntry, findClass, createEntry) where
+module Korrvigs.Web.DB (findEntity, findEntry, findClass, createEntry, (.==?)) where
 
 import Data.Text (Text)
 import qualified Data.UUID as U

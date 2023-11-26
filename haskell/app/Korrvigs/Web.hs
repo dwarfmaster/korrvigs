@@ -4,6 +4,7 @@
 module Korrvigs.Web (Korrvigs (..)) where
 
 import Control.Monad ((>=>))
+import Data.ByteString (readFile)
 import Data.Text (Text)
 import qualified Korrvigs.Classes as Cls
 import Korrvigs.Definition
@@ -18,6 +19,7 @@ import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Sub as Sub
 import Korrvigs.Web.UUID (UUID (UUID))
 import Yesod
+import Prelude hiding (readFile)
 
 mkYesodDispatch "Korrvigs" korrvigsRoutes
 
@@ -47,6 +49,17 @@ getEntrySubR :: UUID -> Text -> Handler Html
 getEntrySubR (UUID uuid) sub =
   findEntry uuid
     >>= maybe notFound (flip Sub.widget sub >=> addHeaderM HSEntries >=> defaultLayout)
+
+getEntrySubContentR :: UUID -> Text -> Handler TypedContent
+getEntrySubContentR (UUID uuid) sub =
+  findEntry uuid >>= \case
+    Nothing -> notFound
+    Just entry -> do
+      root <- korrRoot
+      let path = entrySubPath root entry sub
+      let mime = Sub.mimeFor sub
+      file <- liftIO $ readFile path
+      pure $ TypedContent mime $ toContent file
 
 getEntrySubQueryR :: UUID -> Text -> Text -> Handler Html
 getEntrySubQueryR (UUID uuid) sub query = generateForEntity $ EntityRef uuid (Just sub) (Just query)

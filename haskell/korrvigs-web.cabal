@@ -98,6 +98,7 @@ executable korrvigs-web
     Korrvigs.Web.Form
     Korrvigs.Web.Header
     Korrvigs.Web.Method
+    Korrvigs.Web.Query
     Korrvigs.Web.Ressources
     Korrvigs.Web.Routes
     Korrvigs.Web.Sub

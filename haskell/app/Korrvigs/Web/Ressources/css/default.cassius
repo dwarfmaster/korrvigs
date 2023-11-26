@@ -38,6 +38,11 @@ h1
     font-family: monospace
   span.sub::before
     content: "/"
+  span.query
+    color: var(--base04)
+  span.query::before
+    font-family: monospace
+    content: "#"
 
 a
   color: var(--base09)
@@ -52,3 +57,21 @@ ul
   padding-left: 1em
   margin-top: 0.5em
   margin-bottom: 0.5em
+
+.entry-class
+  color: var(--base01)
+  width: fit-content
+  padding: 0.2em
+  font-weight: bold
+  border-radius: 0.25em
+  a
+    color: inherit
+
+div.entry-class
+  font-size: 1em
+
+span.entry-class
+  box-sizing: border-box
+  display: inline-block
+  margin: 0.05em
+

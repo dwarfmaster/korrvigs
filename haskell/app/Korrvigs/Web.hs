@@ -15,6 +15,7 @@ import Korrvigs.Web.Entry (getAllEntriesR, processEntry, renderEntry)
 import Korrvigs.Web.Entry.Notes (noteEditor)
 import Korrvigs.Web.Header
 import Korrvigs.Web.Method
+import qualified Korrvigs.Web.Query as Query
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Sub as Sub
 import Korrvigs.Web.UUID (UUID (UUID))
@@ -43,7 +44,7 @@ postEntryEditR :: UUID -> Handler TypedContent
 postEntryEditR (UUID uuid) = noteEditor methodPost uuid defaultLayout
 
 getEntryQueryR :: UUID -> Text -> Handler Html
-getEntryQueryR (UUID uuid) query = generateForEntity $ EntityRef uuid Nothing (Just query)
+getEntryQueryR (UUID uuid) query = generateForQuery $ EntityRef uuid Nothing (Just query)
 
 getEntrySubR :: UUID -> Text -> Handler Html
 getEntrySubR (UUID uuid) sub =
@@ -62,13 +63,11 @@ getEntrySubContentR (UUID uuid) sub =
       pure $ TypedContent mime $ toContent file
 
 getEntrySubQueryR :: UUID -> Text -> Text -> Handler Html
-getEntrySubQueryR (UUID uuid) sub query = generateForEntity $ EntityRef uuid (Just sub) (Just query)
+getEntrySubQueryR (UUID uuid) sub query = generateForQuery $ EntityRef uuid (Just sub) (Just query)
 
-generateForEntity :: EntityRef -> Handler Html
-generateForEntity ref =
-  findEntity ref >>= \case
-    Nothing -> notFound
-    Just ent -> defaultLayout [whamlet|Page for [#{Cls.name (entity_class ent)}] #{show ref}|]
+generateForQuery :: EntityRef -> Handler Html
+generateForQuery ref =
+  findEntity ref >>= maybe notFound (Query.widget >=> addHeaderM HSEntries >=> defaultLayout)
 
 getGenerateClassesR :: Handler Text
 getGenerateClassesR = pgsql >>= Cls.generateClassHs

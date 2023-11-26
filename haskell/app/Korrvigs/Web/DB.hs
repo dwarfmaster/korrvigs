@@ -17,7 +17,7 @@ import qualified Yesod as Y
 (.==?) :: FieldNullable a -> Maybe (Field a) -> Field O.SqlBool
 (.==?) a b = case b of
   Nothing -> O.matchNullable (O.sqlBool True) (\_ -> O.sqlBool False) a
-  Just b' -> O.matchNullable (O.sqlBool False) (\a' -> a' .== b') a
+  Just b' -> O.matchNullable (O.sqlBool False) (.== b') a
 
 findEntity :: EntityRef -> Handler (Maybe Entity)
 findEntity (EntityRef uuid sub query) = do
@@ -26,10 +26,11 @@ findEntity (EntityRef uuid sub query) = do
   pure $ case res of
     [(i, cls)] ->
       -- TODO log on Nothing!
-      maybe
-        Nothing
-        (\cls' -> Just $ MkEntity i cls' uuid sub query)
-        (Cls.parse cls)
+      MkEntity i
+        <$> Cls.parse cls
+        <*> pure uuid
+        <*> pure sub
+        <*> pure query
     _ -> Nothing
   where
     sql :: O.Select (Field O.SqlInt8, Field O.SqlText)
@@ -39,7 +40,7 @@ findEntity (EntityRef uuid sub query) = do
         (uuid_ .== O.sqlUUID uuid)
           .&& (sub_ .==? (O.sqlStrictText <$> sub))
           .&& (query_ .==? (O.sqlStrictText <$> query))
-      pure $ (i_, cls_)
+      pure (i_, cls_)
 
 findEntry :: U.UUID -> Handler (Maybe Entry)
 findEntry uuid = pgsql >>= flip lookupEntry uuid

@@ -11,10 +11,11 @@ import Korrvigs.Pandoc
 import qualified Korrvigs.Tree as Tree
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Editor
+import qualified Korrvigs.Web.Entry.Pandoc as Pandoc
 import Korrvigs.Web.Method
 import qualified Korrvigs.Web.UUID as U
 import System.FilePath ((</>))
-import Text.Pandoc (PandocMonad, readFileStrict, runIO)
+import Text.Pandoc (Pandoc, PandocMonad, readFileStrict, runIO)
 import Text.Pandoc.Error (renderError)
 import Text.Pandoc.Highlighting (espresso, styleToCss)
 import Text.Pandoc.Readers.Markdown (readMarkdown)
@@ -23,39 +24,46 @@ import Text.Pandoc.Writers.HTML (writeHtml5)
 import Yesod
 import Prelude hiding (readFile)
 
-readNotePandoc :: PandocMonad m => (EntityRef -> m Text) -> FilePath -> m Html
+readNotePandoc :: PandocMonad m => (EntityRef -> m Text) -> FilePath -> m Pandoc
 readNotePandoc renderLink =
   readFileStrict
     >=> pure . toText
     >=> readMarkdown readerOptions
     >=> displayLinks renderLink
-    >=> writeHtml5 writerOptions
 
 readNote :: FilePath -> Handler Html
 readNote path = do
   render <- getUrlRender
-  md <- liftIO $ runIO $ readNotePandoc (pure . render . renderLink) path
+  md <-
+    liftIO $
+      runIO $
+        readNotePandoc (pure . render . renderLinkPandoc) path
+          >>= writeHtml5 writerOptions
   case md of
     Left err -> pure $ toHtml $ "Error: " <> renderError err
     Right html -> pure html
-  where
-    renderLink :: EntityRef -> Route Korrvigs
-    renderLink (EntityRef uuid Nothing Nothing) = EntryR (U.UUID uuid)
-    renderLink (EntityRef uuid Nothing (Just query)) = EntryQueryR (U.UUID uuid) query
-    renderLink (EntityRef uuid (Just sub) Nothing) = EntrySubR (U.UUID uuid) sub
-    renderLink (EntityRef uuid (Just sub) (Just query)) =
-      EntrySubQueryR (U.UUID uuid) sub query
+
+renderLinkPandoc :: EntityRef -> Route Korrvigs
+renderLinkPandoc (EntityRef uuid Nothing Nothing) = EntryR (U.UUID uuid)
+renderLinkPandoc (EntityRef uuid Nothing (Just query)) = EntryQueryR (U.UUID uuid) query
+renderLinkPandoc (EntityRef uuid (Just sub) Nothing) = EntrySubR (U.UUID uuid) sub
+renderLinkPandoc (EntityRef uuid (Just sub) (Just query)) =
+  EntrySubQueryR (U.UUID uuid) sub query
 
 noteWidget :: Entry -> Handler Widget
 noteWidget entry = do
   root <- korrRoot
-  html <- readNote $ path root
+  render <- getUrlRender
+  md <- liftIO $ runIO $ readNotePandoc (pure . render . renderLinkPandoc) $ path root
+  widget <- case md of
+    Left err -> pure $ toWidget $ "Error: " <> renderError err
+    Right pd -> Pandoc.renderPandoc pd
   pure $ do
     [whamlet|<a href=@{EntryEditR (U.UUID (entry_id entry))}>Edit|]
-    toWidget html
+    widget
     toWidget $ CssBuilder $ Bld.fromString $ styleToCss espresso
   where
-    path root = root </> (toString $ entry_id entry) </> (entry_notes entry)
+    path root = root </> toString (entry_id entry) </> entry_notes entry
 
 noteEditor :: Method -> UUID -> (Widget -> Handler Html) -> Handler TypedContent
 noteEditor meth uuid render = do

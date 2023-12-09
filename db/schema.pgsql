@@ -27,14 +27,14 @@ create table if not exists class_entry (
 
 -- Tables
 create table if not exists continuant_part_of_at (
-  whole serial not null references entities on delete cascade,
   part serial not null references entities on delete cascade,
+  whole serial not null references entities on delete cascade,
   time_region serial not null references entities on delete cascade
 );
 
 create table if not exists occurent_part_of (
-  whole serial not null references entities on delete cascade,
-  part serial not null references entities on delete cascade
+  part serial not null references entities on delete cascade,
+  whole serial not null references entities on delete cascade
 );
 
 create table if not exists occupies_temporal_region (

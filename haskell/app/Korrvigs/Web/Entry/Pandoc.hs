@@ -1,9 +1,10 @@
 module Korrvigs.Web.Entry.Pandoc where
 
-import Control.Monad (forM_)
+import Control.Monad (forM_, when)
 import Control.Monad.Trans.State.Lazy (StateT, execStateT, modify, runStateT)
 import Data.Maybe (isJust)
 import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Web.Backend
 import Skylighting (defaultSyntaxMap)
 import Text.Pandoc.Definition
@@ -234,7 +235,54 @@ renderBlock (Header lvl (i, _, _) title) = do
   content <- mapW renderInline title
   newSection lvl i content
 renderBlock HorizontalRule = pushBlock [whamlet|<hr>|]
-renderBlock (Table {}) = undefined -- TODO
+renderBlock (Table _ (Caption _ caption) _ (TableHead _ hd) body (TableFoot _ foot)) =
+  transform (\w -> [whamlet|<table> ^{w}|]) $ do
+    when (caption /= []) $
+      transform (\w -> [whamlet| <caption> ^{w}|]) $
+        forM_ caption renderBlock
+    forM_ hd $ renderRow renderHCell
+    forM_ body $ \(TableBody _ _ bodyHd bodyContent) -> do
+      forM_ bodyHd $ renderRow renderHCell
+      forM_ bodyContent $ renderRow renderCell
+    forM_ foot $ renderRow renderHCell
+  where
+    mkIf :: Bool -> [a] -> [a]
+    mkIf True l = l
+    mkIf False _ = []
+    renderAlign :: Alignment -> Text
+    renderAlign AlignDefault = ""
+    renderAlign AlignLeft = "start"
+    renderAlign AlignRight = "end"
+    renderAlign AlignCenter = "center"
+    cellAttrs :: Cell -> [(Text, Text)]
+    cellAttrs (Cell (i, _, _) ali (RowSpan rowSpan) (ColSpan colSpan) _) =
+      mkIf (colSpan > 1) [("colspan", T.pack $ show colSpan)]
+        <> mkIf (rowSpan > 1) [("rowspan", T.pack $ show rowSpan)]
+        <> mkIf (i /= "") [("id", i)]
+        <> mkIf (ali /= AlignDefault) [("style", "text-align: " <> renderAlign ali)]
+    renderCell :: Cell -> ZipperM ()
+    renderCell cell@(Cell _ _ _ _ content) =
+      transform
+        ( \w ->
+            [whamlet|
+        <td *{cellAttrs cell}>
+          ^{w}
+      |]
+        )
+        $ forM_ content renderBlock
+    renderHCell :: Cell -> ZipperM ()
+    renderHCell cell@(Cell _ _ _ _ content) =
+      transform
+        ( \w ->
+            [whamlet|
+        <th *{cellAttrs cell}>
+          ^{w}
+      |]
+        )
+        $ forM_ content renderBlock
+    renderRow :: (Cell -> ZipperM ()) -> Row -> ZipperM ()
+    renderRow render (Row _ cells) =
+      transform (\w -> [whamlet| <tr> ^{w}|]) $ forM_ cells render
 renderBlock (Div (i, _, _) blks) =
   transform
     ( \wdgt ->

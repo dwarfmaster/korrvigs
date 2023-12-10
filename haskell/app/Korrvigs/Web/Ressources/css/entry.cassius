@@ -68,6 +68,20 @@
   pre.sourceCode
     width: 0
     overflow: visible
+  table
+    width: 100%
+    background-color: var(--base02)
+    border: 2px solid var(--base06)
+    border-radius: 0.25em
+    padding: 0.25em
+    overflow-x: scroll
+  th
+    font-weight: bold
+    background-color: var(--base00)
+    border-radius: 0.25em
+  td
+    background-color: var(--base01)
+    border-radius: 0.25em
 
 .fragment.collapsed
   height: auto

@@ -304,7 +304,9 @@ renderInline (Superscript c) = wrapI (\w -> [whamlet|<sup> ^{w}|]) c
 renderInline (Subscript c) = wrapI (\w -> [whamlet|<sub> ^{w}|]) c
 renderInline (SmallCaps c) = wrapI (\w -> [whamlet|<span style="font-variant: small-caps"> ^{w}|]) c
 renderInline (Quoted _ c) = wrapI (\w -> [whamlet|<q> ^{w}|]) c
-renderInline (Cite _ _) = undefined -- TODO
+renderInline (Cite _ c) =
+  -- TODO better handling of citation, right now nothing is done and the key are simply included inline
+  mapW renderInline c
 renderInline (Code (i, _, _) c) = pure [whamlet|<code id=#{i}> #{c}|]
 renderInline Space = pure $ toWidget (" " :: Text)
 renderInline SoftBreak = pure $ toWidget (" " :: Text)
@@ -323,7 +325,7 @@ renderInline (Link _ c (target, title)) =
   wrapI (\w -> [whamlet|<a href=#{target} title=#{title}> ^{w}|]) c
 renderInline (Image _ c (target, _)) =
   pure [whamlet|<img src=#{target} alt=#{stringify c}>|]
-renderInline (Note _) = undefined -- TODO
+renderInline (Note _) = pure $ pure () -- TODO
 renderInline (Span (i, _, _) c) = wrapI (\w -> [whamlet|<span id=#{i}> ^{w}|]) c
 renderInline (RawInline (Format "html") raw) =
   pure $ toWidget $ preEscapedToMarkup raw

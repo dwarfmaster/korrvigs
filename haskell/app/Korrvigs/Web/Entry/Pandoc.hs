@@ -30,7 +30,7 @@ data WidgetTreeZipper = MkZipper
   }
 
 mkZipper :: WidgetTreeZipper
-mkZipper = MkZipper 0 Nothing [] []
+mkZipper = MkZipper (-1) Nothing [] []
 
 zipperPushSection :: Int -> Text -> Widget -> WidgetTreeZipper -> WidgetTreeZipper
 zipperPushSection lvl i title zipper =
@@ -75,7 +75,7 @@ zipperNewSection lvl i title zipper
   | zipper_level zipper < lvl =
       zipperPushSection lvl i title zipper
 zipperNewSection lvl i title zipper =
-  zipperPushSection lvl i title $ zipperPopSection zipper
+  zipperNewSection lvl i title $ zipperPopSection zipper
 
 type ZipperM = StateT WidgetTreeZipper Handler
 
@@ -101,7 +101,7 @@ mapW f lst = mconcat <$> mapM f lst
 itemsToWidget :: Int -> WidgetTreeItem -> Widget
 itemsToWidget _ (WTIBlock widget) = widget
 itemsToWidget lvl (WTISection i title content) =
-  let cls = "level" ++ show lvl
+  let cls = "level" ++ show (lvl + 1)
    in [whamlet|
     <section id=#{i} class=#{cls}>
       ^{mkHead lvl title}
@@ -109,12 +109,12 @@ itemsToWidget lvl (WTISection i title content) =
   |]
   where
     mkHead :: Int -> Widget -> Widget
-    mkHead 1 t = [whamlet|<h1> ^{t}|]
-    mkHead 2 t = [whamlet|<h2> ^{t}|]
-    mkHead 3 t = [whamlet|<h3> ^{t}|]
-    mkHead 4 t = [whamlet|<h4> ^{t}|]
-    mkHead 5 t = [whamlet|<h5> ^{t}|]
-    mkHead 6 t = [whamlet|<h6> ^{t}|]
+    mkHead 0 t = [whamlet|<h1> ^{t}|]
+    mkHead 1 t = [whamlet|<h2> ^{t}|]
+    mkHead 2 t = [whamlet|<h3> ^{t}|]
+    mkHead 3 t = [whamlet|<h4> ^{t}|]
+    mkHead 4 t = [whamlet|<h5> ^{t}|]
+    mkHead 5 t = [whamlet|<h6> ^{t}|]
     mkHead _ t = [whamlet|<h6> ^{t}|]
 itemsToWidget _ (WTISub f sub) = f $ treeToWidget 0 sub
 
@@ -158,12 +158,7 @@ renderBlock (LineBlock lns) = do
 renderBlock (CodeBlock attrs code) = do
   let coloured = highlight defaultSyntaxMap formatHtmlBlock attrs code
   pushBlock $ case coloured of
-    Right html ->
-      let widget = toWidget html :: Widget
-       in [whamlet|
-        <div .sourceCode>
-          ^{widget}
-      |]
+    Right html -> toWidget html
     Left err ->
       [whamlet|
         <div .sourceCode title=#{err}>

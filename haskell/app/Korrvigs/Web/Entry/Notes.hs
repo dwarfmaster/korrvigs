@@ -2,6 +2,7 @@ module Korrvigs.Web.Entry.Notes (noteWidget, noteEditor) where
 
 import Control.Monad ((>=>))
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Text.IO (readFile)
 import qualified Data.Text.Lazy.Builder as Bld
 import Data.UUID (UUID, toString)
@@ -15,12 +16,12 @@ import qualified Korrvigs.Web.Entry.Pandoc as Pandoc
 import Korrvigs.Web.Method
 import qualified Korrvigs.Web.UUID as U
 import System.FilePath ((</>))
-import Text.Pandoc (Pandoc, PandocMonad, readFileStrict, runIO)
+import Text.Pandoc (Block, Pandoc (..), PandocMonad, readFileStrict, runIO)
+import Text.Pandoc.Builder (Blocks, doc, fromList, header, text)
 import Text.Pandoc.Error (renderError)
 import Text.Pandoc.Highlighting (espresso, styleToCss)
 import Text.Pandoc.Readers.Markdown (readMarkdown)
 import Text.Pandoc.UTF8 (toText)
-import Text.Pandoc.Writers.HTML (writeHtml5)
 import Yesod
 import Prelude hiding (readFile)
 
@@ -31,18 +32,6 @@ readNotePandoc renderLink =
     >=> readMarkdown readerOptions
     >=> displayLinks renderLink
 
-readNote :: FilePath -> Handler Html
-readNote path = do
-  render <- getUrlRender
-  md <-
-    liftIO $
-      runIO $
-        readNotePandoc (pure . render . renderLinkPandoc) path
-          >>= writeHtml5 writerOptions
-  case md of
-    Left err -> pure $ toHtml $ "Error: " <> renderError err
-    Right html -> pure html
-
 renderLinkPandoc :: EntityRef -> Route Korrvigs
 renderLinkPandoc (EntityRef uuid Nothing Nothing) = EntryR (U.UUID uuid)
 renderLinkPandoc (EntityRef uuid Nothing (Just query)) = EntryQueryR (U.UUID uuid) query
@@ -50,20 +39,32 @@ renderLinkPandoc (EntityRef uuid (Just sub) Nothing) = EntrySubR (U.UUID uuid) s
 renderLinkPandoc (EntityRef uuid (Just sub) (Just query)) =
   EntrySubQueryR (U.UUID uuid) sub query
 
-noteWidget :: Entry -> Handler Widget
-noteWidget entry = do
+noteWidget :: [(String, Blocks)] -> Entry -> Handler Widget
+noteWidget extra entry = do
   root <- korrRoot
   render <- getUrlRender
   md <- liftIO $ runIO $ readNotePandoc (pure . render . renderLinkPandoc) $ path root
   widget <- case md of
     Left err -> pure $ toWidget $ "Error: " <> renderError err
-    Right pd -> Pandoc.renderPandoc pd
+    Right pd -> Pandoc.renderPandoc $ docWithExtras pd
   pure $ do
     [whamlet|<a href=@{EntryEditR (U.UUID (entry_id entry))}>Edit|]
     widget
     toWidget $ CssBuilder $ Bld.fromString $ styleToCss espresso
   where
     path root = root </> toString (entry_id entry) </> entry_notes entry
+    renderExtras :: [(String, Blocks)] -> Blocks
+    renderExtras [] = mempty
+    renderExtras exs =
+      header 0 (text "Extras")
+        <> foldMap
+          ( \(title, content) ->
+              header 1 (text $ T.pack title)
+                <> content
+          )
+          exs
+    docWithExtras :: Pandoc -> Pandoc
+    docWithExtras (Pandoc _ content) = doc $ fromList content <> renderExtras extra
 
 noteEditor :: Method -> UUID -> (Widget -> Handler Html) -> Handler TypedContent
 noteEditor meth uuid render = do
@@ -73,7 +74,7 @@ noteEditor meth uuid render = do
     Nothing -> notFound
     Just entry -> do
       root <- korrRoot
-      editorHandler meth (cfg root entry) $ render . (page $ entry_name entry)
+      editorHandler meth (cfg root entry) $ render . page (entry_name entry)
   where
     page :: Text -> Widget -> Widget
     page title editor =

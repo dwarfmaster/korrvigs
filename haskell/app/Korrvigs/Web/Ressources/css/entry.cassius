@@ -12,25 +12,12 @@
   div
     color: var(--base05)
 
-.fragment
-  margin: 0
-  margin-top: 0.5em
-  padding: 0.5em
-  border: 2px solid var(--base0C)
-  border-radius: 0.5em
-  overflow: hidden
-  legend
-    background-color: var(--base0C)
-    color: var(--base01)
-    border-radius: 0.5em
-    font-weight: bold
-    cursor: pointer
-  div.fragment-body
-    color: var(--base05)
-
-.fragment-body
+#pandoc
   h1
-    margin-top: 0
+    color: var(--base0C)
+  .level1
+    border-left: 2px solid var(--base0C)
+    padding-left: 0.25em
   h2
     color: var(--base08)
   .level2
@@ -52,9 +39,9 @@
     border-left: 2px solid var(--base0B)
     padding-left: 0.25em
   h6
-    color: var(--base0C)
+    color: var(--base0D)
   .level6
-    border-left: 2px solid var(--base0C)
+    border-left: 2px solid var(--base0D)
     padding-left: 0.25em
   p
     text-align: justify
@@ -82,10 +69,3 @@
   td
     background-color: var(--base01)
     border-radius: 0.25em
-
-.fragment.collapsed
-  height: auto
-  padding: 0
-  padding-top: 0.5em
-  padding-left: 0.5em
-  height: 0

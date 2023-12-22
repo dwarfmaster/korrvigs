@@ -87,7 +87,7 @@ makeEntry method entry = do
     [clsEntry] -> do
       let root = entry_root entry
       widgets <- layout (entity_class root) <$> build method entry
-      note <- noteWidget widgets entry
+      note <- noteWidget widgets (const $ pure Nothing) entry
       pure $ Rcs.entryView (entry_name entry) Nothing (Just (clsEntry, entity_class root)) note
     _ ->
       pure $ Rcs.entryView (entry_name entry) (Just "Failed to load root entry") Nothing (pure ())

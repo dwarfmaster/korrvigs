@@ -16,7 +16,7 @@ import qualified Korrvigs.Web.Entry.Pandoc as Pandoc
 import Korrvigs.Web.Method
 import qualified Korrvigs.Web.UUID as U
 import System.FilePath ((</>))
-import Text.Pandoc (Block, Pandoc (..), PandocMonad, readFileStrict, runIO)
+import Text.Pandoc (Pandoc (..), PandocMonad, readFileStrict, runIO)
 import Text.Pandoc.Builder (Blocks, doc, fromList, header, text)
 import Text.Pandoc.Error (renderError)
 import Text.Pandoc.Highlighting (espresso, styleToCss)
@@ -39,14 +39,14 @@ renderLinkPandoc (EntityRef uuid (Just sub) Nothing) = EntrySubR (U.UUID uuid) s
 renderLinkPandoc (EntityRef uuid (Just sub) (Just query)) =
   EntrySubQueryR (U.UUID uuid) sub query
 
-noteWidget :: [(String, Blocks)] -> Entry -> Handler Widget
-noteWidget extra entry = do
+noteWidget :: [(String, Blocks)] -> (Text -> Handler (Maybe Widget)) -> Entry -> Handler Widget
+noteWidget extra handler entry = do
   root <- korrRoot
   render <- getUrlRender
   md <- liftIO $ runIO $ readNotePandoc (pure . render . renderLinkPandoc) $ path root
   widget <- case md of
     Left err -> pure $ toWidget $ "Error: " <> renderError err
-    Right pd -> Pandoc.renderPandoc $ docWithExtras pd
+    Right pd -> Pandoc.renderPandoc handler $ docWithExtras pd
   pure $ do
     [whamlet|<a href=@{EntryEditR (U.UUID (entry_id entry))}>Edit|]
     widget

@@ -1,6 +1,7 @@
 module Korrvigs.Web.Entry.Pandoc where
 
 import Control.Monad (forM_, when)
+import Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans.State.Lazy (StateT, execStateT, modify, runStateT)
 import Data.Maybe (isJust)
 import Data.Text (Text)
@@ -77,22 +78,29 @@ zipperNewSection lvl i title zipper
 zipperNewSection lvl i title zipper =
   zipperNewSection lvl i title $ zipperPopSection zipper
 
-type ZipperM = StateT WidgetTreeZipper Handler
+type ZipperM =
+  ReaderT
+    (Text -> Handler (Maybe Widget))
+    (StateT WidgetTreeZipper Handler)
 
 pushBlock :: Widget -> ZipperM ()
-pushBlock = modify . zipperPush . WTIBlock
+pushBlock = lift . modify . zipperPush . WTIBlock
 
 newSection :: Int -> Text -> Widget -> ZipperM ()
-newSection lvl i title = modify $ zipperNewSection lvl i title
+newSection lvl i title = lift $ modify $ zipperNewSection lvl i title
 
 transform :: (Widget -> Widget) -> ZipperM a -> ZipperM a
 transform f act = do
-  (a, tree) <- lift $ runStateT act mkZipper
-  modify $ zipperPush $ WTISub f $ unzipTree tree
+  state <- ask
+  (a, tree) <- lift . lift $ runStateT (runReaderT act state) mkZipper
+  lift $ modify $ zipperPush $ WTISub f $ unzipTree tree
   pure a
 
-runZipperM :: ZipperM a -> Handler WidgetTree
-runZipperM m = unzipTree <$> execStateT m mkZipper
+runZipperM :: (Text -> Handler (Maybe Widget)) -> ZipperM a -> Handler WidgetTree
+runZipperM state m = unzipTree <$> execStateT (runReaderT m state) mkZipper
+
+rawHandler :: ZipperM (Text -> ZipperM (Maybe Widget))
+rawHandler = ((lift . lift) .) <$> ask
 
 mapW :: (Monad m, Monoid o) => (a -> m o) -> [a] -> m o
 mapW f lst = mconcat <$> mapM f lst
@@ -121,9 +129,9 @@ itemsToWidget _ (WTISub f sub) = f $ treeToWidget 0 sub
 treeToWidget :: Int -> WidgetTree -> Widget
 treeToWidget lvl (WidgetTree items) = mapW (itemsToWidget lvl) items
 
-renderPandoc :: Pandoc -> Handler Widget
-renderPandoc (Pandoc _ blocks) =
-  treeToWidget 0 <$> runZipperM (forM_ blocks renderBlock)
+renderPandoc :: (Text -> Handler (Maybe Widget)) -> Pandoc -> Handler Widget
+renderPandoc handler (Pandoc _ blocks) =
+  treeToWidget 0 <$> runZipperM handler (forM_ blocks renderBlock)
 
 renderItem :: [Block] -> ZipperM ()
 renderItem blks =
@@ -167,6 +175,10 @@ renderBlock (CodeBlock attrs code) = do
       |]
 renderBlock (RawBlock (Format "html") raw) =
   pushBlock $ toWidget $ preEscapedToMarkup raw
+renderBlock (RawBlock (Format "widget") raw) = do
+  handler <- rawHandler
+  blk <- handler raw
+  forM_ blk pushBlock
 renderBlock (RawBlock _ _) = pure ()
 renderBlock (BlockQuote blocks) =
   transform

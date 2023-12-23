@@ -4,6 +4,8 @@ import Data.Functor ((<&>))
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (maybeToList)
+import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Classes
 import Korrvigs.Definition
 import Korrvigs.Schema
@@ -22,28 +24,51 @@ import qualified Opaleye as O
 import Text.Pandoc.Builder (Blocks)
 import Yesod (liftIO)
 
-optGet :: Map String a -> String -> [(String, a)]
-optGet mp key = (key,) <$> maybeToList (M.lookup key mp)
+fromLeft :: Either a b -> Maybe a
+fromLeft (Left a) = Just a
+fromLeft (Right _) = Nothing
+
+fromRight :: Either a b -> Maybe b
+fromRight (Left _) = Nothing
+fromRight (Right b) = Just b
+
+optGet :: (p -> Maybe a) -> Map String p -> String -> [(String, a)]
+optGet f mp key = (key,) <$> maybeToList (M.lookup key mp >>= f)
 
 dropKeys :: [String] -> [(String, a)] -> [(String, a)]
 dropKeys keys = filter (\(key, _) -> key `notElem` keys)
 
-mkLayout :: [String] -> [String] -> Map String a -> [(String, a)]
-mkLayout place rm mp = placed ++ others
-  where
-    placed = map (\(nm, v) -> (nm, v)) $ mconcat $ optGet mp <$> place
-    others = map (\(nm, v) -> (nm, v)) $ dropKeys (place ++ rm) $ M.assocs mp
+type Layout' a b = ([Text], [(String, a)], Text -> Handler (Maybe b))
 
-layout :: Class -> Map String Blocks -> [(String, Blocks)]
-layout Entity = mkLayout [] []
-layout OntologyClass = mkLayout ["Parent", "Class tree", "Generate"] []
-layout OntologyRelation = mkLayout ["Schema"] []
-layout DataFormatSpecification = mkLayout ["Identifiers"] []
+type Layout = Layout' Blocks Widget
+
+mkLayout ::
+  [String] -> -- bs to place at the start
+  [String] -> -- as to place first and in this order
+  [String] -> -- as to not include
+  Map String (Either a b) ->
+  Layout' a b
+mkLayout prefix place rm mp = (prefixW, headers, mkWidget)
+  where
+    prefixW = map (T.pack . fst) $ mconcat $ optGet fromRight mp <$> prefix
+    headers = placed ++ others
+    placed = mconcat $ optGet fromLeft mp <$> place
+    others =
+      dropKeys (place ++ rm) $
+        concatMap (\(k, v) -> maybeToList $ (k,) <$> fromLeft v) $
+          M.assocs mp
+    mkWidget nm = pure $ M.lookup (T.unpack nm) mp >>= fromRight
+
+layout :: Class -> Map String (Either Blocks Widget) -> Layout
+layout Entity = mkLayout [] [] []
+layout OntologyClass = mkLayout ["Parent", "Class tree"] ["Generate"] []
+layout OntologyRelation = mkLayout [] ["Schema"] []
+layout DataFormatSpecification = mkLayout [] ["Identifiers"] []
 layout c = layout (isA c)
 
 -- Takes an entry, the id of its root entity and a class, and generate a set of
 -- widgets for this class
-addWidgets :: Method -> Entry -> Class -> Handler (Map String Blocks)
+addWidgets :: Method -> Entry -> Class -> Handler (Map String (Either Blocks Widget))
 addWidgets method entry Entity
   | method == methodGet =
       mconcat
@@ -71,7 +96,7 @@ classesPath :: Class -> [Class]
 classesPath Entity = [Entity]
 classesPath cls = cls : classesPath (isA cls)
 
-build :: Method -> Entry -> Handler (Map String Blocks)
+build :: Method -> Entry -> Handler (Map String (Either Blocks Widget))
 build method entry = mapM (addWidgets method entry) clss <&> M.unions
   where
     clss = classesPath $ entity_class $ entry_root entry
@@ -86,8 +111,8 @@ makeEntry method entry = do
   case res of
     [clsEntry] -> do
       let root = entry_root entry
-      widgets <- layout (entity_class root) <$> build method entry
-      note <- noteWidget widgets (const $ pure Nothing) entry
+      (prefix, widgets, handler) <- layout (entity_class root) <$> build method entry
+      note <- noteWidget prefix widgets handler entry
       pure $ Rcs.entryView (entry_name entry) Nothing (Just (clsEntry, entity_class root)) note
     _ ->
       pure $ Rcs.entryView (entry_name entry) (Just "Failed to load root entry") Nothing (pure ())

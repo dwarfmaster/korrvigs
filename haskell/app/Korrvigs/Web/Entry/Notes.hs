@@ -17,7 +17,7 @@ import Korrvigs.Web.Method
 import qualified Korrvigs.Web.UUID as U
 import System.FilePath ((</>))
 import Text.Pandoc (Pandoc (..), PandocMonad, readFileStrict, runIO)
-import Text.Pandoc.Builder (Blocks, doc, fromList, header, text)
+import Text.Pandoc.Builder (Blocks, doc, fromList, header, rawBlock, text)
 import Text.Pandoc.Error (renderError)
 import Text.Pandoc.Highlighting (espresso, styleToCss)
 import Text.Pandoc.Readers.Markdown (readMarkdown)
@@ -39,8 +39,13 @@ renderLinkPandoc (EntityRef uuid (Just sub) Nothing) = EntrySubR (U.UUID uuid) s
 renderLinkPandoc (EntityRef uuid (Just sub) (Just query)) =
   EntrySubQueryR (U.UUID uuid) sub query
 
-noteWidget :: [(String, Blocks)] -> (Text -> Handler (Maybe Widget)) -> Entry -> Handler Widget
-noteWidget extra handler entry = do
+noteWidget ::
+  [Text] -> -- Widgets to include at the start
+  [(String, Blocks)] -> -- Extra sections to add to the document
+  (Text -> Handler (Maybe Widget)) -> -- Function to insert arbitrary widgets
+  Entry -> -- The entry the note should be generate for
+  Handler Widget -- The rendered pandoc file as a widget
+noteWidget prefix extra handler entry = do
   root <- korrRoot
   render <- getUrlRender
   md <- liftIO $ runIO $ readNotePandoc (pure . render . renderLinkPandoc) $ path root
@@ -64,7 +69,11 @@ noteWidget extra handler entry = do
           )
           exs
     docWithExtras :: Pandoc -> Pandoc
-    docWithExtras (Pandoc _ content) = doc $ fromList content <> renderExtras extra
+    docWithExtras (Pandoc _ content) =
+      doc $
+        mconcat (rawBlock "widget" <$> prefix)
+          <> fromList content
+          <> renderExtras extra
 
 noteEditor :: Method -> UUID -> (Widget -> Handler Html) -> Handler TypedContent
 noteEditor meth uuid render = do

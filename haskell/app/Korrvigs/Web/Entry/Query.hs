@@ -5,12 +5,13 @@ import qualified Data.Map as M
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Korrvigs.Definition
+import Korrvigs.Pandoc (renderUrl)
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
 import Korrvigs.Web.DB ((.==?))
-import qualified Korrvigs.Web.UUID as U
 import Opaleye ((.==))
 import qualified Opaleye as O
+import Text.Pandoc.Builder (Blocks, bulletList, link, para, text)
 import Yesod hiding (Entity)
 
 listQueries :: Entity -> Handler [Text]
@@ -23,26 +24,18 @@ listQueries entity = do
     pure query_
   pure $ catMaybes queries
 
-make :: Entry -> Handler (Map String Widget)
+make :: Entry -> Handler (Map String (Either Blocks Widget))
 make entry = build root =<< listQueries root
   where
     root = entry_root entry
 
-mkList :: Entity -> [Text] -> Widget
+mkList :: Entity -> [Text] -> Blocks
 mkList entity queries =
-  [whamlet|
-<ul>
-  $forall query <- queries
-    <li>
-      <a href=@{mkUrl query}>
-        #{query}
- |]
+  bulletList $ (\query -> para $ link (mkUrl query) query $ text query) <$> queries
   where
-    mkUrl query = case entity_sub entity of
-      Just sub -> EntrySubQueryR (U.UUID (entity_uuid entity)) sub query
-      Nothing -> EntryQueryR (U.UUID (entity_uuid entity)) query
+    mkUrl query = renderUrl $ EntityRef (entity_uuid entity) (entity_sub entity) (Just query)
 
-build :: Entity -> [Text] -> Handler (Map String Widget)
+build :: Entity -> [Text] -> Handler (Map String (Either Blocks Widget))
 build _ [] = pure M.empty
 build entity queries =
-  pure $ M.singleton "Queries" $ mkList entity queries
+  pure $ M.singleton "Queries" $ Left $ mkList entity queries

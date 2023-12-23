@@ -49,20 +49,22 @@ widget entry sub = do
   queries <- listQueries ent
   pure
     [whamlet|
-    <h1>
-      <a href=@{EntryR (U.UUID (entry_id entry))}>
-        #{entry_name entry}
-      <span .sub>
-        #{sub}
-    <h2>
-      Content
-    <p>
-      <a href=@{EntrySubContentR (U.UUID (entry_id entry)) sub}>
-        Download
-    $maybe w <- wdgt
-      ^{w}
-    $if null queries
-      <h2>
-        Queries
-      ^{Query.mkList ent queries}
+  <h1>
+    <a href=@{EntryR (U.UUID (entry_id entry))}>
+      #{entry_name entry}
+    <span .sub>
+      #{sub}
+  <h2>
+    Content
+  <p>
+    <a href=@{EntrySubContentR (U.UUID (entry_id entry)) sub}>
+      Download
+  $maybe w <- wdgt
+    ^{w}
   |]
+
+-- TODO
+-- \$if null queries
+--   <h2>
+--     Queries
+--   ^{Query.mkList ent queries}

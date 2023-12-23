@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Korrvigs.Web.Entry.Sub where
 
 import Data.Map (Map)

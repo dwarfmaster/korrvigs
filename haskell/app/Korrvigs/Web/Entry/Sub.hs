@@ -8,14 +8,15 @@ import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Korrvigs.Classes
 import Korrvigs.Definition
+import Korrvigs.Pandoc (renderUrl)
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
-import qualified Korrvigs.Web.UUID as U
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
+import Text.Pandoc.Builder (Blocks, bulletList, link, para, text)
 import Yesod hiding (Entity)
 
-make :: Entry -> Handler (Map String Widget)
+make :: Entry -> Handler (Map String (Either Blocks Widget))
 make entry = do
   conn <- pgsql
   subs <- liftIO $ O.runSelect conn $ do
@@ -23,18 +24,9 @@ make entry = do
     O.where_ $ uuid_ .== O.sqlUUID (entry_id entry)
     O.where_ $ O.isNull query_ .&& cls_ .== O.sqlStrictText (name File)
     pure sub_
-  build entry $ catMaybes subs
+  pure $ maybe M.empty (M.singleton "Subs" . Left) $ build entry $ catMaybes subs
 
-build :: Entry -> [Text] -> Handler (Map String Widget)
-build _ [] = pure M.empty
+build :: Entry -> [Text] -> Maybe Blocks
+build _ [] = Nothing
 build entry subs =
-  pure $
-    M.singleton
-      "Subs"
-      [whamlet|
-    <ul>
-      $forall sub <- subs
-        <li>
-          <a href=@{EntrySubR (U.UUID (entry_id entry)) sub}>
-            #{sub}
-  |]
+  Just $ bulletList $ (\sub -> para $ link (renderUrl $ EntityRef (entry_id entry) (Just sub) Nothing) sub $ text sub) <$> subs

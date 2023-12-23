@@ -73,8 +73,8 @@ addWidgets method entry Entity
   | method == methodGet =
       mconcat
         <$> sequence
-          []
--- Sub.make entry,
+          [ Sub.make entry
+          ]
 -- Query.make entry,
 -- identifiersFor $ entity_id $ entry_root entry
 

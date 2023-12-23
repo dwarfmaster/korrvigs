@@ -25,12 +25,11 @@ import Text.Pandoc.UTF8 (toText)
 import Yesod
 import Prelude hiding (readFile)
 
-readNotePandoc :: PandocMonad m => (EntityRef -> m Text) -> FilePath -> m Pandoc
-readNotePandoc renderLink =
+readNotePandoc :: PandocMonad m => FilePath -> m Pandoc
+readNotePandoc =
   readFileStrict
     >=> pure . toText
     >=> readMarkdown readerOptions
-    >=> displayLinks renderLink
 
 renderLinkPandoc :: EntityRef -> Route Korrvigs
 renderLinkPandoc (EntityRef uuid Nothing Nothing) = EntryR (U.UUID uuid)
@@ -48,10 +47,11 @@ noteWidget ::
 noteWidget prefix extra handler entry = do
   root <- korrRoot
   render <- getUrlRender
-  md <- liftIO $ runIO $ readNotePandoc (pure . render . renderLinkPandoc) $ path root
+  let renderLink = pure . render . renderLinkPandoc
+  md <- liftIO $ runIO $ readNotePandoc $ path root
   widget <- case md of
     Left err -> pure $ toWidget $ "Error: " <> renderError err
-    Right pd -> Pandoc.renderPandoc handler $ docWithExtras pd
+    Right pd -> Pandoc.renderPandoc handler =<< displayLinks renderLink (docWithExtras pd)
   pure $ do
     [whamlet|<a href=@{EntryEditR (U.UUID (entry_id entry))}>Edit|]
     widget

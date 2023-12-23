@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Korrvigs.Pandoc (writerOptions, readerOptions, displayLinks) where
+module Korrvigs.Pandoc (writerOptions, readerOptions, displayLinks, renderUrl) where
 
 import Data.Char (isAscii, isPrint)
 import Data.Default (def)
@@ -34,6 +34,16 @@ displayLinks render = walkM doLink
         Just ref -> Link attr alt . (,title) <$> render ref
         Nothing -> pure lk
     doLink inl = pure inl
+
+renderUrl :: EntityRef -> Text
+renderUrl (EntityRef uuid sub query) = "korr://" <> U.toText uuid <> subT <> queryT
+  where
+    subT = case sub of
+      Nothing -> ""
+      Just tsub -> "/" <> tsub
+    queryT = case query of
+      Nothing -> ""
+      Just tquery -> "#" <> tquery
 
 parseUrl :: Text -> Maybe EntityRef
 parseUrl = either (const Nothing) Just . parse urlParser ""

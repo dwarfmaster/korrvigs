@@ -1,7 +1,6 @@
 module Korrvigs.Web.Entry.Identifiers where
 
 import Data.Int (Int64)
-import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import Data.UUID (UUID)
@@ -9,14 +8,17 @@ import Korrvigs.Classes
 import qualified Korrvigs.DB as DB
 import Korrvigs.Definition
 import Korrvigs.Entry
+import Korrvigs.Pandoc (renderUrl)
 import Korrvigs.Relations
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
 import Korrvigs.Web.DB
 import qualified Korrvigs.Web.Entry.Format as Fmt
+import Korrvigs.Web.Entry.Types
 import qualified Korrvigs.Web.UUID as U
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
+import Text.Pandoc.Builder (bulletList, link, para, text)
 import Yesod hiding (Entity)
 
 -- Create a new namespace and redirect to it
@@ -32,7 +34,7 @@ identifierValueSql ident = do
   pure text_
 
 -- A widget listing identifiers to an entity
-identifiersFor :: Int64 -> Handler (Map String Widget)
+identifiersFor :: Int64 -> Handler WidgetMap
 identifiersFor entity = do
   conn <- pgsql
   res <- liftIO $ O.runSelect conn $ do
@@ -57,20 +59,19 @@ identifiersFor entity = do
   pure $ case (res :: [(UUID, Text, Text)]) of
     [] -> M.empty
     idents ->
-      M.singleton
-        "Identifiers"
-        [whamlet|
-        <ul>
-          $forall (entry,nm,ident) <- idents
-            <li>
-              <a href=@{EntryR (U.UUID entry)}>
-                [#{nm}]
-              #{ident}
-      |]
+      M.singleton "Identifiers" $
+        Left $
+          bulletList $
+            ( \(entry, nm, ident) ->
+                para $
+                  link (renderUrl $ EntityRef entry Nothing Nothing) nm (text $ "[" <> nm <> "]")
+                    <> text ident
+            )
+              <$> idents
 
 -- If the given entry is a namespace, create a widget listing all the identifiers
 -- in it, with links to
-identifiersIn :: Entry -> Handler (Map String Widget)
+identifiersIn :: Entry -> Handler WidgetMap
 identifiersIn namespace = do
   conn <- pgsql
   res <- liftIO $ O.runSelect conn $ do
@@ -91,13 +92,10 @@ identifiersIn namespace = do
     idents ->
       M.singleton
         "Identifiers"
-        [whamlet|
-      <ul>
-        $forall (target,ident) <- idents
-          <li>
-            $maybe tgt <- target
-              <a href=@{EntryR (U.UUID tgt)}>
-                #{ident}
-            $nothing
-              #{ident}
-    |]
+        $ Left
+        $ bulletList
+        $ ( \(target, ident) -> para $ case target of
+              Just tgt -> link (renderUrl $ EntityRef tgt Nothing Nothing) ident $ text ident
+              Nothing -> text ident
+          )
+          <$> idents

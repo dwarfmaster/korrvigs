@@ -72,10 +72,9 @@ addWidgets entry Entity =
   mconcat
     <$> sequence
       [ Sub.make entry,
-        Query.make entry
+        Query.make entry,
+        identifiersFor $ entity_id $ entry_root entry
       ]
--- identifiersFor $ entity_id $ entry_root entry
-
 addWidgets entry OntologyClass =
   mconcat
     <$> sequence
@@ -85,8 +84,7 @@ addWidgets entry OntologyClass =
 
 addWidgets entry OntologyRelation = pure M.empty
 -- M.singleton "Schema" <$> Relation.schemaWidget entry
-addWidgets entry Namespace = pure M.empty
--- identifiersIn entry
+addWidgets entry Namespace = identifiersIn entry
 addWidgets _ _ = pure M.empty
 
 classesPath :: Class -> [Class]

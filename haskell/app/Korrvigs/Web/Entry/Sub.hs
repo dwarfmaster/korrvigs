@@ -1,6 +1,5 @@
 module Korrvigs.Web.Entry.Sub where
 
-import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
@@ -9,12 +8,13 @@ import Korrvigs.Definition
 import Korrvigs.Pandoc (renderUrl)
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Entry.Types
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
 import Text.Pandoc.Builder (Blocks, bulletList, link, para, text)
 import Yesod hiding (Entity)
 
-make :: Entry -> Handler (Map String (Either Blocks Widget))
+make :: Entry -> Handler WidgetMap
 make entry = do
   conn <- pgsql
   subs <- liftIO $ O.runSelect conn $ do

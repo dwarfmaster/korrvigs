@@ -41,7 +41,7 @@ renderLinkPandoc (EntityRef uuid (Just sub) (Just query)) =
 noteWidget ::
   [Text] -> -- Widgets to include at the start
   [(String, Blocks)] -> -- Extra sections to add to the document
-  (Text -> Handler (Maybe Widget)) -> -- Function to insert arbitrary widgets
+  (Text -> Maybe Widget) -> -- Function to insert arbitrary widgets
   Entry -> -- The entry the note should be generate for
   Handler Widget -- The rendered pandoc file as a widget
 noteWidget prefix extra handler entry = do

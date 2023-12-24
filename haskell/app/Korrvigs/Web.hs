@@ -29,13 +29,16 @@ getHomeR = defaultLayout $ do
   header HSHome
   [whamlet|Hello from korrvigs!|]
 
-getEntryR :: UUID -> Handler Html
+widgetRenderer :: HeaderSection -> Widget -> Handler TypedContent
+widgetRenderer section = addHeaderM section >=> defaultLayout >=> pure . toTypedContent
+
+getEntryR :: UUID -> Handler TypedContent
 getEntryR (UUID uuid) =
   findEntry uuid
-    >>= maybe notFound (renderEntry >=> addHeaderM HSEntries >=> defaultLayout)
+    >>= maybe notFound (renderEntry $ widgetRenderer HSEntries)
 
-postEntryR :: UUID -> Handler Html
-postEntryR (UUID uuid) = findEntry uuid >>= maybe notFound (processEntry >=> defaultLayout)
+postEntryR :: UUID -> Handler TypedContent
+postEntryR (UUID uuid) = findEntry uuid >>= maybe notFound (processEntry $ widgetRenderer HSEntries)
 
 getEntryEditR :: UUID -> Handler TypedContent
 getEntryEditR (UUID uuid) = noteEditor methodGet uuid defaultLayout

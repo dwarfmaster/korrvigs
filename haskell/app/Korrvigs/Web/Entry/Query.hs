@@ -1,6 +1,5 @@
 module Korrvigs.Web.Entry.Query where
 
-import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
@@ -9,6 +8,7 @@ import Korrvigs.Pandoc (renderUrl)
 import Korrvigs.Schema
 import Korrvigs.Web.Backend
 import Korrvigs.Web.DB ((.==?))
+import Korrvigs.Web.Entry.Types
 import Opaleye ((.==))
 import qualified Opaleye as O
 import Text.Pandoc.Builder (Blocks, bulletList, link, para, text)
@@ -24,7 +24,7 @@ listQueries entity = do
     pure query_
   pure $ catMaybes queries
 
-make :: Entry -> Handler (Map String (Either Blocks Widget))
+make :: Entry -> Handler WidgetMap
 make entry = build root =<< listQueries root
   where
     root = entry_root entry
@@ -35,7 +35,7 @@ mkList entity queries =
   where
     mkUrl query = renderUrl $ EntityRef (entity_uuid entity) (entity_sub entity) (Just query)
 
-build :: Entity -> [Text] -> Handler (Map String (Either Blocks Widget))
+build :: Entity -> [Text] -> Handler WidgetMap
 build _ [] = pure M.empty
 build entity queries =
   pure $ M.singleton "Queries" $ Left $ mkList entity queries

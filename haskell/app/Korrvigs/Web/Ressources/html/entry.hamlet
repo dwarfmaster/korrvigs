@@ -4,10 +4,5 @@ $maybe (uuid,cls) <- root
       #{name cls}
 <h1> #{title}
 
-$maybe msg <- err
-  <fieldset #error-field>
-    <legend> Error
-    <div> #{msg}
-
 <div #pandoc>
   ^{pandoc}

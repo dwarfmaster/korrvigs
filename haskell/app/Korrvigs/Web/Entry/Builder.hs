@@ -17,12 +17,13 @@ import qualified Korrvigs.Web.Entry.OntologyClass as Class
 import qualified Korrvigs.Web.Entry.OntologyRelation as Relation
 import qualified Korrvigs.Web.Entry.Query as Query
 import qualified Korrvigs.Web.Entry.Sub as Sub
+import Korrvigs.Web.Entry.Types
 import qualified Korrvigs.Web.Ressources as Rcs
-import Network.HTTP.Types (Method, methodGet, methodPost)
+import Network.HTTP.Types (Method, methodGet, methodPost, status500)
 import Opaleye ((.==))
 import qualified Opaleye as O
 import Text.Pandoc.Builder (Blocks)
-import Yesod (liftIO)
+import Yesod hiding (Entity)
 
 fromLeft :: Either a b -> Maybe a
 fromLeft (Left a) = Just a
@@ -38,16 +39,14 @@ optGet f mp key = (key,) <$> maybeToList (M.lookup key mp >>= f)
 dropKeys :: [String] -> [(String, a)] -> [(String, a)]
 dropKeys keys = filter (\(key, _) -> key `notElem` keys)
 
-type Layout' a b = ([Text], [(String, a)], Text -> Handler (Maybe b))
-
-type Layout = Layout' Blocks Widget
+type Layout = ([Text], [(String, Blocks)], Text -> Maybe InteractiveWidget)
 
 mkLayout ::
-  [String] -> -- bs to place at the start
-  [String] -> -- as to place first and in this order
-  [String] -> -- as to not include
-  Map String (Either a b) ->
-  Layout' a b
+  [String] -> -- widgets to place at the start
+  [String] -> -- subsections to place first and in this order
+  [String] -> -- subsections to not include
+  WidgetMap ->
+  Layout
 mkLayout prefix place rm mp = (prefixW, headers, mkWidget)
   where
     prefixW = map (T.pack . fst) $ mconcat $ optGet fromRight mp <$> prefix
@@ -57,9 +56,9 @@ mkLayout prefix place rm mp = (prefixW, headers, mkWidget)
       dropKeys (place ++ rm) $
         concatMap (\(k, v) -> maybeToList $ (k,) <$> fromLeft v) $
           M.assocs mp
-    mkWidget nm = pure $ M.lookup (T.unpack nm) mp >>= fromRight
+    mkWidget nm = M.lookup (T.unpack nm) mp >>= fromRight
 
-layout :: Class -> Map String (Either Blocks Widget) -> Layout
+layout :: Class -> WidgetMap -> Layout
 layout Entity = mkLayout [] [] []
 layout OntologyClass = mkLayout ["Parent", "Class tree"] ["Generate"] []
 layout OntologyRelation = mkLayout [] ["Schema"] []
@@ -68,41 +67,39 @@ layout c = layout (isA c)
 
 -- Takes an entry, the id of its root entity and a class, and generate a set of
 -- widgets for this class
-addWidgets :: Method -> Entry -> Class -> Handler (Map String (Either Blocks Widget))
-addWidgets method entry Entity
-  | method == methodGet =
-      mconcat
-        <$> sequence
-          [ Sub.make entry,
-            Query.make entry
-          ]
+addWidgets :: Entry -> Class -> Handler WidgetMap
+addWidgets entry Entity =
+  mconcat
+    <$> sequence
+      [ Sub.make entry,
+        Query.make entry
+      ]
 -- identifiersFor $ entity_id $ entry_root entry
 
-addWidgets method entry OntologyClass =
+addWidgets entry OntologyClass =
   mconcat
     <$> sequence
       []
 -- Class.widgetsForClassEntry method entry,
 -- newInstance method entry
 
-addWidgets method entry OntologyRelation
-  | method == methodGet = pure M.empty
+addWidgets entry OntologyRelation = pure M.empty
 -- M.singleton "Schema" <$> Relation.schemaWidget entry
-addWidgets method entry Namespace | method == methodGet = pure M.empty
+addWidgets entry Namespace = pure M.empty
 -- identifiersIn entry
-addWidgets _ _ _ = pure M.empty
+addWidgets _ _ = pure M.empty
 
 classesPath :: Class -> [Class]
 classesPath Entity = [Entity]
 classesPath cls = cls : classesPath (isA cls)
 
-build :: Method -> Entry -> Handler (Map String (Either Blocks Widget))
-build method entry = mapM (addWidgets method entry) clss <&> M.unions
+build :: Entry -> Handler WidgetMap
+build entry = mapM (addWidgets entry) clss <&> M.unions
   where
     clss = classesPath $ entity_class $ entry_root entry
 
-makeEntry :: Method -> Entry -> Handler Widget
-makeEntry method entry = do
+makeEntry :: Method -> (Widget -> Handler TypedContent) -> Entry -> Handler TypedContent
+makeEntry method renderer entry = do
   conn <- pgsql
   res <- liftIO $ O.runSelect conn $ do
     (cls_, entry_) <- O.selectTable classEntryTable
@@ -111,16 +108,32 @@ makeEntry method entry = do
   case res of
     [clsEntry] -> do
       let root = entry_root entry
-      (prefix, widgets, handler) <- layout (entity_class root) <$> build method entry
-      note <- noteWidget prefix widgets handler entry
-      pure $ Rcs.entryView (entry_name entry) Nothing (Just (clsEntry, entity_class root)) note
+      (prefix, widgets, handler) <- layout (entity_class root) <$> build entry
+      if method == methodGet
+        then do
+          widget <- lookupGetParam "widget"
+          let response = widget >>= handler <&> snd
+          case response of
+            Nothing -> do
+              note <- noteWidget prefix widgets (fmap fst . handler) entry
+              renderer $ Rcs.entryView (entry_name entry) (Just (clsEntry, entity_class root)) note
+            Just content -> content
+        else
+          if method == methodPost
+            then do
+              widget <- lookupPostParam "widget"
+              let response = widget >>= handler <&> snd
+              case response of
+                Nothing -> invalidArgs ["No widget requested, or invalid widget"]
+                Just content -> content
+            else badMethod
     _ ->
-      pure $ Rcs.entryView (entry_name entry) (Just "Failed to load root entry") Nothing (pure ())
+      sendResponseStatus status500 ("Failed to load class entry" :: Text)
 
 -- Deal with GET request on entry
-renderEntry :: Entry -> Handler Widget
+renderEntry :: (Widget -> Handler TypedContent) -> Entry -> Handler TypedContent
 renderEntry = makeEntry methodGet
 
 -- Deal with POST request on entry
-processEntry :: Entry -> Handler Widget
+processEntry :: (Widget -> Handler TypedContent) -> Entry -> Handler TypedContent
 processEntry = makeEntry methodPost

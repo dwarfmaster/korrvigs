@@ -96,6 +96,7 @@ executable korrvigs-web
     Korrvigs.Web.Entry.Select
     Korrvigs.Web.Entry.Sub
     Korrvigs.Web.Entry.Time
+    Korrvigs.Web.Entry.Types
     Korrvigs.Web.Form
     Korrvigs.Web.Header
     Korrvigs.Web.Method

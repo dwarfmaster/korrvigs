@@ -24,8 +24,8 @@ entrySelect = do
   toWidget $(juliusFile "app/Korrvigs/Web/Ressources/js/entries.julius")
   toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/entries.cassius")
 
-entryView :: Text -> Maybe Text -> Maybe (UUID, Class) -> Widget -> Widget
-entryView title err root pandoc = do
+entryView :: Text -> Maybe (UUID, Class) -> Widget -> Widget
+entryView title root pandoc = do
   toWidget $(cassiusFile "app/Korrvigs/Web/Ressources/css/entry.cassius")
   toWidget $(whamletFile "app/Korrvigs/Web/Ressources/html/entry.hamlet")
   toWidget $ mkJs $(embedFile "app/Korrvigs/Web/Ressources/js/entry.js")

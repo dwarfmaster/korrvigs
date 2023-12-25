@@ -1,12 +1,19 @@
 module Korrvigs.Web.Entry.Pandoc where
 
-import Control.Monad (forM_, when)
+import Control.Monad (forM_, mplus, when)
 import Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans.State.Lazy (StateT, execStateT, modify, runStateT)
+import Data.Aeson (eitherDecodeStrict)
+import Data.Aeson.Types (Parser, prependFailure, typeMismatch)
 import Data.Maybe (isJust)
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Text.Encoding (encodeUtf8)
+import Data.UUID (UUID)
+import Korrvigs.Classes
+import Korrvigs.Classes.Colors (classBase)
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.UUID as U
 import Skylighting (defaultSyntaxMap)
 import Text.Pandoc.Definition
 import Text.Pandoc.Highlighting
@@ -99,8 +106,8 @@ transform f act = do
 runZipperM :: (Text -> Maybe Widget) -> ZipperM a -> Handler WidgetTree
 runZipperM state m = unzipTree <$> execStateT (runReaderT m state) mkZipper
 
-rawHandler :: ZipperM (Text -> Maybe Widget)
-rawHandler = ask
+widgetHandler :: ZipperM (Text -> Maybe Widget)
+widgetHandler = ask
 
 mapW :: (Monad m, Monoid o) => (a -> m o) -> [a] -> m o
 mapW f lst = mconcat <$> mapM f lst
@@ -144,6 +151,52 @@ renderItem blks =
     )
     $ forM_ blks renderBlock
 
+newtype RawClassButton = RawClassButton (Either (Class, UUID) (Text, Text))
+
+parseClassJSON :: Text -> Parser Class
+parseClassJSON txt =
+  maybe (fail $ "Unknown class: " <> T.unpack txt) pure $ parse txt
+
+instance FromJSON RawClassButton where
+  parseJSON (Object v) =
+    RawClassButton
+      <$> mplus
+        (Left <$> ((,) <$> (parseClassJSON =<< v .: "class") <*> v .: "uuid"))
+        (Right <$> ((,) <$> v .: "text" <*> v .: "color"))
+  parseJSON invalid =
+    prependFailure "Parsing RawClassButton failed: " (typeMismatch "Object" invalid)
+
+renderRaw :: Text -> Text -> ZipperM ()
+renderRaw "html" raw =
+  pushBlock $ toWidget $ preEscapedToMarkup raw
+renderRaw "widget" raw = do
+  handler <- widgetHandler
+  let blk = handler raw
+  forM_ blk pushBlock
+renderRaw "class" raw =
+  case eitherDecodeStrict $ encodeUtf8 raw of
+    Left err ->
+      pushBlock
+        [whamlet|
+        <span .entry-class style="background-color: var(--base06)">
+          Error: #{err}
+      |]
+    Right (RawClassButton (Left (cls, uuid))) ->
+      let color = T.pack ("var(--base" <> classBase cls <> ")")
+       in pushBlock
+            [whamlet|
+          <span .entry-class style="background-color: #{color}">
+            <a href=@{EntryR (U.UUID uuid)}>
+              #{name cls}
+        |]
+    Right (RawClassButton (Right (txt, color))) ->
+      pushBlock
+        [whamlet|
+          <span .entry-class style="background-color: #{color}">
+            #{txt}
+        |]
+renderRaw _ _ = pure ()
+
 -- Compiling the pandoc document to a WidgetTree
 renderBlock :: Block -> ZipperM ()
 renderBlock (Plain inlines) = do
@@ -173,13 +226,7 @@ renderBlock (CodeBlock attrs code) = do
           <pre .sourceCode>
             #{code}
       |]
-renderBlock (RawBlock (Format "html") raw) =
-  pushBlock $ toWidget $ preEscapedToMarkup raw
-renderBlock (RawBlock (Format "widget") raw) = do
-  handler <- rawHandler
-  let blk = handler raw
-  forM_ blk pushBlock
-renderBlock (RawBlock _ _) = pure ()
+renderBlock (RawBlock (Format tp) raw) = renderRaw tp raw
 renderBlock (BlockQuote blocks) =
   transform
     ( \content ->

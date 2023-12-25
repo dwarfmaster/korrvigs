@@ -82,8 +82,7 @@ addWidgets entry OntologyClass =
 -- Class.widgetsForClassEntry method entry,
 -- newInstance method entry
 
-addWidgets entry OntologyRelation = pure M.empty
--- M.singleton "Schema" <$> Relation.schemaWidget entry
+addWidgets entry OntologyRelation = Relation.schemaWidget entry
 addWidgets entry Namespace = identifiersIn entry
 addWidgets _ _ = pure M.empty
 

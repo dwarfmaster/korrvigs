@@ -78,8 +78,8 @@ addWidgets entry Entity =
 addWidgets entry OntologyClass =
   mconcat
     <$> sequence
-      []
--- Class.widgetsForClassEntry method entry,
+      [ Class.widgetsForClassEntry entry
+      ]
 -- newInstance method entry
 
 addWidgets entry OntologyRelation = Relation.schemaWidget entry

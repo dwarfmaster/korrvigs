@@ -25,12 +25,13 @@ import Korrvigs.Schema
 import Korrvigs.Tree (writeNotes)
 import Korrvigs.Web.Backend
 import Korrvigs.Web.DB
+import Korrvigs.Web.Entry.Types
 import Korrvigs.Web.Form
-import Korrvigs.Web.Method
 import qualified Korrvigs.Web.Ressources as Rcs
 import qualified Korrvigs.Web.UUID as U
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
+import Text.Pandoc.Builder (para, rawBlock, text)
 import Yesod hiding (Entity)
 
 --  _____
@@ -57,10 +58,14 @@ classesEntry = do
       (,MkEntry uuid nm (T.unpack notes) $ MkEntity eid OntologyClass uuid Nothing Nothing)
         <$> parse className
 
-treeWidget :: Maybe Class -> Handler Widget
+treeWidget :: Maybe Class -> Handler WidgetMap
 treeWidget mcls = do
   entries <- classesEntry
-  pure $ Rcs.classTree >> [whamlet|<ul #classes-tree> ^{makeTree entries Entity}|]
+  let widget = Rcs.classTree >> [whamlet|<ul #classes-tree> ^{makeTree entries Entity}|]
+  pure $
+    M.fromList
+      [ ("Class tree", Right (widget, trivialHandler))
+      ]
   where
     allClasses :: [Class]
     allClasses = sortBy (\a b -> compare (name a) (name b)) [minBound .. maxBound]
@@ -69,7 +74,7 @@ treeWidget mcls = do
       case mcls of
         Just Entity -> []
         Just cls ->
-          let f c = if c == Entity then [Entity] else (c : f (isA c))
+          let f c = if c == Entity then [Entity] else c : f (isA c)
            in f (isA cls)
         Nothing -> allClasses
     childrenOf :: Class -> [Class]
@@ -163,7 +168,7 @@ newClassProcess cls = do
   case result of
     FormSuccess form -> doNewClass form
     FormFailure err ->
-      pure $
+      pure
         [whamlet|
         <p>Invalid input:
           <ul>
@@ -179,24 +184,24 @@ newClassProcess cls = do
 -- |  __/| | |_| | | | | | | |_) | | | | | (_| |
 -- |_|   |_|\__,_|_| |_| |_|_.__/|_|_| |_|\__, |
 --                                        |___/
-widgetsForClassEntry :: Method -> Entry -> Handler (Map String Widget)
-widgetsForClassEntry method entry = do
+widgetsForClassEntry :: Entry -> Handler WidgetMap
+widgetsForClassEntry entry = do
   res <- findClass $ entry_id entry
   case res of
     Just cls -> do
-      tree <- select (method == methodGet) "Class tree" $ treeWidget (Just cls)
-      instances <-
-        selectOpt (method == methodGet) "Instances" $
-          classInstancesWidget cls
-      newCls <-
-        select (method == methodGet) "New subclass" $
-          newClassWidget (entry_id entry) $
-            name cls
-      newCls' <-
-        select (method == methodPost) "New subclass" $
-          newClassProcess $
-            name cls
-      pure $ M.fromList $ tree ++ instances ++ newCls ++ newCls'
+      treeWidget (Just cls)
+    -- instances <-
+    --   selectOpt (method == methodGet) "Instances" $
+    --     classInstancesWidget cls
+    -- newCls <-
+    --   select (method == methodGet) "New subclass" $
+    --     newClassWidget (entry_id entry) $
+    --       name cls
+    -- newCls' <-
+    --   select (method == methodPost) "New subclass" $
+    --     newClassProcess $
+    --       name cls
+    -- pure $ M.fromList $ tree ++ instances ++ newCls ++ newCls'
     Nothing -> do
       conn <- pgsql
       parent :: [(Text, UUID)] <- liftIO $ O.runSelect conn $ do
@@ -222,13 +227,14 @@ widgetsForClassEntry method entry = do
                 Regenerate haskell classes
             |]
           let generates = [("Generate", generate)]
-          newCls <-
-            select (method == methodGet) "New subclass" $
-              newClassWidget (entry_id entry) $
-                entry_name entry
-          newCls' <-
-            select (method == methodPost) "New subclass" $
-              newClassProcess $
-                entry_name entry
-          pure $ M.fromList $ parents ++ newCls ++ newCls' ++ generates
+          -- newCls <-
+          --   select (method == methodGet) "New subclass" $
+          --     newClassWidget (entry_id entry) $
+          --       entry_name entry
+          -- newCls' <-
+          --   select (method == methodPost) "New subclass" $
+          --     newClassProcess $
+          --       entry_name entry
+          -- pure $ M.fromList $ parents ++ newCls ++ newCls' ++ generates
+          pure M.empty
         _ -> notFound

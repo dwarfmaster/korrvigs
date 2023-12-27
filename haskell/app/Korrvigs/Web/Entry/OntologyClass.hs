@@ -7,7 +7,6 @@ import Data.Array (Array, (!))
 import qualified Data.Array as A
 import Data.Int (Int64)
 import Data.List (sortBy)
-import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
 import Data.Set (Set)
@@ -21,6 +20,7 @@ import Korrvigs.Classes.Sync (mkMdName)
 import qualified Korrvigs.DB as DB
 import Korrvigs.Definition
 import Korrvigs.Entry
+import Korrvigs.Pandoc (renderUrl)
 import Korrvigs.Schema
 import Korrvigs.Tree (writeNotes)
 import Korrvigs.Web.Backend
@@ -31,7 +31,7 @@ import qualified Korrvigs.Web.Ressources as Rcs
 import qualified Korrvigs.Web.UUID as U
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
-import Text.Pandoc.Builder (Blocks, para, rawBlock, text)
+import Text.Pandoc.Builder (Blocks, bulletList, link, para, rawBlock, text)
 import Yesod hiding (Entity)
 
 --  _____
@@ -104,10 +104,16 @@ classInstances cls = do
     pure (id_, name_, notes_, eid_)
   pure $ (\(i, nm, md, eid) -> MkEntry i nm (T.unpack md) $ MkEntity eid cls i Nothing Nothing) <$> res
 
-classInstancesWidget :: Class -> Handler (Maybe Widget)
+classInstancesWidget :: Class -> Handler WidgetMap
 classInstancesWidget cls = do
   instances <- classInstances cls
-  pure $ if null instances then Nothing else Just $ Rcs.classInstances instances
+  pure $
+    if null instances
+      then M.empty
+      else M.singleton "Instances" $ Left $ bulletList $ mkLink <$> instances
+  where
+    mkLink :: Entry -> Blocks
+    mkLink entry = para $ link (renderUrl $ entryRef entry) (entry_name entry) $ text $ entry_name entry
 
 --  _   _                  ____ _
 
@@ -194,11 +200,9 @@ widgetsForClassEntry entry = do
   case res of
     Just cls -> do
       tree <- treeWidget (Just cls)
-      -- instances <-
-      --   selectOpt (method == methodGet) "Instances" $
-      --     classInstancesWidget cls
+      instances <- classInstancesWidget cls
       newCls <- newClassMap (entry_id entry) $ name cls
-      pure $ mconcat [tree, newCls]
+      pure $ mconcat [tree, instances, newCls]
     Nothing -> do
       conn <- pgsql
       parent :: [(Text, UUID)] <- liftIO $ O.runSelect conn $ do

@@ -40,6 +40,9 @@ entrySubPath root = subPath root . entry_id
 subPath :: FilePath -> UUID -> Text -> FilePath
 subPath root entry sub = root </> U.toString entry </> T.unpack sub
 
+entryRef :: Entry -> EntityRef
+entryRef (MkEntry uuid _ _ _) = EntityRef uuid Nothing Nothing
+
 data Entity = MkEntity
   { entity_id :: Int64,
     entity_class :: Class,

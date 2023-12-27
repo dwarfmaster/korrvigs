@@ -1,4 +1,6 @@
-.fragment-body form
+#pandoc form
+  .hidden-form
+    display: none
   input
     width: 100%
     box-sizing: border-box

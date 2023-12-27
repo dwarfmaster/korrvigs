@@ -31,7 +31,7 @@ import qualified Korrvigs.Web.Ressources as Rcs
 import qualified Korrvigs.Web.UUID as U
 import Opaleye ((.&&), (.==))
 import qualified Opaleye as O
-import Text.Pandoc.Builder (para, rawBlock, text)
+import Text.Pandoc.Builder (Blocks, para, rawBlock, text)
 import Yesod hiding (Entity)
 
 --  _____
@@ -119,7 +119,7 @@ data NewClass = NewClass Text Text Text
 
 newClassForm :: Text -> Html -> MForm Handler (FormResult NewClass, Widget)
 newClassForm cls =
-  identifyForm "NewSubClass" $ nameDescForm "Class" $ NewClass cls
+  nameDescForm "Class" $ NewClass cls
 
 newClassWidget :: UUID -> Text -> Handler Widget
 newClassWidget uuid cls = do
@@ -128,6 +128,7 @@ newClassWidget uuid cls = do
     Rcs.formStyle
       >> [whamlet|
            <form #class-new-sub method="post" action=@{EntryR (U.UUID uuid)} enctype=#{enctype}>
+             <input type="hidden" name="widget" value="New Subclass Widget">
              ^{widget}
              <button type="submit">Create
          |]
@@ -162,20 +163,23 @@ newClass cls nm desc = do
   writeNotes root entry desc
   redirect $ EntryR $ U.UUID $ entry_id entry
 
-newClassProcess :: Text -> Handler Widget
+newClassProcess :: Text -> Handler TypedContent
 newClassProcess cls = do
   ((result, _), _) <- runFormPost $ newClassForm cls
   case result of
     FormSuccess form -> doNewClass form
     FormFailure err ->
-      pure
-        [whamlet|
-        <p>Invalid input:
-          <ul>
-            $forall msg <- err
-              <li> #{msg}
-      |]
-    FormMissing -> pure $ pure ()
+      pure $ toTypedContent $ toJSON err
+    FormMissing -> pure $ toTypedContent ()
+
+newClassMap :: UUID -> Text -> Handler WidgetMap
+newClassMap entry cls = do
+  form <- newClassWidget entry cls
+  pure $
+    M.fromList
+      [ ("New Subclass", Left $ rawBlock "widget" "New Subclass Widget"),
+        ("New Subclass Widget", Right (form, newClassProcess cls))
+      ]
 
 --  ____  _                 _     _
 
@@ -189,19 +193,12 @@ widgetsForClassEntry entry = do
   res <- findClass $ entry_id entry
   case res of
     Just cls -> do
-      treeWidget (Just cls)
-    -- instances <-
-    --   selectOpt (method == methodGet) "Instances" $
-    --     classInstancesWidget cls
-    -- newCls <-
-    --   select (method == methodGet) "New subclass" $
-    --     newClassWidget (entry_id entry) $
-    --       name cls
-    -- newCls' <-
-    --   select (method == methodPost) "New subclass" $
-    --     newClassProcess $
-    --       name cls
-    -- pure $ M.fromList $ tree ++ instances ++ newCls ++ newCls'
+      tree <- treeWidget (Just cls)
+      -- instances <-
+      --   selectOpt (method == methodGet) "Instances" $
+      --     classInstancesWidget cls
+      newCls <- newClassMap (entry_id entry) $ name cls
+      pure $ mconcat [tree, newCls]
     Nothing -> do
       conn <- pgsql
       parent :: [(Text, UUID)] <- liftIO $ O.runSelect conn $ do

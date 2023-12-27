@@ -9,6 +9,16 @@ import Yesod
 toS :: Text -> FieldSettings Korrvigs
 toS = fromString . T.unpack
 
+hiddenSettings :: Text -> FieldSettings Korrvigs
+hiddenSettings name =
+  FieldSettings
+    { fsLabel = fromString (T.unpack name),
+      fsTooltip = Nothing,
+      fsId = Nothing,
+      fsName = Nothing,
+      fsAttrs = [("class", "hidden-form")]
+    }
+
 titledForm ::
   Text ->
   Text ->

@@ -3,7 +3,7 @@
 module Korrvigs.Entry (lookupEntryByName, lookupEntryByName', lookupEntryByNameSql, newEntity, lookupEntry, newEntry, deleteEntry) where
 
 import Control.Arrow ((&&&))
-import Control.Monad (void)
+import Control.Monad (unless, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Char
 import Data.Int (Int64)
@@ -168,7 +168,7 @@ newEntry conn root cls nm md = liftIO $ do
 deleteEntry :: MonadIO m => Connection -> FilePath -> UUID -> m ()
 deleteEntry conn root uuid = liftIO $ do
   trsh <- Dir.doesDirectoryExist trash
-  if not trsh then Dir.createDirectory trash else pure ()
+  unless trsh $ Dir.createDirectory trash
   Dir.renameDirectory dir deletedPath
   void $
     O.runDelete conn $

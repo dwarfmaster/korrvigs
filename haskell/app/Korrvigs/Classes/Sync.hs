@@ -1,14 +1,22 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Korrvigs.Classes.Sync (syncClasses, mkMdName) where
 
 import Control.Arrow ((&&&))
-import Control.Monad (forM, void)
+import Control.Monad (forM_, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Array (array)
 import Data.Char
+import Data.Foldable (toList)
+import Data.Functor ((<&>))
 import Data.Graph (Graph, topSort)
 import Data.Int (Int64)
+import Data.Map (Map)
+import qualified Data.Map as M
+import Data.Maybe (maybeToList)
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Sq
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.UUID (UUID)
@@ -53,22 +61,31 @@ orderedClasses = reverse $ toEnum <$> topSort graph
 -- order they are in the list.
 actionPlan :: MonadIO m => Connection -> m ([Class], [Class])
 actionPlan conn = do
-  statuted <- mapM (\cls -> classStatus conn cls >>= pure . (cls,)) orderedClasses
+  statuted <- mapM (\cls -> classStatus conn cls <&> (cls,)) orderedClasses
   let toInsert = filter ((== ShouldInsert) . snd) statuted
   let toUpdate = filter ((== ShouldUpdate) . snd) statuted
-  pure $ (fst <$> toInsert, fst <$> toUpdate)
+  pure (fst <$> toInsert, fst <$> toUpdate)
 
 -- Find classes that are in the table but do not correspond to classes known to
--- this software
-toDelete :: MonadIO m => Connection -> m [Text]
-toDelete conn =
-  filter (not . (`elem` classesName))
-    <$> (liftIO $ runSelect conn sql)
+-- this software. They are sorted so that a subclass of another class to be deleted
+-- would appear first.
+toDelete :: forall m. MonadIO m => Connection -> m [Text]
+toDelete conn = do
+  clss <-
+    Sq.fromList . filter (not . (`elem` classesName) . fst)
+      <$> liftIO (runSelect conn sql)
+  pure $ mconcat $ fmap (fmap fst . maybeToList . flip Sq.lookup clss) $ topSort $ graph clss
   where
     classesName :: [Text]
     classesName = name <$> [minBound .. maxBound]
-    sql :: Select (Field SqlText)
-    sql = fst <$> selectTable classesTable
+    sql :: Select (Field SqlText, Field SqlText)
+    sql = selectTable classesTable
+    indices :: Seq (Text, Text) -> Map Text Int
+    indices clss = M.fromList $ toList $ Sq.mapWithIndex (\i (cls, _) -> (cls, i)) clss
+    graph :: Seq (Text, Text) -> Graph
+    graph clss =
+      let n = length clss - 1
+       in array (0, n) $ toList $ Sq.mapWithIndex (\i (_, parent) -> (i, maybeToList $ M.lookup parent $ indices clss)) clss
 
 -- Delete a class, making all entities of this class entities of class Entity,
 -- and removing the entries associated with the class
@@ -168,8 +185,8 @@ syncClasses :: MonadIO m => Connection -> FilePath -> m [(Text, Int64)]
 syncClasses conn root = do
   (toInsert, toUpdate) <- actionPlan conn
   void $ liftIO $ runInsert conn $ insert toInsert
-  void $ forM toUpdate $ liftIO . runUpdate conn . update
-  void $ forM allClasses $ syncClassEntry conn root
+  forM_ toUpdate $ liftIO . runUpdate conn . update
+  forM_ allClasses $ syncClassEntry conn root
   mconcat <$> (mapM (doDelete conn root) =<< toDelete conn)
   where
     allClasses :: [Class]
@@ -178,7 +195,7 @@ syncClasses conn root = do
     insert to =
       Insert
         { iTable = classesTable,
-          iRows = (toFields . (name &&& (name . isA))) <$> to,
+          iRows = toFields . (name &&& (name . isA)) <$> to,
           iReturning = rCount,
           iOnConflict = Nothing
         }

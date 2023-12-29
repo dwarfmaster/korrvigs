@@ -53,7 +53,6 @@ noteWidget prefix extra handler entry = do
     Left err -> pure $ toWidget $ "Error: " <> renderError err
     Right pd -> Pandoc.renderPandoc handler =<< displayLinks renderLink (docWithExtras pd)
   pure $ do
-    [whamlet|<a href=@{EntryEditR (U.UUID (entry_id entry))}>Edit|]
     widget
     toWidget $ CssBuilder $ Bld.fromString $ styleToCss espresso
   where

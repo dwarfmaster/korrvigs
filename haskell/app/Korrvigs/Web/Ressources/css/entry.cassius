@@ -1,16 +1,6 @@
-#error-field
-  margin: 0
-  padding: 0.5em
-  border: 2px solid var(--base08)
-  border-radius: 0.5em
-  background-color: var(--base02)
-  legend
-    background-color: var(--base08)
-    color: var(--base01)
-    border-radius: 0.5em
-    font-weight: bold
-  div
-    color: var(--base05)
+.edit-button
+  cursor: pointer
+  float: right
 
 #pandoc
   h1

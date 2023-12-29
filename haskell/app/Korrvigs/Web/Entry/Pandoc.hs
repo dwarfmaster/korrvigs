@@ -126,14 +126,16 @@ itemsToWidget lvl (WTISection i title content) =
   where
     symb :: Text -> Widget
     symb s = [whamlet| <span .section-symbol> #{s} |]
+    edit :: Widget
+    edit = [whamlet| <span .edit-button> ✎|]
     mkHead :: Int -> Widget -> Widget
-    mkHead 0 t = [whamlet|<h1> ^{symb "●"} ^{t}|]
-    mkHead 1 t = [whamlet|<h2> ^{symb "◉"} ^{t}|]
-    mkHead 2 t = [whamlet|<h3> ^{symb "✿"} ^{t}|]
-    mkHead 3 t = [whamlet|<h4> ^{symb "✸"} ^{t}|]
-    mkHead 4 t = [whamlet|<h5> ^{symb "○"} ^{t}|]
-    mkHead 5 t = [whamlet|<h6> ^{symb "◆"} ^{t}|]
-    mkHead _ t = [whamlet|<h6> ^{symb "◇"} ^{t}|]
+    mkHead 0 t = [whamlet|<h1> ^{symb "●"} ^{t} ^{edit}|]
+    mkHead 1 t = [whamlet|<h2> ^{symb "◉"} ^{t} ^{edit}|]
+    mkHead 2 t = [whamlet|<h3> ^{symb "✿"} ^{t} ^{edit}|]
+    mkHead 3 t = [whamlet|<h4> ^{symb "✸"} ^{t} ^{edit}|]
+    mkHead 4 t = [whamlet|<h5> ^{symb "○"} ^{t} ^{edit}|]
+    mkHead 5 t = [whamlet|<h6> ^{symb "◆"} ^{t} ^{edit}|]
+    mkHead _ t = [whamlet|<h6> ^{symb "◇"} ^{t} ^{edit}|]
 itemsToWidget _ (WTISub f sub) = f $ treeToWidget 0 sub
 
 treeToWidget :: Int -> WidgetTree -> Widget

@@ -49,6 +49,8 @@
     display: none
   p
     text-align: justify
+  li p
+    margin: 0
   div.sourceCode
     background-color: var(--base00)
     padding: 0.5em

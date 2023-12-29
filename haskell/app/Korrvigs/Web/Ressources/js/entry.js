@@ -1,7 +1,6 @@
-$('.fragment').each(function () {
-  var $fieldset = $(this);
-  var $legend = $fieldset.find('> legend');
-  $legend.click(function () {
-    $(this).parent().toggleClass('collapsed');
+$('.section-symbol').each(function () {
+  var $symbol = $(this);
+  $symbol.click(function () {
+    $symbol.parent().parent().toggleClass('collapsed');
   });
 });

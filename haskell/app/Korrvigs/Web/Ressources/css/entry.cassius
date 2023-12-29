@@ -43,6 +43,10 @@
   .level6
     border-left: 2px solid var(--base0D)
     padding-left: 0.25em
+  .section-symbol
+    cursor: pointer
+  section.collapsed > .section-content
+    display: none
   p
     text-align: justify
   div.sourceCode

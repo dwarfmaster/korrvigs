@@ -118,19 +118,22 @@ itemsToWidget _ (WTIBlock widget) = widget
 itemsToWidget lvl (WTISection i title content) =
   let cls = "level" ++ show (lvl + 1)
    in [whamlet|
-    <section id=#{i} class=#{cls}>
+    <section id=#{i} .collapsed class=#{cls}>
       ^{mkHead lvl title}
-      ^{treeToWidget (lvl + 1) content}
+      <div .section-content>
+        ^{treeToWidget (lvl + 1) content}
   |]
   where
+    symb :: Text -> Widget
+    symb s = [whamlet| <span .section-symbol> #{s} |]
     mkHead :: Int -> Widget -> Widget
-    mkHead 0 t = [whamlet|<h1> ^{t}|]
-    mkHead 1 t = [whamlet|<h2> ^{t}|]
-    mkHead 2 t = [whamlet|<h3> ^{t}|]
-    mkHead 3 t = [whamlet|<h4> ^{t}|]
-    mkHead 4 t = [whamlet|<h5> ^{t}|]
-    mkHead 5 t = [whamlet|<h6> ^{t}|]
-    mkHead _ t = [whamlet|<h6> ^{t}|]
+    mkHead 0 t = [whamlet|<h1> ^{symb "●"} ^{t}|]
+    mkHead 1 t = [whamlet|<h2> ^{symb "◉"} ^{t}|]
+    mkHead 2 t = [whamlet|<h3> ^{symb "✿"} ^{t}|]
+    mkHead 3 t = [whamlet|<h4> ^{symb "✸"} ^{t}|]
+    mkHead 4 t = [whamlet|<h5> ^{symb "○"} ^{t}|]
+    mkHead 5 t = [whamlet|<h6> ^{symb "◆"} ^{t}|]
+    mkHead _ t = [whamlet|<h6> ^{symb "◇"} ^{t}|]
 itemsToWidget _ (WTISub f sub) = f $ treeToWidget 0 sub
 
 treeToWidget :: Int -> WidgetTree -> Widget

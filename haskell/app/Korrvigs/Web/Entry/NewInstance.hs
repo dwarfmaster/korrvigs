@@ -4,7 +4,6 @@ module Korrvigs.Web.Entry.NewInstance (newInstance) where
 
 import Control.Arrow ((&&&))
 import Data.List (sortBy)
-import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import Data.UUID (UUID)
@@ -17,10 +16,11 @@ import Korrvigs.Web.Entry.Identifiers (newNamespace)
 import Korrvigs.Web.Entry.OntologyClass (newClass)
 import Korrvigs.Web.Entry.OntologyRelation (newOntologyRelation)
 import Korrvigs.Web.Entry.Time (newTemporalRegion)
+import Korrvigs.Web.Entry.Types
 import qualified Korrvigs.Web.Form as Form
-import Korrvigs.Web.Method
 import qualified Korrvigs.Web.Ressources as Rcs
 import qualified Korrvigs.Web.UUID as U
+import Text.Pandoc.Builder (rawBlock)
 import Yesod hiding (Entity)
 
 data NewInstance
@@ -68,7 +68,7 @@ doNewInstance (NewTemporalRegion nm desc) = newTemporalRegion nm desc
 doNewInstance (NewOntologyRelation nm desc dhall) = newOntologyRelation nm desc dhall
 
 newInstanceForm :: Class -> Maybe (Html -> MForm Handler (FormResult NewInstance, Widget))
-newInstanceForm cls = identifyForm "NewInstance" <$> clsNewForm cls
+newInstanceForm = clsNewForm
 
 newInstanceWidget :: UUID -> Class -> Handler (Maybe Widget)
 newInstanceWidget uuid cls = case newInstanceForm cls of
@@ -84,33 +84,27 @@ newInstanceWidget uuid cls = case newInstanceForm cls of
              <button type="submit">Create
          |]
 
-newInstanceProcess :: Class -> Handler (Maybe Widget)
+newInstanceProcess :: Class -> Handler TypedContent
 newInstanceProcess cls = case newInstanceForm cls of
-  Nothing -> pure Nothing
+  Nothing -> notFound
   Just form -> do
     ((result, _), _) <- runFormPost form
     case result of
       FormSuccess ninstance -> doNewInstance ninstance
       FormFailure err ->
-        pure $
-          Just $
-            [whamlet|
-            <p>Invalid input:
-              <ul>
-                $forall msg <- err
-                  <li> #{msg}
-          |]
-      FormMissing -> pure $ Nothing
+        pure $ toTypedContent $ toJSON err
+      FormMissing -> pure $ toTypedContent ()
 
-newInstance :: Method -> Entry -> Handler (Map String Widget)
-newInstance method entry =
+newInstance :: Entry -> Handler WidgetMap
+newInstance entry =
   findClass (entry_id entry) >>= \case
     Nothing -> pure M.empty
     Just cls -> do
-      newIns <-
-        selectOpt (method == methodGet) "New Instance" $
-          newInstanceWidget (entry_id entry) cls
-      prcIns <-
-        selectOpt (method == methodPost) "New Instance" $
-          newInstanceProcess cls
-      pure $ M.fromList $ newIns ++ prcIns
+      mform <- newInstanceWidget (entry_id entry) cls
+      pure $ case mform of
+        Nothing -> M.empty
+        Just form ->
+          M.fromList
+            [ ("New Instance", Left $ rawBlock "widget" "New Instance Widget"),
+              ("New Instance Widget", Right (form, newInstanceProcess cls))
+            ]

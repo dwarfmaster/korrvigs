@@ -12,13 +12,18 @@ import qualified Data.UUID as U
 import Korrvigs.Definition (EntityRef (..))
 import Text.Pandoc (Inline (Link), Pandoc)
 import Text.Pandoc.Extensions (pandocExtensions)
-import Text.Pandoc.Options (ReaderOptions (..), WriterOptions (..))
+import Text.Pandoc.Options (ReaderOptions (..), ReferenceLocation (EndOfSection), WriterOptions (..))
 import Text.Pandoc.Walk (walkM)
 import Text.Parsec
 import Text.Parsec.Text
 
 writerOptions :: WriterOptions
-writerOptions = def {writerExtensions = pandocExtensions, writerSectionDivs = True}
+writerOptions =
+  def
+    { writerExtensions = pandocExtensions,
+      writerReferenceLinks = True,
+      writerReferenceLocation = EndOfSection
+    }
 
 readerOptions :: ReaderOptions
 readerOptions = def {readerExtensions = pandocExtensions}

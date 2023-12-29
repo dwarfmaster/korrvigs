@@ -22,7 +22,7 @@ instance Default EditorConfig where
     EditorConfig
       { editorContent = pure "",
         editorLanguage = Raw,
-        editorSave = const $ notFound
+        editorSave = const notFound
       }
 
 editorHandler ::
@@ -42,7 +42,7 @@ editorHandler mth cfg page | mth == methodGet = selectRep $ do
   provideRep $ String <$> editorContent cfg
 editorHandler mth cfg _ | mth == methodPost = do
   postData <- fst <$> runRequestBody
-  liftIO $ putStrLn $ show postData
+  liftIO $ print postData
   case lookup "content" postData of
     Nothing -> notFound
     Just content -> editorSave cfg content

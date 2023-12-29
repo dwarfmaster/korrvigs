@@ -17,7 +17,7 @@ import Korrvigs.Web.Method
 import qualified Korrvigs.Web.UUID as U
 import System.FilePath ((</>))
 import Text.Pandoc (Pandoc (..), PandocMonad, readFileStrict, runIO)
-import Text.Pandoc.Builder (Blocks, doc, fromList, header, rawBlock, text)
+import Text.Pandoc.Builder (Blocks, doc, fromList, header, text)
 import Text.Pandoc.Error (renderError)
 import Text.Pandoc.Highlighting (espresso, styleToCss)
 import Text.Pandoc.Readers.Markdown (readMarkdown)
@@ -39,7 +39,7 @@ renderLinkPandoc (EntityRef uuid (Just sub) (Just query)) =
   EntrySubQueryR (U.UUID uuid) sub query
 
 noteWidget ::
-  [Text] -> -- Widgets to include at the start
+  Blocks -> -- Content to include at the start
   [(String, Blocks)] -> -- Extra sections to add to the document
   (Text -> Maybe Widget) -> -- Function to insert arbitrary widgets
   Entry -> -- The entry the note should be generate for
@@ -71,7 +71,7 @@ noteWidget prefix extra handler entry = do
     docWithExtras :: Pandoc -> Pandoc
     docWithExtras (Pandoc _ content) =
       doc $
-        mconcat (rawBlock "widget" <$> prefix)
+        prefix
           <> fromList content
           <> renderExtras extra
 

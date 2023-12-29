@@ -216,26 +216,12 @@ widgetsForClassEntry entry = do
         pure (parent_, id_)
       case parent of
         [(parentName, parentId)] -> do
-          let parentW =
-                [whamlet|
-                <a href=@{EntryR (U.UUID parentId)}>
-                  #{parentName}
-            |]
-          let parents = [("Parent", parentW)]
-          let generate =
-                [whamlet|
-              <a href=@{GenerateClassesR}>
-                Regenerate haskell classes
-            |]
-          let generates = [("Generate", generate)]
-          -- newCls <-
-          --   select (method == methodGet) "New subclass" $
-          --     newClassWidget (entry_id entry) $
-          --       entry_name entry
-          -- newCls' <-
-          --   select (method == methodPost) "New subclass" $
-          --     newClassProcess $
-          --       entry_name entry
-          -- pure $ M.fromList $ parents ++ newCls ++ newCls' ++ generates
-          pure M.empty
+          let parentB = para $ text "Subclass of " <> link (renderUrl $ EntityRef parentId Nothing Nothing) parentName (text parentName)
+          let parents = M.singleton "Parent" $ Left parentB
+          render <- getUrlRender
+          let genT = "Regenerate haskell classes"
+          let generate = para $ link (render GenerateClassesR) genT $ text genT
+          let generates = M.singleton "Generate" $ Left generate
+          newCls <- newClassMap (entry_id entry) $ entry_name entry
+          pure $ mconcat [parents, newCls, generates]
         _ -> notFound

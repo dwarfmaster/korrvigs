@@ -22,7 +22,7 @@ import qualified Korrvigs.Web.Ressources as Rcs
 import Network.HTTP.Types (Method, methodGet, methodPost, status500)
 import Opaleye ((.==))
 import qualified Opaleye as O
-import Text.Pandoc.Builder (Blocks)
+import Text.Pandoc.Builder (Blocks, rawBlock)
 import Yesod hiding (Entity)
 
 fromLeft :: Either a b -> Maybe a
@@ -39,7 +39,7 @@ optGet f mp key = (key,) <$> maybeToList (M.lookup key mp >>= f)
 dropKeys :: [String] -> [(String, a)] -> [(String, a)]
 dropKeys keys = filter (\(key, _) -> key `notElem` keys)
 
-type Layout = ([Text], [(String, Blocks)], Text -> Maybe InteractiveWidget)
+type Layout = (Blocks, [(String, Blocks)], Text -> Maybe InteractiveWidget)
 
 mkLayout ::
   [String] -> -- widgets to place at the start
@@ -47,16 +47,22 @@ mkLayout ::
   [String] -> -- subsections to not include
   WidgetMap ->
   Layout
-mkLayout prefix place rm mp = (prefixW, headers, mkWidget)
+mkLayout prefix place rm mp = (prefixB, headers, mkWidget)
   where
-    prefixW = map (T.pack . fst) $ mconcat $ optGet fromRight mp <$> prefix
+    prefixB = mconcat $ mkPrefixBlock mp . T.pack <$> prefix
     headers = placed ++ others
     placed = mconcat $ optGet fromLeft mp <$> place
     others =
-      dropKeys (place ++ rm) $
+      dropKeys (prefix ++ place ++ rm) $
         concatMap (\(k, v) -> maybeToList $ (k,) <$> fromLeft v) $
           M.assocs mp
     mkWidget nm = M.lookup (T.unpack nm) mp >>= fromRight
+    mkPrefixBlock :: WidgetMap -> Text -> Blocks
+    mkPrefixBlock widgets text =
+      case M.lookup (T.unpack text) widgets of
+        Nothing -> mempty
+        Just (Left blks) -> blks
+        Just (Right _) -> rawBlock "widget" text
 
 layout :: Class -> WidgetMap -> Layout
 layout Entity = mkLayout [] [] []

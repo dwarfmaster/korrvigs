@@ -20,7 +20,7 @@ import Text.Pandoc (Pandoc (..), PandocMonad, readFileStrict, runIO)
 import Text.Pandoc.Builder (Blocks, doc, fromList, header, text)
 import Text.Pandoc.Error (renderError)
 import Text.Pandoc.Highlighting (espresso, styleToCss)
-import Text.Pandoc.Readers.Markdown (readMarkdown)
+import Text.Pandoc.Readers.CommonMark (readCommonMark)
 import Text.Pandoc.UTF8 (toText)
 import Yesod
 import Prelude hiding (readFile)
@@ -29,7 +29,7 @@ readNotePandoc :: PandocMonad m => FilePath -> m Pandoc
 readNotePandoc =
   readFileStrict
     >=> pure . toText
-    >=> readMarkdown readerOptions
+    >=> readCommonMark readerOptions
 
 renderLinkPandoc :: EntityRef -> Route Korrvigs
 renderLinkPandoc (EntityRef uuid Nothing Nothing) = EntryR (U.UUID uuid)

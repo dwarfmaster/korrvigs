@@ -11,7 +11,7 @@ import Data.UUID (UUID)
 import qualified Data.UUID as U
 import Korrvigs.Definition (EntityRef (..))
 import Text.Pandoc (Inline (Link), Pandoc)
-import Text.Pandoc.Extensions (pandocExtensions)
+import Text.Pandoc.Extensions (Extension (..), enableExtension, pandocExtensions)
 import Text.Pandoc.Options (ReaderOptions (..), ReferenceLocation (EndOfSection), WriterOptions (..))
 import Text.Pandoc.Walk (walkM)
 import Text.Parsec
@@ -26,7 +26,10 @@ writerOptions =
     }
 
 readerOptions :: ReaderOptions
-readerOptions = def {readerExtensions = pandocExtensions}
+readerOptions =
+  def
+    { readerExtensions = enableExtension Ext_sourcepos pandocExtensions
+    }
 
 -- When encountering a korr:// link, parse it into a reference, apply the
 -- function to get an URL, and replace the previous link by the new one

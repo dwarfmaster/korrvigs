@@ -5,6 +5,7 @@ import Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans.State.Lazy (StateT, execStateT, modify, runStateT)
 import Data.Aeson (eitherDecodeStrict)
 import Data.Aeson.Types (Parser, prependFailure, typeMismatch)
+import Data.Bifunctor (first)
 import Data.Maybe (isJust)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -18,21 +19,21 @@ import Skylighting (defaultSyntaxMap)
 import Text.Pandoc.Definition
 import Text.Pandoc.Highlighting
 import Text.Pandoc.Shared (stringify)
-import Yesod hiding (Header, Null)
+import Yesod hiding (Attr, Header, Null)
 
 -- The structure we are compiling the pandoc document to. It allows recovering
 -- a structural description of the document along headers. This structure is
 -- then compiled to a flat widget.
 data WidgetTreeItem
   = WTIBlock Widget
-  | WTISection Text Widget WidgetTree
+  | WTISection [(Text, Text)] Widget WidgetTree
   | WTISub (Widget -> Widget) WidgetTree
 
 newtype WidgetTree = WidgetTree [WidgetTreeItem]
 
 data WidgetTreeZipper = MkZipper
   { zipper_level :: Int,
-    zipper_parent :: Maybe (Text, Widget, WidgetTreeZipper),
+    zipper_parent :: Maybe ([(Text, Text)], Widget, WidgetTreeZipper),
     zipper_left :: [WidgetTreeItem],
     zipper_right :: [WidgetTreeItem]
   }
@@ -40,11 +41,11 @@ data WidgetTreeZipper = MkZipper
 mkZipper :: WidgetTreeZipper
 mkZipper = MkZipper (-1) Nothing [] []
 
-zipperPushSection :: Int -> Text -> Widget -> WidgetTreeZipper -> WidgetTreeZipper
-zipperPushSection lvl i title zipper =
+zipperPushSection :: Int -> [(Text, Text)] -> Widget -> WidgetTreeZipper -> WidgetTreeZipper
+zipperPushSection lvl attrs title zipper =
   MkZipper
     { zipper_level = lvl,
-      zipper_parent = Just (i, title, zipper),
+      zipper_parent = Just (attrs, title, zipper),
       zipper_left = [],
       zipper_right = []
     }
@@ -62,10 +63,10 @@ zipperPopSection :: WidgetTreeZipper -> WidgetTreeZipper
 zipperPopSection zipper =
   case zipper_parent zipper of
     Nothing -> zipper
-    Just (i, title, parent) ->
+    Just (attrs, title, parent) ->
       zipperPush
         ( WTISection
-            i
+            attrs
             title
             ( WidgetTree $
                 reverse (zipper_left zipper)
@@ -78,12 +79,12 @@ unzipTree :: WidgetTreeZipper -> WidgetTree
 unzipTree zipper | isJust (zipper_parent zipper) = unzipTree $ zipperPopSection zipper
 unzipTree zipper = WidgetTree $ reverse (zipper_left zipper) ++ zipper_right zipper
 
-zipperNewSection :: Int -> Text -> Widget -> WidgetTreeZipper -> WidgetTreeZipper
-zipperNewSection lvl i title zipper
+zipperNewSection :: Int -> [(Text, Text)] -> Widget -> WidgetTreeZipper -> WidgetTreeZipper
+zipperNewSection lvl attrs title zipper
   | zipper_level zipper < lvl =
-      zipperPushSection lvl i title zipper
-zipperNewSection lvl i title zipper =
-  zipperNewSection lvl i title $ zipperPopSection zipper
+      zipperPushSection lvl attrs title zipper
+zipperNewSection lvl attrs title zipper =
+  zipperNewSection lvl attrs title $ zipperPopSection zipper
 
 type ZipperM =
   ReaderT
@@ -93,8 +94,8 @@ type ZipperM =
 pushBlock :: Widget -> ZipperM ()
 pushBlock = lift . modify . zipperPush . WTIBlock
 
-newSection :: Int -> Text -> Widget -> ZipperM ()
-newSection lvl i title = lift $ modify $ zipperNewSection lvl i title
+newSection :: Int -> [(Text, Text)] -> Widget -> ZipperM ()
+newSection lvl rattrs title = lift $ modify $ zipperNewSection lvl rattrs title
 
 transform :: (Widget -> Widget) -> ZipperM a -> ZipperM a
 transform f act = do
@@ -115,10 +116,10 @@ mapW f lst = mconcat <$> mapM f lst
 -- Compiling the structure to a Widget
 itemsToWidget :: Int -> WidgetTreeItem -> Widget
 itemsToWidget _ (WTIBlock widget) = widget
-itemsToWidget lvl (WTISection i title content) =
+itemsToWidget lvl (WTISection attrs title content) =
   let cls = "level" ++ show (lvl + 1)
    in [whamlet|
-    <section id=#{i} .collapsed class=#{cls}>
+    <section *{attrs} .collapsed class=#{cls}>
       ^{mkHead lvl title}
       <div .section-content>
         ^{treeToWidget (lvl + 1) content}
@@ -202,6 +203,11 @@ renderRaw "class" raw =
         |]
 renderRaw _ _ = pure ()
 
+renderAttr :: Attr -> ZipperM (Text, [(Text, Text)])
+renderAttr (sid, classes, misc) = do
+  ident <- if T.null sid then newIdent else pure sid
+  pure (ident, [("id", ident)] <> (("class",) <$> classes) <> (first ("data-" <>) <$> misc))
+
 -- Compiling the pandoc document to a WidgetTree
 renderBlock :: Block -> ZipperM ()
 renderBlock (Plain inlines) = do
@@ -223,11 +229,12 @@ renderBlock (LineBlock lns) = do
   |]
 renderBlock (CodeBlock attrs code) = do
   let coloured = highlight defaultSyntaxMap formatHtmlBlock attrs code
+  (_, rattrs) <- renderAttr attrs
   pushBlock $ case coloured of
     Right html -> toWidget html
     Left err ->
       [whamlet|
-        <div .sourceCode title=#{err}>
+        <div .sourceCode title=#{err} *{rattrs}>
           <pre .sourceCode>
             #{code}
       |]
@@ -290,12 +297,14 @@ renderBlock (DefinitionList defs) =
         |]
         )
         $ forM_ blocks renderBlock
-renderBlock (Header lvl (i, _, _) title) = do
+renderBlock (Header lvl attrs title) = do
   content <- mapW renderInline title
-  newSection lvl i content
+  (_, rattrs) <- renderAttr attrs
+  newSection lvl rattrs content
 renderBlock HorizontalRule = pushBlock [whamlet|<hr>|]
-renderBlock (Table _ (Caption _ caption) _ (TableHead _ hd) body (TableFoot _ foot)) =
-  transform (\w -> [whamlet|<table> ^{w}|]) $ do
+renderBlock (Table attrs (Caption _ caption) _ (TableHead _ hd) body (TableFoot _ foot)) = do
+  (_, rattrs) <- renderAttr attrs
+  transform (\w -> [whamlet|<table *{rattrs}> ^{w}|]) $ do
     when (caption /= []) $
       transform (\w -> [whamlet| <caption> ^{w}|]) $
         forM_ caption renderBlock
@@ -342,11 +351,12 @@ renderBlock (Table _ (Caption _ caption) _ (TableHead _ hd) body (TableFoot _ fo
     renderRow :: (Cell -> ZipperM ()) -> Row -> ZipperM ()
     renderRow render (Row _ cells) =
       transform (\w -> [whamlet| <tr> ^{w}|]) $ forM_ cells render
-renderBlock (Div (i, _, _) blks) =
+renderBlock (Div attrs blks) = do
+  (_, rattrs) <- renderAttr attrs
   transform
     ( \wdgt ->
         [whamlet|
-      <div id=#{i}>
+      <div *{rattrs}>
         ^{wdgt}
     |]
     )
@@ -371,7 +381,9 @@ renderInline (Quoted _ c) = wrapI (\w -> [whamlet|<q> ^{w}|]) c
 renderInline (Cite _ c) =
   -- TODO better handling of citation, right now nothing is done and the key are simply included inline
   mapW renderInline c
-renderInline (Code (i, _, _) c) = pure [whamlet|<code id=#{i}> #{c}|]
+renderInline (Code attrs c) = do
+  (_, rattrs) <- renderAttr attrs
+  pure [whamlet|<code *{rattrs}> #{c}|]
 renderInline Space = pure $ toWidget (" " :: Text)
 renderInline SoftBreak = pure $ toWidget (" " :: Text)
 renderInline LineBreak = pure [whamlet|<br>|]
@@ -385,12 +397,16 @@ renderInline (Math mode math) = pure $ do
   case mode of
     DisplayMath -> toWidget $ "$$" <> math <> "$$"
     InlineMath -> toWidget $ "\\(" <> math <> "\\)"
-renderInline (Link _ c (target, title)) =
-  wrapI (\w -> [whamlet|<a href=#{target} title=#{title}> ^{w}|]) c
-renderInline (Image _ c (target, _)) =
-  pure [whamlet|<img src=#{target} alt=#{stringify c}>|]
+renderInline (Link attrs c (target, title)) = do
+  (_, rattrs) <- renderAttr attrs
+  wrapI (\w -> [whamlet|<a *{rattrs} href=#{target} title=#{title}> ^{w}|]) c
+renderInline (Image attrs c (target, _)) = do
+  (_, rattrs) <- renderAttr attrs
+  pure [whamlet|<img *{rattrs} src=#{target} alt=#{stringify c}>|]
 renderInline (Note _) = pure $ pure () -- TODO
-renderInline (Span (i, _, _) c) = wrapI (\w -> [whamlet|<span id=#{i}> ^{w}|]) c
+renderInline (Span attrs c) = do
+  (_, rattrs) <- renderAttr attrs
+  wrapI (\w -> [whamlet|<span *{rattrs}> ^{w}|]) c
 renderInline (RawInline (Format "html") raw) =
   pure $ toWidget $ preEscapedToMarkup raw
 renderInline (RawInline _ _) = pure $ pure ()

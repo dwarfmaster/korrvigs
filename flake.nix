@@ -31,6 +31,8 @@
             hpkgs.opaleye
             hpkgs.pandoc
             hpkgs.dhall
+            hpkgs.lens
+            hpkgs.linear
           ]);
 
           pre-commit.hooks = {
@@ -41,7 +43,7 @@
             ormolu.enable = true;
           };
           pre-commit.settings = {
-            alejandra.exclude = ["haskell/default.nix"];
+            alejandra.exclude = ["haskell/default.nix" "new/default.nix"];
           };
 
           packages = [

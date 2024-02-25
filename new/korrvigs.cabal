@@ -1,0 +1,58 @@
+cabal-version:   3.0
+name:            korrvigs
+version:         0.1.0.0
+synopsis:        A wiki system for my personal use
+
+-- description:
+license:         MIT
+license-file:    LICENSE
+author:          DwarfMaster
+maintainer:      korrvigs@dwarfmaster.net
+
+-- copyright:
+category:        Database
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+
+-- extra-source-files:
+
+common warnings
+  ghc-options: -Wall
+
+library
+  import:           warnings
+  exposed-modules:  Korrvigs
+  other-modules:
+    Korrvigs.Geometry
+    Korrvigs.Kind
+    Korrvigs.Kind.Entry
+    Korrvigs.Kind.Schema
+
+  -- other-extensions:
+  build-depends:
+    , aeson                ^>=2.0.3.0
+    , base                 ^>=4.16.4.0
+    , containers           ^>=0.6.5.0
+    , lens                 ^>=5.1.1
+    , linear               ^>=1.21.0
+    , opaleye              ^>=0.9.6.0
+    , postgresql-simple    ^>=0.6.4
+    , product-profunctors  ^>=0.11.1.0
+    , text                 ^>=1.2.5.0
+    , time                 ^>=1.11.1.0
+
+  hs-source-dirs:   lib
+  default-language: Haskell2010
+
+test-suite korrvigs-test
+  import:           warnings
+  default-language: Haskell2010
+
+  -- other-modules:
+  -- other-extensions:
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test
+  main-is:          Main.hs
+  build-depends:
+    , base      ^>=4.16.4.0
+    , korrvigs

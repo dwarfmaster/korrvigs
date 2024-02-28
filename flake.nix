@@ -33,6 +33,8 @@
             hpkgs.dhall
             hpkgs.lens
             hpkgs.linear
+            hpkgs.bytestring-lexing
+            hpkgs.data-endian
           ]);
 
           pre-commit.hooks = {
@@ -43,7 +45,7 @@
             ormolu.enable = true;
           };
           pre-commit.settings = {
-            alejandra.exclude = ["haskell/default.nix" "new/default.nix"];
+            alejandra.exclude = ["new/default.nix" "haskell/default.nix"];
           };
 
           packages = [

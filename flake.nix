@@ -33,7 +33,7 @@
             hpkgs.dhall
             hpkgs.lens
             hpkgs.linear
-            hpkgs.bytestring-lexing
+            hpkgs.base16-bytestring
             hpkgs.data-endian
           ]);
 

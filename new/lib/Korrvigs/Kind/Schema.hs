@@ -28,10 +28,13 @@ instance DefaultFromField SqlKind Kind where
 instance Default ToFields Kind (Field SqlKind) where
   def = enumToFields sqlKindMapper
 
+sqlKind :: Kind -> Field SqlKind
+sqlKind = toFields
+
 entriesTable ::
   Table
-    (Field SqlText, Field SqlKind, FieldNullable SqlTimestamptz, FieldNullable SqlGeometry, FieldNullable SqlText, Field SqlJsonb)
-    (Field SqlText, Field SqlKind, FieldNullable SqlTimestamptz, FieldNullable SqlGeometry, FieldNullable SqlText, Field SqlJsonb)
+    (Field SqlText, Field SqlKind, FieldNullable SqlTimestamptz, FieldNullable SqlGeometry, FieldNullable SqlText, FieldNullable SqlJsonb)
+    (Field SqlText, Field SqlKind, FieldNullable SqlTimestamptz, FieldNullable SqlGeometry, FieldNullable SqlText, FieldNullable SqlJsonb)
 entriesTable =
   table
     "entries"

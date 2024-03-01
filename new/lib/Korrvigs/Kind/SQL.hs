@@ -1,13 +1,10 @@
-module Korrvigs.Kind.Schema where
+module Korrvigs.Kind.SQL where
 
-import Data.Profunctor.Product (p6)
 import Data.Profunctor.Product.Default
-import Korrvigs.Geometry
-import Korrvigs.Kind.Entry (Kind (..))
+import Korrvigs.Kind.Def (Kind (..))
 import Opaleye
 import Opaleye.Experimental.Enum
 
--- Sql Kind
 data SqlKind
 
 fromSqlKind :: String -> Maybe Kind
@@ -30,12 +27,3 @@ instance Default ToFields Kind (Field SqlKind) where
 
 sqlKind :: Kind -> Field SqlKind
 sqlKind = toFields
-
-entriesTable ::
-  Table
-    (Field SqlText, Field SqlKind, FieldNullable SqlTimestamptz, FieldNullable SqlGeometry, FieldNullable SqlText, FieldNullable SqlJsonb)
-    (Field SqlText, Field SqlKind, FieldNullable SqlTimestamptz, FieldNullable SqlGeometry, FieldNullable SqlText, FieldNullable SqlJsonb)
-entriesTable =
-  table
-    "entries"
-    (p6 (tableField "name", tableField "kind", tableField "date", tableField "geo", tableField "text", tableField "metadata"))

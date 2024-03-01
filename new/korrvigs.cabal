@@ -54,13 +54,16 @@ library korrvigs-lib
   import:          settings
   exposed-modules:
     Korrvigs
+    Korrvigs.Entry
+    Korrvigs.Entry.Def
+    Korrvigs.Entry.SQL
     Korrvigs.Geometry
     Korrvigs.Geometry.Def
     Korrvigs.Geometry.SQL
     Korrvigs.Geometry.WKB
     Korrvigs.Kind
-    Korrvigs.Kind.Entry
-    Korrvigs.Kind.Schema
+    Korrvigs.Kind.Def
+    Korrvigs.Kind.SQL
 
   build-depends:
     , base16-bytestring  ^>=1.0.2.0

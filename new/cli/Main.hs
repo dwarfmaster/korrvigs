@@ -6,9 +6,9 @@ import Data.Profunctor.Product.Default ()
 import Data.Text (Text)
 import Data.Time (ZonedTime)
 import Database.PostgreSQL.Simple (close, connectPostgreSQL)
+import Korrvigs.Entry
 import Korrvigs.Geometry
-import Korrvigs.Kind.Entry
-import Korrvigs.Kind.Schema
+import Korrvigs.Kind
 import Linear.V2
 import Opaleye
 

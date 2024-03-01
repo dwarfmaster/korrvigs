@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Korrvigs.Kind.Entry where
+module Korrvigs.Entry.Def where
 
 import Control.Lens.TH (makeLenses)
 import Data.Aeson (Value)
@@ -8,16 +8,12 @@ import Data.Map (Map)
 import Data.Text (Text)
 import Data.Time (ZonedTime)
 import Korrvigs.Geometry
+import Korrvigs.Kind (Kind (..))
 
 newtype Id = MkId Text
   deriving (Eq, Ord, Show)
 
 type Metadata = Map Text Value
-
-data Kind
-  = Note
-  | Link
-  deriving (Eq, Ord, Show, Enum)
 
 data Note = MkNote
   { _noteEntry :: Entry,
@@ -81,10 +77,6 @@ instance IsKD Entry where
   dKind = dKind . toKD
   dEntry = dEntry . toKD
 
-makeLenses ''Id
-makeLenses ''Kind
 makeLenses ''Note
 makeLenses ''Link
-makeLenses ''KindData
-makeLenses ''EntryRef
 makeLenses ''Entry

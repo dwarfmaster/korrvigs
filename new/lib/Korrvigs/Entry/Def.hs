@@ -6,7 +6,7 @@ import Control.Lens.TH (makeLenses)
 import Data.Aeson (Value)
 import Data.Map (Map)
 import Data.Text (Text)
-import Data.Time (ZonedTime)
+import Data.Time (CalendarDiffTime, ZonedTime)
 import Korrvigs.Geometry
 import Korrvigs.Kind (Kind (..))
 
@@ -65,6 +65,7 @@ data EntryRef
 data Entry = MkEntry
   { _name :: Id,
     _date :: Maybe ZonedTime,
+    _duration :: Maybe CalendarDiffTime,
     _geo :: Maybe Geometry,
     _metadata :: Metadata,
     _kind :: KindData,

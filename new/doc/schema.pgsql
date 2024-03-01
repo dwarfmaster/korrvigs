@@ -6,6 +6,7 @@ CREATE TABLE entries (
   name TEXT NOT NULL UNIQUE,
   kind KIND NOT NULL,
   date TIMESTAMP WITH TIME ZONE,
+  duration INTERVAL,
   geo GEOGRAPHY,
   text TSVECTOR,
   metadata JSONB,

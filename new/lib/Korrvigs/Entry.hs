@@ -1,4 +1,26 @@
-module Korrvigs.Entry (Id (..), Metadata, Note (..), Link (..), KindData (..), IsKD, EntryRef (..), Entry (..), entriesTable) where
+module Korrvigs.Entry
+  ( Id (..),
+    Metadata,
+    KindData (..),
+    IsKD,
+    EntryRef (..),
+    Note (..),
+    noteEntry,
+    notePath,
+    Link (..),
+    linkEntry,
+    linkProtocol,
+    linkRef,
+    Entry (..),
+    name,
+    date,
+    geo,
+    metadata,
+    kind,
+    children,
+    entriesTable,
+  )
+where
 
 import Korrvigs.Entry.Def
 import Korrvigs.Entry.SQL

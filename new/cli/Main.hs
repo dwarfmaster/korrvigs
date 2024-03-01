@@ -27,8 +27,8 @@ main = do
   conn <- connectPostgreSQL "dbname='korrvigs_new'"
   res <- runSelect conn $ do
     EntryRow nm _ _ _ geog _ _ <- selectTable entriesTable
-    pure (nm, geog)
-  case res :: [(Text, Maybe Geometry)] of
+    pure (nm, matchNullable (sqlDouble 0) (stAzimuth (sqlPoint $ V2 0 0)) geog)
+  case res :: [(Text, Double)] of
     [] -> putStrLn "No result"
     _ -> print res
   close conn

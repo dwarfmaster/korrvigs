@@ -1,7 +1,10 @@
 module Korrvigs.FTS
   ( SqlTSVector,
-    tsParse,
     tsParseEnglish,
+    SqlTSQuery,
+    TSQuery (..),
+    pgQuery,
+    (@@),
   )
 where
 

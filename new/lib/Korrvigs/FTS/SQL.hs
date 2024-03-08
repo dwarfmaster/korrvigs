@@ -19,17 +19,20 @@ instance IsSqlType SqlRegConfig where
 tsConfigByName :: Field SqlText -> Field SqlRegConfig
 tsConfigByName = C.Column . HPQ.CastExpr (showSqlType (Nothing :: Maybe SqlRegConfig)) . C.unColumn
 
+tsConfigEnglish :: Field SqlRegConfig
+tsConfigEnglish = tsConfigByName $ sqlStrictText "english"
+
 -- TSVector
 data SqlTSVector
 
 instance IsSqlType SqlTSVector where
   showSqlType _ = "tsvector"
 
-tsParse :: Field SqlText -> Field SqlText -> Field SqlTSVector
-tsParse = UOp.ap2 "to_tsvector" . tsConfigByName
+tsParse :: Field SqlRegConfig -> Field SqlText -> Field SqlTSVector
+tsParse = UOp.ap2 "to_tsvector"
 
 tsParseEnglish :: Field SqlText -> Field SqlTSVector
-tsParseEnglish = tsParse $ sqlStrictText "english"
+tsParseEnglish = tsParse tsConfigEnglish
 
 pgTSVector :: Text -> Field SqlTSVector
 pgTSVector = IPT.literalColumn . HPQ.StringLit . T.unpack
@@ -41,4 +44,27 @@ instance DefaultFromField SqlTSVector () where
   defaultFromField = RQ.FromField . const . const . pure $ ()
 
 -- TSQuery
--- TODO
+data SqlTSQuery
+
+instance IsSqlType SqlTSQuery where
+  showSqlType _ = "tsquery"
+
+data TSQuery
+  = TSText Text
+  | TSAnd TSQuery TSQuery
+  | TSOr TSQuery TSQuery
+  | TSNot TSQuery
+  | TSSeq TSQuery TSQuery
+  deriving (Eq, Show)
+
+pgQuery :: TSQuery -> Field SqlTSQuery
+pgQuery (TSText txt) = UOp.ap2 "to_tsquery" tsConfigEnglish $ sqlStrictText txt
+pgQuery (TSAnd ts1 ts2) = C.binOp (HPQ.OpOther "&&") (pgQuery ts1) (pgQuery ts2)
+pgQuery (TSOr ts1 ts2) = C.binOp (HPQ.OpOther "||") (pgQuery ts1) (pgQuery ts2)
+pgQuery (TSNot ts) = C.unOp (HPQ.UnOpOther "!!") $ pgQuery ts
+pgQuery (TSSeq ts1 ts2) = C.binOp (HPQ.OpOther "<->") (pgQuery ts1) (pgQuery ts2)
+
+infix 4 @@
+
+(@@) :: Field SqlTSQuery -> Field SqlTSVector -> Field SqlBool
+(@@) = C.binOp (HPQ.OpOther "@@")

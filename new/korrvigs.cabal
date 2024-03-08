@@ -57,6 +57,8 @@ library korrvigs-lib
     Korrvigs.Entry
     Korrvigs.Entry.Def
     Korrvigs.Entry.SQL
+    Korrvigs.FTS
+    Korrvigs.FTS.SQL
     Korrvigs.Geometry
     Korrvigs.Geometry.Def
     Korrvigs.Geometry.SQL
@@ -64,6 +66,8 @@ library korrvigs-lib
     Korrvigs.Kind
     Korrvigs.Kind.Def
     Korrvigs.Kind.SQL
+    Korrvigs.Utils
+    Korrvigs.Utils.Opaleye
 
   build-depends:
     , base16-bytestring  ^>=1.0.2.0

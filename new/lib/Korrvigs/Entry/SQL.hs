@@ -9,6 +9,7 @@ import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
 import Data.Time (CalendarDiffTime, ZonedTime)
+import Korrvigs.FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
 import Opaleye
@@ -27,12 +28,12 @@ data EntryRowImpl a b c d e f g = EntryRow
 makeLenses ''EntryRowImpl
 $(makeAdaptorAndInstanceInferrable "pEntryRow" ''EntryRowImpl)
 
-type EntryRow = EntryRowImpl Text Kind (Maybe ZonedTime) (Maybe CalendarDiffTime) (Maybe Geometry) (Maybe Text) (Maybe Value)
+type EntryRow = EntryRowImpl Text Kind (Maybe ZonedTime) (Maybe CalendarDiffTime) (Maybe Geometry) (Maybe ()) (Maybe Value)
 
-mkEntryRow :: Text -> Kind -> Maybe ZonedTime -> Maybe CalendarDiffTime -> Maybe Geometry -> Maybe Text -> Maybe Value -> EntryRow
+mkEntryRow :: Text -> Kind -> Maybe ZonedTime -> Maybe CalendarDiffTime -> Maybe Geometry -> Maybe () -> Maybe Value -> EntryRow
 mkEntryRow = EntryRow
 
-type EntryRowSQL = EntryRowImpl (Field SqlText) (Field SqlKind) (FieldNullable SqlTimestamptz) (FieldNullable SqlInterval) (FieldNullable SqlGeometry) (FieldNullable SqlText) (FieldNullable SqlJsonb)
+type EntryRowSQL = EntryRowImpl (Field SqlText) (Field SqlKind) (FieldNullable SqlTimestamptz) (FieldNullable SqlInterval) (FieldNullable SqlGeometry) (FieldNullable SqlTSVector) (FieldNullable SqlJsonb)
 
 instance Default ToFields EntryRow EntryRowSQL where
   def = pEntryRow $ EntryRow def def def def def def def

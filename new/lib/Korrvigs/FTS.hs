@@ -2,10 +2,11 @@ module Korrvigs.FTS
   ( SqlTSVector,
     tsParseEnglish,
     SqlTSQuery,
-    TSQuery (..),
-    pgQuery,
+    Query (..),
+    sqlQuery,
     (@@),
   )
 where
 
+import Korrvigs.FTS.Query
 import Korrvigs.FTS.SQL

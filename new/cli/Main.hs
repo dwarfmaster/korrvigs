@@ -34,15 +34,15 @@ setTextFor nm txt =
       uReturning = rCount
     }
 
-query :: TSQuery
-query = TSAnd (TSSeq (TSText "big") (TSText "rat")) (TSText "bite")
+query :: Query
+query = And [Phrase ["big", "rat"], Phrase ["bites"]]
 
 main :: IO ()
 main = do
   conn <- connectPostgreSQL "dbname='korrvigs_new'"
   res <- runSelect conn $ do
     EntryRow nm _ _ _ geog txt _ <- selectTable entriesTable
-    where_ $ matchNullable (sqlBool True) (pgQuery query @@) txt
+    where_ $ matchNullable (sqlBool True) (sqlQuery query @@) txt
     pure (nm, matchNullable (sqlDouble 0) (stAzimuth (sqlPoint $ V2 0 0)) geog)
   void $ runUpdate conn $ setTextFor "H2" "A big rat bited me in the rats"
   case res :: [(Text, Double)] of

@@ -38,6 +38,7 @@ common settings
     , linear               ^>=1.21.0
     , mtl                  ^>=2.2.2
     , opaleye              ^>=0.9.6.0
+    , parsec               ^>=3.1.15.0
     , postgresql-simple    ^>=0.6.4
     , product-profunctors  ^>=0.11.1.0
     , profunctors          ^>=5.6.2
@@ -58,6 +59,7 @@ library korrvigs-lib
     Korrvigs.Entry.Def
     Korrvigs.Entry.SQL
     Korrvigs.FTS
+    Korrvigs.FTS.Parser
     Korrvigs.FTS.Query
     Korrvigs.FTS.SQL
     Korrvigs.Geometry

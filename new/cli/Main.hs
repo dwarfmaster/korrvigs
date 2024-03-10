@@ -5,6 +5,7 @@ import Control.Monad (void)
 import Data.Int (Int64)
 import Data.Profunctor.Product.Default ()
 import Data.Text (Text)
+import Data.Text.IO (putStr)
 import Database.PostgreSQL.Simple (close, connectPostgreSQL)
 import Korrvigs.Entry
 import Korrvigs.FTS
@@ -12,6 +13,7 @@ import Korrvigs.Geometry
 import Korrvigs.Kind
 import Linear.V2
 import Opaleye
+import Prelude hiding (putStr)
 
 toInsert :: Insert Int64
 toInsert =
@@ -45,6 +47,9 @@ main = do
     where_ $ matchNullable (sqlBool True) (sqlQuery query @@) txt
     pure (nm, matchNullable (sqlDouble 0) (stAzimuth (sqlPoint $ V2 0 0)) geog)
   void $ runUpdate conn $ setTextFor "H2" "A big rat bited me in the rats"
+  case parseQuery "\"big rat\" and bites or not surmulot" of
+    Left err -> putStr $ err <> "\n"
+    Right r -> putStrLn $ "Parsed: " <> show r
   case res :: [(Text, Double)] of
     [] -> putStrLn "No result"
     _ -> print res

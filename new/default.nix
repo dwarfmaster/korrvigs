@@ -1,5 +1,5 @@
 { mkDerivation, aeson, base, base16-bytestring, binary, bytestring
-, containers, data-endian, lens, lib, linear, mtl, opaleye
+, containers, data-endian, lens, lib, linear, mtl, opaleye, parsec
 , postgresql-simple, product-profunctors, profunctors, text, time
 }:
 mkDerivation {
@@ -10,15 +10,15 @@ mkDerivation {
   isExecutable = true;
   libraryHaskellDepends = [
     aeson base base16-bytestring binary bytestring containers
-    data-endian lens linear mtl opaleye postgresql-simple
+    data-endian lens linear mtl opaleye parsec postgresql-simple
     product-profunctors profunctors text time
   ];
   executableHaskellDepends = [
-    aeson base bytestring containers lens linear mtl opaleye
+    aeson base bytestring containers lens linear mtl opaleye parsec
     postgresql-simple product-profunctors profunctors text time
   ];
   testHaskellDepends = [
-    aeson base bytestring containers lens linear mtl opaleye
+    aeson base bytestring containers lens linear mtl opaleye parsec
     postgresql-simple product-profunctors profunctors text time
   ];
   doHaddock = false;

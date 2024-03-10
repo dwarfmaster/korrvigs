@@ -1,9 +1,11 @@
-module Korrvigs.FTS.Parser (parseQuery) where
+module Korrvigs.FTS.Parser (parseQuery, tests) where
 
 import Control.Monad (void)
+import Data.Either (isLeft)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.FTS.Query
+import Korrvigs.FTS.Query hiding (tests)
+import Test.HUnit
 import Text.Parsec
 
 type Parser a = Parsec Text () a
@@ -12,6 +14,26 @@ parseQuery :: Text -> Either Text Query
 parseQuery txt = case parse queryP "query" txt of
   Right q -> Right q
   Left err -> Left . T.pack $ show err
+
+tests :: Test
+tests =
+  test
+    [ "Fail" ~: isLeft (parseQuery "or") @? "Expect failure",
+      "Basic" ~:
+        parseQuery "toto tata hello"
+          @=? Right (And [Phrase ["toto"], Phrase ["tata"], Phrase ["hello"]]),
+      "Logic" ~:
+        parseQuery "toto and tata or not titi and tutu"
+          @=? Right
+            ( Or
+                [ And [Phrase ["toto"], Phrase ["tata"]],
+                  And [Not (Phrase ["titi"]), Phrase ["tutu"]]
+                ]
+            ),
+      "Quote" ~:
+        parseQuery "\"a b c d\""
+          @=? Right (Phrase ["a", "b", "c", "d"])
+    ]
 
 queryP :: Parser Query
 queryP = queryOrP <* eof
@@ -48,7 +70,11 @@ queryAndP = try andP <|> queryPhraseP
         _ -> [q1, q2]
 
 queryPhraseP :: Parser Query
-queryPhraseP = try (And <$> sepBy1 queryNotP spaces1) <|> queryNotP
+queryPhraseP = try (andC <$> sepBy1 queryNotP spaces1) <|> queryNotP
+  where
+    andC :: [Query] -> Query
+    andC [q] = q
+    andC qs = And qs
 
 queryNotP :: Parser Query
 queryNotP = try notP <|> queryQuoteP

@@ -18,4 +18,6 @@ import Test.HUnit
 tests :: Test
 tests =
   test
-    ["Query" ~: Korrvigs.FTS.Query.tests]
+    [ "Query" ~: Korrvigs.FTS.Query.tests,
+      "Parser" ~: Korrvigs.FTS.Parser.tests
+    ]

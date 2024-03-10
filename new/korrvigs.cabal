@@ -34,6 +34,7 @@ common settings
     , base                 ^>=4.16.4.0
     , bytestring           ^>=0.11.4.0
     , containers           ^>=0.6.5.0
+    , HUnit                ^>=1.6.2.0
     , lens                 ^>=5.1.1
     , linear               ^>=1.21.0
     , mtl                  ^>=2.2.2

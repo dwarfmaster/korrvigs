@@ -73,6 +73,7 @@ library korrvigs-lib
     Korrvigs.Kind
     Korrvigs.Kind.Def
     Korrvigs.Kind.SQL
+    Korrvigs.Monad
     Korrvigs.Utils
     Korrvigs.Utils.Opaleye
 

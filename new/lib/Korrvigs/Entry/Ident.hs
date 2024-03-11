@@ -16,6 +16,7 @@ where
 import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad.Extra (findM)
+import Control.Monad.IO.Class
 import Data.Char
 import Data.List (unfoldr)
 import Data.Maybe (fromJust, isNothing)
@@ -24,6 +25,9 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
 import Korrvigs.Entry.Ident.Stopwords
+import Korrvigs.Entry.SQL
+import Korrvigs.Monad
+import Opaleye hiding (not, null)
 import Text.Printf
 
 newtype Id = MkId Text
@@ -96,6 +100,19 @@ prep mk = T.intercalate ":" $ filter (not . T.null) [mk ^. idPrefix, stub, date,
 nextMaker :: IdMaker -> IdMaker
 nextMaker = idSeq %~ maybe (Just 1) (Just . (+ 1))
 
-newId :: Monad m => (Text -> m Bool) -> IdMaker -> m Text
-newId check mk =
+createId :: Monad m => (Text -> m Bool) -> IdMaker -> m Text
+createId check mk =
   fmap fromJust $ findM check $ prep <$> unfoldr (Just . (id &&& nextMaker)) mk
+
+newId :: MonadKorrvigs m => IdMaker -> m Id
+newId =
+  fmap MkId
+    . createId
+      ( \candidate -> do
+          conn <- pgSQL
+          r <- liftIO $ runSelect conn $ limit 1 $ do
+            EntryRow i _ _ _ _ _ _ <- selectTable entriesTable
+            where_ $ i .== sqlStrictText candidate
+            pure ()
+          pure $ null r
+      )

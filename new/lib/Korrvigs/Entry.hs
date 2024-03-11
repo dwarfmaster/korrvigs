@@ -32,8 +32,17 @@ module Korrvigs.Entry
     EntryRowSQL,
     pEntryRow,
     entriesTable,
+    IdMaker,
+    imk,
+    idPrefix,
+    idTitle,
+    idParent,
+    idSeq,
+    idDate,
+    newId,
   )
 where
 
 import Korrvigs.Entry.Def
+import Korrvigs.Entry.Ident
 import Korrvigs.Entry.SQL

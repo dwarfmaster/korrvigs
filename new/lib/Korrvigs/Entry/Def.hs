@@ -7,11 +7,9 @@ import Data.Aeson (Value)
 import Data.Map (Map)
 import Data.Text (Text)
 import Data.Time (CalendarDiffTime, ZonedTime)
+import Korrvigs.Entry.Ident
 import Korrvigs.Geometry
 import Korrvigs.Kind (Kind (..))
-
-newtype Id = MkId Text
-  deriving (Eq, Ord, Show)
 
 type Metadata = Map Text Value
 

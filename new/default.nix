@@ -1,7 +1,7 @@
 { mkDerivation, aeson, base, base16-bytestring, binary, bytestring
-, containers, data-endian, HUnit, lens, lib, linear, mtl, opaleye
-, parsec, postgresql-simple, product-profunctors, profunctors, text
-, time
+, containers, data-endian, extra, HUnit, lens, lib, linear, mtl
+, opaleye, parsec, postgresql-simple, product-profunctors
+, profunctors, text, time
 }:
 mkDerivation {
   pname = "korrvigs";
@@ -11,16 +11,18 @@ mkDerivation {
   isExecutable = true;
   libraryHaskellDepends = [
     aeson base base16-bytestring binary bytestring containers
-    data-endian HUnit lens linear mtl opaleye parsec postgresql-simple
-    product-profunctors profunctors text time
+    data-endian extra HUnit lens linear mtl opaleye parsec
+    postgresql-simple product-profunctors profunctors text time
   ];
   executableHaskellDepends = [
-    aeson base bytestring containers HUnit lens linear mtl opaleye
-    parsec postgresql-simple product-profunctors profunctors text time
+    aeson base bytestring containers extra HUnit lens linear mtl
+    opaleye parsec postgresql-simple product-profunctors profunctors
+    text time
   ];
   testHaskellDepends = [
-    aeson base bytestring containers HUnit lens linear mtl opaleye
-    parsec postgresql-simple product-profunctors profunctors text time
+    aeson base bytestring containers extra HUnit lens linear mtl
+    opaleye parsec postgresql-simple product-profunctors profunctors
+    text time
   ];
   doHaddock = false;
   description = "A wiki system for my personal use";

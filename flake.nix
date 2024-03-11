@@ -36,6 +36,7 @@
             hpkgs.base16-bytestring
             hpkgs.data-endian
             hpkgs.HUnit
+            hpkgs.extra
           ]);
 
           pre-commit.hooks = {

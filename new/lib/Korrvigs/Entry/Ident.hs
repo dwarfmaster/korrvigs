@@ -30,7 +30,7 @@ import Korrvigs.Monad
 import Opaleye hiding (not, null)
 import Text.Printf
 
-newtype Id = MkId Text
+newtype Id = MkId {unId :: Text}
   deriving (Eq, Ord, Show)
 
 data IdMaker = IdMaker

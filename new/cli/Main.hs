@@ -2,6 +2,8 @@ module Main where
 
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
+import Data.Default
+import Data.Function ((&))
 import Data.Int (Int64)
 import Data.Profunctor.Product.Default ()
 import Data.Text (Text)
@@ -11,6 +13,7 @@ import Korrvigs.Entry
 import Korrvigs.FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
+import Korrvigs.Utils.DateTree
 import Linear.V2
 import Opaleye
 import Prelude hiding (putStr)
@@ -41,6 +44,8 @@ query = And [Phrase ["big", "rat"], Phrase ["bites"]]
 
 main :: IO ()
 main = do
+  storeFile "/tmp/korrvigs" (def & dtYear .~ True & dtDay .~ True) Nothing "toto" "tata"
+  listFiles "/tmp/korrvigs" (def & dtYear .~ True & dtDay .~ True) >>= print
   conn <- connectPostgreSQL "dbname='korrvigs_new'"
   res <- runSelect conn $ do
     EntryRow nm _ _ _ geog txt _ <- selectTable entriesTable

@@ -37,6 +37,7 @@
             hpkgs.data-endian
             hpkgs.HUnit
             hpkgs.extra
+            hpkgs.parsec3-numbers
           ]);
 
           pre-commit.hooks = {

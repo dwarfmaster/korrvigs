@@ -4,6 +4,7 @@
 module Korrvigs.Entry.SQL where
 
 import Control.Lens.TH (makeLenses)
+import Control.Monad.IO.Class
 import Data.Aeson (Value)
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
@@ -12,6 +13,7 @@ import Data.Time (CalendarDiffTime, ZonedTime)
 import Korrvigs.FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
+import Korrvigs.Monad
 import Opaleye
 
 -- Entries table
@@ -51,3 +53,17 @@ entriesTable =
         (tableField "geo")
         (tableField "text")
         (tableField "metadata")
+
+-- Returns True if the insertion was successful
+addEntry :: MonadKorrvigs m => EntryRow -> m Bool
+addEntry entry =
+  pgSQL >>= \conn -> liftIO $ do
+    cnt <-
+      runInsert conn $
+        Insert
+          { iTable = entriesTable,
+            iRows = [toFields entry],
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
+    pure $ cnt == 1

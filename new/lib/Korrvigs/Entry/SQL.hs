@@ -3,9 +3,11 @@
 
 module Korrvigs.Entry.SQL where
 
-import Control.Lens.TH (makeLenses)
+import Control.Arrow ((&&&))
+import Control.Lens
 import Control.Monad.IO.Class
 import Data.Aeson (Value)
+import Data.Profunctor.Product (p2)
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
@@ -67,3 +69,10 @@ addEntry entry =
             iOnConflict = Just doNothing
           }
     pure $ cnt == 1
+
+nameKindField :: Kind -> TableFields (Field SqlText) (Field SqlText)
+nameKindField kd =
+  dimap
+    (id &&& const (sqlKind kd))
+    (^. _1)
+    $ p2 (tableField "name", tableField "kind")

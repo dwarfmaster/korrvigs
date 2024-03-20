@@ -76,6 +76,8 @@ library korrvigs-lib
     Korrvigs.Kind.Def
     Korrvigs.Kind.SQL
     Korrvigs.Link
+    Korrvigs.Link.JSON
+    Korrvigs.Link.SQL
     Korrvigs.Monad
     Korrvigs.Utils
     Korrvigs.Utils.DateTree

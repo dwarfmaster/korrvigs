@@ -29,11 +29,12 @@ CREATE TABLE notes (
     FOREIGN KEY (name,kind) references entries(name,kind)
 );
 
-CREATE TABLE link (
+CREATE TABLE links (
   name TEXT NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'link'),
   protocol TEXT NOT NULL,
   ref TEXT NOT NULL,
+  file TEXT NOT NULL,
   CONSTRAINT notes_entries
     FOREIGN KEY (name,kind) references entries(name,kind)
 );

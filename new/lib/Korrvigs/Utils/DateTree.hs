@@ -43,7 +43,7 @@ storeFile ::
   Maybe Day ->
   Text ->
   ByteString ->
-  m ()
+  m FilePath
 storeFile root tp mday name content = liftIO $ do
   createDirectoryIfMissing True root
   day <- toGregorian <$> maybe getCurrentDay pure mday
@@ -57,7 +57,7 @@ storeFile root tp mday name content = liftIO $ do
             then storeFileDay root day name content
             else storeFilePlain root name content
 
-storeFileYear :: FilePath -> DateTreeType -> DayData -> Text -> ByteString -> IO ()
+storeFileYear :: FilePath -> DateTreeType -> DayData -> Text -> ByteString -> IO FilePath
 storeFileYear root tp day name content = do
   let dir = joinPath [root, printf "%04d" $ day ^. _1]
   createDirectoryIfMissing False dir
@@ -68,7 +68,7 @@ storeFileYear root tp day name content = do
         then storeFileDay dir day name content
         else storeFilePlain dir name content
 
-storeFileMonth :: FilePath -> DateTreeType -> DayData -> Text -> ByteString -> IO ()
+storeFileMonth :: FilePath -> DateTreeType -> DayData -> Text -> ByteString -> IO FilePath
 storeFileMonth root tp day name content = do
   let dir = joinPath [root, printf "%02d" $ day ^. _2]
   createDirectoryIfMissing False dir
@@ -76,16 +76,17 @@ storeFileMonth root tp day name content = do
     then storeFileDay dir day name content
     else storeFilePlain dir name content
 
-storeFileDay :: FilePath -> DayData -> Text -> ByteString -> IO ()
+storeFileDay :: FilePath -> DayData -> Text -> ByteString -> IO FilePath
 storeFileDay root day name content = do
   let dir = joinPath [root, printf "%02d" $ day ^. _3]
   createDirectoryIfMissing False dir
   storeFilePlain dir name content
 
-storeFilePlain :: FilePath -> Text -> ByteString -> IO ()
+storeFilePlain :: FilePath -> Text -> ByteString -> IO FilePath
 storeFilePlain root name content = do
   let path = joinPath [root, T.unpack name]
   writeFile path content
+  pure path
 
 type DateFile = (FilePath, Maybe Year, Maybe MonthOfYear, Maybe DayOfMonth)
 

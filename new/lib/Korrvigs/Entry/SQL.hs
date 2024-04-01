@@ -5,12 +5,16 @@ module Korrvigs.Entry.SQL where
 
 import Control.Arrow ((&&&))
 import Control.Lens
-import Data.Aeson (Value)
+import Data.Aeson (Result (..), Value, fromJSON)
+import Data.Map (Map)
+import qualified Data.Map as M
 import Data.Profunctor.Product (p2)
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
 import Data.Time (CalendarDiffTime, ZonedTime)
+import Korrvigs.Entry.Def
+import Korrvigs.Entry.Ident
 import Korrvigs.FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
@@ -60,3 +64,23 @@ nameKindField kd =
     (id &&& const (sqlKind kd))
     (^. _1)
     $ p2 (tableField "name", tableField "kind")
+
+mtdtFromJSON :: Maybe Value -> Map Text Value
+mtdtFromJSON json = case fromJSON <$> json of
+  Just (Success mp) -> mp
+  _ -> M.empty
+
+entryFromRow :: (a -> KindData) -> EntryRow -> (Entry -> a) -> a
+entryFromRow tkd row cstr = kd
+  where
+    kd = cstr entry
+    entry =
+      MkEntry
+        { _name = MkId $ row ^. sqlEntryName,
+          _date = row ^. sqlEntryDate,
+          _duration = row ^. sqlEntryDuration,
+          _geo = row ^. sqlEntryGeo,
+          _metadata = mtdtFromJSON $ row ^. sqlEntryMetadata,
+          _kindData = tkd kd,
+          _children = []
+        }

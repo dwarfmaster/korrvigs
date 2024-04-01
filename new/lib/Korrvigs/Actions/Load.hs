@@ -9,7 +9,7 @@ import Korrvigs.Monad
 import Opaleye
 
 mkEntry :: IsKD a => f a -> EntryRow -> (Entry -> a) -> Entry
-mkEntry = undefined
+mkEntry _ row = dEntry . entryFromRow dToData row
 
 load :: MonadKorrvigs m => Id -> m (Maybe Entry)
 load i = do

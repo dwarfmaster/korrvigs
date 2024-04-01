@@ -9,14 +9,6 @@ class IsKD a where
   -- Load from database
   dLoad :: MonadKorrvigs m => Id -> ((Entry -> a) -> Entry) -> m (Maybe Entry)
 
-  -- Add a new entry
-  data KDMaker a
-  dMake :: MonadKorrvigs m => KDMaker a -> m ()
-
-  -- Update an entry
-  data KDUpdater a
-  dUpdate :: MonadKorrvigs m => KDUpdater a -> m ()
-
   -- List the ids present in the filesystem
   data KDIdentifier a
   dList :: MonadKorrvigs m => m (Set (KDIdentifier a))

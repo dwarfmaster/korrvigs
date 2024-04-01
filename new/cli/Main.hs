@@ -44,7 +44,7 @@ query = And [Phrase ["big", "rat"], Phrase ["bites"]]
 
 main :: IO ()
 main = do
-  storeFile "/tmp/korrvigs" (def & dtYear .~ True & dtDay .~ True) Nothing "toto" "tata"
+  void $ storeFile "/tmp/korrvigs" (def & dtYear .~ True & dtDay .~ True) Nothing "toto" "tata"
   listFiles "/tmp/korrvigs" (def & dtYear .~ True & dtDay .~ True) >>= print
   conn <- connectPostgreSQL "dbname='korrvigs_new'"
   res <- runSelect conn $ do

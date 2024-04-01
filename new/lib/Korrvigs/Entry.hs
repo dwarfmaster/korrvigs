@@ -34,6 +34,7 @@ module Korrvigs.Entry
     pEntryRow,
     entriesTable,
     nameKindField,
+    entryFromRow,
     IdMaker,
     imk,
     idPrefix,

@@ -19,7 +19,7 @@ class IsKD a where
 
   -- List the ids present in the filesystem
   data KDIdentifier a
-  dList :: m (Set (KDIdentifier a))
+  dList :: MonadKorrvigs m => m (Set (KDIdentifier a))
   dGetId :: KDIdentifier a -> Id
 
   -- Sync the content of the filesystem to the database

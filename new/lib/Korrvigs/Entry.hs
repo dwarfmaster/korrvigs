@@ -10,6 +10,7 @@ module Korrvigs.Entry
     linkEntry,
     linkProtocol,
     linkRef,
+    linkPath,
     Entry (..),
     name,
     date,

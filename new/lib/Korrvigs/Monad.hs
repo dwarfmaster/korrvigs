@@ -2,13 +2,21 @@
 
 module Korrvigs.Monad where
 
+import Control.Exception.Base (IOException)
+import Control.Monad.Except
 import Control.Monad.IO.Class
 import Data.Profunctor.Product.Default
-import Database.PostgreSQL.Simple (Connection)
+import Data.Text (Text)
+import Database.PostgreSQL.Simple (Connection, withTransaction)
 import Korrvigs.Entry
 import Opaleye hiding (null)
 
-class MonadIO m => MonadKorrvigs m where
+data KorrvigsError
+  = KIOError IOException
+  | KDuplicateId Id Text Text
+  | KCantLoad Id Text
+
+class (MonadIO m, MonadError KorrvigsError m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
   load :: Id -> m (Maybe Entry)
@@ -51,3 +59,15 @@ newId =
             pure ()
           pure $ null r
       )
+
+throwMaybe :: MonadKorrvigs m => KorrvigsError -> Maybe a -> m a
+throwMaybe err = maybe (throwError err) pure
+
+throwEither :: MonadKorrvigs m => (a -> KorrvigsError) -> Either a b -> m b
+throwEither err (Left t) = throwError $ err t
+throwEither _ (Right v) = pure v
+
+atomicSQL :: MonadKorrvigs m => (Connection -> IO a) -> m a
+atomicSQL act = do
+  conn <- pgSQL
+  liftIO $ withTransaction conn $ act conn

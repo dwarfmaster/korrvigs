@@ -62,6 +62,7 @@ library korrvigs-lib
     Korrvigs.Actions
     Korrvigs.Actions.Load
     Korrvigs.Actions.Remove
+    Korrvigs.AllEntries
     Korrvigs.Entry
     Korrvigs.Entry.Def
     Korrvigs.Entry.Ident

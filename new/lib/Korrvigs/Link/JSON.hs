@@ -5,9 +5,11 @@ module Korrvigs.Link.JSON where
 import Control.Lens hiding ((.=))
 import Data.Aeson
 import Data.Aeson.Types
+import Data.Default
 import Data.Map (Map)
 import Data.Text (Text)
 import Korrvigs.Monad
+import Korrvigs.Utils.DateTree (DateTreeType, dtMonth, dtYear)
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
 
@@ -45,3 +47,6 @@ instance ToJSON LinkJSON where
 
 linkJSONPath :: MonadKorrvigs m => m FilePath
 linkJSONPath = joinPath . (: ["links"]) <$> root
+
+linkJSONTreeType :: DateTreeType
+linkJSONTreeType = def & dtYear .~ True & dtMonth .~ True

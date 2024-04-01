@@ -23,7 +23,8 @@ data Note = MkNote
 data Link = MkLink
   { _linkEntry :: Entry,
     _linkProtocol :: Text,
-    _linkRef :: Text
+    _linkRef :: Text,
+    _linkPath :: FilePath
   }
   deriving (Show)
 

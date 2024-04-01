@@ -59,6 +59,9 @@ library korrvigs-lib
   import:          settings
   exposed-modules:
     Korrvigs
+    Korrvigs.Actions
+    Korrvigs.Actions.Load
+    Korrvigs.Actions.Remove
     Korrvigs.Entry
     Korrvigs.Entry.Def
     Korrvigs.Entry.Ident
@@ -75,9 +78,11 @@ library korrvigs-lib
     Korrvigs.Kind
     Korrvigs.Kind.Def
     Korrvigs.Kind.SQL
+    Korrvigs.KindData
     Korrvigs.Link
     Korrvigs.Link.JSON
     Korrvigs.Link.SQL
+    Korrvigs.Link.Sync
     Korrvigs.Metadata
     Korrvigs.Monad
     Korrvigs.Utils

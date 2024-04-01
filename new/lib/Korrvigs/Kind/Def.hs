@@ -9,4 +9,9 @@ data Kind
   | Link
   deriving (Eq, Ord, Show, Enum)
 
+-- Singletons
+data NoteK = NoteK
+
+data LinkK = LinkK
+
 makeLenses ''Kind

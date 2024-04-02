@@ -14,12 +14,15 @@ data KorrvigsError
   = KIOError IOException
   | KDuplicateId Id Text Text
   | KCantLoad Id Text
+  deriving (Show)
 
 class (MonadIO m, MonadError KorrvigsError m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
   load :: Id -> m (Maybe Entry)
   remove :: Id -> m ()
+  removeDB :: Id -> m ()
+  sync :: m ()
 
 rSelect :: (Default FromFields fields haskell, MonadKorrvigs m) => Select fields -> m [haskell]
 rSelect query = do

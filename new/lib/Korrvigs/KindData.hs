@@ -6,12 +6,13 @@ import Korrvigs.Kind
 import Korrvigs.Monad
 
 class IsKD a where
-  -- Load from database
+  -- Load/remove from database only
   dLoad :: MonadKorrvigs m => Id -> ((Entry -> a) -> Entry) -> m (Maybe Entry)
+  dRemoveDB :: MonadKorrvigs m => f a -> Id -> m ()
 
   -- List the ids present in the filesystem
   data KDIdentifier a
-  dList :: MonadKorrvigs m => m (Set (KDIdentifier a))
+  dList :: MonadKorrvigs m => f a -> m (Set (KDIdentifier a))
   dGetId :: KDIdentifier a -> Id
 
   -- Sync the content of the filesystem to the database

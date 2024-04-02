@@ -55,7 +55,7 @@ syncLinkJSON i path json = do
 syncLink :: MonadKorrvigs m => FilePath -> m ()
 syncLink path = do
   let i = linkIdFromPath path
-  remove i
+  removeDB i
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   void $ syncLinkJSON i path json
 
@@ -78,11 +78,9 @@ dSyncImpl _ = allJSONs >>= mapM_ syncLink
 dSyncOneImpl :: MonadKorrvigs m => FilePath -> m ()
 dSyncOneImpl = syncLink
 
-dRemoveImpl :: MonadKorrvigs m => FilePath -> m ()
-dRemoveImpl path = do
-  let i = linkIdFromPath path
+dRemoveDBImpl :: MonadKorrvigs m => Id -> m ()
+dRemoveDBImpl i =
   atomicSQL $ \conn -> do
-    removeFile path
     void $
       runDelete conn $
         Delete
@@ -97,6 +95,12 @@ dRemoveImpl path = do
             dWhere = \erow -> erow ^. sqlEntryName .== sqlStrictText (unId i),
             dReturning = rCount
           }
+
+dRemoveImpl :: MonadKorrvigs m => FilePath -> m ()
+dRemoveImpl path = do
+  let i = linkIdFromPath path
+  liftIO $ removeFile path
+  dRemoveDBImpl i
 
 linkFromRow :: LinkRow -> Entry -> Link
 linkFromRow row entry =

@@ -8,11 +8,14 @@ module Korrvigs.Link
     lkMtdt,
     lmk,
     newLink,
+    displayLinkId,
   )
 where
 
 import Control.Lens (view)
 import qualified Data.Set as S
+import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.KindData
@@ -23,7 +26,8 @@ instance IsKD Link where
   data KDIdentifier Link = LinkIdentifier FilePath
     deriving (Ord, Eq)
   dLoad = dLoadImpl
-  dList = S.map LinkIdentifier <$> dListImpl
+  dRemoveDB _ = dRemoveDBImpl
+  dList _ = S.map LinkIdentifier <$> dListImpl
   dGetId (LinkIdentifier path) = dGetIdImpl path
   dSync = dSyncImpl
   dSyncOne (LinkIdentifier path) = dSyncOneImpl path
@@ -32,3 +36,6 @@ instance IsKD Link where
   dEntry = view linkEntry
   dIdentify = LinkIdentifier . view linkPath
   dToData = LinkD
+
+displayLinkId :: KDIdentifier Link -> Text
+displayLinkId (LinkIdentifier path) = "link:" <> T.pack path

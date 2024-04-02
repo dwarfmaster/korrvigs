@@ -1,61 +1,53 @@
 module Main where
 
-import Control.Lens ((.~), (^.))
-import Control.Monad (void)
-import Data.Default
-import Data.Function ((&))
-import Data.Int (Int64)
+import Control.Lens
+import Control.Monad.Except
+import Control.Monad.Reader
+import Data.Aeson (toJSON)
+import Data.ByteString (ByteString)
 import Data.Profunctor.Product.Default ()
 import Data.Text (Text)
-import Data.Text.IO (putStr)
-import Database.PostgreSQL.Simple (close, connectPostgreSQL)
-import Korrvigs.Entry
-import Korrvigs.FTS
-import Korrvigs.Geometry
-import Korrvigs.Kind
-import Korrvigs.Utils.DateTree
-import Linear.V2
-import Opaleye
+import Database.PostgreSQL.Simple (Connection, close, connectPostgreSQL)
+import qualified Korrvigs.Actions as Actions
+import Korrvigs.Link
+import Korrvigs.Monad
 import Prelude hiding (putStr)
 
-toInsert :: Insert Int64
-toInsert =
-  Insert
-    { iTable = entriesTable,
-      iRows =
-        toFields
-          <$> [ mkEntryRow "H2" Note Nothing Nothing (Just (GeoPoint $ V2 4.20 3.1415)) Nothing Nothing
-              ],
-      iReturning = rCount,
-      iOnConflict = Just doNothing
-    }
+data KorrState = KState
+  { _korrConnection :: Connection,
+    _korrRoot :: FilePath
+  }
 
-setTextFor :: Text -> Text -> Update Int64
-setTextFor nm txt =
-  Update
-    { uTable = entriesTable,
-      uUpdateWith = sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText txt),
-      uWhere = \er -> (er ^. sqlEntryName) .== sqlStrictText nm,
-      uReturning = rCount
-    }
+makeLenses ''KorrState
 
-query :: Query
-query = And [Phrase ["big", "rat"], Phrase ["bites"]]
+type KorrM = ExceptT KorrvigsError (ReaderT KorrState IO)
+
+instance MonadKorrvigs KorrM where
+  pgSQL = view korrConnection
+  root = view korrRoot
+  load = Actions.load
+  remove = Actions.remove
+  removeDB = Actions.removeDB
+  sync = Actions.sync
+
+runKorrM :: ByteString -> KorrM a -> IO (Either KorrvigsError a)
+runKorrM connSpec action = do
+  conn <- connectPostgreSQL connSpec
+  r <- runReaderT (runExceptT action) $ KState conn "/tmp/korrvigs"
+  close conn
+  pure r
+
+link1 :: LinkMaker
+link1 =
+  lmk "dwarfmaster (Luc Chabassier)" "https" "github.com/dwarfmaster"
+    & lkMtdt . at "date" ?~ toJSON ("2024-04-22" :: Text)
 
 main :: IO ()
-main = do
-  void $ storeFile "/tmp/korrvigs" (def & dtYear .~ True & dtDay .~ True) Nothing "toto" "tata"
-  listFiles "/tmp/korrvigs" (def & dtYear .~ True & dtDay .~ True) >>= print
-  conn <- connectPostgreSQL "dbname='korrvigs_new'"
-  res <- runSelect conn $ do
-    EntryRow nm _ _ _ geog txt _ <- selectTable entriesTable
-    where_ $ matchNullable (sqlBool True) (sqlQuery query @@) txt
-    pure (nm, matchNullable (sqlDouble 0) (stAzimuth (sqlPoint $ V2 0 0)) geog)
-  void $ runUpdate conn $ setTextFor "H2" "A big rat bited me in the rats"
-  case parseQuery "\"big rat\" and bites or not surmulot" of
-    Left err -> putStr $ err <> "\n"
-    Right r -> putStrLn $ "Parsed: " <> show r
-  case res :: [(Text, Double)] of
-    [] -> putStrLn "No result"
-    _ -> print res
-  close conn
+main =
+  print
+    =<< runKorrM
+      "dbname='korrvigs_new'"
+      ( do
+          sync
+          -- void $ newLink link1
+      )

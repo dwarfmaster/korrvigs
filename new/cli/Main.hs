@@ -7,10 +7,14 @@ import Data.Aeson (toJSON)
 import Data.ByteString (ByteString)
 import Data.Profunctor.Product.Default ()
 import Data.Text (Text)
+import Data.Text.Lazy.Encoding (decodeLatin1)
 import Database.PostgreSQL.Simple (Connection, close, connectPostgreSQL)
 import qualified Korrvigs.Actions as Actions
+import Korrvigs.Geometry
+import Korrvigs.Geometry.WKB
 import Korrvigs.Link
 import Korrvigs.Monad
+import Linear.V2
 import Prelude hiding (putStr)
 
 data KorrState = KState
@@ -27,7 +31,9 @@ instance MonadKorrvigs KorrM where
   root = view korrRoot
   load = Actions.load
   remove = Actions.remove
+  dispatchRemove = Actions.dispatchRemove
   removeDB = Actions.removeDB
+  dispatchRemoveDB = Actions.dispatchRemoveDB
   sync = Actions.sync
 
 runKorrM :: ByteString -> KorrM a -> IO (Either KorrvigsError a)
@@ -40,7 +46,8 @@ runKorrM connSpec action = do
 link1 :: LinkMaker
 link1 =
   lmk "dwarfmaster (Luc Chabassier)" "https" "github.com/dwarfmaster"
-    & lkMtdt . at "date" ?~ toJSON ("2024-04-22" :: Text)
+    & lkMtdt . at "date" ?~ toJSON ("2022-04-12T23:00:01+03:00" :: Text)
+    & lkMtdt . at "geometry" ?~ toJSON (decodeLatin1 $ writeGeometry $ GeoPoint $ V2 15.0 0.0)
 
 main :: IO ()
 main =

@@ -1,7 +1,7 @@
 module Korrvigs.Link.Sync where
 
 import Control.Lens
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Control.Monad.IO.Class
 import Data.Aeson (eitherDecode, encode, toJSON)
 import Data.ByteString.Lazy (readFile)
@@ -19,7 +19,7 @@ import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils.DateTree (listFiles, storeFile)
 import Opaleye
-import System.Directory (removeFile)
+import System.Directory (doesFileExist, removeFile)
 import System.FilePath (takeBaseName)
 import Prelude hiding (readFile)
 
@@ -55,7 +55,13 @@ syncLinkJSON i path json = do
 syncLink :: MonadKorrvigs m => FilePath -> m ()
 syncLink path = do
   let i = linkIdFromPath path
-  removeDB i
+  prev <- load i
+  case prev of
+    Nothing -> pure ()
+    Just prevEntry ->
+      case prevEntry ^. kindData of
+        LinkD lnk | lnk ^. linkPath == path -> dispatchRemoveDB prevEntry
+        _ -> dispatchRemove prevEntry
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   void $ syncLinkJSON i path json
 
@@ -99,7 +105,8 @@ dRemoveDBImpl i =
 dRemoveImpl :: MonadKorrvigs m => FilePath -> m ()
 dRemoveImpl path = do
   let i = linkIdFromPath path
-  liftIO $ removeFile path
+  exists <- liftIO $ doesFileExist path
+  when exists $ liftIO $ removeFile path
   dRemoveDBImpl i
 
 linkFromRow :: LinkRow -> Entry -> Link

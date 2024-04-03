@@ -1,4 +1,4 @@
-module Korrvigs.Actions (load, remove, removeDB, sync) where
+module Korrvigs.Actions (load, remove, removeDB, dispatchRemoveDB, dispatchRemove, sync) where
 
 import Korrvigs.Actions.Load
 import Korrvigs.Actions.Remove

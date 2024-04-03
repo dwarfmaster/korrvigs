@@ -21,7 +21,9 @@ class (MonadIO m, MonadError KorrvigsError m) => MonadKorrvigs m where
   root :: m FilePath
   load :: Id -> m (Maybe Entry)
   remove :: Id -> m ()
+  dispatchRemove :: Entry -> m ()
   removeDB :: Id -> m ()
+  dispatchRemoveDB :: Entry -> m ()
   sync :: m ()
 
 rSelect :: (Default FromFields fields haskell, MonadKorrvigs m) => Select fields -> m [haskell]

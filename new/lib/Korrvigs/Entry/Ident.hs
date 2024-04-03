@@ -56,9 +56,9 @@ prepTitle title = foldl (<>) "" content
     wds :: [Text]
     wds = T.map toLower <$> T.split (\c -> isPunctuation c || isSpace c) title
     toDrop :: Text -> Bool
-    toDrop t = S.member t stopwords || T.length t == 1
+    toDrop t = S.member t stopwords || T.length t <= 1
     content :: [Text]
-    content = capitalize . T.take 6 <$> (take 3 . filter (not . toDrop)) wds
+    content = capitalize . T.take 10 <$> (take 3 . filter (not . toDrop)) wds
 
 prepDate :: Bool -> ZonedTime -> Text
 prepDate full dt =

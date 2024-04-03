@@ -140,7 +140,7 @@ data LinkMaker = LinkMaker
 makeLenses ''LinkMaker
 
 lmk :: Text -> Text -> Text -> LinkMaker
-lmk title prot lk = LinkMaker (imk title) prot lk M.empty
+lmk title prot lk = LinkMaker (imk "link" & idTitle ?~ title) prot lk M.empty
 
 newLink :: MonadKorrvigs m => LinkMaker -> m Link
 newLink mk = do

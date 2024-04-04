@@ -18,6 +18,7 @@ import Korrvigs.Entry.Ident
 import Korrvigs.FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
+import qualified Korrvigs.Utils.Opaleye as Utils
 import Opaleye
 
 -- Entries table
@@ -104,28 +105,18 @@ entriesRefTable :: Table RelRowSQL RelRowSQL
 entriesRefTable =
   table "entries_ref" $ pRelRow $ RelRow (tableField "referer") (tableField "referee")
 
-selectSourcesFor' :: Table a RelRowSQL -> Field SqlText -> Select (Field SqlText)
-selectSourcesFor' tbl i = do
-  rel <- selectTable tbl
-  where_ $ rel ^. target .== i
-  pure $ rel ^. source
-
 selectSourcesFor :: Table a RelRowSQL -> Id -> Select (Field SqlText)
-selectSourcesFor tbl i = selectSourcesFor' tbl $ sqlId i
+selectSourcesFor tbl i =
+  Utils.transitiveClosureStep (selectTable tbl) (view target) (view source) (sqlId i)
 
 selectRecSourcesFor :: Table a RelRowSQL -> Id -> Select (Field SqlText)
 selectRecSourcesFor tbl i =
-  withRecursive (selectSourcesFor tbl i) $ selectSourcesFor' tbl
-
-selectTargetsFor' :: Table a RelRowSQL -> Field SqlText -> Select (Field SqlText)
-selectTargetsFor' tbl i = do
-  rel <- selectTable tbl
-  where_ $ rel ^. source .== i
-  pure $ rel ^. target
+  Utils.transitiveClosure (selectTable tbl) (view target) (view source) (sqlId i)
 
 selectTargetsFor :: Table a RelRowSQL -> Id -> Select (Field SqlText)
-selectTargetsFor tbl i = selectTargetsFor' tbl $ sqlId i
+selectTargetsFor tbl i =
+  Utils.transitiveClosureStep (selectTable tbl) (view source) (view target) (sqlId i)
 
 selectRecTargetsFor :: Table a RelRowSQL -> Id -> Select (Field SqlText)
 selectRecTargetsFor tbl i =
-  withRecursive (selectTargetsFor tbl i) $ selectSourcesFor' tbl
+  Utils.transitiveClosure (selectTable tbl) (view source) (view target) (sqlId i)

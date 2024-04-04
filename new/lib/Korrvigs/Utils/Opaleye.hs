@@ -13,3 +13,24 @@ ap2 f (C.Column a) (C.Column b) = C.Column $ HPQ.FunExpr f [a, b]
 
 ap3 :: String -> Field a -> Field b -> Field c -> Field d
 ap3 f (C.Column a) (C.Column b) (C.Column c) = C.Column $ HPQ.FunExpr f [a, b, c]
+
+transitiveClosureStep ::
+  Select a ->
+  (a -> Field b) ->
+  (a -> Field b) ->
+  Field b ->
+  Select (Field b)
+transitiveClosureStep sel pi1 pi2 i = do
+  a <- sel
+  where_ $ pi1 a .== i
+  pure $ pi2 a
+
+transitiveClosure ::
+  Select a ->
+  (a -> Field b) ->
+  (a -> Field b) ->
+  Field b ->
+  Select (Field b)
+transitiveClosure sel pi1 pi2 btm =
+  withRecursiveDistinct (transitiveClosureStep sel pi1 pi2 btm) $
+    transitiveClosureStep sel pi1 pi2

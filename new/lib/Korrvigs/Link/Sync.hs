@@ -1,10 +1,12 @@
 module Korrvigs.Link.Sync where
 
+import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad (void, when)
 import Control.Monad.IO.Class
 import Data.Aeson (eitherDecode, encode, toJSON)
 import Data.ByteString.Lazy (readFile)
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -13,6 +15,7 @@ import qualified Data.Text as T
 import Data.Time.LocalTime (localDay, zonedTimeToLocalTime)
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.KindData (RelData (..))
 import Korrvigs.Link.JSON
 import Korrvigs.Link.SQL
 import Korrvigs.Metadata
@@ -26,7 +29,7 @@ import Prelude hiding (readFile)
 linkIdFromPath :: FilePath -> Id
 linkIdFromPath = MkId . T.pack . takeBaseName
 
-syncLinkJSON :: MonadKorrvigs m => Id -> FilePath -> LinkJSON -> m (EntryRow, LinkRow)
+syncLinkJSON :: (MonadKorrvigs m) => Id -> FilePath -> LinkJSON -> m (EntryRow, LinkRow)
 syncLinkJSON i path json = do
   let mtdt = json ^. lkjsMetadata
   let geom = mtdtGeometry mtdt
@@ -52,7 +55,7 @@ syncLinkJSON i path json = do
           }
   pure (erow, lrow)
 
-syncLink :: MonadKorrvigs m => FilePath -> m ()
+syncLink :: (MonadKorrvigs m) => FilePath -> m RelData
 syncLink path = do
   let i = linkIdFromPath path
   prev <- load i
@@ -64,27 +67,33 @@ syncLink path = do
         _ -> dispatchRemove prevEntry
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   void $ syncLinkJSON i path json
+  pure $
+    RelData
+      { _relSubOf = MkId <$> json ^. lkjsParents,
+        _relRefTo = []
+      }
 
-allJSONs :: MonadKorrvigs m => m [FilePath]
+allJSONs :: (MonadKorrvigs m) => m [FilePath]
 allJSONs = do
   rt <- linkJSONPath
   let dtt = linkJSONTreeType
   files <- listFiles rt dtt
   pure $ (^. _1) <$> files
 
-dListImpl :: MonadKorrvigs m => m (Set FilePath)
+dListImpl :: (MonadKorrvigs m) => m (Set FilePath)
 dListImpl = S.fromList <$> allJSONs
 
 dGetIdImpl :: FilePath -> Id
 dGetIdImpl = linkIdFromPath
 
-dSyncImpl :: MonadKorrvigs m => f Link -> m ()
-dSyncImpl _ = allJSONs >>= mapM_ syncLink
+dSyncImpl :: (MonadKorrvigs m) => f Link -> m (Map Id RelData)
+dSyncImpl _ =
+  M.fromList <$> (allJSONs >>= mapM (sequence . (linkIdFromPath &&& syncLink)))
 
-dSyncOneImpl :: MonadKorrvigs m => FilePath -> m ()
+dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
 dSyncOneImpl = syncLink
 
-dRemoveDBImpl :: MonadKorrvigs m => Id -> m ()
+dRemoveDBImpl :: (MonadKorrvigs m) => Id -> m ()
 dRemoveDBImpl i =
   atomicSQL $ \conn -> do
     void $
@@ -102,7 +111,7 @@ dRemoveDBImpl i =
             dReturning = rCount
           }
 
-dRemoveImpl :: MonadKorrvigs m => FilePath -> m ()
+dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
   let i = linkIdFromPath path
   exists <- liftIO $ doesFileExist path
@@ -118,7 +127,7 @@ linkFromRow row entry =
       _linkPath = row ^. sqlLinkFile
     }
 
-dLoadImpl :: MonadKorrvigs m => Id -> ((Entry -> Link) -> Entry) -> m (Maybe Entry)
+dLoadImpl :: (MonadKorrvigs m) => Id -> ((Entry -> Link) -> Entry) -> m (Maybe Entry)
 dLoadImpl i cstr = do
   sel <- rSelectOne $ do
     lrow <- selectTable linksTable
@@ -142,7 +151,7 @@ makeLenses ''LinkMaker
 lmk :: Text -> Text -> Text -> LinkMaker
 lmk title prot lk = LinkMaker (imk "link" & idTitle ?~ title) prot lk M.empty
 
-newLink :: MonadKorrvigs m => LinkMaker -> m Link
+newLink :: (MonadKorrvigs m) => LinkMaker -> m Link
 newLink mk = do
   i <- newId $ mk ^. lkId
   -- Create JSON file

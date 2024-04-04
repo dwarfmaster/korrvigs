@@ -103,7 +103,7 @@ entriesSubTable =
 
 entriesRefTable :: Table RelRowSQL RelRowSQL
 entriesRefTable =
-  table "entries_ref" $ pRelRow $ RelRow (tableField "referer") (tableField "referee")
+  table "entries_ref_to" $ pRelRow $ RelRow (tableField "referer") (tableField "referee")
 
 selectSourcesFor :: Table a RelRowSQL -> Id -> Select (Field SqlText)
 selectSourcesFor tbl i =

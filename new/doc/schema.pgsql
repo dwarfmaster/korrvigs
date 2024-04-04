@@ -21,7 +21,7 @@ CREATE TABLE entries_sub (
     UNIQUE(child,parent)
 );
 
-CREATE TABLE entries_ref (
+CREATE TABLE entries_ref_to (
   referer TEXT NOT NULL REFERENCES entries(name),
   referee TEXT NOT NULL REFERENCES entries(name),
   CONSTRAINT entries_ref_unique

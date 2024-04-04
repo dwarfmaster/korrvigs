@@ -14,6 +14,8 @@ data KorrvigsError
   = KIOError IOException
   | KDuplicateId Id Text Text
   | KCantLoad Id Text
+  | KSubCycle [Id]
+  | KRelToUnknown Id
   deriving (Show)
 
 class (MonadIO m, MonadError KorrvigsError m) => MonadKorrvigs m where
@@ -38,7 +40,7 @@ rSelectOne query =
     _ -> pure Nothing
 
 -- Returns True if the insertion was successful
-addEntry :: MonadKorrvigs m => EntryRow -> m Bool
+addEntry :: (MonadKorrvigs m) => EntryRow -> m Bool
 addEntry entry =
   pgSQL >>= \conn -> liftIO $ do
     cnt <-
@@ -51,7 +53,7 @@ addEntry entry =
           }
     pure $ cnt == 1
 
-newId :: MonadKorrvigs m => IdMaker -> m Id
+newId :: (MonadKorrvigs m) => IdMaker -> m Id
 newId =
   fmap MkId
     . createId
@@ -64,14 +66,14 @@ newId =
           pure $ null r
       )
 
-throwMaybe :: MonadKorrvigs m => KorrvigsError -> Maybe a -> m a
+throwMaybe :: (MonadKorrvigs m) => KorrvigsError -> Maybe a -> m a
 throwMaybe err = maybe (throwError err) pure
 
-throwEither :: MonadKorrvigs m => (a -> KorrvigsError) -> Either a b -> m b
+throwEither :: (MonadKorrvigs m) => (a -> KorrvigsError) -> Either a b -> m b
 throwEither err (Left t) = throwError $ err t
 throwEither _ (Right v) = pure v
 
-atomicSQL :: MonadKorrvigs m => (Connection -> IO a) -> m a
+atomicSQL :: (MonadKorrvigs m) => (Connection -> IO a) -> m a
 atomicSQL act = do
   conn <- pgSQL
   liftIO $ withTransaction conn $ act conn

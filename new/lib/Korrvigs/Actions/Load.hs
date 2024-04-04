@@ -15,7 +15,7 @@ load :: MonadKorrvigs m => Id -> m (Maybe Entry)
 load i = do
   mrow <- rSelectOne $ do
     entry <- selectTable entriesTable
-    where_ $ entry ^. sqlEntryName .== sqlStrictText (unId i)
+    where_ $ entry ^. sqlEntryName .== sqlId i
     pure entry
   case mrow of
     Nothing -> pure Nothing

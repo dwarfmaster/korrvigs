@@ -91,14 +91,14 @@ dRemoveDBImpl i =
       runDelete conn $
         Delete
           { dTable = linksTable,
-            dWhere = \lrow -> lrow ^. sqlLinkName .== sqlStrictText (unId i),
+            dWhere = \lrow -> lrow ^. sqlLinkName .== sqlId i,
             dReturning = rCount
           }
     void $
       runDelete conn $
         Delete
           { dTable = entriesTable,
-            dWhere = \erow -> erow ^. sqlEntryName .== sqlStrictText (unId i),
+            dWhere = \erow -> erow ^. sqlEntryName .== sqlId i,
             dReturning = rCount
           }
 
@@ -122,7 +122,7 @@ dLoadImpl :: MonadKorrvigs m => Id -> ((Entry -> Link) -> Entry) -> m (Maybe Ent
 dLoadImpl i cstr = do
   sel <- rSelectOne $ do
     lrow <- selectTable linksTable
-    where_ $ lrow ^. sqlLinkName .== sqlStrictText (unId i)
+    where_ $ lrow ^. sqlLinkName .== sqlId i
     pure lrow
   case (sel :: Maybe LinkRow) of
     Nothing -> pure Nothing

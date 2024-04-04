@@ -2,7 +2,7 @@
   description = "Intelligent knowledge database system";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
     devenv.url = "github:cachix/devenv";
   };
 
@@ -28,7 +28,7 @@
           languages.haskell.enable = true;
           languages.haskell.package = pkgs.haskellPackages.ghcWithPackages (hpkgs: [
             hpkgs.yesod
-            hpkgs.opaleye
+            (pkgs.haskell.lib.dontCheck hpkgs.opaleye_0_10_2_0)
             hpkgs.pandoc
             hpkgs.dhall
             hpkgs.lens

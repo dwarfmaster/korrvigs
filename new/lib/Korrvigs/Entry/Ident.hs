@@ -10,6 +10,7 @@ module Korrvigs.Entry.Ident
     idDate,
     imk,
     createId,
+    sqlId,
   )
 where
 
@@ -25,7 +26,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
 import Korrvigs.Entry.Ident.Stopwords
-import Opaleye (DefaultFromField (..), Field, SqlText, ToFields)
+import Opaleye (DefaultFromField (..), Field, SqlText, ToFields, sqlStrictText)
 import Text.Printf
 
 newtype Id = MkId {unId :: Text}
@@ -36,6 +37,9 @@ instance Default ToFields Id (Field SqlText) where
 
 instance DefaultFromField SqlText Id where
   defaultFromField = MkId <$> defaultFromField
+
+sqlId :: Id -> Field SqlText
+sqlId = sqlStrictText . unId
 
 data IdMaker = IdMaker
   { _idPrefix :: Text,

@@ -37,21 +37,13 @@ kindDataKind :: KindData -> Kind
 kindDataKind (LinkD _) = Link
 kindDataKind (NoteD _) = Note
 
--- Add lazy cuts in an entry graph
-data EntryRef
-  = Ref Id
-  | Cached Entry
-  | NotFound Id
-  deriving (Show)
-
 data Entry = MkEntry
   { _name :: Id,
     _date :: Maybe ZonedTime,
     _duration :: Maybe CalendarDiffTime,
     _geo :: Maybe Geometry,
     _metadata :: Metadata,
-    _kindData :: KindData,
-    _children :: [EntryRef]
+    _kindData :: KindData
   }
   deriving (Show)
 

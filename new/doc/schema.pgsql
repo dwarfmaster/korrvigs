@@ -21,6 +21,13 @@ CREATE TABLE entries_sub (
     UNIQUE(child,parent)
 );
 
+CREATE TABLE entries_ref (
+  referer TEXT NOT NULL REFERENCES entries(name),
+  referee TEXT NOT NULL REFERENCES entries(name),
+  CONSTRAINT entries_ref_unique
+    UNIQUE(referer,referee)
+);
+
 CREATE TABLE notes (
   name TEXT NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'note'),

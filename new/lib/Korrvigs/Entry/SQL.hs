@@ -81,6 +81,51 @@ entryFromRow tkd row cstr = kd
           _duration = row ^. sqlEntryDuration,
           _geo = row ^. sqlEntryGeo,
           _metadata = mtdtFromJSON $ row ^. sqlEntryMetadata,
-          _kindData = tkd kd,
-          _children = []
+          _kindData = tkd kd
         }
+
+data RelRowImpl a b = RelRow {_source :: a, _target :: b}
+
+makeLenses ''RelRowImpl
+$(makeAdaptorAndInstanceInferrable "pRelRow" ''RelRowImpl)
+
+type RelRow = RelRowImpl Id Id
+
+type RelRowSQL = RelRowImpl (Field SqlText) (Field SqlText)
+
+instance Default ToFields RelRow RelRowSQL where
+  def = pRelRow $ RelRow def def
+
+entriesSubTable :: Table RelRowSQL RelRowSQL
+entriesSubTable =
+  table "entries_sub" $ pRelRow $ RelRow (tableField "child") (tableField "parent")
+
+entriesRefTable :: Table RelRowSQL RelRowSQL
+entriesRefTable =
+  table "entries_ref" $ pRelRow $ RelRow (tableField "referer") (tableField "referee")
+
+selectSourcesFor' :: Table a RelRowSQL -> Field SqlText -> Select (Field SqlText)
+selectSourcesFor' tbl i = do
+  rel <- selectTable tbl
+  where_ $ rel ^. target .== i
+  pure $ rel ^. source
+
+selectSourcesFor :: Table a RelRowSQL -> Id -> Select (Field SqlText)
+selectSourcesFor tbl i = selectSourcesFor' tbl $ sqlId i
+
+selectRecSourcesFor :: Table a RelRowSQL -> Id -> Select (Field SqlText)
+selectRecSourcesFor tbl i =
+  withRecursive (selectSourcesFor tbl i) $ selectSourcesFor' tbl
+
+selectTargetsFor' :: Table a RelRowSQL -> Field SqlText -> Select (Field SqlText)
+selectTargetsFor' tbl i = do
+  rel <- selectTable tbl
+  where_ $ rel ^. source .== i
+  pure $ rel ^. target
+
+selectTargetsFor :: Table a RelRowSQL -> Id -> Select (Field SqlText)
+selectTargetsFor tbl i = selectTargetsFor' tbl $ sqlId i
+
+selectRecTargetsFor :: Table a RelRowSQL -> Id -> Select (Field SqlText)
+selectRecTargetsFor tbl i =
+  withRecursive (selectTargetsFor tbl i) $ selectSourcesFor' tbl

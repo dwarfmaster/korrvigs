@@ -89,6 +89,7 @@ library korrvigs-lib
     Korrvigs.Metadata
     Korrvigs.Monad
     Korrvigs.Utils
+    Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateTree
     Korrvigs.Utils.Opaleye
 

@@ -31,8 +31,8 @@ syncLinkJSON i path json = do
   let mtdt = json ^. lkjsMetadata
   let geom = mtdtGeometry mtdt
   let (tm, dur) = mtdtDate mtdt
-  let erow = EntryRow (unId i) Link tm dur geom Nothing (Just $ toJSON mtdt) :: EntryRow
-  let lrow = LinkRow (unId i) (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
+  let erow = EntryRow i Link tm dur geom Nothing (Just $ toJSON mtdt) :: EntryRow
+  let lrow = LinkRow i (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
   atomicSQL $ \conn -> do
     void $
       runInsert conn $

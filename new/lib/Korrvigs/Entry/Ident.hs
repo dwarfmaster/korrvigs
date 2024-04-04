@@ -19,15 +19,23 @@ import Control.Monad.Extra (findM)
 import Data.Char
 import Data.List (unfoldr)
 import Data.Maybe (fromJust, isNothing)
+import Data.Profunctor.Product.Default
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
 import Korrvigs.Entry.Ident.Stopwords
+import Opaleye (DefaultFromField (..), Field, SqlText, ToFields)
 import Text.Printf
 
 newtype Id = MkId {unId :: Text}
   deriving (Eq, Ord, Show)
+
+instance Default ToFields Id (Field SqlText) where
+  def = dimap unId id def
+
+instance DefaultFromField SqlText Id where
+  defaultFromField = MkId <$> defaultFromField
 
 data IdMaker = IdMaker
   { _idPrefix :: Text,

@@ -34,9 +34,9 @@ data EntryRowImpl a b c d e f g = EntryRow
 makeLenses ''EntryRowImpl
 $(makeAdaptorAndInstanceInferrable "pEntryRow" ''EntryRowImpl)
 
-type EntryRow = EntryRowImpl Text Kind (Maybe ZonedTime) (Maybe CalendarDiffTime) (Maybe Geometry) (Maybe ()) (Maybe Value)
+type EntryRow = EntryRowImpl Id Kind (Maybe ZonedTime) (Maybe CalendarDiffTime) (Maybe Geometry) (Maybe ()) (Maybe Value)
 
-mkEntryRow :: Text -> Kind -> Maybe ZonedTime -> Maybe CalendarDiffTime -> Maybe Geometry -> Maybe () -> Maybe Value -> EntryRow
+mkEntryRow :: Id -> Kind -> Maybe ZonedTime -> Maybe CalendarDiffTime -> Maybe Geometry -> Maybe () -> Maybe Value -> EntryRow
 mkEntryRow = EntryRow
 
 type EntryRowSQL = EntryRowImpl (Field SqlText) (Field SqlKind) (FieldNullable SqlTimestamptz) (FieldNullable SqlInterval) (FieldNullable SqlGeometry) (FieldNullable SqlTSVector) (FieldNullable SqlJsonb)
@@ -76,7 +76,7 @@ entryFromRow tkd row cstr = kd
     kd = cstr entry
     entry =
       MkEntry
-        { _name = MkId $ row ^. sqlEntryName,
+        { _name = row ^. sqlEntryName,
           _date = row ^. sqlEntryDate,
           _duration = row ^. sqlEntryDuration,
           _geo = row ^. sqlEntryGeo,

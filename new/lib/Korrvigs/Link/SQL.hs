@@ -21,9 +21,9 @@ data LinkRowImpl a b c d = LinkRow
 makeLenses ''LinkRowImpl
 $(makeAdaptorAndInstanceInferrable "pLinkRow" ''LinkRowImpl)
 
-type LinkRow = LinkRowImpl Text Text Text FilePath
+type LinkRow = LinkRowImpl Id Text Text FilePath
 
-mkLinkRow :: Text -> Text -> Text -> FilePath -> LinkRow
+mkLinkRow :: Id -> Text -> Text -> FilePath -> LinkRow
 mkLinkRow = LinkRow
 
 type LinkRowSQL = LinkRowImpl (Field SqlText) (Field SqlText) (Field SqlText) (Field SqlText)

@@ -54,7 +54,15 @@ executable korrvigs-cli
   import:         settings
   main-is:        Main.hs
   hs-source-dirs: cli
-  build-depends:  korrvigs-lib
+  other-modules:
+    Korrvigs.Cli
+    Korrvigs.Cli.Info
+    Korrvigs.Cli.Monad
+
+  build-depends:
+    , korrvigs-lib
+    , optparse-applicative  ^>=0.17.1.0
+    , text-builder          ^>=0.6.7
 
 library korrvigs-lib
   import:          settings

@@ -16,6 +16,7 @@ data KorrvigsError
   | KCantLoad Id Text
   | KSubCycle [Id]
   | KRelToUnknown Id
+  | KIdNotFound Id
   deriving (Show)
 
 class (MonadIO m, MonadError KorrvigsError m) => MonadKorrvigs m where

@@ -38,6 +38,7 @@
             hpkgs.HUnit
             hpkgs.extra
             hpkgs.parsec3-numbers
+            hpkgs.text-builder
           ]);
 
           pre-commit.hooks = {

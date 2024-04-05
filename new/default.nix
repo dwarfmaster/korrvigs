@@ -1,7 +1,8 @@
 { mkDerivation, aeson, base, base16-bytestring, binary, bytestring
 , containers, data-default, data-endian, directory, extra, filepath
-, HUnit, lens, lib, linear, mtl, opaleye, parsec, parsec3-numbers
-, postgresql-simple, product-profunctors, profunctors, text, time
+, HUnit, lens, lib, linear, mtl, opaleye, optparse-applicative
+, parsec, parsec3-numbers, postgresql-simple, product-profunctors
+, profunctors, text, text-builder, time
 }:
 mkDerivation {
   pname = "korrvigs";
@@ -17,8 +18,8 @@ mkDerivation {
   ];
   executableHaskellDepends = [
     aeson base bytestring containers data-default extra filepath HUnit
-    lens linear mtl opaleye postgresql-simple product-profunctors
-    profunctors text time
+    lens linear mtl opaleye optparse-applicative postgresql-simple
+    product-profunctors profunctors text text-builder time
   ];
   testHaskellDepends = [
     aeson base bytestring containers data-default extra filepath HUnit

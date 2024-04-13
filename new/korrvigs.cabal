@@ -43,7 +43,10 @@ common settings
     , lens                 ^>=5.2.3
     , linear               ^>=1.22
     , mtl                  ^>=2.2.2
+    , network-uri          ^>=2.6.4.2
     , opaleye              ^>=0.10.2.0
+    , pandoc               ^>=3.0.1
+    , pandoc-types         ^>=1.23.1
     , postgresql-simple    ^>=0.6.4
     , product-profunctors  ^>=0.11.1.0
     , profunctors          ^>=5.6.2
@@ -97,6 +100,8 @@ library korrvigs-lib
     Korrvigs.Link.Sync
     Korrvigs.Metadata
     Korrvigs.Monad
+    Korrvigs.Note
+    Korrvigs.Note.AST
     Korrvigs.Utils
     Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateTree

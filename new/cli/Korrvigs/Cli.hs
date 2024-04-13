@@ -1,15 +1,19 @@
 module Korrvigs.Cli where
 
 import qualified Korrvigs.Cli.Info as Info
+import qualified Korrvigs.Cli.Link as Link
 import Korrvigs.Cli.Monad
 import Options.Applicative
 
-newtype Command = Info Info.Cmd
+data Command
+  = Info Info.Cmd
+  | Link Link.Cmd
 
 parser' :: Parser Command
 parser' =
   subparser $
     command "info" (Info <$> Info.parser)
+      <> command "link" (Link <$> Link.parser)
 
 parser :: ParserInfo Command
 parser =
@@ -19,4 +23,5 @@ parser =
       <> header "korr -- interface for Korrvigs"
 
 run :: Command -> KorrM ()
-run (Info inf) = Info.run inf
+run (Info cmd) = Info.run cmd
+run (Link cmd) = Link.run cmd

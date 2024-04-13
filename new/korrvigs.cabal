@@ -57,6 +57,7 @@ executable korrvigs-cli
   other-modules:
     Korrvigs.Cli
     Korrvigs.Cli.Info
+    Korrvigs.Cli.Link
     Korrvigs.Cli.Monad
 
   build-depends:

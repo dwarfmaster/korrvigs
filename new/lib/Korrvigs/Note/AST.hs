@@ -24,6 +24,7 @@ data Block
   | BulletList [[Block]]
   | DefinitionList [([Inline], [[Block]])]
   | Figure Attr Text [Block]
+  | Embed Attr Id -- Embed a document
   | Sub Document
   deriving (Show, Eq)
 
@@ -36,7 +37,6 @@ data Inline
   | PlainLink URI -- Unnamed link to URI
   | Space
   | Break
-  | Embed Attr Id -- Embed a document
   | DisplayMath Text
   | InlineMath Text
   | Sidenote [Block] -- Foot/side-note

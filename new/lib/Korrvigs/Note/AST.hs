@@ -2,6 +2,7 @@ module Korrvigs.Note.AST where
 
 import Control.Lens.TH (makeLenses)
 import Data.Map (Map)
+import Data.Set (Set)
 import Data.Text (Text)
 import Korrvigs.Entry
 import Network.URI
@@ -10,8 +11,18 @@ data Document = Document
   { _docMtdt :: Metadata,
     _docContent :: [Block],
     _docTitle :: Text,
-    _docLevel :: Int,
-    _docAttr :: Attr
+    _docRefTo :: Set Id
+  }
+  deriving (Show, Eq)
+
+data Header = Header
+  { _hdAttr :: Attr,
+    _hdTitle :: Text,
+    _hdRefTo :: Set Id,
+    _hdLevel :: Int,
+    _hdContent :: [Block],
+    _hdParent :: Maybe Header,
+    _hdDocument :: Document
   }
   deriving (Show, Eq)
 
@@ -25,7 +36,7 @@ data Block
   | DefinitionList [([Inline], [[Block]])]
   | Figure Attr Text [Block]
   | Embed Attr Id -- Embed a document
-  | Sub Document
+  | Sub Header
   deriving (Show, Eq)
 
 data Inline
@@ -56,3 +67,4 @@ data Attr = MkAttr
 
 makeLenses ''Document
 makeLenses ''Attr
+makeLenses ''Header

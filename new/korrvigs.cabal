@@ -36,6 +36,7 @@ library korrvigs-lib
     Korrvigs.Cli.Info
     Korrvigs.Cli.Link
     Korrvigs.Cli.Monad
+    Korrvigs.Cli.Note
     Korrvigs.Entry
     Korrvigs.Entry.Def
     Korrvigs.Entry.Ident

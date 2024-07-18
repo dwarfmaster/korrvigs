@@ -3,17 +3,20 @@ module Korrvigs.Cli (main) where
 import qualified Korrvigs.Cli.Info as Info
 import qualified Korrvigs.Cli.Link as Link
 import Korrvigs.Cli.Monad
+import qualified Korrvigs.Cli.Note as Note
 import Options.Applicative
 
 data Command
   = Info Info.Cmd
   | Link Link.Cmd
+  | Note Note.Cmd
 
 parser' :: Parser Command
 parser' =
   subparser $
     command "info" (Info <$> Info.parser)
       <> command "link" (Link <$> Link.parser)
+      <> command "note" (Note <$> Note.parser)
 
 parser :: ParserInfo Command
 parser =
@@ -25,6 +28,7 @@ parser =
 run :: Command -> KorrM ()
 run (Info cmd) = Info.run cmd
 run (Link cmd) = Link.run cmd
+run (Note cmd) = Note.run cmd
 
 main :: IO ()
 main = do

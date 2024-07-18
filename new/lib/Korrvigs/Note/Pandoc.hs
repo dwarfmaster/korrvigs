@@ -249,6 +249,7 @@ buildCells width height rows = do
               }
       forM_ (SAr.range ((1, 1), (w, h))) $ \(dx, dy) -> do
         writeArray array (rx + dx, y + dy) bc
+      writeSTRef x $ rx + w
   pure array
 
 -- Generate pandoc

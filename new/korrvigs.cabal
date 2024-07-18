@@ -16,60 +16,14 @@ extra-doc-files: CHANGELOG.md
 
 -- extra-source-files:
 
-common settings
-  ghc-options:        -Wall
-  default-extensions:
-    FlexibleInstances
-    LambdaCase
-    MultiParamTypeClasses
-    OverloadedStrings
-    QuasiQuotes
-    TemplateHaskell
-    TupleSections
-    TypeFamilies
-    TypeOperators
-    ViewPatterns
-
-  default-language:   Haskell2010
-  build-depends:
-    , aeson                ^>=2.1.2.1
-    , base                 ^>=4.17.2.0
-    , bytestring           ^>=0.11.4.0
-    , containers           ^>=0.6.5.0
-    , data-default         ^>=0.7.1.0
-    , extra                ^>=1.7.13
-    , filepath             ^>=1.4.2.2
-    , HUnit                ^>=1.6.2.0
-    , lens                 ^>=5.2.3
-    , linear               ^>=1.22
-    , mtl                  ^>=2.2.2
-    , network-uri          ^>=2.6.4.2
-    , opaleye              ^>=0.10.2.0
-    , pandoc               ^>=3.0.1
-    , pandoc-types         ^>=1.23.1
-    , postgresql-simple    ^>=0.6.4
-    , product-profunctors  ^>=0.11.1.0
-    , profunctors          ^>=5.6.2
-    , text                 ^>=2.0.2
-    , time                 ^>=1.12.2
-
 executable korrvigs-cli
-  import:         settings
-  main-is:        Main.hs
-  hs-source-dirs: cli
-  other-modules:
-    Korrvigs.Cli
-    Korrvigs.Cli.Info
-    Korrvigs.Cli.Link
-    Korrvigs.Cli.Monad
-
-  build-depends:
-    , korrvigs-lib
-    , optparse-applicative  ^>=0.17.1.0
-    , text-builder          ^>=0.6.7
+  main-is:            Main.hs
+  hs-source-dirs:     cli
+  default-extensions: NoImplicitPrelude
+  build-depends:      korrvigs-lib
 
 library korrvigs-lib
-  import:          settings
+  ghc-options:        -Wall
   exposed-modules:
     Korrvigs
     Korrvigs.Actions
@@ -77,6 +31,10 @@ library korrvigs-lib
     Korrvigs.Actions.Remove
     Korrvigs.Actions.Sync
     Korrvigs.AllEntries
+    Korrvigs.Cli
+    Korrvigs.Cli.Info
+    Korrvigs.Cli.Link
+    Korrvigs.Cli.Monad
     Korrvigs.Entry
     Korrvigs.Entry.Def
     Korrvigs.Entry.Ident
@@ -108,20 +66,52 @@ library korrvigs-lib
     Korrvigs.Utils.Opaleye
 
   build-depends:
-    , base16-bytestring  ^>=1.0.2.0
-    , binary             ^>=0.8.9.0
-    , data-endian        ^>=0.1.1
-    , directory          ^>=1.3.6.2
-    , parsec             ^>=3.1.15.0
-    , parsec3-numbers    ^>=0.1.0
+    , aeson                 ^>=2.1.2.1
+    , base                  ^>=4.17.2.0
+    , base16-bytestring     ^>=1.0.2.0
+    , binary                ^>=0.8.9.0
+    , bytestring            ^>=0.11.4.0
+    , containers            ^>=0.6.5.0
+    , data-default          ^>=0.7.1.0
+    , data-endian           ^>=0.1.1
+    , directory             ^>=1.3.6.2
+    , extra                 ^>=1.7.13
+    , filepath              ^>=1.4.2.2
+    , HUnit                 ^>=1.6.2.0
+    , lens                  ^>=5.2.3
+    , linear                ^>=1.22
+    , monad-loops           ^>=0.4.3
+    , mtl                   ^>=2.2.2
+    , network-uri           ^>=2.6.4.2
+    , opaleye               ^>=0.10.2.0
+    , optparse-applicative  ^>=0.17.1.0
+    , pandoc                ^>=3.0.1
+    , pandoc-types          ^>=1.23.1
+    , parsec                ^>=3.1.15.0
+    , parsec3-numbers       ^>=0.1.0
+    , postgresql-simple     ^>=0.6.4
+    , product-profunctors   ^>=0.11.1.0
+    , profunctors           ^>=5.6.2
+    , text                  ^>=2.0.2
+    , text-builder          ^>=0.6.7
+    , time                  ^>=1.12.2
 
-  hs-source-dirs:  lib
+  default-extensions:
+    FlexibleInstances
+    LambdaCase
+    MultiParamTypeClasses
+    OverloadedStrings
+    QuasiQuotes
+    TemplateHaskell
+    TupleSections
+    TypeFamilies
+    TypeOperators
+    ViewPatterns
+
+  default-language:   Haskell2010
+  hs-source-dirs:     lib
 
 test-suite korrvigs-test
-  import:         settings
-
-  -- other-modules:
-  -- other-extensions:
   type:           exitcode-stdio-1.0
   hs-source-dirs: test
   main-is:        Main.hs

@@ -1,4 +1,4 @@
-module Korrvigs.Cli where
+module Korrvigs.Cli (main) where
 
 import qualified Korrvigs.Cli.Info as Info
 import qualified Korrvigs.Cli.Link as Link
@@ -25,3 +25,11 @@ parser =
 run :: Command -> KorrM ()
 run (Info cmd) = Info.run cmd
 run (Link cmd) = Link.run cmd
+
+main :: IO ()
+main = do
+  cmd <- execParser parser
+  r <- runKorrM "dbname='korrvigs_new'" (run cmd)
+  case r of
+    Left err -> print err
+    Right () -> pure ()

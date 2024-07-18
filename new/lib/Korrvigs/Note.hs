@@ -19,6 +19,17 @@ module Korrvigs.Note
     attrId,
     attrClasses,
     attrMtdt,
+    Cell (..),
+    Table (..),
+    cellOrig,
+    cellWidth,
+    cellHeight,
+    cellData,
+    tableCaption,
+    tableCells,
+    tableAttr,
+    tableHeader,
+    tableFooter,
   )
 where
 

@@ -4,10 +4,14 @@ import Control.Arrow ((&&&))
 import Control.Lens hiding ((<|))
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.Loops (whileJust_, whileM_)
+import Control.Monad.ST
 import Control.Monad.State.Lazy
 import Data.Aeson hiding ((.=))
+import Data.Array.Base hiding (array)
+import qualified Data.Array.ST as SAr
 import qualified Data.Map as M
 import Data.Maybe
+import Data.STRef
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
@@ -76,6 +80,15 @@ bszToHeader (BSZ lvl attr title ref bks _) doc parent =
 refTo :: Id -> ParseM ()
 refTo i = stack . bszRefTo %= S.insert i
 
+data BuildingCell = BCell
+  { _bcOrig :: (Int, Int),
+    _bcWidth :: Int,
+    _bcHeight :: Int,
+    _bcData :: [Block]
+  }
+
+makeLenses ''BuildingCell
+
 popHeader :: ParseM ()
 popHeader = do
   bsz <- access stack
@@ -134,7 +147,22 @@ parseBlock (CodeBlock attr txt) = pure . pure $ A.CodeBlock (parseAttr attr) txt
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks
 parseBlock HorizontalRule = pure []
-parseBlock (Table attr caption spec hd body ft) = undefined
+parseBlock (Table attr (Caption _ caption) _ (TableHead _ headR) body (TableFoot _ footR)) = do
+  let a = parseAttr attr
+  capt <- concatMapM parseBlock caption
+  let bodyR = concatMap (\(TableBody _ _ _ rows) -> rows) body
+  let headN = tableSize headR ^. _2
+  let (width, height) = tableSize bodyR
+  let footN = tableSize footR ^. _2
+  cells <- mapM buildCell $ SAr.runSTArray $ buildCells width (headN + height + footN) $ join [headR, bodyR, footR]
+  pure . pure . A.Table $
+    A.MkTable
+      { A._tableCaption = capt,
+        A._tableCells = cells,
+        A._tableAttr = a,
+        A._tableHeader = headN,
+        A._tableFooter = footN
+      }
 parseBlock (Figure attr caption bks) = undefined
 parseBlock _ = pure []
 
@@ -170,3 +198,49 @@ parseInline (Span _ inls) = concatMapM parseInline inls
 
 parseAttr :: Attr -> A.Attr
 parseAttr (i, cls, mtdt) = A.MkAttr i cls $ M.fromList mtdt
+
+-- Tables
+tableSize :: [Row] -> (Int, Int)
+tableSize rows = (maybe 0 width $ listToMaybe rows, height)
+  where
+    rowHeight :: Int -> Row -> Int
+    rowHeight y (Row _ cells) = maximum $ map (\(Cell _ _ (RowSpan h) _ _) -> y + h) cells
+    height :: Int
+    height = maximum $ uncurry rowHeight <$> zip [0 ..] rows
+    width :: Row -> Int
+    width (Row _ cells) = sum $ map (\(Cell _ _ _ (ColSpan w) _) -> w) cells
+
+buildCell :: BuildingCell -> ParseM A.Cell
+buildCell bc = do
+  dat <- concatMapM parseBlock $ bc ^. bcData
+  pure
+    A.Cell
+      { A._cellOrig = bc ^. bcOrig,
+        A._cellWidth = bc ^. bcWidth,
+        A._cellHeight = bc ^. bcHeight,
+        A._cellData = dat
+      }
+
+bcValid :: BuildingCell -> Bool
+bcValid bc = bc ^. bcWidth > 0
+
+buildCells :: Int -> Int -> [Row] -> ST s (SAr.STArray s (Int, Int) BuildingCell)
+buildCells width height rows = do
+  let dcell = BCell (0, 0) 0 0 []
+  array <- SAr.newArray ((1, 1), (width, height)) dcell
+  forM_ (zip [1 ..] rows) $ \(y, Row _ row) -> do
+    x <- newSTRef 1
+    forM_ row $ \(Cell _ _ (RowSpan h) (ColSpan w) dat) -> do
+      whileM_ (readSTRef x >>= \rx -> not . bcValid <$> readArray array (rx, y)) $
+        modifySTRef x (+ 1)
+      rx <- readSTRef x
+      let bc =
+            BCell
+              { _bcOrig = (rx, y),
+                _bcWidth = w,
+                _bcHeight = h,
+                _bcData = dat
+              }
+      forM_ (SAr.range ((1, 1), (w, h))) $ \(dx, dy) -> do
+        writeArray array (rx + dx, y + dy) bc
+  pure array

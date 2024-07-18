@@ -163,7 +163,11 @@ parseBlock (Table attr (Caption _ caption) _ (TableHead _ headR) body (TableFoot
         A._tableHeader = headN,
         A._tableFooter = footN
       }
-parseBlock (Figure attr caption bks) = undefined
+parseBlock (Figure attr (Caption _ caption) bks) = do
+  capt <- concatMapM parseBlock caption
+  content <- concatMapM parseBlock bks
+  let a = parseAttr attr
+  pure . pure $ A.Figure a capt content
 parseBlock _ = pure []
 
 parseInline :: Inline -> ParseM [A.Inline]

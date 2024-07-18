@@ -35,7 +35,7 @@ data Block
   | OrderedList [[Block]]
   | BulletList [[Block]]
   | DefinitionList [([Inline], [[Block]])]
-  | Figure Attr Text [Block]
+  | Figure Attr [Block] [Block] -- The first block set is the caption
   | Embed Attr Id -- Embed a document
   | Sub Header
   | Table Table

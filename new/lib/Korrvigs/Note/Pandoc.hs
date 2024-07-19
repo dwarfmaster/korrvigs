@@ -10,6 +10,7 @@ import Data.Aeson hiding (Array, (.=))
 import Data.Array (Array)
 import Data.Array.Base hiding (array)
 import qualified Data.Array.ST as SAr
+import Data.Bitraversable (bimapM)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.STRef
@@ -72,7 +73,7 @@ bszToHeader (BSZ lvl attr title ref bks _) doc parent =
             A._hdTitle = title,
             A._hdRefTo = ref,
             A._hdLevel = lvl,
-            A._hdContent = bks <&> \blk -> blk doc (Just hd),
+            A._hdContent = reverse $ bks <&> \blk -> blk doc (Just hd),
             A._hdParent = parent,
             A._hdDocument = doc
           }
@@ -113,7 +114,7 @@ run act mtdt bks =
   let doc =
         A.Document
           { A._docMtdt = mtdt,
-            A._docContent = st ^. stack . bszLeft <&> \bk -> bk doc Nothing,
+            A._docContent = reverse $ st ^. stack . bszLeft <&> \bk -> bk doc Nothing,
             A._docTitle = st ^. stack . bszTitle,
             A._docRefTo = st ^. stack . bszRefTo
           }
@@ -148,6 +149,13 @@ parseBlock (CodeBlock attr txt) = pure . pure $ A.CodeBlock (parseAttr attr) txt
 parseBlock (RawBlock (Format "Embed") i) = pure . pure . A.Embed . MkId $ i
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks
+parseBlock (OrderedList _ bks) =
+  pure . A.OrderedList <$> mapM (concatMapM parseBlock) bks
+parseBlock (BulletList bks) =
+  pure . A.BulletList <$> mapM (concatMapM parseBlock) bks
+parseBlock (DefinitionList lst) =
+  pure . A.DefinitionList
+    <$> mapM (bimapM (concatMapM parseInline) (mapM (concatMapM parseBlock))) lst
 parseBlock HorizontalRule = pure []
 parseBlock (Table attr (Caption _ caption) _ (TableHead _ headR) body (TableFoot _ footR)) = do
   let a = parseAttr attr
@@ -178,8 +186,10 @@ parseInline (Emph inls) = pure . A.Styled A.Emph <$> concatMapM parseInline inls
 parseInline (Underline inls) = concatMapM parseInline inls
 parseInline (Strong inls) = pure . A.Styled A.Emph <$> concatMapM parseInline inls
 parseInline (Strikeout inls) = concatMapM parseInline inls
-parseInline (Subscript inls) = concatMapM parseInline inls
-parseInline (Superscript inls) = concatMapM parseInline inls
+parseInline (Subscript inls) =
+  pure . A.Styled A.SubScript <$> concatMapM parseInline inls
+parseInline (Superscript inls) =
+  pure . A.Styled A.SuperScript <$> concatMapM parseInline inls
 parseInline (SmallCaps inls) = concatMapM parseInline inls
 parseInline (Quoted _ inls) = pure . A.Styled A.Quote <$> concatMapM parseInline inls
 parseInline (Cite cts _) = pure $ A.Cite . MkId . citationId <$> cts
@@ -190,14 +200,15 @@ parseInline LineBreak = pure $ pure A.Break
 parseInline (Math DisplayMath mth) = pure . pure $ A.DisplayMath mth
 parseInline (Math InlineMath mth) = pure . pure $ A.InlineMath mth
 parseInline (RawInline _ _) = pure []
-parseInline (Link attr txt (url, _)) =
+parseInline (Link attr txt (url, _)) = do
   if T.isInfixOf "://" url
-    then pure . pure $ A.PlainLink $ fromMaybe nullURI $ parseURI $ T.unpack url
+    then do
+      pure . pure $ A.PlainLink $ fromMaybe nullURI $ parseURI $ T.unpack url
     else do
       let i = MkId url
       refTo i
-      t <- concatMapM parseInline txt
-      pure . pure $ A.Link (parseAttr attr) t i
+      title <- concatMapM parseInline txt
+      pure . pure $ A.Link (parseAttr attr) title i
 parseInline (Image attr txt url) = parseInline $ Link attr txt url
 parseInline (Note bks) = pure . A.Sidenote <$> concatMapM parseBlock bks
 parseInline (Span _ inls) = concatMapM parseInline inls
@@ -313,10 +324,14 @@ toInline :: A.Inline -> [Inline]
 toInline (A.Plain p) = pure $ Str p
 toInline (A.Styled A.Emph inls) = pure . Emph $ toInline =<< inls
 toInline (A.Styled A.Quote inls) = pure $ Quoted DoubleQuote $ toInline =<< inls
+toInline (A.Styled A.SubScript inls) = pure . Subscript $ toInline =<< inls
+toInline (A.Styled A.SuperScript inls) = pure . Superscript $ toInline =<< inls
 toInline (A.Code a code) = pure $ Code (toAttr a) code
-toInline (A.Link a inls i) = pure $ Link (toAttr a) (toInline =<< inls) (unId i, "")
+toInline (A.Link a title i) = pure $ Link (toAttr a) (toInline =<< title) (unId i, "")
 toInline (A.Cite i) = pure $ Cite [Citation (unId i) [] [] NormalCitation 0 0] []
-toInline (A.PlainLink uri) = pure $ Link pdEmptyAttr [] (T.pack $ show uri, "")
+toInline (A.PlainLink uri) =
+  let rendered = T.pack $ show uri
+   in pure $ Link pdEmptyAttr [Str rendered] (rendered, "")
 toInline A.Space = pure Space
 toInline A.Break = pure SoftBreak
 toInline (A.DisplayMath mth) = pure $ Math DisplayMath mth

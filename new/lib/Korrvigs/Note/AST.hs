@@ -58,6 +58,8 @@ data Inline
 data Style
   = Emph
   | Quote
+  | SubScript
+  | SuperScript
   deriving (Show, Eq)
 
 data Attr = MkAttr

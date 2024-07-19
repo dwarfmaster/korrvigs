@@ -1,6 +1,7 @@
-module Korrvigs.Note.Pandoc (parsePandoc, toPandoc) where
+module Korrvigs.Note.Pandoc (readNote, writeNote) where
 
 import Control.Arrow ((&&&))
+import Control.Exception (SomeException, try)
 import Control.Lens hiding ((<|))
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.Loops (whileJust_, whileM_)
@@ -18,12 +19,15 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Text.IO (hPutStr, readFile)
 import Korrvigs.Entry (Metadata)
 import Korrvigs.Entry.Ident
 import qualified Korrvigs.Note.AST as A
 import Korrvigs.Note.Helpers
 import Network.URI
+import System.IO (Handle)
 import Text.Pandoc hiding (Reader)
+import Prelude hiding (readFile)
 
 type WithParent a = A.Document -> Maybe A.Header -> a
 
@@ -123,6 +127,23 @@ run act mtdt bks =
     st =
       execState (act >> whileM_ (headerLvl <&> (> 0)) popHeader) $
         ParseState bks (BSZ 0 emptyAttr "" S.empty [] Nothing)
+
+readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
+readNote pth = liftIO $ do
+  file <- try $ readFile pth :: IO (Either SomeException Text)
+  case file of
+    Left e -> pure . Left . T.pack $ "IO error: " <> show e
+    Right f -> do
+      doRead <- runIO $ readMarkdown readerOptions f
+      case doRead of
+        Left e -> pure . Left $ "Pandoc error: " <> renderError e
+        Right pandoc -> pure . Right $ parsePandoc pandoc
+  where
+    readerOptions :: ReaderOptions
+    readerOptions =
+      def
+        { readerExtensions = pandocExtensions
+        }
 
 parsePandoc :: Pandoc -> A.Document
 parsePandoc (Pandoc mtdt bks) = run act (M.map toJSON $ unMeta mtdt) bks
@@ -264,6 +285,22 @@ buildCells width height rows = do
   pure array
 
 -- Generate pandoc
+writeNote :: (MonadIO m) => Handle -> A.Document -> m (Maybe Text)
+writeNote file doc = liftIO $ do
+  doWrite <- runIO $ writeMarkdown writerOptions pandoc
+  case doWrite of
+    Left err -> pure $ Just $ "Pandoc error: " <> renderError err
+    Right md -> do
+      hPutStr file md
+      pure Nothing
+  where
+    pandoc = toPandoc doc
+    writerOptions :: WriterOptions
+    writerOptions =
+      def
+        { writerExtensions = pandocExtensions
+        }
+
 toPandoc :: A.Document -> Pandoc
 toPandoc doc = Pandoc mtdt $ toBlock =<< doc ^. A.docContent
   where

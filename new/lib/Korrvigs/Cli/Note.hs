@@ -3,11 +3,11 @@ module Korrvigs.Cli.Note where
 import Control.Lens hiding (argument)
 import Control.Monad.IO.Class
 import qualified Data.Text as T
-import Data.Text.IO (putStrLn, readFile, writeFile)
+import Data.Text.IO (putStrLn)
 import Korrvigs.Cli.Monad
-import Korrvigs.Note.Pandoc
+import Korrvigs.Note (readNote, writeNote)
 import Options.Applicative
-import Text.Pandoc hiding (Format)
+import System.IO hiding (putStrLn)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
 data Cmd = Format {_formatFile :: FilePath, _inplace :: Bool}
@@ -38,28 +38,14 @@ parser =
       <> progDesc "Deal with note entries in Korrvigs"
       <> header "korr note -- interface for notes"
 
-readerOptions :: ReaderOptions
-readerOptions =
-  def
-    { readerExtensions = pandocExtensions
-    }
-
-writerOptions :: WriterOptions
-writerOptions =
-  def
-    { writerExtensions = pandocExtensions
-    }
-
 run :: Cmd -> KorrM ()
 run (Format path inline) = do
-  file <- liftIO $ readFile path
-  doRead <- liftIO . runIO $ readMarkdown readerOptions file
+  doRead <- readNote path
   case doRead of
-    Left err -> liftIO $ putStrLn $ "Could not parse " <> T.pack path <> ": " <> renderError err
-    Right pandoc -> do
-      let rpandoc = toPandoc $ parsePandoc pandoc
-      doWrite <- liftIO . runIO $ writeMarkdown writerOptions rpandoc
+    Left err -> liftIO . putStrLn $ "Could not parse " <> T.pack path <> ": " <> err
+    Right doc -> do
+      handle <- if inline then liftIO $ openFile path WriteMode else pure stdout
+      doWrite <- writeNote handle doc
       case doWrite of
-        Left err -> liftIO $ putStrLn $ "Could not generate markdown: " <> renderError err
-        Right md | inline -> liftIO $ writeFile path md
-        Right md -> liftIO $ putStrLn md
+        Just err -> liftIO . putStrLn $ "Could not write document: " <> err
+        Nothing -> pure ()

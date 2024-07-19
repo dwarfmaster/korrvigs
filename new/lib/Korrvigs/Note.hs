@@ -30,7 +30,10 @@ module Korrvigs.Note
     tableAttr,
     tableHeader,
     tableFooter,
+    readNote,
+    writeNote,
   )
 where
 
 import Korrvigs.Note.AST
+import Korrvigs.Note.Pandoc

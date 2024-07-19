@@ -248,7 +248,7 @@ buildCells width height rows = do
   forM_ (zip [1 ..] rows) $ \(y, Row _ row) -> do
     x <- newSTRef 1
     forM_ row $ \(Cell _ _ (RowSpan h) (ColSpan w) dat) -> do
-      whileM_ (readSTRef x >>= \rx -> not . bcValid <$> readArray array (rx, y)) $
+      whileM_ (readSTRef x >>= \rx -> bcValid <$> readArray array (rx, y)) $
         modifySTRef x (+ 1)
       rx <- readSTRef x
       let bc =
@@ -259,7 +259,7 @@ buildCells width height rows = do
                 _bcData = dat
               }
       forM_ (SAr.range ((1, 1), (w, h))) $ \(dx, dy) -> do
-        writeArray array (rx + dx, y + dy) bc
+        writeArray array (rx + dx - 1, y + dy - 1) bc
       writeSTRef x $ rx + w
   pure array
 

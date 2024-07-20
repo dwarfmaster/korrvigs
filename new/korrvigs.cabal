@@ -101,6 +101,7 @@ library korrvigs-lib
     , text                  ^>=2.0.2
     , text-builder          ^>=0.6.7
     , time                  ^>=1.12.2
+    , vector                ^>=0.13.1.0
 
   default-extensions:
     FlexibleInstances

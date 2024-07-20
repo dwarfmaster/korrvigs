@@ -4,10 +4,15 @@ import Control.Exception (SomeException, try)
 import Control.Lens
 import Control.Monad.Extra (whenM)
 import Control.Monad.RWS
+import Data.Aeson (Value (..))
+import qualified Data.Aeson.Key as K
+import qualified Data.Aeson.KeyMap as KM
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (hPutStr)
+import qualified Data.Vector as V
 import Korrvigs.Entry.Ident
 import Korrvigs.Note.AST
 import System.IO hiding (hPutStr)
@@ -148,7 +153,7 @@ writeNote file doc = do
 
 render :: Document -> RenderM ()
 render doc = do
-  writeText "<<TODO: metadata>>"
+  renderMetadata (doc ^. docTitle) $ doc ^. docMtdt
   withoutBreak flush
   replicateM_ 2 newline
   renderTopLevel $ doc ^. docContent
@@ -178,8 +183,8 @@ separatedRenders n rdrs =
 separatedBks :: Int -> [Block] -> RenderM ()
 separatedBks n = separatedRenders n . map renderBlock
 
-for :: [a] -> (a -> b) -> [b]
-for = flip map
+for :: (Traversable t) => t a -> (a -> b) -> t b
+for = flip fmap
 
 renderBlock :: Block -> RenderM ()
 renderBlock (Para inls) = forM_ inls renderInline
@@ -288,3 +293,30 @@ renderAttr attr = listOnLine as (writeText "{") (writeText " ") (writeText "}")
     cls = [writeText "." >> writeText c | c <- attr ^. attrClasses]
     attributes = [writeText key >> writeText "=\"" >> writeText value >> writeText "\"" | (key, value) <- M.toList (attr ^. attrMtdt)]
     as = i ++ cls ++ attributes
+
+renderMetadata :: Text -> Map Text Value -> RenderM ()
+renderMetadata title mtdt = withoutBreak $ do
+  writeText "---" >> flush >> newline
+  writeText "title: " >> writeText title >> flush >> newline
+  forM_ (M.toList $ M.delete "title" mtdt) $ \(key, val) -> do
+    writeText key >> writeText ": " >> flush
+    withPrefix "  " $ renderToYAML True val
+    flush >> newline
+  writeText "..." >> flush
+
+renderToYAML :: Bool -> Value -> RenderM ()
+renderToYAML _ Null = writeText "~"
+renderToYAML _ (Bool True) = writeText "true"
+renderToYAML _ (Bool False) = writeText "false"
+renderToYAML _ (Number num) = writeText . T.pack $ show num
+renderToYAML _ (String txt) = writeText txt
+renderToYAML _ (Array vals) = do
+  newline
+  separatedRenders 1 $ for (V.toList vals) $ \v -> do
+    writeText "-" >> flush
+    withPrefix "  " $ renderToYAML False v
+renderToYAML po (Object o) = do
+  when po newline
+  separatedRenders 1 $ for (KM.toList o) $ \(k, v) -> do
+    writeText (K.toText k) >> writeText ":" >> flush
+    withPrefix "  " (renderToYAML True v) >> flush

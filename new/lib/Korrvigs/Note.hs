@@ -37,3 +37,4 @@ where
 
 import Korrvigs.Note.AST
 import Korrvigs.Note.Pandoc
+import Korrvigs.Note.Render

@@ -1,4 +1,4 @@
-module Korrvigs.Note.Pandoc (readNote, writeNote) where
+module Korrvigs.Note.Pandoc (readNote) where
 
 import Control.Arrow ((&&&))
 import Control.Exception (SomeException, try)

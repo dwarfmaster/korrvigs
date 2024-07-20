@@ -64,6 +64,7 @@ library korrvigs-lib
     Korrvigs.Note.AST
     Korrvigs.Note.Helpers
     Korrvigs.Note.Pandoc
+    Korrvigs.Note.Render
     Korrvigs.Utils
     Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateTree

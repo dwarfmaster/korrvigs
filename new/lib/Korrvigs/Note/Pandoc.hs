@@ -8,7 +8,6 @@ import Control.Monad.Loops (whileJust_, whileM_)
 import Control.Monad.ST
 import Control.Monad.State.Lazy
 import Data.Aeson hiding (Array, (.=))
-import Data.Array (Array)
 import Data.Array.Base hiding (array)
 import qualified Data.Array.ST as SAr
 import Data.Bitraversable (bimapM)
@@ -19,13 +18,12 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Text.IO (hPutStr, readFile)
+import Data.Text.IO (readFile)
 import Korrvigs.Entry (Metadata)
 import Korrvigs.Entry.Ident
 import qualified Korrvigs.Note.AST as A
 import Korrvigs.Note.Helpers
 import Network.URI
-import System.IO (Handle)
 import Text.Pandoc hiding (Reader)
 import Prelude hiding (readFile)
 
@@ -283,97 +281,3 @@ buildCells width height rows = do
         writeArray array (rx + dx - 1, y + dy - 1) bc
       writeSTRef x $ rx + w
   pure array
-
--- Generate pandoc
-writeNote :: (MonadIO m) => Handle -> A.Document -> m (Maybe Text)
-writeNote file doc = liftIO $ do
-  doWrite <- runIO $ writeMarkdown writerOptions pandoc
-  case doWrite of
-    Left err -> pure $ Just $ "Pandoc error: " <> renderError err
-    Right md -> do
-      hPutStr file md
-      pure Nothing
-  where
-    pandoc = toPandoc doc
-    writerOptions :: WriterOptions
-    writerOptions =
-      def
-        { writerExtensions = pandocExtensions
-        }
-
-toPandoc :: A.Document -> Pandoc
-toPandoc doc = Pandoc mtdt $ toBlock =<< doc ^. A.docContent
-  where
-    mtdt :: Meta
-    mtdt = Meta $ M.map (unwrap . fromJSON) $ doc ^. A.docMtdt
-    unwrap :: Result MetaValue -> MetaValue
-    unwrap (Error str) = MetaString $ "ERROR(fromJSON): " <> T.pack str
-    unwrap (Success v) = v
-
-toBlock :: A.Block -> [Block]
-toBlock (A.Para lns) = pure . Para $ toInline =<< lns
-toBlock (A.LineBlock llns) = pure . LineBlock $ (toInline =<<) <$> llns
-toBlock (A.CodeBlock a code) = pure $ CodeBlock (toAttr a) code
-toBlock (A.BlockQuote quote) = pure . BlockQuote $ toBlock =<< quote
-toBlock (A.OrderedList bks) =
-  pure $ OrderedList (1, DefaultStyle, DefaultDelim) $ (toBlock =<<) <$> bks
-toBlock (A.BulletList lst) = pure . BulletList $ (toBlock =<<) <$> lst
-toBlock (A.DefinitionList lst) =
-  pure . DefinitionList $
-    bimap (toInline =<<) (fmap (toBlock =<<)) <$> lst
-toBlock (A.Figure a caption bks) =
-  pure $ Figure (toAttr a) (Caption Nothing $ toBlock =<< caption) $ toBlock =<< bks
-toBlock (A.Embed i) =
-  pure $ RawBlock (Format "Embed") $ unId i
-toBlock (A.Sub hd) =
-  Header (hd ^. A.hdLevel) (toAttr $ hd ^. A.hdAttr) [Str $ hd ^. A.hdTitle]
-    : (toBlock =<< hd ^. A.hdContent)
-toBlock (A.Table tbl) =
-  pure $ Table attr caption colspec header body footer
-  where
-    attr = toAttr $ tbl ^. A.tableAttr
-    caption = Caption Nothing $ toBlock =<< tbl ^. A.tableCaption
-    width = bounds (tbl ^. A.tableCells) ^. _2 . _1
-    colspec = replicate width (AlignDefault, ColWidthDefault)
-    rows = tableToRows $ tbl ^. A.tableCells
-    footStart = length rows - tbl ^. A.tableFooter - tbl ^. A.tableHeader
-    (headR, withoutHead) = splitAt (tbl ^. A.tableHeader) rows
-    (bodyR, footR) = splitAt footStart withoutHead
-    header = TableHead pdEmptyAttr headR
-    footer = TableFoot pdEmptyAttr footR
-    body = [TableBody pdEmptyAttr (RowHeadColumns 0) [] bodyR]
-
-tableToRows :: Array (Int, Int) A.Cell -> [Row]
-tableToRows cells =
-  flip map (SAr.range (1, height)) $ \y -> Row pdEmptyAttr $
-    flip mapMaybe (SAr.range (1, width)) $ \x ->
-      let c = cells ! (x, y)
-       in if c ^. A.cellOrig == (x, y)
-            then Just $ Cell pdEmptyAttr AlignDefault (RowSpan $ c ^. A.cellHeight) (ColSpan $ c ^. A.cellWidth) $ toBlock =<< c ^. A.cellData
-            else Nothing
-  where
-    (_, (width, height)) = bounds cells
-
-pdEmptyAttr :: Attr
-pdEmptyAttr = ("", [], [])
-
-toInline :: A.Inline -> [Inline]
-toInline (A.Plain p) = pure $ Str p
-toInline (A.Styled A.Emph inls) = pure . Emph $ toInline =<< inls
-toInline (A.Styled A.Quote inls) = pure $ Quoted DoubleQuote $ toInline =<< inls
-toInline (A.Styled A.SubScript inls) = pure . Subscript $ toInline =<< inls
-toInline (A.Styled A.SuperScript inls) = pure . Superscript $ toInline =<< inls
-toInline (A.Code a code) = pure $ Code (toAttr a) code
-toInline (A.Link a title i) = pure $ Link (toAttr a) (toInline =<< title) (unId i, "")
-toInline (A.Cite i) = pure $ Cite [Citation (unId i) [] [] NormalCitation 0 0] []
-toInline (A.PlainLink uri) =
-  let rendered = T.pack $ show uri
-   in pure $ Link pdEmptyAttr [Str rendered] (rendered, "")
-toInline A.Space = pure Space
-toInline A.Break = pure SoftBreak
-toInline (A.DisplayMath mth) = pure $ Math DisplayMath mth
-toInline (A.InlineMath mth) = pure $ Math InlineMath mth
-toInline (A.Sidenote content) = pure . Note $ toBlock =<< content
-
-toAttr :: A.Attr -> Attr
-toAttr a = (a ^. A.attrId, a ^. A.attrClasses, M.toList $ a ^. A.attrMtdt)

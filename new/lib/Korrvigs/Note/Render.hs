@@ -297,7 +297,7 @@ renderAttr attr = listOnLine as (writeText "{") (writeText " ") (writeText "}")
 renderMetadata :: Text -> Map Text Value -> RenderM ()
 renderMetadata title mtdt = withoutBreak $ do
   writeText "---" >> flush >> newline
-  writeText "title: " >> writeText title >> flush >> newline
+  writeText "title: " >> surrounded "'" (writeText title) >> flush >> newline
   forM_ (M.toList $ M.delete "title" mtdt) $ \(key, val) -> do
     writeText key >> writeText ": " >> flush
     withPrefix "  " $ renderToYAML True val
@@ -309,7 +309,7 @@ renderToYAML _ Null = writeText "~"
 renderToYAML _ (Bool True) = writeText "true"
 renderToYAML _ (Bool False) = writeText "false"
 renderToYAML _ (Number num) = writeText . T.pack $ show num
-renderToYAML _ (String txt) = writeText txt
+renderToYAML _ (String txt) = surrounded "'" $ writeText txt
 renderToYAML _ (Array vals) = do
   newline
   separatedRenders 1 $ for (V.toList vals) $ \v -> do

@@ -32,8 +32,10 @@ linkIdFromPath = MkId . T.pack . takeBaseName
 syncLinkJSON :: (MonadKorrvigs m) => Id -> FilePath -> LinkJSON -> m (EntryRow, LinkRow)
 syncLinkJSON i path json = do
   let mtdt = json ^. lkjsMetadata
-  let geom = mtdtGeometry mtdt
-  let (tm, dur) = mtdtDate mtdt
+  let extras = mtdtExtras mtdt
+  let geom = extras ^. mtdtGeometry
+  let tm = extras ^. mtdtDate
+  let dur = extras ^. mtdtDuration
   let erow = EntryRow i Link tm dur geom Nothing (Just $ toJSON mtdt) :: EntryRow
   let lrow = LinkRow i (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
   atomicSQL $ \conn -> do
@@ -163,7 +165,7 @@ newLink mk = do
             _lkjsParents = []
           }
   rt <- linkJSONPath
-  let (dt, _) = mtdtDate $ mk ^. lkMtdt
+  let dt = mk ^. lkMtdt . to mtdtExtras . mtdtDate
   let day = localDay . zonedTimeToLocalTime <$> dt
   path <- storeFile rt linkJSONTreeType day (unId i <> ".json") $ encode json
   -- Insert into database

@@ -16,7 +16,7 @@ type Metadata = Map Text Value
 
 data Note = MkNote
   { _noteEntry :: Entry,
-    _notePath :: Text
+    _notePath :: FilePath
   }
   deriving (Show)
 

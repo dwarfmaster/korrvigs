@@ -124,7 +124,8 @@ run act mtdt bks =
           { A._docMtdt = mtdt,
             A._docContent = reverse $ st ^. stack . bszLeft <&> \bk -> bk doc Nothing,
             A._docTitle = st ^. stack . bszTitle,
-            A._docRefTo = st ^. stack . bszRefTo
+            A._docRefTo = st ^. stack . bszRefTo,
+            A._docParents = undefined
           }
    in doc
   where

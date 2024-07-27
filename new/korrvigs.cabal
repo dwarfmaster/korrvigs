@@ -67,6 +67,8 @@ library korrvigs-lib
     Korrvigs.Note.Render
     Korrvigs.Note.Render.Monad
     Korrvigs.Note.Render.Table
+    Korrvigs.Note.SQL
+    Korrvigs.Note.Sync
     Korrvigs.Utils
     Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateTree

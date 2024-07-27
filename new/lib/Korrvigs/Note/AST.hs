@@ -12,7 +12,8 @@ data Document = Document
   { _docMtdt :: Metadata,
     _docContent :: [Block],
     _docTitle :: Text,
-    _docRefTo :: Set Id
+    _docRefTo :: Set Id,
+    _docParents :: Set Id
   }
   deriving (Show, Eq)
 

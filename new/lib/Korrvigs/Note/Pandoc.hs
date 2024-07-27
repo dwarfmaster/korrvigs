@@ -246,11 +246,14 @@ tableSize :: [Row] -> (Int, Int)
 tableSize rows = (maybe 0 width $ listToMaybe rows, height)
   where
     rowHeight :: Int -> Row -> Int
-    rowHeight y (Row _ cells) = maximum $ map (\(Cell _ _ (RowSpan h) _ _) -> y + h) cells
+    rowHeight y (Row _ cells) = mmax $ map (\(Cell _ _ (RowSpan h) _ _) -> y + h) cells
     height :: Int
-    height = maximum $ uncurry rowHeight <$> zip [0 ..] rows
+    height = mmax $ uncurry rowHeight <$> zip [0 ..] rows
     width :: Row -> Int
     width (Row _ cells) = sum $ map (\(Cell _ _ _ (ColSpan w) _) -> w) cells
+    mmax :: [Int] -> Int
+    mmax [] = 0
+    mmax l = maximum l
 
 buildCell :: BuildingCell -> ParseM A.Cell
 buildCell bc = do

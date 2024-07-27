@@ -39,6 +39,7 @@
             hpkgs.extra
             hpkgs.parsec3-numbers
             hpkgs.text-builder
+            hpkgs.hmatrix-glpk
           ]);
 
           pre-commit.hooks = {

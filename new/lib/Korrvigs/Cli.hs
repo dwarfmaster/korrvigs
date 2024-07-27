@@ -4,12 +4,14 @@ import qualified Korrvigs.Cli.Info as Info
 import qualified Korrvigs.Cli.Link as Link
 import Korrvigs.Cli.Monad
 import qualified Korrvigs.Cli.Note as Note
+import qualified Korrvigs.Cli.Sync as Sync
 import Options.Applicative
 
 data Command
   = Info Info.Cmd
   | Link Link.Cmd
   | Note Note.Cmd
+  | Sync Sync.Cmd
 
 parser' :: Parser Command
 parser' =
@@ -17,6 +19,7 @@ parser' =
     command "info" (Info <$> Info.parser)
       <> command "link" (Link <$> Link.parser)
       <> command "note" (Note <$> Note.parser)
+      <> command "sync" (Sync <$> Sync.parser)
 
 parser :: ParserInfo Command
 parser =
@@ -29,6 +32,7 @@ run :: Command -> KorrM ()
 run (Info cmd) = Info.run cmd
 run (Link cmd) = Link.run cmd
 run (Note cmd) = Note.run cmd
+run (Sync cmd) = Sync.run cmd
 
 main :: IO ()
 main = do

@@ -16,6 +16,7 @@ import Korrvigs.Entry
 import Korrvigs.KindData
 import Korrvigs.Link
 import Korrvigs.Monad
+import Korrvigs.Note
 import Korrvigs.Utils.Cycle
 import Opaleye hiding (not)
 
@@ -28,7 +29,8 @@ loadIDs :: (MonadKorrvigs m) => m (Map Id [Text])
 loadIDs = do
   allIDs <-
     sequence
-      [ loadIDsFor (Nothing :: Maybe Link) displayLinkId
+      [ loadIDsFor (Nothing :: Maybe Link) displayLinkId,
+        loadIDsFor (Nothing :: Maybe Note) displayNoteId
       ]
   pure $ M.unionsWith (<>) allIDs
 
@@ -53,7 +55,8 @@ sync = do
   forM_ toRemove remove
   allrels <-
     sequence
-      [ dSync (Nothing :: Maybe Link)
+      [ dSync (Nothing :: Maybe Link),
+        dSync (Nothing :: Maybe Note)
       ]
   let rels = foldl' M.union M.empty allrels
   let checkRD = checkRelData $ \i -> isJust $ M.lookup i ids

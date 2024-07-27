@@ -34,11 +34,14 @@ module Korrvigs.Note
     tableFooter,
     readNote,
     writeNote,
+    displayNoteId,
   )
 where
 
 import Control.Lens (view)
 import qualified Data.Set as S
+import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.KindData
@@ -61,3 +64,6 @@ instance IsKD Note where
   dEntry = view noteEntry
   dIdentify = NoteIdentifier . view notePath
   dToData = NoteD
+
+displayNoteId :: KDIdentifier Note -> Text
+displayNoteId (NoteIdentifier path) = "note:" <> T.pack path

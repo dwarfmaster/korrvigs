@@ -4,7 +4,7 @@ import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad (void, when)
 import Control.Monad.IO.Class
-import Data.Aeson (eitherDecode, encode, toJSON)
+import Data.Aeson (Value, eitherDecode, encode)
 import Data.ByteString.Lazy (readFile)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -36,7 +36,8 @@ syncLinkJSON i path json = do
   let geom = extras ^. mtdtGeometry
   let tm = extras ^. mtdtDate
   let dur = extras ^. mtdtDuration
-  let erow = EntryRow i Link tm dur geom Nothing (Just $ toJSON mtdt) :: EntryRow
+  let erow = EntryRow i Link tm dur geom Nothing :: EntryRow
+  let mtdtrows = (\(key, val) -> MetadataRow i key val False) <$> M.toList mtdt :: [MetadataRow]
   let lrow = LinkRow i (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
   atomicSQL $ \conn -> do
     void $
@@ -52,6 +53,14 @@ syncLinkJSON i path json = do
         Insert
           { iTable = linksTable,
             iRows = [toFields lrow],
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
+    void $
+      runInsert conn $
+        Insert
+          { iTable = entriesMetadataTable,
+            iRows = toFields <$> mtdtrows,
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
@@ -108,6 +117,13 @@ dRemoveDBImpl i =
     void $
       runDelete conn $
         Delete
+          { dTable = entriesMetadataTable,
+            dWhere = \mrow -> mrow ^. sqlEntry .== sqlId i,
+            dReturning = rCount
+          }
+    void $
+      runDelete conn $
+        Delete
           { dTable = entriesTable,
             dWhere = \erow -> erow ^. sqlEntryName .== sqlId i,
             dReturning = rCount
@@ -144,7 +160,7 @@ data LinkMaker = LinkMaker
   { _lkId :: IdMaker,
     _lkProtocol :: Text,
     _lkLink :: Text,
-    _lkMtdt :: Metadata
+    _lkMtdt :: Map Text Value
   }
   deriving (Show)
 
@@ -168,7 +184,8 @@ newLink mk = do
   let dt = mk ^. lkMtdt . to mtdtExtras . mtdtDate
   let day = localDay . zonedTimeToLocalTime <$> dt
   path <- storeFile rt linkJSONTreeType day (unId i <> ".json") $ encode json
+  let metaValues = (\(key, val) -> (key, val, False)) <$> M.toList (mk ^. lkMtdt)
   -- Insert into database
   (erow, lrow) <- syncLinkJSON i path json
   -- Create haskell objects
-  pure $ entryFromRow LinkD erow $ linkFromRow lrow
+  pure $ entryFromRow LinkD erow metaValues $ linkFromRow lrow

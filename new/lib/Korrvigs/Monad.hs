@@ -61,7 +61,7 @@ newId =
       ( \candidate -> do
           conn <- pgSQL
           r <- liftIO $ runSelect conn $ limit 1 $ do
-            EntryRow i _ _ _ _ _ _ <- selectTable entriesTable
+            EntryRow i _ _ _ _ _ <- selectTable entriesTable
             where_ $ i .== sqlStrictText candidate
             pure ()
           pure $ null r

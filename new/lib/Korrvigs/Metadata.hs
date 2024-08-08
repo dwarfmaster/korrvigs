@@ -4,6 +4,7 @@ import Control.Lens
 import Data.Aeson
 import Data.Aeson.Text (encodeToLazyText)
 import Data.Default
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -31,11 +32,11 @@ asText :: Value -> Maybe Text
 asText (String txt) = Just txt
 asText _ = Nothing
 
-extractGeometry :: Metadata -> Maybe Geometry
+extractGeometry :: Map Text Value -> Maybe Geometry
 extractGeometry mtdt =
   readGeometry . encodeUtf8 . encodeToLazyText . asText <$> M.lookup "geometry" mtdt
 
-extractDate :: Metadata -> (Maybe ZonedTime, Maybe CalendarDiffTime)
+extractDate :: Map Text Value -> (Maybe ZonedTime, Maybe CalendarDiffTime)
 extractDate mtdt = mmaybe $ do
   dtT <- M.lookup "date" mtdt >>= asText
   dt <- formatParseM iso8601Format $ T.unpack dtT
@@ -46,7 +47,7 @@ extractDate mtdt = mmaybe $ do
     mmaybe Nothing = (Nothing, Nothing)
     mmaybe (Just (a, b)) = (Just a, b)
 
-extractParents :: Metadata -> Maybe [Id]
+extractParents :: Map Text Value -> Maybe [Id]
 extractParents mtdt = do
   pars <- M.lookup "parents" mtdt >>= asList
   txts <- mapM asText pars
@@ -56,7 +57,7 @@ extractParents mtdt = do
     asList (Array v) = Just $ V.toList v
     asList _ = Nothing
 
-mtdtExtras :: Metadata -> MtdtExtras
+mtdtExtras :: Map Text Value -> MtdtExtras
 mtdtExtras mtdt =
   MtdtExtras
     { _mtdtGeometry = extractGeometry mtdt,
@@ -67,17 +68,22 @@ mtdtExtras mtdt =
   where
     (dt, dur) = extractDate mtdt
 
+insertWithRO :: Text -> Value -> Metadata -> Metadata
+insertWithRO key val mtdt = M.insert key (MValue val ro) mtdt
+  where
+    ro = maybe True (view metaReadOnly) $ M.lookup key mtdt
+
 insertGeom :: Geometry -> Metadata -> Metadata
-insertGeom geom = M.insert "geometry" $ toJSON $ decodeUtf8 $ writeGeometry geom
+insertGeom geom = insertWithRO "geometry" $ toJSON $ decodeUtf8 $ writeGeometry geom
 
 insertDate :: ZonedTime -> Metadata -> Metadata
-insertDate dt = M.insert "date" $ toJSON $ formatShow iso8601Format dt
+insertDate dt = insertWithRO "date" $ toJSON $ formatShow iso8601Format dt
 
 insertDuration :: CalendarDiffTime -> Metadata -> Metadata
-insertDuration dur = M.insert "duration" $ toJSON $ formatShow durationTimeFormat dur
+insertDuration dur = insertWithRO "duration" $ toJSON $ formatShow durationTimeFormat dur
 
 insertParents :: [Id] -> Metadata -> Metadata
-insertParents pars = M.insert "parents" $ toJSON $ unId <$> pars
+insertParents pars = insertWithRO "parents" $ toJSON $ unId <$> pars
 
 reifyMetadata :: MtdtExtras -> Metadata -> Metadata
 reifyMetadata ex =

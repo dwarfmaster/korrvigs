@@ -2,17 +2,29 @@
 
 module Korrvigs.Entry.Def where
 
-import Control.Lens (Getter, to)
+import Control.Lens (Getter, to, view)
 import Control.Lens.TH (makeLenses)
 import Data.Aeson (Value)
 import Data.Map (Map)
+import qualified Data.Map as M
 import Data.Text (Text)
 import Data.Time (CalendarDiffTime, ZonedTime)
 import Korrvigs.Entry.Ident
 import Korrvigs.Geometry
 import Korrvigs.Kind
 
-type Metadata = Map Text Value
+data MetadataValue = MValue
+  { _metaValue :: Value,
+    _metaReadOnly :: Bool
+  }
+  deriving (Show, Eq)
+
+makeLenses ''MetadataValue
+
+type Metadata = Map Text MetadataValue
+
+metaLookup :: Text -> Metadata -> Maybe Value
+metaLookup key mtdt = view metaValue <$> M.lookup key mtdt
 
 data Note = MkNote
   { _noteEntry :: Entry,

@@ -9,9 +9,17 @@ CREATE TABLE entries (
   duration INTERVAL,
   geo GEOGRAPHY,
   text TSVECTOR,
-  metadata JSONB,
   CONSTRAINT entries_ref
     UNIQUE(name,kind)
+);
+
+CREATE TABLE entries_metadata (
+  name TEXT NOT NULL REFERENCES entries(name),
+  key TEXT NOT NULL,
+  value JSONB NOT NULL,
+  read_only BOOL NOT NULL,
+  CONSTRAINT entries_metadata_ref
+    UNIQUE(name,key)
 );
 
 CREATE TABLE entries_sub (

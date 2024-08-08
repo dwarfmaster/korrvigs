@@ -1,6 +1,7 @@
 module Korrvigs.Note.AST where
 
 import Control.Lens.TH (makeLenses)
+import Data.Aeson (Value)
 import Data.Array
 import Data.Map (Map)
 import Data.Set (Set)
@@ -9,7 +10,7 @@ import Korrvigs.Entry
 import Network.URI
 
 data Document = Document
-  { _docMtdt :: Metadata,
+  { _docMtdt :: Map Text Value,
     _docContent :: [Block],
     _docTitle :: Text,
     _docRefTo :: Set Id,

@@ -14,6 +14,7 @@ import Data.Array.Base hiding (array)
 import qualified Data.Array.ST as SAr
 import Data.Bitraversable (bimapM)
 import Data.List (intersperse)
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.STRef
@@ -25,7 +26,6 @@ import Data.Text.IO (readFile)
 import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.Builder
 import qualified Data.Vector as V
-import Korrvigs.Entry (Metadata)
 import Korrvigs.Entry.Ident
 import qualified Korrvigs.Note.AST as A
 import Korrvigs.Note.Helpers
@@ -117,7 +117,7 @@ startHeader lvl attr = do
 emptyAttr :: A.Attr
 emptyAttr = A.MkAttr "" [] M.empty
 
-run :: ParseM () -> Metadata -> [Block] -> A.Document
+run :: ParseM () -> Map Text Value -> [Block] -> A.Document
 run act mtdt bks =
   let doc =
         A.Document

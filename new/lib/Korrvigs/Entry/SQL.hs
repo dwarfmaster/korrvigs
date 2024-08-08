@@ -22,28 +22,27 @@ import qualified Korrvigs.Utils.Opaleye as Utils
 import Opaleye
 
 -- Entries table
-data EntryRowImpl a b c d e f g = EntryRow
+data EntryRowImpl a b c d e f = EntryRow
   { _sqlEntryName :: a,
     _sqlEntryKind :: b,
     _sqlEntryDate :: c,
     _sqlEntryDuration :: d,
     _sqlEntryGeo :: e,
-    _sqlEntryText :: f,
-    _sqlEntryMetadata :: g
+    _sqlEntryText :: f
   }
 
 makeLenses ''EntryRowImpl
 $(makeAdaptorAndInstanceInferrable "pEntryRow" ''EntryRowImpl)
 
-type EntryRow = EntryRowImpl Id Kind (Maybe ZonedTime) (Maybe CalendarDiffTime) (Maybe Geometry) (Maybe ()) (Maybe Value)
+type EntryRow = EntryRowImpl Id Kind (Maybe ZonedTime) (Maybe CalendarDiffTime) (Maybe Geometry) (Maybe ())
 
-mkEntryRow :: Id -> Kind -> Maybe ZonedTime -> Maybe CalendarDiffTime -> Maybe Geometry -> Maybe () -> Maybe Value -> EntryRow
+mkEntryRow :: Id -> Kind -> Maybe ZonedTime -> Maybe CalendarDiffTime -> Maybe Geometry -> Maybe () -> EntryRow
 mkEntryRow = EntryRow
 
-type EntryRowSQL = EntryRowImpl (Field SqlText) (Field SqlKind) (FieldNullable SqlTimestamptz) (FieldNullable SqlInterval) (FieldNullable SqlGeometry) (FieldNullable SqlTSVector) (FieldNullable SqlJsonb)
+type EntryRowSQL = EntryRowImpl (Field SqlText) (Field SqlKind) (FieldNullable SqlTimestamptz) (FieldNullable SqlInterval) (FieldNullable SqlGeometry) (FieldNullable SqlTSVector)
 
 instance Default ToFields EntryRow EntryRowSQL where
-  def = pEntryRow $ EntryRow def def def def def def def
+  def = pEntryRow $ EntryRow def def def def def def
 
 entriesTable ::
   Table EntryRowSQL EntryRowSQL
@@ -57,7 +56,6 @@ entriesTable =
         (tableField "duration")
         (tableField "geo")
         (tableField "text")
-        (tableField "metadata")
 
 nameKindField :: Kind -> TableFields (Field SqlText) (Field SqlText)
 nameKindField kd =
@@ -71,20 +69,35 @@ mtdtFromJSON json = case fromJSON <$> json of
   Just (Success mp) -> mp
   _ -> M.empty
 
-entryFromRow :: (a -> KindData) -> EntryRow -> (Entry -> a) -> a
-entryFromRow tkd row cstr = kd
-  where
-    kd = cstr entry
-    entry =
-      MkEntry
-        { _name = row ^. sqlEntryName,
-          _date = row ^. sqlEntryDate,
-          _duration = row ^. sqlEntryDuration,
-          _geo = row ^. sqlEntryGeo,
-          _metadata = mtdtFromJSON $ row ^. sqlEntryMetadata,
-          _kindData = tkd kd
-        }
+-- Metadata table
+data MetadataRowImpl a b c d = MetadataRow
+  { _sqlEntry :: a,
+    _sqlKey :: b,
+    _sqlValue :: c,
+    _sqlReadOnly :: d
+  }
 
+makeLenses ''MetadataRowImpl
+$(makeAdaptorAndInstanceInferrable "pMetadataRow" ''MetadataRowImpl)
+
+type MetadataRow = MetadataRowImpl Id Text Value Bool
+
+type MetadataRowSQL = MetadataRowImpl (Field SqlText) (Field SqlText) (Field SqlJsonb) (Field SqlBool)
+
+instance Default ToFields MetadataRow MetadataRowSQL where
+  def = pMetadataRow $ MetadataRow def def def def
+
+entriesMetadataTable :: Table MetadataRowSQL MetadataRowSQL
+entriesMetadataTable =
+  table "entries_metadata" $
+    pMetadataRow $
+      MetadataRow
+        (tableField "name")
+        (tableField "key")
+        (tableField "value")
+        (tableField "read_only")
+
+-- Relation tables
 data RelRowImpl a b = RelRow {_source :: a, _target :: b}
 
 makeLenses ''RelRowImpl
@@ -120,3 +133,19 @@ selectTargetsFor tbl i =
 selectRecTargetsFor :: Table a RelRowSQL -> Id -> Select (Field SqlText)
 selectRecTargetsFor tbl i =
   Utils.transitiveClosure (selectTable tbl) (view source) (view target) (sqlId i)
+
+-- Helper
+entryFromRow :: (a -> KindData) -> EntryRow -> [(Text, Value, Bool)] -> (Entry -> a) -> a
+entryFromRow tkd row mtdt cstr = kd
+  where
+    kd = cstr entry
+    mtdtList = (view _1 &&& (uncurry MValue . (view _2 &&& view _3))) <$> mtdt
+    entry =
+      MkEntry
+        { _name = row ^. sqlEntryName,
+          _date = row ^. sqlEntryDate,
+          _duration = row ^. sqlEntryDuration,
+          _geo = row ^. sqlEntryGeo,
+          _metadata = M.fromList mtdtList,
+          _kindData = tkd kd
+        }

@@ -3,9 +3,11 @@ module Korrvigs.KindData where
 import Control.Lens.TH (makeLenses)
 import Data.Map (Map)
 import Data.Set (Set)
+import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
+import Opaleye (Delete)
 
 data RelData = RelData
   { _relSubOf :: [Id],
@@ -17,7 +19,7 @@ makeLenses ''RelData
 class IsKD a where
   -- Load/remove from database only
   dLoad :: (MonadKorrvigs m) => Id -> ((Entry -> a) -> Entry) -> m (Maybe Entry)
-  dRemoveDB :: (MonadKorrvigs m) => f a -> Id -> m ()
+  dRemoveDB :: f a -> Id -> [Delete Int64]
 
   -- List the ids present in the filesystem
   data KDIdentifier a

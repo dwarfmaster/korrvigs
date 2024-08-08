@@ -13,6 +13,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.LocalTime (localDay, zonedTimeToLocalTime)
+import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.KindData (RelData (..))
@@ -104,37 +105,21 @@ dSyncImpl _ =
 dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
 dSyncOneImpl = syncLink
 
-dRemoveDBImpl :: (MonadKorrvigs m) => Id -> m ()
+dRemoveDBImpl :: Id -> [Delete Int64]
 dRemoveDBImpl i =
-  atomicSQL $ \conn -> do
-    void $
-      runDelete conn $
-        Delete
-          { dTable = linksTable,
-            dWhere = \lrow -> lrow ^. sqlLinkName .== sqlId i,
-            dReturning = rCount
-          }
-    void $
-      runDelete conn $
-        Delete
-          { dTable = entriesMetadataTable,
-            dWhere = \mrow -> mrow ^. sqlEntry .== sqlId i,
-            dReturning = rCount
-          }
-    void $
-      runDelete conn $
-        Delete
-          { dTable = entriesTable,
-            dWhere = \erow -> erow ^. sqlEntryName .== sqlId i,
-            dReturning = rCount
-          }
+  [ Delete
+      { dTable = linksTable,
+        dWhere = \lrow -> lrow ^. sqlLinkName .== sqlId i,
+        dReturning = rCount
+      }
+  ]
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
   let i = linkIdFromPath path
   exists <- liftIO $ doesFileExist path
   when exists $ liftIO $ removeFile path
-  dRemoveDBImpl i
+  removeDB i
 
 linkFromRow :: LinkRow -> Entry -> Link
 linkFromRow row entry =

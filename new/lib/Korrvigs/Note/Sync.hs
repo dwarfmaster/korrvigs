@@ -11,6 +11,7 @@ import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Text as T
+import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.FTS
 import Korrvigs.Kind
@@ -42,37 +43,21 @@ dLoadImpl i cstr = do
     Nothing -> pure Nothing
     Just nrow -> pure . Just . cstr $ noteFromRow nrow
 
-dRemoveDBImpl :: (MonadKorrvigs m) => Id -> m ()
+dRemoveDBImpl :: Id -> [Delete Int64]
 dRemoveDBImpl i =
-  atomicSQL $ \conn -> do
-    void $
-      runDelete conn $
-        Delete
-          { dTable = notesTable,
-            dWhere = \nrow -> nrow ^. sqlNoteName .== sqlId i,
-            dReturning = rCount
-          }
-    void $
-      runDelete conn $
-        Delete
-          { dTable = entriesMetadataTable,
-            dWhere = \mrow -> mrow ^. sqlEntry .== sqlId i,
-            dReturning = rCount
-          }
-    void $
-      runDelete conn $
-        Delete
-          { dTable = entriesTable,
-            dWhere = \erow -> erow ^. sqlEntryName .== sqlId i,
-            dReturning = rCount
-          }
+  [ Delete
+      { dTable = notesTable,
+        dWhere = \nrow -> nrow ^. sqlNoteName .== sqlId i,
+        dReturning = rCount
+      }
+  ]
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
   let i = dGetIdImpl path
   exists <- liftIO $ doesFileExist path
   when exists $ liftIO $ removeFile path
-  dRemoveDBImpl i
+  removeDB i
 
 noteDirectory :: (MonadKorrvigs m) => m FilePath
 noteDirectory = joinPath . (: ["notes"]) <$> root

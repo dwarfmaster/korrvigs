@@ -8,7 +8,7 @@ data Kind
   = Note
   | Link
   | File
-  deriving (Eq, Ord, Show, Enum)
+  deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- Singletons
 data NoteK = NoteK

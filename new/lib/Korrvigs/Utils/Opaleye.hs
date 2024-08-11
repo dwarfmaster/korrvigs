@@ -1,7 +1,13 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Korrvigs.Utils.Opaleye where
 
+import Control.Arrow ((&&&))
 import Data.List (singleton)
+import Data.Text (Text)
+import qualified Data.Text as T
 import Opaleye hiding (FromField)
+import Opaleye.Experimental.Enum
 import qualified Opaleye.Internal.Column as C
 import qualified Opaleye.Internal.HaskellDB.PrimQuery as HPQ
 
@@ -34,3 +40,11 @@ transitiveClosure ::
 transitiveClosure sel pi1 pi2 btm =
   withRecursiveDistinct (transitiveClosureStep sel pi1 pi2 btm) $
     transitiveClosureStep sel pi1 pi2
+
+makeSqlMapper :: forall a b. (Bounded a, Enum a, Eq a) => Text -> (a -> String) -> EnumMapper b a
+makeSqlMapper sqlType toSql = enumMapper (T.unpack sqlType) fromSql toSql
+  where
+    sqlMap :: [(String, a)]
+    sqlMap = (toSql &&& id) <$> [minBound .. maxBound]
+    fromSql :: String -> Maybe a
+    fromSql = flip lookup sqlMap

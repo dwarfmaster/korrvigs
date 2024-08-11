@@ -45,7 +45,7 @@ data FileStatus
   = FilePlain
   | FilePresent
   | FileAbsent
-  deriving (Eq, Show)
+  deriving (Eq, Show, Enum, Bounded)
 
 data File = MkFile
   { _fileEntry :: Entry,

@@ -2,16 +2,11 @@ module Korrvigs.Kind.SQL where
 
 import Data.Profunctor.Product.Default
 import Korrvigs.Kind.Def (Kind (..))
+import Korrvigs.Utils.Opaleye (makeSqlMapper)
 import Opaleye
 import Opaleye.Experimental.Enum
 
 data SqlKind
-
-fromSqlKind :: String -> Maybe Kind
-fromSqlKind "note" = Just Note
-fromSqlKind "link" = Just Link
-fromSqlKind "file" = Just File
-fromSqlKind _ = Nothing
 
 toSqlKind :: Kind -> String
 toSqlKind Note = "note"
@@ -19,7 +14,7 @@ toSqlKind Link = "link"
 toSqlKind File = "file"
 
 sqlKindMapper :: EnumMapper SqlKind Kind
-sqlKindMapper = enumMapper "kind" fromSqlKind toSqlKind
+sqlKindMapper = makeSqlMapper "kind" toSqlKind
 
 instance DefaultFromField SqlKind Kind where
   defaultFromField = enumFromField sqlKindMapper

@@ -9,6 +9,7 @@ import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import qualified Data.Text.Encoding as Enc
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Utils.Opaleye (makeSqlMapper)
 import Network.Mime
 import Opaleye
 import Opaleye.Experimental.Enum
@@ -16,19 +17,13 @@ import Opaleye.Experimental.Enum
 -- FileStatus
 data SqlFileStatus
 
-fromSqlFS :: String -> Maybe FileStatus
-fromSqlFS "fileplain" = Just FilePlain
-fromSqlFS "filepresent" = Just FilePresent
-fromSqlFS "fileabsent" = Just FileAbsent
-fromSqlFS _ = Nothing
-
 toSqlFS :: FileStatus -> String
 toSqlFS FilePlain = "fileplain"
 toSqlFS FilePresent = "filepresent"
 toSqlFS FileAbsent = "fileabsent"
 
 sqlFSMapper :: EnumMapper SqlFileStatus FileStatus
-sqlFSMapper = enumMapper "filestatus" fromSqlFS toSqlFS
+sqlFSMapper = makeSqlMapper "filestatus" toSqlFS
 
 instance DefaultFromField SqlFileStatus FileStatus where
   defaultFromField = enumFromField sqlFSMapper

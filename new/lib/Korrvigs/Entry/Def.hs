@@ -12,6 +12,7 @@ import Data.Time (CalendarDiffTime, ZonedTime)
 import Korrvigs.Entry.Ident
 import Korrvigs.Geometry
 import Korrvigs.Kind
+import Network.Mime (MimeType)
 
 data MetadataValue = MValue
   { _metaValue :: Value,
@@ -40,14 +41,31 @@ data Link = MkLink
   }
   deriving (Show)
 
+data FileStatus
+  = FilePlain
+  | FilePresent
+  | FileAbsent
+  deriving (Eq, Show)
+
+data File = MkFile
+  { _fileEntry :: Entry,
+    _filePath :: FilePath,
+    _fileMeta :: FilePath,
+    _fileStatus :: FileStatus,
+    _fileMime :: MimeType
+  }
+  deriving (Show)
+
 data KindData
   = LinkD Link
   | NoteD Note
+  | FileD File
   deriving (Show)
 
 kindDataKind :: KindData -> Kind
 kindDataKind (LinkD _) = Link
 kindDataKind (NoteD _) = Note
+kindDataKind (FileD _) = File
 
 data Entry = MkEntry
   { _name :: Id,
@@ -61,6 +79,7 @@ data Entry = MkEntry
 
 makeLenses ''Note
 makeLenses ''Link
+makeLenses ''File
 makeLenses ''Entry
 
 kind :: Getter Entry Kind

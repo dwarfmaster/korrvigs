@@ -1,10 +1,10 @@
 { mkDerivation, aeson, array, base, base16-bytestring, binary
 , bytestring, containers, data-default, data-endian, directory
 , extra, filepath, hmatrix-glpk, HUnit, lens, lib, linear
-, monad-loops, mtl, network-uri, opaleye, optparse-applicative
-, pandoc, pandoc-types, parsec, parsec3-numbers, postgresql-simple
-, product-profunctors, profunctors, text, text-builder, time
-, vector
+, mime-types, monad-loops, mtl, network-uri, opaleye
+, optparse-applicative, pandoc, pandoc-types, parsec
+, parsec3-numbers, postgresql-simple, product-profunctors
+, profunctors, text, text-builder, time, vector
 }:
 mkDerivation {
   pname = "korrvigs";
@@ -15,7 +15,7 @@ mkDerivation {
   libraryHaskellDepends = [
     aeson array base base16-bytestring binary bytestring containers
     data-default data-endian directory extra filepath hmatrix-glpk
-    HUnit lens linear monad-loops mtl network-uri opaleye
+    HUnit lens linear mime-types monad-loops mtl network-uri opaleye
     optparse-applicative pandoc pandoc-types parsec parsec3-numbers
     postgresql-simple product-profunctors profunctors text text-builder
     time vector

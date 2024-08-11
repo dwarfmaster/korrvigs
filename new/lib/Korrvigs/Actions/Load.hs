@@ -3,12 +3,11 @@ module Korrvigs.Actions.Load where
 import Control.Lens
 import Data.Aeson (Value)
 import Data.Text (Text)
+import Korrvigs.AllEntries ()
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.KindData
-import Korrvigs.Link ()
 import Korrvigs.Monad
-import Korrvigs.Note ()
 import Opaleye
 
 mkEntry :: (IsKD a) => f a -> EntryRow -> [(Text, Value, Bool)] -> (Entry -> a) -> Entry
@@ -30,3 +29,4 @@ load i = do
       case row ^. sqlEntryKind of
         Note -> dLoad i $ mkEntry (Nothing :: Maybe Note) row mtdt
         Link -> dLoad i $ mkEntry (Nothing :: Maybe Link) row mtdt
+        File -> dLoad i $ mkEntry (Nothing :: Maybe File) row mtdt

@@ -43,6 +43,9 @@ library korrvigs-lib
     Korrvigs.Entry.Ident
     Korrvigs.Entry.Ident.Stopwords
     Korrvigs.Entry.SQL
+    Korrvigs.File
+    Korrvigs.File.SQL
+    Korrvigs.File.Sync
     Korrvigs.FTS
     Korrvigs.FTS.Parser
     Korrvigs.FTS.Query
@@ -92,6 +95,7 @@ library korrvigs-lib
     , HUnit                 ^>=1.6.2.0
     , lens                  ^>=5.2.3
     , linear                ^>=1.22
+    , mime-types            ^>=0.1.2.0
     , monad-loops           ^>=0.4.3
     , mtl                   ^>=2.2.2
     , network-uri           ^>=2.6.4.2

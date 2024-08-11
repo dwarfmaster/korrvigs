@@ -1,7 +1,7 @@
 -- CREATE EXTENSION postgis;
 -- CREATE EXTENSION address_standardizer;
 
-CREATE TYPE KIND AS ENUM ('note', 'link');
+CREATE TYPE KIND AS ENUM ('note', 'link', 'file');
 CREATE TABLE entries (
   name TEXT NOT NULL UNIQUE,
   kind KIND NOT NULL,
@@ -51,5 +51,17 @@ CREATE TABLE links (
   ref TEXT NOT NULL,
   file TEXT NOT NULL,
   CONSTRAINT notes_entries
+    FOREIGN KEY (name,kind) references entries(name,kind)
+);
+
+CREATE TYPE FILESTATUS AS ENUM ('fileplain', 'filepresent', 'fileabsent');
+CREATE TABLE files (
+  name TEXT NOT NULL PRIMARY KEY,
+  kind KIND NOT NULL CHECK(kind = 'file'),
+  path TEXT NOT NULL,
+  meta TEXT NOT NULL,
+  status FILESTATUS NOT NULL,
+  mime TEXT NOT NULL,
+  CONSTRAINT files_entries
     FOREIGN KEY (name,kind) references entries(name,kind)
 );

@@ -1,4 +1,4 @@
-module Korrvigs.Metadata (MtdtExtras, mtdtGeometry, mtdtDate, mtdtDuration, mtdtParents, mtdtExtras, reifyMetadata) where
+module Korrvigs.Metadata (MtdtExtras, mtdtGeometry, mtdtDate, mtdtDuration, mtdtParents, mtdtExtras, mtdtText, reifyMetadata) where
 
 import Control.Lens
 import Data.Aeson
@@ -20,13 +20,14 @@ data MtdtExtras = MtdtExtras
   { _mtdtGeometry :: Maybe Geometry,
     _mtdtDate :: Maybe ZonedTime,
     _mtdtDuration :: Maybe CalendarDiffTime,
-    _mtdtParents :: Maybe [Id]
+    _mtdtParents :: Maybe [Id],
+    _mtdtText :: Maybe Text
   }
 
 makeLenses ''MtdtExtras
 
 instance Default MtdtExtras where
-  def = MtdtExtras Nothing Nothing Nothing Nothing
+  def = MtdtExtras Nothing Nothing Nothing Nothing Nothing
 
 asText :: Value -> Maybe Text
 asText (String txt) = Just txt
@@ -57,13 +58,17 @@ extractParents mtdt = do
     asList (Array v) = Just $ V.toList v
     asList _ = Nothing
 
+extractText :: Map Text Value -> Maybe Text
+extractText mtdt = M.lookup "textContent" mtdt >>= asText
+
 mtdtExtras :: Map Text Value -> MtdtExtras
 mtdtExtras mtdt =
   MtdtExtras
     { _mtdtGeometry = extractGeometry mtdt,
       _mtdtDate = dt,
       _mtdtDuration = dur,
-      _mtdtParents = extractParents mtdt
+      _mtdtParents = extractParents mtdt,
+      _mtdtText = extractText mtdt
     }
   where
     (dt, dur) = extractDate mtdt
@@ -85,9 +90,13 @@ insertDuration dur = insertWithRO "duration" $ toJSON $ formatShow durationTimeF
 insertParents :: [Id] -> Metadata -> Metadata
 insertParents pars = insertWithRO "parents" $ toJSON $ unId <$> pars
 
+insertText :: Text -> Metadata -> Metadata
+insertText txt = insertWithRO "textContent" $ toJSON txt
+
 reifyMetadata :: MtdtExtras -> Metadata -> Metadata
 reifyMetadata ex =
   maybe id insertGeom (ex ^. mtdtGeometry)
     . maybe id insertDate (ex ^. mtdtDate)
     . maybe id insertDuration (ex ^. mtdtDuration)
     . maybe id insertParents (ex ^. mtdtParents)
+    . maybe id insertText (ex ^. mtdtText)

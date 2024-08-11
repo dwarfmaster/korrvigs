@@ -13,6 +13,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Database.PostgreSQL.Simple as Simple
 import Korrvigs.Entry
+import Korrvigs.File
 import Korrvigs.KindData
 import Korrvigs.Link
 import Korrvigs.Monad
@@ -30,7 +31,8 @@ loadIDs = do
   allIDs <-
     sequence
       [ loadIDsFor (Nothing :: Maybe Link) displayLinkId,
-        loadIDsFor (Nothing :: Maybe Note) displayNoteId
+        loadIDsFor (Nothing :: Maybe Note) displayNoteId,
+        loadIDsFor (Nothing :: Maybe File) displayFileId
       ]
   pure $ M.unionsWith (<>) allIDs
 
@@ -56,7 +58,8 @@ sync = do
   allrels <-
     sequence
       [ dSync (Nothing :: Maybe Link),
-        dSync (Nothing :: Maybe Note)
+        dSync (Nothing :: Maybe Note),
+        dSync (Nothing :: Maybe File)
       ]
   let rels = foldl' M.union M.empty allrels
   let checkRD = checkRelData $ \i -> isJust $ M.lookup i ids

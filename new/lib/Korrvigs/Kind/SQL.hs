@@ -10,11 +10,13 @@ data SqlKind
 fromSqlKind :: String -> Maybe Kind
 fromSqlKind "note" = Just Note
 fromSqlKind "link" = Just Link
+fromSqlKind "file" = Just File
 fromSqlKind _ = Nothing
 
 toSqlKind :: Kind -> String
 toSqlKind Note = "note"
 toSqlKind Link = "link"
+toSqlKind File = "file"
 
 sqlKindMapper :: EnumMapper SqlKind Kind
 sqlKindMapper = enumMapper "kind" fromSqlKind toSqlKind

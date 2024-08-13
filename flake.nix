@@ -64,6 +64,7 @@
             pkgs.haskellPackages.yesod-bin
             pkgs.haskellPackages.dhall
             pkgs.nodejs_20
+            pkgs.exiftool
           ];
           env = {
             SOUFFLE_ROOT = "${pkgs.souffle}/";

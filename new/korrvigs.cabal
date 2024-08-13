@@ -45,6 +45,8 @@ library korrvigs-lib
     Korrvigs.Entry.Ident.Stopwords
     Korrvigs.Entry.SQL
     Korrvigs.File
+    Korrvigs.File.Mtdt
+    Korrvigs.File.Mtdt.ExifTool
     Korrvigs.File.New
     Korrvigs.File.SQL
     Korrvigs.File.Sync

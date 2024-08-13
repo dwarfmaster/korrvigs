@@ -3,12 +3,10 @@ module Korrvigs.File.New (new, NewFile (..), nfParent, nfDate, nfTitle) where
 import Control.Applicative ((<|>))
 import Control.Lens
 import Control.Monad.Except
-import Data.Aeson
 import Data.Aeson.Text (encodeToLazyText)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.Default
-import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -17,6 +15,7 @@ import qualified Data.Text.Lazy.IO as TLIO
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
+import Korrvigs.File.Mtdt
 import Korrvigs.File.Sync
 import Korrvigs.KindData
 import Korrvigs.Metadata
@@ -45,9 +44,6 @@ findMime path = do
   pure $ Enc.encodeUtf8 mime
   where
     file = proc "file" ["--mime-type", path]
-
-extractMetadata :: FilePath -> MimeType -> IO (Map Text Value)
-extractMetadata path mime = pure M.empty
 
 shouldAnnex :: FilePath -> MimeType -> IO Bool
 shouldAnnex path mime =

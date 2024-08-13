@@ -47,6 +47,7 @@ library korrvigs-lib
     Korrvigs.File
     Korrvigs.File.Mtdt
     Korrvigs.File.Mtdt.ExifTool
+    Korrvigs.File.Mtdt.GPX
     Korrvigs.File.Mtdt.Pandoc
     Korrvigs.File.Mtdt.PdfToText
     Korrvigs.File.New
@@ -123,6 +124,7 @@ library korrvigs-lib
     , time                  ^>=1.12.2
     , unix                  ^>=2.8.4.0
     , vector                ^>=0.13.1.0
+    , xml-conduit           ^>=1.9.1.3
 
   default-extensions:
     FlexibleInstances

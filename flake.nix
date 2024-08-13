@@ -65,6 +65,7 @@
             pkgs.haskellPackages.dhall
             pkgs.nodejs_20
             pkgs.exiftool
+            pkgs.poppler_utils
           ];
           env = {
             SOUFFLE_ROOT = "${pkgs.souffle}/";

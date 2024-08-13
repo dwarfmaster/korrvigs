@@ -27,7 +27,7 @@ import Korrvigs.Monad
 import Korrvigs.Utils.DateTree
 import Opaleye hiding (not)
 import System.Directory
-import System.FilePath (joinPath, takeBaseName, takeExtension)
+import System.FilePath
 import Prelude hiding (readFile)
 
 data FileMetadata = FileMetadata
@@ -140,8 +140,15 @@ computeStatus path = do
     resolveSym link = do
       sym <- pathIsSymbolicLink link
       if sym
-        then getSymbolicLinkTarget link >>= resolveSym
+        then do
+          target <- getSymbolicLinkTarget link
+          let ntarget = combinePath (takeDirectory link) target
+          resolveSym ntarget
         else pure link
+    combinePath :: FilePath -> FilePath -> FilePath
+    combinePath rt pth
+      | isAbsolute pth = pth
+      | otherwise = rt </> pth
 
 dSyncImpl :: (MonadKorrvigs m) => m (Map Id RelData)
 dSyncImpl =

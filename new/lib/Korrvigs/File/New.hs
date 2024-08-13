@@ -59,7 +59,7 @@ shouldAnnex path mime =
 new :: (MonadKorrvigs m) => FilePath -> Maybe Entry -> m Id
 new path parent = do
   ex <- liftIO $ doesFileExist path
-  when ex $ throwError $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
+  unless ex $ throwError $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path
   mtdt <- liftIO $ extractMetadata path mime
   let extras = mtdtExtras mtdt
@@ -83,9 +83,15 @@ new path parent = do
             _annoted = M.empty
           }
   liftIO $ TLIO.writeFile metapath $ encodeToLazyText meta
+  rt <- root
   when annex $ liftIO $ do
     devNull <- openFile "/dev/null" WriteMode
-    let gannex = (proc "git" ["annex", "add", stored]) {std_out = UseHandle devNull}
+    let gannex =
+          (proc "git" ["annex", "add", stored])
+            { std_out = UseHandle devNull,
+              std_err = UseHandle devNull,
+              cwd = Just rt
+            }
     (_, _, _, prc) <- createProcess gannex
     void $ waitForProcess prc
     hClose devNull

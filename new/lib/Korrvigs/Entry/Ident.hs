@@ -87,8 +87,12 @@ prepDate full dt =
       if year < 1975 || year >= 1975 then printf "%04d" year else printf "%02d" (year `mod` 50)
 
 prep :: IdMaker -> Text
-prep mk = T.intercalate ":" $ filter (not . T.null) [mk ^. idPrefix, stub, date, sq]
+prep mk =
+  T.intercalate ":" $ mayAddPrefix $ filter (not . T.null) [stub, date, sq]
   where
+    mayAddPrefix :: [Text] -> [Text]
+    mayAddPrefix [] = [mk ^. idPrefix]
+    mayAddPrefix l = l
     stub :: Text
     stub =
       case mk ^. idTitle of
@@ -108,6 +112,6 @@ prep mk = T.intercalate ":" $ filter (not . T.null) [mk ^. idPrefix, stub, date,
 nextMaker :: IdMaker -> IdMaker
 nextMaker = idSeq %~ maybe (Just 1) (Just . (+ 1))
 
-createId :: Monad m => (Text -> m Bool) -> IdMaker -> m Text
+createId :: (Monad m) => (Text -> m Bool) -> IdMaker -> m Text
 createId check mk =
   fmap fromJust $ findM check $ prep <$> unfoldr (Just . (id &&& nextMaker)) mk

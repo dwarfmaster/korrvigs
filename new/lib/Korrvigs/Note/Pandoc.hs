@@ -3,6 +3,7 @@ module Korrvigs.Note.Pandoc (readNote) where
 import Control.Arrow ((&&&))
 import Control.Exception (SomeException, try)
 import Control.Lens hiding ((<|))
+import Control.Monad
 import Control.Monad.Extra (concatMapM)
 import Control.Monad.Loops (whileJust_, whileM_)
 import Control.Monad.ST

@@ -2,7 +2,9 @@ module Korrvigs.File.New (new, NewFile (..), nfParent, nfDate, nfTitle) where
 
 import Control.Applicative ((<|>))
 import Control.Lens
+import Control.Monad
 import Control.Monad.Except
+import Control.Monad.IO.Class
 import Data.Aeson.Text (encodeToLazyText)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL

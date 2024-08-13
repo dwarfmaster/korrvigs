@@ -3,7 +3,9 @@
 module Korrvigs.Monad where
 
 import Control.Exception.Base (IOException)
+import Control.Monad
 import Control.Monad.Except
+import Control.Monad.IO.Class
 import Data.Profunctor.Product.Default
 import Data.Text (Text)
 import Database.PostgreSQL.Simple (Connection, withTransaction)

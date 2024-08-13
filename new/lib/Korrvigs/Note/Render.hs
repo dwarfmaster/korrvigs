@@ -2,6 +2,7 @@ module Korrvigs.Note.Render (writeNote) where
 
 import Control.Exception (SomeException, try)
 import Control.Lens
+import Control.Monad
 import Control.Monad.RWS
 import Data.Aeson (Value (..))
 import qualified Data.Aeson.Key as K

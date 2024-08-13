@@ -2,7 +2,7 @@
   description = "Intelligent knowledge database system";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     devenv.url = "github:cachix/devenv";
   };
 
@@ -28,7 +28,7 @@
           languages.haskell.enable = true;
           languages.haskell.package = pkgs.haskellPackages.ghcWithPackages (hpkgs: [
             hpkgs.yesod
-            (pkgs.haskell.lib.dontCheck hpkgs.opaleye_0_10_2_0)
+            (pkgs.haskell.lib.dontCheck hpkgs.opaleye)
             hpkgs.pandoc
             hpkgs.dhall
             hpkgs.lens
@@ -44,13 +44,11 @@
 
           pre-commit.hooks = {
             alejandra.enable = true;
+            alejandra.settings.exclude = ["new/default.nix" "haskell/default.nix"];
             deadnix.enable = true;
             cabal-fmt.enable = true;
             cabal2nix.enable = true;
             ormolu.enable = true;
-          };
-          pre-commit.settings = {
-            alejandra.exclude = ["new/default.nix" "haskell/default.nix"];
           };
 
           packages = [

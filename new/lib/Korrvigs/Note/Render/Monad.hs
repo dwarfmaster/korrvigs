@@ -1,6 +1,7 @@
 module Korrvigs.Note.Render.Monad where
 
 import Control.Lens
+import Control.Monad
 import Control.Monad.RWS
 import Data.Text (Text)
 import qualified Data.Text as T

@@ -2,6 +2,7 @@
 
 module Korrvigs.Geometry.WKB (writeGeometry, readGeometry) where
 
+import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Data.Binary
@@ -54,7 +55,7 @@ getEndian =
     1 -> pure LittleEndian
     n -> fail $ "Unknown endianness encoding " <> show n
 
-putInt' :: Integral a => Endian -> a -> Put
+putInt' :: (Integral a) => Endian -> a -> Put
 putInt' BigEndian = putWord32be . fromIntegral
 putInt' LittleEndian = putWord32le . fromIntegral
 

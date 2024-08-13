@@ -13,19 +13,23 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.Encoding as Enc
 import Data.Time.Format
 import Data.Time.Format.ISO8601
 import Data.Time.LocalTime
+import Korrvigs.Geometry
+import Korrvigs.Geometry.WKB (writeGeometry)
+import Linear.V2
 import Network.Mime
 import System.FilePath
 import System.Process
-import Text.Parsec hiding ((<|>))
-import Text.Parsec.Number (decimal)
+import Text.Parsec hiding (getPosition, (<|>))
+import Text.Parsec.Number (decimal, fractional)
 import Text.Read (readMaybe)
 
 type Parser = Parsec ByteString ()
 
-spaces1 :: Parser ()
+spaces1 :: (Stream s Identity Char) => Parsec s u ()
 spaces1 = space >> spaces
 
 exifLine :: Parser (Text, Text, Text)
@@ -36,7 +40,7 @@ exifLine = do
   spaces1
   name <- many1 $ noneOf ":"
   void $ string ": "
-  value <- many1 $ noneOf "\n"
+  value <- many $ noneOf "\n"
   pure (T.pack category, T.strip (T.pack name), T.pack value)
 
 exifOutput :: Parser [(Text, Text, Text)]
@@ -56,7 +60,7 @@ extract path _ = do
       pure M.empty
     Right mtdt -> do
       let mappings = M.unionsWith (<>) $ (\(category, name, value) -> M.singleton name ((category, value) :| [])) <$> mtdt
-      pure $ mconcat $ ($ mappings) <$> [getTitle, getPageCount, getDate, getDimensions]
+      pure $ mconcat $ ($ mappings) <$> [getTitle, getPageCount, getDate, getDimensions, getPosition]
 
 seqLookup :: (Ord a) => Map a b -> [a] -> Maybe b
 seqLookup _ [] = Nothing
@@ -103,3 +107,47 @@ getDimensions mtdt = case (M.lookup "ImageWidth" mtdt, M.lookup "ImageHeight" mt
       h <- decimal
       eof
       pure (w, h)
+
+gpsCoordinate :: (Stream s Identity Char) => Parsec s u Double
+gpsCoordinate = do
+  degs <- decimal
+  spaces1
+  void $ string "deg"
+  spaces1
+  minutes <- decimal
+  void $ char '\''
+  spaces1
+  seconds <- fractional
+  void $ char '"'
+  spaces1
+  pure $ mkDeg degs + mkMin minutes + mkSec seconds
+  where
+    mkDeg :: Int -> Double
+    mkDeg = fromIntegral
+    mkSec :: Double -> Double
+    mkSec i = i / 3600.0
+    mkMin :: Int -> Double
+    mkMin i = fromIntegral i / 60.0
+
+gpsParser :: (Stream s Identity Char) => Parsec s u Point
+gpsParser = do
+  latitude <- gpsCoordinate
+  latitudeRef <- oneOf "NS"
+  void $ char ','
+  spaces1
+  longitude <- gpsCoordinate
+  longitudeRef <- oneOf "EW"
+  eof
+  let lat = if latitudeRef == 'N' then latitude else -latitude
+  let long = if longitudeRef == 'E' then longitude else -longitude
+  pure $ V2 long lat
+
+getPosition :: Mapping -> Map Text Value
+getPosition mtdt =
+  case M.lookup "GPSPosition" mtdt of
+    Just ((_, pos) :| _) ->
+      case parse gpsParser "" pos of
+        Left _ -> M.empty
+        Right pt ->
+          M.singleton "geometry" $ toJSON $ Enc.decodeUtf8 $ writeGeometry $ GeoPoint pt
+    Nothing -> M.empty

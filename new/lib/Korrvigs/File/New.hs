@@ -1,18 +1,20 @@
-module Korrvigs.File.New (new) where
+module Korrvigs.File.New (new, NewFile (..), nfParent, nfDate, nfTitle) where
 
+import Control.Applicative ((<|>))
 import Control.Lens
 import Control.Monad.Except
 import Data.Aeson
 import Data.Aeson.Text (encodeToLazyText)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy.IO as TLIO
+import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.File.Sync
@@ -56,8 +58,19 @@ shouldAnnex path mime =
       pure $ size > 10 * 1024 * 1024
     else pure True
 
-new :: (MonadKorrvigs m) => FilePath -> Maybe Entry -> m Id
-new path parent = do
+data NewFile = NewFile
+  { _nfParent :: Maybe Id,
+    _nfDate :: Maybe Day,
+    _nfTitle :: Maybe Text
+  }
+
+makeLenses ''NewFile
+
+instance Default NewFile where
+  def = NewFile Nothing Nothing Nothing
+
+new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
+new path options = do
   ex <- liftIO $ doesFileExist path
   unless ex $ throwError $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path
@@ -66,15 +79,20 @@ new path parent = do
   annex <- liftIO $ shouldAnnex path mime
   let idmk =
         imk "file"
-          & idTitle ?~ fromMaybe (T.pack $ takeBaseName path) (extras ^. mtdtTitle)
-          & idParent .~ fmap (view name) parent
+          & idTitle
+            .~ ( (options ^. nfTitle)
+                   <|> (extras ^. mtdtTitle)
+                   <|> Just (T.pack $ takeBaseName path)
+               )
+          & idParent .~ options ^. nfParent
           & idDate .~ extras ^. mtdtDate
   i <- newId idmk
   let ext = T.pack $ takeExtension path
   let nm = unId i <> ext
   content <- liftIO $ BSL.readFile path
   dir <- filesDirectory
-  stored <- storeFile dir filesTreeType (localDay . zonedTimeToLocalTime <$> extras ^. mtdtDate) nm content
+  let day = (localDay . zonedTimeToLocalTime <$> extras ^. mtdtDate) <|> (options ^. nfDate)
+  stored <- storeFile dir filesTreeType day nm content
   let metapath = metaPath stored
   let meta =
         FileMetadata

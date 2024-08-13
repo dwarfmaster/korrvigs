@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Korrvigs.File (new, displayFileId) where
+module Korrvigs.File (new, NewFile (..), nfParent, nfDate, nfTitle, displayFileId) where
 
 import Control.Lens
 import qualified Data.Set as S

@@ -1,16 +1,32 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Korrvigs.Cli.File where
 
 import Control.Lens hiding (argument)
+import Control.Monad
 import Control.Monad.IO.Class
 import qualified Data.Text as T
+import Data.Time.Calendar
+import Data.Time.Format
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
 import Korrvigs.File
 import Options.Applicative
+import System.Directory (removeFile)
 
-data Cmd = New {_file :: FilePath}
+data Cmd = New {_nfFile :: FilePath, _nfOptions :: NewFile, _nfRemove :: Bool}
 
 makeLenses ''Cmd
+
+newtype DayParserResult a = DayParserResult {extractResult :: Either String a}
+  deriving (Functor, Applicative, Monad)
+
+instance MonadFail DayParserResult where
+  fail = DayParserResult . Left
+
+dayParser :: ReadM Day
+dayParser = eitherReader $ \s ->
+  extractResult $ parseTimeM True defaultTimeLocale "%F" s
 
 parser' :: Parser Cmd
 parser' =
@@ -20,6 +36,12 @@ parser' =
       ( info
           ( ( New
                 <$> argument str (metavar "PATH")
+                <*> ( NewFile
+                        <$> (fmap MkId <$> optional (option str $ metavar "ID" <> long "parent"))
+                        <*> optional (option dayParser $ metavar "DATE" <> long "date" <> help "Date for the file, in format year-month-day")
+                        <*> optional (option str $ metavar "TITLE" <> long "title")
+                    )
+                <*> switch (long "delete" <> help "Delete original file after insertion")
             )
               <**> helper
           )
@@ -36,6 +58,7 @@ parser =
       <> header "korr file -- interface for files"
 
 run :: Cmd -> KorrM ()
-run (New path) = do
-  i <- new path Nothing
+run (New path options remove) = do
+  i <- new path options
+  when remove $ liftIO $ removeFile path
   liftIO $ putStrLn $ "Inserted \"" <> path <> "\" as " <> T.unpack (unId i)

@@ -1,7 +1,7 @@
-{ mkDerivation, aeson, array, base, base16-bytestring, binary
-, bytestring, containers, data-default, data-endian, directory
-, extra, filepath, hmatrix-glpk, HUnit, lens, lib, linear
-, mime-types, monad-loops, mtl, network-uri, opaleye
+{ mkDerivation, aeson, array, async, base, base16-bytestring
+, binary, bytestring, containers, data-default, data-endian
+, directory, extra, filepath, hmatrix-glpk, HUnit, lens, lib
+, linear, mime-types, monad-loops, mtl, network-uri, opaleye
 , optparse-applicative, pandoc, pandoc-types, parsec
 , parsec3-numbers, postgresql-simple, process, product-profunctors
 , profunctors, temporary, text, text-builder, time, unix, vector
@@ -13,12 +13,12 @@ mkDerivation {
   isLibrary = false;
   isExecutable = true;
   libraryHaskellDepends = [
-    aeson array base base16-bytestring binary bytestring containers
-    data-default data-endian directory extra filepath hmatrix-glpk
-    HUnit lens linear mime-types monad-loops mtl network-uri opaleye
-    optparse-applicative pandoc pandoc-types parsec parsec3-numbers
-    postgresql-simple process product-profunctors profunctors temporary
-    text text-builder time unix vector
+    aeson array async base base16-bytestring binary bytestring
+    containers data-default data-endian directory extra filepath
+    hmatrix-glpk HUnit lens linear mime-types monad-loops mtl
+    network-uri opaleye optparse-applicative pandoc pandoc-types parsec
+    parsec3-numbers postgresql-simple process product-profunctors
+    profunctors temporary text text-builder time unix vector
   ];
   doHaddock = false;
   description = "A wiki system for my personal use";

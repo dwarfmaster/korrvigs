@@ -33,6 +33,7 @@ library korrvigs-lib
     Korrvigs.Actions.Sync
     Korrvigs.AllEntries
     Korrvigs.Cli
+    Korrvigs.Cli.File
     Korrvigs.Cli.Info
     Korrvigs.Cli.Link
     Korrvigs.Cli.Monad

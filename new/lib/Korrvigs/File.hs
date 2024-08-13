@@ -1,12 +1,13 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Korrvigs.File where
+module Korrvigs.File (new, displayFileId) where
 
 import Control.Lens
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
+import Korrvigs.File.New
 import Korrvigs.File.Sync
 import Korrvigs.Kind
 import Korrvigs.KindData

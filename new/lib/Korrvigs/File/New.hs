@@ -65,6 +65,15 @@ makeLenses ''NewFile
 instance Default NewFile where
   def = NewFile Nothing Nothing Nothing
 
+choosePrefix :: MimeType -> Text
+choosePrefix mime
+  | BS.isPrefixOf "audio" mime = "audio"
+  | BS.isPrefixOf "video" mime = "vid"
+  | BS.isPrefixOf "font" mime = "font"
+  | BS.isPrefixOf "image" mime = "img"
+  | BS.isPrefixOf "text" mime = "file"
+  | otherwise = "doc"
+
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
 new path options = do
   ex <- liftIO $ doesFileExist path
@@ -74,7 +83,7 @@ new path options = do
   let extras = mtdtExtras mtdt
   annex <- liftIO $ shouldAnnex path mime
   let idmk =
-        imk "file"
+        imk (choosePrefix mime)
           & idTitle
             .~ ( (options ^. nfTitle)
                    <|> (extras ^. mtdtTitle)

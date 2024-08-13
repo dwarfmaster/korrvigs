@@ -3,8 +3,8 @@
 , extra, filepath, hmatrix-glpk, HUnit, lens, lib, linear
 , mime-types, monad-loops, mtl, network-uri, opaleye
 , optparse-applicative, pandoc, pandoc-types, parsec
-, parsec3-numbers, postgresql-simple, product-profunctors
-, profunctors, text, text-builder, time, vector
+, parsec3-numbers, postgresql-simple, process, product-profunctors
+, profunctors, text, text-builder, time, unix, vector
 }:
 mkDerivation {
   pname = "korrvigs";
@@ -17,8 +17,8 @@ mkDerivation {
     data-default data-endian directory extra filepath hmatrix-glpk
     HUnit lens linear mime-types monad-loops mtl network-uri opaleye
     optparse-applicative pandoc pandoc-types parsec parsec3-numbers
-    postgresql-simple product-profunctors profunctors text text-builder
-    time vector
+    postgresql-simple process product-profunctors profunctors text
+    text-builder time unix vector
   ];
   doHaddock = false;
   description = "A wiki system for my personal use";

@@ -70,25 +70,8 @@ sync = do
     Nothing -> pure ()
     Just cle -> throwError $ KSubCycle cle
   let subBindings = mkBindings $ view relSubOf <$> rels
-  void $
-    liftIO $
-      runInsert conn $
-        Insert
-          { iTable = entriesSubTable,
-            iRows = toFields . uncurry RelRow <$> subBindings,
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
   let refBindings = mkBindings $ view relRefTo <$> rels
-  void $
-    liftIO $
-      runInsert conn $
-        Insert
-          { iTable = entriesRefTable,
-            iRows = toFields . uncurry RelRow <$> refBindings,
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
+  atomicInsert $ insertSubOf subBindings <> insertRefTo refBindings
   where
     mkBindings :: Map a [a] -> [(a, a)]
     mkBindings m = (\(a, l) -> (a,) <$> l) =<< M.toList m

@@ -13,6 +13,7 @@ import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
 import Data.Time (CalendarDiffTime, ZonedTime)
+import GHC.Int (Int64)
 import Korrvigs.Entry.Def
 import Korrvigs.Entry.Ident
 import Korrvigs.FTS
@@ -149,3 +150,20 @@ entryFromRow tkd row mtdt cstr = kd
           _metadata = M.fromList mtdtList,
           _kindData = tkd kd
         }
+
+-- Deal with RelData
+insertSubOf :: [(Id, Id)] -> [Insert Int64]
+insertSubOf = insertRelationImpl entriesSubTable
+
+insertRefTo :: [(Id, Id)] -> [Insert Int64]
+insertRefTo = insertRelationImpl entriesRefTable
+
+insertRelationImpl :: Table RelRowSQL a -> [(Id, Id)] -> [Insert Int64]
+insertRelationImpl tbl rels =
+  [ Insert
+      { iTable = tbl,
+        iRows = toFields . uncurry RelRow <$> rels,
+        iReturning = rCount,
+        iOnConflict = Just doNothing
+      }
+  ]

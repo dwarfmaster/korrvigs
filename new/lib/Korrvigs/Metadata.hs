@@ -1,4 +1,4 @@
-module Korrvigs.Metadata (MtdtExtras, mtdtGeometry, mtdtDate, mtdtDuration, mtdtParents, mtdtExtras, mtdtText, reifyMetadata) where
+module Korrvigs.Metadata (MtdtExtras, mtdtGeometry, mtdtDate, mtdtDuration, mtdtParents, mtdtExtras, mtdtText, mtdtTitle, reifyMetadata) where
 
 import Control.Lens
 import Data.Aeson
@@ -21,13 +21,14 @@ data MtdtExtras = MtdtExtras
     _mtdtDate :: Maybe ZonedTime,
     _mtdtDuration :: Maybe CalendarDiffTime,
     _mtdtParents :: Maybe [Id],
-    _mtdtText :: Maybe Text
+    _mtdtText :: Maybe Text,
+    _mtdtTitle :: Maybe Text
   }
 
 makeLenses ''MtdtExtras
 
 instance Default MtdtExtras where
-  def = MtdtExtras Nothing Nothing Nothing Nothing Nothing
+  def = MtdtExtras Nothing Nothing Nothing Nothing Nothing Nothing
 
 asText :: Value -> Maybe Text
 asText (String txt) = Just txt
@@ -61,6 +62,9 @@ extractParents mtdt = do
 extractText :: Map Text Value -> Maybe Text
 extractText mtdt = M.lookup "textContent" mtdt >>= asText
 
+extractTitle :: Map Text Value -> Maybe Text
+extractTitle mtdt = M.lookup "title" mtdt >>= asText
+
 mtdtExtras :: Map Text Value -> MtdtExtras
 mtdtExtras mtdt =
   MtdtExtras
@@ -68,7 +72,8 @@ mtdtExtras mtdt =
       _mtdtDate = dt,
       _mtdtDuration = dur,
       _mtdtParents = extractParents mtdt,
-      _mtdtText = extractText mtdt
+      _mtdtText = extractText mtdt,
+      _mtdtTitle = extractTitle mtdt
     }
   where
     (dt, dur) = extractDate mtdt
@@ -93,6 +98,9 @@ insertParents pars = insertWithRO "parents" $ toJSON $ unId <$> pars
 insertText :: Text -> Metadata -> Metadata
 insertText txt = insertWithRO "textContent" $ toJSON txt
 
+insertTitle :: Text -> Metadata -> Metadata
+insertTitle title = insertWithRO "title" $ toJSON title
+
 reifyMetadata :: MtdtExtras -> Metadata -> Metadata
 reifyMetadata ex =
   maybe id insertGeom (ex ^. mtdtGeometry)
@@ -100,3 +108,4 @@ reifyMetadata ex =
     . maybe id insertDuration (ex ^. mtdtDuration)
     . maybe id insertParents (ex ^. mtdtParents)
     . maybe id insertText (ex ^. mtdtText)
+    . maybe id insertTitle (ex ^. mtdtTitle)

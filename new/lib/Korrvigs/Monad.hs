@@ -78,3 +78,6 @@ atomicSQL :: (MonadKorrvigs m) => (Connection -> IO a) -> m a
 atomicSQL act = do
   conn <- pgSQL
   liftIO $ withTransaction conn $ act conn
+
+atomicInsert :: (MonadKorrvigs m) => [Insert a] -> m ()
+atomicInsert ins = atomicSQL $ forM_ ins . runInsert

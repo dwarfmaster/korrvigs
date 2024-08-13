@@ -62,6 +62,8 @@ module Korrvigs.Entry
     selectRecSourcesFor,
     selectTargetsFor,
     selectRecTargetsFor,
+    insertSubOf,
+    insertRefTo,
     IdMaker,
     imk,
     idPrefix,

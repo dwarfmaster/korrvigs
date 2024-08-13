@@ -1,6 +1,6 @@
 module Korrvigs.KindData where
 
-import Control.Lens.TH (makeLenses)
+import Control.Lens
 import Data.Map (Map)
 import Data.Set (Set)
 import GHC.Int (Int64)
@@ -38,3 +38,9 @@ class IsKD a where
   dEntry :: a -> Entry
   dIdentify :: a -> KDIdentifier a
   dToData :: a -> KindData
+
+atomicInsertRelData :: (MonadKorrvigs m) => Id -> RelData -> m ()
+atomicInsertRelData src relData =
+  atomicInsert $
+    insertSubOf ((src,) <$> relData ^. relSubOf)
+      <> insertRefTo ((src,) <$> relData ^. relRefTo)

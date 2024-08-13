@@ -47,6 +47,7 @@ library korrvigs-lib
     Korrvigs.File
     Korrvigs.File.Mtdt
     Korrvigs.File.Mtdt.ExifTool
+    Korrvigs.File.Mtdt.Pandoc
     Korrvigs.File.Mtdt.PdfToText
     Korrvigs.File.New
     Korrvigs.File.SQL
@@ -82,6 +83,7 @@ library korrvigs-lib
     Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateTree
     Korrvigs.Utils.Opaleye
+    Korrvigs.Utils.Pandoc
 
   build-depends:
     , aeson                 ^>=2.1.2.1

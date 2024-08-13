@@ -14,7 +14,6 @@ import qualified Data.Aeson.KeyMap as KM
 import Data.Array.Base hiding (array)
 import qualified Data.Array.ST as SAr
 import Data.Bitraversable (bimapM)
-import Data.List (intersperse)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -30,6 +29,7 @@ import qualified Data.Vector as V
 import Korrvigs.Entry.Ident
 import qualified Korrvigs.Note.AST as A
 import Korrvigs.Note.Helpers
+import Korrvigs.Utils.Pandoc
 import Network.URI
 import Text.Pandoc hiding (Reader)
 import Prelude hiding (readFile)
@@ -292,39 +292,6 @@ buildCells width height rows = do
         writeArray array (rx + dx - 1, y + dy - 1) bc
       writeSTRef x $ rx + w
   pure array
-
-pdInlineToText :: Inline -> Builder
-pdInlineToText (Str txt) = fromText txt
-pdInlineToText (Emph inls) = mconcat $ pdInlineToText <$> inls
-pdInlineToText (Underline inls) = mconcat $ pdInlineToText <$> inls
-pdInlineToText (Strong inls) = mconcat $ pdInlineToText <$> inls
-pdInlineToText (Strikeout inls) = mconcat $ pdInlineToText <$> inls
-pdInlineToText (Superscript inls) = mconcat $ pdInlineToText <$> inls
-pdInlineToText (Subscript inls) = mconcat $ pdInlineToText <$> inls
-pdInlineToText (SmallCaps inls) = mconcat $ pdInlineToText <$> inls
-pdInlineToText (Quoted _ inls) = mconcat $ pdInlineToText <$> inls
-pdInlineToText (Cite cites _) =
-  mconcat . intersperse (fromText ";") $ map (\(Citation i _ _ _ _ _) -> "@" <> fromText i) cites
-pdInlineToText (Code _ txt) = fromText txt
-pdInlineToText Space = " "
-pdInlineToText SoftBreak = " "
-pdInlineToText LineBreak = " "
-pdInlineToText (Math DisplayMath mth) = "$$" <> fromText mth <> "$$"
-pdInlineToText (Math InlineMath mth) = "$" <> fromText mth <> "$"
-pdInlineToText (RawInline _ _) = mempty
-pdInlineToText (Link _ caption _) = mconcat $ pdInlineToText <$> caption
-pdInlineToText (Image _ caption _) = mconcat $ pdInlineToText <$> caption
-pdInlineToText (Note _) = mempty
-pdInlineToText (Span _ inls) = mconcat $ pdInlineToText <$> inls
-
-pdBlockToText :: Block -> Builder
-pdBlockToText (Plain inls) = mconcat $ pdInlineToText <$> inls
-pdBlockToText (Para inls) = mconcat $ pdInlineToText <$> inls
-pdBlockToText (Div _ bks) = pdBlocksToText bks
-pdBlockToText _ = mempty
-
-pdBlocksToText :: [Block] -> Builder
-pdBlocksToText bks = mconcat . intersperse " " $ pdBlockToText <$> bks
 
 parseMetaValue :: MetaValue -> Value
 parseMetaValue (MetaBool b) = Bool b

@@ -5,6 +5,7 @@ import Data.Aeson
 import Data.Map (Map)
 import Data.Text (Text)
 import qualified Korrvigs.File.Mtdt.ExifTool as ExifTool
+import qualified Korrvigs.File.Mtdt.Pandoc as Pandoc
 import qualified Korrvigs.File.Mtdt.PdfToText as PdfToText
 import Network.Mime
 
@@ -14,7 +15,8 @@ extractMetadata path mime = do
     mapConcurrently
       process
       [ ExifTool.extract,
-        PdfToText.extract
+        PdfToText.extract,
+        Pandoc.extract
       ]
   pure $ mconcat mps
   where

@@ -82,6 +82,7 @@ library korrvigs-lib
     Korrvigs.Note.Sync
     Korrvigs.Utils
     Korrvigs.Utils.Cycle
+    Korrvigs.Utils.DateParser
     Korrvigs.Utils.DateTree
     Korrvigs.Utils.Opaleye
     Korrvigs.Utils.Pandoc

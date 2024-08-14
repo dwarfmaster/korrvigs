@@ -79,9 +79,9 @@ getPageCount mtdt = case seqLookup mtdt ["PageCount"] of
   Nothing -> M.empty
 
 getDate :: Mapping -> Map Text Value
-getDate mtdt = case seqLookup mtdt ["DateTimeOriginal", "CreateDate", "ModifyDate", "FileModifyDate"] of
+getDate mtdt = case seqLookup mtdt ["DateTimeOriginal", "CreateDate", "GpxMetadataTime", "ModifyDate", "FileModifyDate"] of
   Just ((_, dt) :| _) ->
-    let formats = ["%Y:%m:%d %T%Ez", "%Y:%m:%d %T"]
+    let formats = ["%Y:%m:%d %T%Ez", "%Y:%m:%d %TZ", "%Y:%m:%d %T"]
      in let results = (\f -> parseTimeM True defaultTimeLocale f (T.unpack dt)) <$> formats :: [Maybe ZonedTime]
          in case asum results of
               Just zonedTime -> M.singleton "date" $ toJSON $ iso8601Show zonedTime

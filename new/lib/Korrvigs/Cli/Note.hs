@@ -5,31 +5,51 @@ import Control.Monad.IO.Class
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import Korrvigs.Cli.Monad
+import Korrvigs.Entry
 import Korrvigs.Note (readNote, writeNote)
+import Korrvigs.Note.New
 import Options.Applicative
 import System.IO hiding (putStrLn)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
-data Cmd = Format {_formatFile :: FilePath, _inplace :: Bool}
+data Cmd
+  = Format {_formatFile :: FilePath, _inplace :: Bool}
+  | New {_newNote :: NewNote}
 
 makeLenses ''Cmd
 
 parser' :: Parser Cmd
 parser' =
-  subparser $
-    command
-      "format"
-      ( info
-          ( ( Format
-                <$> argument str (metavar "FILE")
-                <*> switch (long "inplace" <> short 'i' <> help "Format FILE in place")
+  subparser
+    ( command
+        "format"
+        ( info
+            ( ( Format
+                  <$> argument str (metavar "FILE")
+                  <*> switch (long "inplace" <> short 'i' <> help "Format FILE in place")
+              )
+                <**> helper
             )
-              <**> helper
+            ( progDesc "Format a markdown note file"
+                <> header "korr note format -- format note"
+            )
+        )
+        <> command
+          "new"
+          ( info
+              ( ( New
+                    <$> ( NewNote
+                            <$> argument str (metavar "TITLE")
+                            <*> pure Nothing
+                        )
+                )
+                  <**> helper
+              )
+              ( progDesc "Create a new markdown note file"
+                  <> header "korr note new -- Create note"
+              )
           )
-          ( progDesc "Format a markdown note file"
-              <> header "korr note format -- format note"
-          )
-      )
+    )
 
 parser :: ParserInfo Cmd
 parser =
@@ -49,3 +69,6 @@ run (Format path inline) = do
       case doWrite of
         Just err -> liftIO . putStrLn $ "Could not write document: " <> err
         Nothing -> pure ()
+run (New note) = do
+  i <- new note
+  liftIO $ putStrLn $ "Added note as " <> unId i

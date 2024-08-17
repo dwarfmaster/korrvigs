@@ -1,4 +1,4 @@
-module Korrvigs.Note.Render (writeNote) where
+module Korrvigs.Note.Render (writeNote, writeNoteLazy) where
 
 import Control.Exception (SomeException, try)
 import Control.Lens
@@ -7,11 +7,12 @@ import Control.Monad.RWS
 import Data.Aeson (Value (..))
 import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.KeyMap as KM
+import Data.ByteString.Lazy (hPutStr)
+import qualified Data.ByteString.Lazy as BSL
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Text.IO (hPutStr)
 import qualified Data.Vector as V
 import Korrvigs.Entry.Ident
 import Korrvigs.Note.AST
@@ -31,12 +32,15 @@ flushNotes = do
 
 writeNote :: (MonadIO m) => Handle -> Document -> m (Maybe Text)
 writeNote file doc = do
-  let txt = runRenderM 80 (render doc)
+  let txt = writeNoteLazy doc
   liftIO $ do
     r <- try $ hPutStr file txt :: IO (Either SomeException ())
     case r of
       Left e -> pure . Just . T.pack $ "IO Error: " <> show e
       Right () -> pure Nothing
+
+writeNoteLazy :: Document -> BSL.ByteString
+writeNoteLazy doc = runRenderM 80 (render doc)
 
 render :: Document -> RenderM ()
 render doc = do

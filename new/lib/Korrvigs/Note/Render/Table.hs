@@ -3,13 +3,14 @@ module Korrvigs.Note.Render.Table (renderTable) where
 import Control.Lens hiding ((#))
 import Control.Monad
 import Data.Array
-import Data.Text (Text)
+import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy.UTF8 as BSL8
 import qualified Data.Text as T
 import Korrvigs.Note.AST
 import Korrvigs.Note.Render.Monad
 import Numeric.LinearProgramming
 
-type Renderer = Int -> [Block] -> Text
+type Renderer = Int -> [Block] -> BSL.ByteString
 
 data Variable
   = VarRow Int
@@ -23,7 +24,7 @@ data RenderCell = RC
     _rcHeight :: Int,
     _rcRows :: Int,
     _rcCols :: Int,
-    _rcContent :: [Text]
+    _rcContent :: [BSL.ByteString]
   }
 
 makeLenses ''RenderCell
@@ -43,7 +44,7 @@ renderCell colWidth renderer cell =
     { _rcOrig = cell ^. cellOrig,
       _rcRows = cell ^. cellHeight,
       _rcCols = cols,
-      _rcWidth = if null content then 0 else maximum $ T.length <$> content,
+      _rcWidth = if null content then 0 else maximum $ BSL8.length <$> content,
       _rcHeight = length content,
       _rcContent = content
     }
@@ -51,7 +52,7 @@ renderCell colWidth renderer cell =
     cols = cell ^. cellWidth
     idealWidth = cols * colWidth + (cols - 1) * 3
     rendered = renderer idealWidth (cell ^. cellData)
-    content = T.lines rendered
+    content = BSL8.lines rendered
 
 renderTable :: Int -> Renderer -> Table -> RenderM ()
 renderTable width renderer tbl = do
@@ -162,9 +163,9 @@ drawTable tbl varS rcs = do
     lineOffset st cur =
       let s = sum $ varS . VarRow <$> [st .. (cur - 1)]
        in s + (cur - st)
-    drawLine :: Int -> Int -> [Text] -> RenderM ()
+    drawLine :: Int -> Int -> [BSL.ByteString] -> RenderM ()
     drawLine width i lns | i < length lns = do
       let ln = lns !! i
-      writeText ln
-      writeText . T.pack $ replicate (width - T.length ln) ' '
+      writeBS ln
+      writeText . T.pack $ replicate (width - BSL8.length ln) ' '
     drawLine width _ _ = writeText . T.pack $ replicate width ' '

@@ -75,6 +75,7 @@ library korrvigs-lib
     Korrvigs.Note
     Korrvigs.Note.AST
     Korrvigs.Note.Helpers
+    Korrvigs.Note.New
     Korrvigs.Note.Pandoc
     Korrvigs.Note.Render
     Korrvigs.Note.Render.Monad

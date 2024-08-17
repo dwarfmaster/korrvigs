@@ -5,7 +5,6 @@ module Korrvigs.Link.New (new, NewLink (..), nlOffline, nlDate, nlTitle, nlParen
 import Control.Lens hiding (noneOf)
 import Control.Monad
 import Control.Monad.Except
-import Control.Monad.IO.Class
 import Data.Aeson hiding (json)
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
@@ -92,7 +91,7 @@ new url options = case parseURI (T.unpack url) of
     info <-
       if options ^. nlOffline
         then pure M.empty
-        else liftIO $ downloadInformation link -- TODO catch exceptions
+        else catchIO $ downloadInformation link
     let json = LinkJSON protocol link info parents
     let idmk =
           imk "link"

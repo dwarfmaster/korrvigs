@@ -2,7 +2,8 @@
 
 module Korrvigs.Monad where
 
-import Control.Exception.Base (IOException)
+-- import Control.Exception.Base (IOException)
+import Control.Exception
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.IO.Class
@@ -84,3 +85,8 @@ atomicSQL act = do
 
 atomicInsert :: (MonadKorrvigs m) => [Insert a] -> m ()
 atomicInsert ins = atomicSQL $ forM_ ins . runInsert
+
+catchIO :: (MonadKorrvigs m) => IO a -> m a
+catchIO act = do
+  r <- liftIO $ catch (Right <$> act) $ pure . Left
+  throwEither KIOError r

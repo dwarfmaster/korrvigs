@@ -19,6 +19,7 @@ data KorrvigsError
   | KSubCycle [Id]
   | KRelToUnknown Id
   | KIdNotFound Id
+  | KMiscError Text
   deriving (Show)
 
 class (MonadIO m, MonadError KorrvigsError m) => MonadKorrvigs m where

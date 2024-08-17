@@ -1,32 +1,19 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 module Korrvigs.Cli.File where
 
 import Control.Lens hiding (argument)
 import Control.Monad
 import Control.Monad.IO.Class
 import qualified Data.Text as T
-import Data.Time.Calendar
-import Data.Time.Format
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
 import Korrvigs.File
+import Korrvigs.Utils.DateParser
 import Options.Applicative
 import System.Directory (removeFile)
 
 data Cmd = New {_nfFile :: FilePath, _nfOptions :: NewFile, _nfRemove :: Bool}
 
 makeLenses ''Cmd
-
-newtype DayParserResult a = DayParserResult {extractResult :: Either String a}
-  deriving (Functor, Applicative, Monad)
-
-instance MonadFail DayParserResult where
-  fail = DayParserResult . Left
-
-dayParser :: ReadM Day
-dayParser = eitherReader $ \s ->
-  extractResult $ parseTimeM True defaultTimeLocale "%F" s
 
 parser' :: Parser Cmd
 parser' =

@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Korrvigs.Utils.DateParser where
 
@@ -7,8 +8,10 @@ import Control.Monad.Identity
 import Data.Fixed
 import Data.Functor (($>))
 import Data.Time.Calendar
+import Data.Time.Format
 import Data.Time.LocalTime
-import Text.Parsec
+import Options.Applicative hiding (option, value)
+import Text.Parsec hiding ((<|>))
 import Text.Parsec.Number
 
 rgDigit :: (Stream s Identity Char) => Int -> Int -> Int -> Parsec s u Int
@@ -88,3 +91,13 @@ zonedTimeZP =
   ZonedTime
     <$> localTimeP
     <*> (try (char 'Z' $> TimeZone 0 False "") <|> timezoneP)
+
+newtype DayParserResult a = DayParserResult {extractResult :: Either String a}
+  deriving (Functor, Applicative, Monad)
+
+instance MonadFail DayParserResult where
+  fail = DayParserResult . Left
+
+dayParser :: ReadM Day
+dayParser = eitherReader $ \s ->
+  extractResult $ parseTimeM True defaultTimeLocale "%F" s

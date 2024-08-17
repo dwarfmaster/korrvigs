@@ -67,6 +67,7 @@ library korrvigs-lib
     Korrvigs.KindData
     Korrvigs.Link
     Korrvigs.Link.JSON
+    Korrvigs.Link.New
     Korrvigs.Link.SQL
     Korrvigs.Link.Sync
     Korrvigs.Metadata
@@ -84,6 +85,7 @@ library korrvigs-lib
     Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateParser
     Korrvigs.Utils.DateTree
+    Korrvigs.Utils.JSON
     Korrvigs.Utils.Opaleye
     Korrvigs.Utils.Pandoc
 
@@ -95,6 +97,7 @@ library korrvigs-lib
     , base16-bytestring     ^>=1.0.2.0
     , binary                ^>=0.8.9.0
     , bytestring            ^>=0.11.4.0
+    , case-insensitive      ^>=1.2.1.0
     , containers            ^>=0.6.5.0
     , data-default          ^>=0.7.1.0
     , data-endian           ^>=0.1.1
@@ -102,6 +105,8 @@ library korrvigs-lib
     , extra                 ^>=1.7.13
     , filepath              ^>=1.4.2.2
     , hmatrix-glpk          ^>=0.19.0.0
+    , http-conduit          ^>=2.3.8.3
+    , http-types            ^>=0.12.4
     , HUnit                 ^>=1.6.2.0
     , lens                  ^>=5.2.3
     , linear                ^>=1.22
@@ -124,6 +129,7 @@ library korrvigs-lib
     , text-builder          ^>=0.6.7.2
     , time                  ^>=1.12.2
     , unix                  ^>=2.8.4.0
+    , utf8-string           ^>=1.0.2
     , vector                ^>=0.13.1.0
     , xml-conduit           ^>=1.9.1.3
 

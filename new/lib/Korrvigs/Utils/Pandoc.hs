@@ -1,9 +1,16 @@
 module Korrvigs.Utils.Pandoc where
 
+import Data.Aeson
+import qualified Data.Aeson.Key as K
+import qualified Data.Aeson.KeyMap as KM
+import Data.Bifunctor
 import Data.List (intersperse)
+import Data.Map (Map)
+import qualified Data.Map as M
 import Data.Text (Text)
 import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.Builder
+import qualified Data.Vector as V
 import Text.Pandoc
 
 pdInlineToText :: Inline -> Builder
@@ -51,3 +58,22 @@ pdBlocksToText bks = mconcat . intersperse " " $ pdBlockToText <$> bks
 
 pdBlocksToRenderedText :: [Block] -> Text
 pdBlocksToRenderedText = toStrict . toLazyText . pdBlocksToText
+
+parseMetaValue :: MetaValue -> Value
+parseMetaValue (MetaBool b) = Bool b
+parseMetaValue (MetaString txt) = String txt
+parseMetaValue (MetaList l) = Array . V.fromList $ parseMetaValue <$> l
+parseMetaValue (MetaMap m) =
+  Object . KM.fromList $ bimap K.fromText parseMetaValue <$> M.toList m
+parseMetaValue (MetaInlines inls) =
+  String . toStrict . toLazyText . mconcat $ map pdInlineToText inls
+parseMetaValue (MetaBlocks bks) =
+  String . toStrict . toLazyText $ pdBlocksToText bks
+
+pdExtractMtdt :: Pandoc -> Map Text Value
+pdExtractMtdt (Pandoc mtdt bks) =
+  M.insert "textContent" textContent $
+    M.map parseMetaValue (unMeta mtdt)
+  where
+    textContent :: Value
+    textContent = toJSON $ pdBlocksToRenderedText bks

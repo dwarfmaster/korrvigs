@@ -19,8 +19,8 @@ extract path _ = case formatFromFilePaths [path] of
   Just format ->
     runIO (readFromFormat path format) >>= \case
       Left _ -> pure M.empty
-      Right (Pandoc _ bks) ->
-        pure $ M.singleton "textContent" $ toJSON $ pdBlocksToRenderedText bks
+      Right pd ->
+        pure $ pdExtractMtdt pd
 
 readFromFormat :: FilePath -> FlavoredFormat -> PandocIO Pandoc
 readFromFormat path format = case lookup name readers of

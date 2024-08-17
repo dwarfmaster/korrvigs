@@ -9,8 +9,6 @@ import Control.Monad.Loops (whileJust_, whileM_)
 import Control.Monad.ST
 import Control.Monad.State.Lazy
 import Data.Aeson hiding ((.=))
-import qualified Data.Aeson.Key as K
-import qualified Data.Aeson.KeyMap as KM
 import Data.Array.Base hiding (array)
 import qualified Data.Array.ST as SAr
 import Data.Bitraversable (bimapM)
@@ -23,9 +21,6 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (readFile)
-import Data.Text.Lazy (toStrict)
-import Data.Text.Lazy.Builder
-import qualified Data.Vector as V
 import Korrvigs.Entry.Ident
 import qualified Korrvigs.Note.AST as A
 import Korrvigs.Note.Helpers
@@ -292,14 +287,3 @@ buildCells width height rows = do
         writeArray array (rx + dx - 1, y + dy - 1) bc
       writeSTRef x $ rx + w
   pure array
-
-parseMetaValue :: MetaValue -> Value
-parseMetaValue (MetaBool b) = Bool b
-parseMetaValue (MetaString txt) = String txt
-parseMetaValue (MetaList l) = Array . V.fromList $ parseMetaValue <$> l
-parseMetaValue (MetaMap m) =
-  Object . KM.fromList $ bimap K.fromText parseMetaValue <$> M.toList m
-parseMetaValue (MetaInlines inls) =
-  String . toStrict . toLazyText . mconcat $ map pdInlineToText inls
-parseMetaValue (MetaBlocks bks) =
-  String . toStrict . toLazyText $ pdBlocksToText bks

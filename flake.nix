@@ -40,6 +40,7 @@
             hpkgs.parsec3-numbers
             hpkgs.text-builder
             hpkgs.hmatrix-glpk
+            hpkgs.http-conduit
           ]);
 
           pre-commit.hooks = {

@@ -1,11 +1,16 @@
 module Korrvigs.Cli.Link where
 
 import Control.Lens hiding (argument)
+import Control.Monad.IO.Class
 import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Cli.Monad
+import Korrvigs.Entry
+import Korrvigs.Link.New
+import Korrvigs.Utils.DateParser (dayParser)
 import Options.Applicative
 
-data Cmd = New {_newUrl :: Text, _newOffline :: Bool}
+data Cmd = New {_newUrl :: Text, _newOptions :: NewLink}
 
 makeLenses ''Cmd
 
@@ -17,7 +22,12 @@ parser' =
       ( info
           ( ( New
                 <$> argument str (metavar "URL")
-                <*> switch (long "offline" <> help "Do not download information about URL")
+                <*> ( NewLink
+                        <$> switch (long "offline" <> help "Do not download information about URL")
+                        <*> optional (option dayParser $ metavar "DATE" <> long "data")
+                        <*> optional (option str $ metavar "TITLE" <> long "title")
+                        <*> pure Nothing
+                    )
             )
               <**> helper
           )
@@ -34,4 +44,6 @@ parser =
       <> header "korr link -- interface for links"
 
 run :: Cmd -> KorrM ()
-run (New _ _) = undefined
+run (New url options) = do
+  i <- new url options
+  liftIO $ putStrLn $ "New link as " <> T.unpack (unId i)

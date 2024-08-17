@@ -66,6 +66,7 @@ run (Format path inline) = do
     Right doc -> do
       handle <- if inline then liftIO $ openFile path WriteMode else pure stdout
       doWrite <- writeNote handle doc
+      liftIO $ hClose handle
       case doWrite of
         Just err -> liftIO . putStrLn $ "Could not write document: " <> err
         Nothing -> pure ()

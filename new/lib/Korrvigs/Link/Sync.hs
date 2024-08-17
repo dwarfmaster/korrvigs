@@ -15,6 +15,7 @@ import qualified Data.Text as T
 import Data.Time.LocalTime (localDay, zonedTimeToLocalTime)
 import GHC.Int (Int64)
 import Korrvigs.Entry
+import Korrvigs.FTS
 import Korrvigs.Kind
 import Korrvigs.KindData (RelData (..))
 import Korrvigs.Link.JSON
@@ -65,6 +66,18 @@ syncLinkJSON i path json = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
+    case extras ^. mtdtText of
+      Nothing -> pure ()
+      Just t ->
+        void $
+          runUpdate conn $
+            Update
+              { uTable = entriesTable,
+                uUpdateWith =
+                  sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText t),
+                uWhere = \row -> row ^. sqlEntryName .== sqlId i,
+                uReturning = rCount
+              }
   pure (erow, lrow)
 
 syncLink :: (MonadKorrvigs m) => FilePath -> m RelData

@@ -102,7 +102,7 @@ new url options = case parseURI (T.unpack url) of
     rt <- linkJSONPath
     let jsonTT = linkJSONTreeType
     let content = encodingToLazyByteString . value $ toJSON json
-    pth <- storeFile rt jsonTT Nothing (unId i) content
+    pth <- storeFile rt jsonTT Nothing (unId i <> ".json") content
     relData <- dSyncOneImpl pth
     atomicInsertRelData i relData
     pure i

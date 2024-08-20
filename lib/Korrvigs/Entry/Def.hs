@@ -47,6 +47,11 @@ data FileStatus
   | FileAbsent
   deriving (Eq, Show, Enum, Bounded)
 
+displayFileStatus :: FileStatus -> Text
+displayFileStatus FilePlain = "plain"
+displayFileStatus FilePresent = "present"
+displayFileStatus FileAbsent = "absent"
+
 data File = MkFile
   { _fileEntry :: Entry,
     _filePath :: FilePath,

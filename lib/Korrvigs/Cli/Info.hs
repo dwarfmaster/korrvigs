@@ -21,6 +21,7 @@ import Korrvigs.Cli.Monad
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
+import Korrvigs.Utils.Lens
 import Options.Applicative hiding (value)
 import Text.Builder (string, text)
 import qualified Text.Builder as Bld
@@ -53,16 +54,6 @@ run (Cmd js i) =
     Just entry ->
       liftIO $ if js then displayEntryJSON entry else displayEntry entry
 
-displayFileStatus :: FileStatus -> Text
-displayFileStatus FilePlain = "plain"
-displayFileStatus FilePresent = "present"
-displayFileStatus FileAbsent = "absent"
-
-displayKind :: Kind -> Text
-displayKind Link = "link"
-displayKind Note = "note"
-displayKind File = "file"
-
 entryInfoSpec :: (Contravariant f, Applicative f) => [(Text, (Bld.Builder -> f Bld.Builder) -> Entry -> f Entry)]
 entryInfoSpec =
   [ -- Generic info
@@ -82,9 +73,6 @@ entryInfoSpec =
     ("status", _File . fileStatus . to displayFileStatus . to text),
     ("mime", _File . fileMime . to Enc.decodeUtf8 . to text)
   ]
-
-toMonoid :: (Monoid m) => (a -> m) -> ((a -> Const m a) -> b -> Const m b) -> b -> m
-toMonoid inj f x = getConst $ f (Const . inj) x
 
 buildInfoLine :: Entry -> (Text, (Bld.Builder -> Const [Bld.Builder] Bld.Builder) -> Entry -> Const [Bld.Builder] Entry) -> Bool -> Bld.Builder
 buildInfoLine entry (nm', getter) first = case lst of

@@ -38,6 +38,7 @@ library korrvigs-lib
     Korrvigs.Cli.Link
     Korrvigs.Cli.Monad
     Korrvigs.Cli.Note
+    Korrvigs.Cli.Query
     Korrvigs.Cli.Sync
     Korrvigs.Entry
     Korrvigs.Entry.Def
@@ -53,6 +54,7 @@ library korrvigs-lib
     Korrvigs.File.New
     Korrvigs.File.SQL
     Korrvigs.File.Sync
+    Korrvigs.Format
     Korrvigs.FTS
     Korrvigs.FTS.Parser
     Korrvigs.FTS.Query
@@ -87,6 +89,7 @@ library korrvigs-lib
     Korrvigs.Utils.DateParser
     Korrvigs.Utils.DateTree
     Korrvigs.Utils.JSON
+    Korrvigs.Utils.Lens
     Korrvigs.Utils.Opaleye
     Korrvigs.Utils.Pandoc
 

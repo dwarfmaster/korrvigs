@@ -19,6 +19,7 @@ module Korrvigs.Entry
     linkRef,
     linkPath,
     FileStatus (..),
+    displayFileStatus,
     File (..),
     fileEntry,
     filePath,

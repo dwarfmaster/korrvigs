@@ -1,9 +1,0 @@
-$maybe (uuid,cls) <- root
-  <div .entry-class style="background-color: var(#{mkBase cls})">
-    <a href=@{EntryR (U.UUID uuid)}>
-      #{name cls}
-<h1> #{title} 
-  <span .edit-button> ✎
-
-<div #pandoc>
-  ^{pandoc}

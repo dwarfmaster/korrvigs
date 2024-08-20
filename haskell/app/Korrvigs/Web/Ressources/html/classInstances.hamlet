@@ -1,5 +1,0 @@
-<ul #class-instances>
-  $forall MkEntry uuid nm _ _ <- instances
-    <li>
-      <a href=@{EntryR (U.UUID uuid)}>
-        #{nm}

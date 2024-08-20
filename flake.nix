@@ -41,6 +41,7 @@
             hpkgs.text-builder
             hpkgs.hmatrix-glpk
             hpkgs.http-conduit
+            hpkgs.lens-aeson
           ]);
 
           pre-commit.hooks = {

@@ -2,8 +2,8 @@
 
 module Korrvigs.Entry.Def where
 
-import Control.Lens (Getter, to, view)
-import Control.Lens.TH (makeLenses)
+import Control.Lens (Getter, Traversal', to, view)
+import Control.Lens.TH (makeLenses, makePrisms)
 import Data.Aeson (Value)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -80,7 +80,17 @@ data Entry = MkEntry
 makeLenses ''Note
 makeLenses ''Link
 makeLenses ''File
+makePrisms ''KindData
 makeLenses ''Entry
 
 kind :: Getter Entry Kind
 kind = kindData . to kindDataKind
+
+_Note :: Traversal' Entry Note
+_Note = kindData . _NoteD
+
+_Link :: Traversal' Entry Link
+_Link = kindData . _LinkD
+
+_File :: Traversal' Entry File
+_File = kindData . _FileD

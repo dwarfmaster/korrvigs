@@ -66,5 +66,13 @@ pgQuery (TSSeq ts1 ts2) = C.binOp (HPQ.OpOther "<->") (pgQuery ts1) (pgQuery ts2
 
 infix 4 @@
 
+infix 4 @@?
+
 (@@) :: Field SqlTSQuery -> Field SqlTSVector -> Field SqlBool
 (@@) = C.binOp (HPQ.OpOther "@@")
+
+(@@?) :: Field SqlTSQuery -> FieldNullable SqlTSVector -> Field SqlBool
+(@@?) = C.binOp (HPQ.OpOther "@@")
+
+tsRank :: Field SqlTSQuery -> Field SqlTSVector -> Field SqlFloat8
+tsRank = UOp.ap2 "ts_rank"

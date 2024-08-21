@@ -14,6 +14,8 @@ module Korrvigs.Geometry
     stLength,
     stPerimeter,
     stProject,
+    stCovers,
+    stIntersects,
   )
 where
 

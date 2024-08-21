@@ -1,10 +1,12 @@
 module Korrvigs.FTS
   ( SqlTSVector,
     tsParseEnglish,
+    tsRank,
     SqlTSQuery,
     Query (..),
     sqlQuery,
     (@@),
+    (@@?),
     parseQuery,
     Korrvigs.FTS.tests,
   )

@@ -84,6 +84,7 @@ library korrvigs-lib
     Korrvigs.Note.Render.Table
     Korrvigs.Note.SQL
     Korrvigs.Note.Sync
+    Korrvigs.Query
     Korrvigs.Utils
     Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateParser

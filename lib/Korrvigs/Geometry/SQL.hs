@@ -66,3 +66,9 @@ stPerimeter = UOp.ap2 "ST_Perimeter"
 
 stProject :: Field SqlGeometry -> Field SqlFloat8 -> Field SqlFloat8 -> Field SqlGeometry
 stProject = UOp.ap3 "ST_Project"
+
+stCovers :: Field SqlGeometry -> Field SqlGeometry -> Field SqlBool
+stCovers = UOp.ap2 "ST_Covers"
+
+stIntersects :: Field SqlGeometry -> Field SqlGeometry -> Field SqlBool
+stIntersects = UOp.ap2 "ST_Intersects"

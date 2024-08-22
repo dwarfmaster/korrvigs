@@ -1,6 +1,6 @@
 { mkDerivation, aeson, array, async, base, base16-bytestring
 , binary, bytestring, case-insensitive, containers, data-default
-, data-endian, directory, extra, filepath, hmatrix-glpk
+, data-endian, directory, extra, file-embed, filepath, hmatrix-glpk
 , http-conduit, http-types, HUnit, lens, lens-aeson, lib, linear
 , mime-types, monad-loops, mtl, network-uri, opaleye
 , optparse-applicative, pandoc, pandoc-types, parsec
@@ -17,12 +17,12 @@ mkDerivation {
   libraryHaskellDepends = [
     aeson array async base base16-bytestring binary bytestring
     case-insensitive containers data-default data-endian directory
-    extra filepath hmatrix-glpk http-conduit http-types HUnit lens
-    lens-aeson linear mime-types monad-loops mtl network-uri opaleye
-    optparse-applicative pandoc pandoc-types parsec parsec3-numbers
-    postgresql-simple process product-profunctors profunctors temporary
-    text text-builder text-manipulate time unix utf8-string vector
-    xdg-basedir xml-conduit
+    extra file-embed filepath hmatrix-glpk http-conduit http-types
+    HUnit lens lens-aeson linear mime-types monad-loops mtl network-uri
+    opaleye optparse-applicative pandoc pandoc-types parsec
+    parsec3-numbers postgresql-simple process product-profunctors
+    profunctors temporary text text-builder text-manipulate time unix
+    utf8-string vector xdg-basedir xml-conduit
   ];
   doHaddock = false;
   description = "A wiki system for my personal use";

@@ -35,6 +35,7 @@ library korrvigs-lib
     Korrvigs.Cli
     Korrvigs.Cli.File
     Korrvigs.Cli.Info
+    Korrvigs.Cli.Init
     Korrvigs.Cli.Link
     Korrvigs.Cli.Monad
     Korrvigs.Cli.Note
@@ -108,6 +109,7 @@ library korrvigs-lib
     , data-endian           ^>=0.1.1
     , directory             ^>=1.3.6.2
     , extra                 ^>=1.7.13
+    , file-embed            ^>=0.0.16.0
     , filepath              ^>=1.4.2.2
     , hmatrix-glpk          ^>=0.19.0.0
     , http-conduit          ^>=2.3.8.3

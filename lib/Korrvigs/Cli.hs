@@ -2,6 +2,7 @@ module Korrvigs.Cli (main) where
 
 import qualified Korrvigs.Cli.File as File
 import qualified Korrvigs.Cli.Info as Info
+import qualified Korrvigs.Cli.Init as Init
 import qualified Korrvigs.Cli.Link as Link
 import Korrvigs.Cli.Monad
 import qualified Korrvigs.Cli.Note as Note
@@ -9,7 +10,7 @@ import qualified Korrvigs.Cli.Query as Query
 import qualified Korrvigs.Cli.Sync as Sync
 import Options.Applicative
 
-data Command
+data KorrCommand
   = Info Info.Cmd
   | Link Link.Cmd
   | Note Note.Cmd
@@ -17,15 +18,20 @@ data Command
   | Sync Sync.Cmd
   | Query Query.Cmd
 
+data Command
+  = Init Init.Cmd
+  | KCmd KorrCommand
+
 parser' :: Parser Command
 parser' =
   subparser $
-    command "info" (Info <$> Info.parser)
-      <> command "link" (Link <$> Link.parser)
-      <> command "note" (Note <$> Note.parser)
-      <> command "file" (File <$> File.parser)
-      <> command "sync" (Sync <$> Sync.parser)
-      <> command "query" (Query <$> Query.parser)
+    command "info" (KCmd . Info <$> Info.parser)
+      <> command "link" (KCmd . Link <$> Link.parser)
+      <> command "note" (KCmd . Note <$> Note.parser)
+      <> command "file" (KCmd . File <$> File.parser)
+      <> command "sync" (KCmd . Sync <$> Sync.parser)
+      <> command "query" (KCmd . Query <$> Query.parser)
+      <> command "init" (Init <$> Init.parser)
 
 parser :: ParserInfo Command
 parser =
@@ -34,7 +40,7 @@ parser =
       <> progDesc "CLI interface for Korrvigs knowledge database"
       <> header "korr -- interface for Korrvigs"
 
-run :: Command -> KorrM ()
+run :: KorrCommand -> KorrM ()
 run (Info cmd) = Info.run cmd
 run (Link cmd) = Link.run cmd
 run (Note cmd) = Note.run cmd
@@ -45,7 +51,10 @@ run (Query cmd) = Query.run cmd
 main :: IO ()
 main = do
   cmd <- execParser parser
-  r <- runKorrMWithConfig $ run cmd
-  case r of
-    Left err -> print err
-    Right () -> pure ()
+  case cmd of
+    Init icmd -> Init.run icmd
+    KCmd kcmd -> do
+      r <- runKorrMWithConfig $ run kcmd
+      case r of
+        Left err -> print err
+        Right () -> pure ()

@@ -1,6 +1,3 @@
-CREATE EXTENSION postgis;
-CREATE EXTENSION address_standardizer;
-
 CREATE TYPE KIND AS ENUM ('note', 'link', 'file');
 CREATE TABLE entries (
   name TEXT NOT NULL UNIQUE,

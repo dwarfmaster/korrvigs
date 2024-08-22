@@ -1,5 +1,6 @@
 module Korrvigs.Cli (main) where
 
+import qualified Korrvigs.Cli.Config as Config
 import qualified Korrvigs.Cli.File as File
 import qualified Korrvigs.Cli.Info as Info
 import qualified Korrvigs.Cli.Init as Init
@@ -17,6 +18,7 @@ data KorrCommand
   | File File.Cmd
   | Sync Sync.Cmd
   | Query Query.Cmd
+  | Config Config.Cmd
 
 data Command
   = Init Init.Cmd
@@ -31,6 +33,7 @@ parser' =
       <> command "file" (KCmd . File <$> File.parser)
       <> command "sync" (KCmd . Sync <$> Sync.parser)
       <> command "query" (KCmd . Query <$> Query.parser)
+      <> command "config" (KCmd . Config <$> Config.parser)
       <> command "init" (Init <$> Init.parser)
 
 parser :: ParserInfo Command
@@ -47,6 +50,7 @@ run (Note cmd) = Note.run cmd
 run (File cmd) = File.run cmd
 run (Sync cmd) = Sync.run cmd
 run (Query cmd) = Query.run cmd
+run (Config cmd) = Config.run cmd
 
 main :: IO ()
 main = do

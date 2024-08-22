@@ -98,6 +98,7 @@ newtype DayParserResult a = DayParserResult {extractResult :: Either String a}
 instance MonadFail DayParserResult where
   fail = DayParserResult . Left
 
-dayParser :: ReadM Day
-dayParser = eitherReader $ \s ->
-  extractResult $ parseTimeM True defaultTimeLocale "%F" s
+dayParser :: (ParseTime t) => ReadM t
+dayParser =
+  eitherReader $
+    extractResult . parseTimeM True defaultTimeLocale "%F"

@@ -9,24 +9,79 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
+import qualified Korrvigs.FTS as FTS
 import qualified Korrvigs.Format as Fmt
+import Korrvigs.Geometry
+import Korrvigs.Kind
 import Korrvigs.Monad
-import Opaleye hiding (optional)
+import Korrvigs.Query
+import Korrvigs.Utils.DateParser
 import Options.Applicative
 import System.Exit
+import Text.Parsec (char, parse)
+import Text.Parsec.Number
 
 data Cmd = Cmd
-  { _query :: Text,
+  { _query :: Query,
     _format :: Maybe Text
   }
 
 makeLenses ''Cmd
 
+mapL :: (a -> c) -> Either a b -> Either c b
+mapL f (Left x) = Left $ f x
+mapL _ (Right x) = Right x
+
+ftsQueryParser :: ReadM FTS.Query
+ftsQueryParser = eitherReader $ mapL T.unpack . FTS.parseQuery . T.pack
+
+mtdtQueryParser :: ReadM (Text, JsonQuery)
+mtdtQueryParser = eitherReader $ mapL T.unpack . parseMtdtQuery . T.pack
+
+kindParser :: ReadM Kind
+kindParser = eitherReader $ \case
+  "link" -> Right Link
+  "note" -> Right Note
+  "file" -> Right File
+  _ -> Left "Kind must be one of link,note or file"
+
+rectangleParser :: ReadM Polygon
+rectangleParser = eitherReader $ mapL show . parse rectangleP "<rectangle>"
+
+withinParser :: ReadM (Point, Double)
+withinParser =
+  eitherReader $ mapL show . parse ((,) <$> pointP <*> (char ':' *> floating2 True)) "<within>"
+
+criterionParser :: ReadM SortCriterion
+criterionParser = eitherReader $ \case
+  "date" -> Right ByDate
+  "id" -> Right ById
+  _ -> Left "Sort must be either by date or by id"
+
+sortParser :: Parser (SortCriterion, SortOrder)
+sortParser =
+  (,)
+    <$> option criterionParser (long "sort" <> help "Criterion to sort results by, default to id" <> value ById)
+    <*> flag SortAsc SortDesc (long "descending" <> help "Invert sorting criterion")
+
+queryParser :: Parser Query
+queryParser =
+  Query
+    <$> optional (argument ftsQueryParser (metavar "FTS" <> help "Full text search"))
+    <*> optional (option dayParser (long "before" <> help "Entry must have date before the provided date"))
+    <*> optional (option dayParser (long "after" <> help "Entry must have date after the provided date"))
+    <*> optional (option rectangleParser (long "inrect" <> help "Entries must be located in the given rectangle"))
+    <*> optional (option withinParser (long "within" <> help "Filter entries within a certain distance in meters from a point"))
+    <*> optional (option kindParser (long "kind" <> help "Entry must be of provided kind"))
+    <*> many (option mtdtQueryParser (long "mtdt" <> help "Add metadata conditions"))
+    <*> sortParser
+    <*> optional (option auto (long "limit" <> help "Limit the number of results"))
+
 parser' :: Parser Cmd
 parser' =
   Cmd
-    <$> argument str (metavar "QUERY")
-    <*> optional (strOption (long "format"))
+    <$> queryParser
+    <*> optional (strOption (long "format" <> help "How to format found entries"))
 
 parser :: ParserInfo Cmd
 parser =
@@ -42,8 +97,8 @@ run cmd = do
     Left err -> liftIO $ do
       putStrLn $ "Failed to parse format: " <> T.unpack err
       exitFailure
-  ids <- rSelectOne $ do
-    entry <- selectTable entriesTable
+  ids <- rSelect $ do
+    entry <- compile $ cmd ^. query
     pure $ entry ^. sqlEntryName
   forM_ ids $ \i ->
     load i >>= \case

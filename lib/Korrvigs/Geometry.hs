@@ -16,6 +16,9 @@ module Korrvigs.Geometry
     stProject,
     stCovers,
     stIntersects,
+    pointP,
+    rectangleP,
+    mkRectangle,
   )
 where
 

@@ -1,9 +1,13 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Korrvigs.Query where
 
-import Control.Lens hiding ((.>))
+import Control.Lens hiding (noneOf, (.>))
 import Control.Monad
 import Data.Default
+import Data.Functor (($>))
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
 import Data.Time.LocalTime
 import Korrvigs.Entry
@@ -14,33 +18,46 @@ import Korrvigs.Kind
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Opaleye
+import Text.Parsec
+import Text.Parsec.Number
 import Prelude hiding (not)
 
+-- _____        __ _       _ _   _
+
+-- |  _ \  ___ / _(_)_ __ (_) |_(_) ___  _ __
+-- | | | |/ _ \ |_| | '_ \| | __| |/ _ \| '_ \
+-- | |_| |  __/  _| | | | | | |_| | (_) | | | |
+-- |____/ \___|_| |_|_| |_|_|\__|_|\___/|_| |_|
 data JsonTextQuery
   = JSTextLevenshtein
       { _levenshteinText :: Text,
         _levenshteinMax :: Int
       }
   | JSTextEq Text
+  deriving (Eq, Show)
 
 data JsonNumQuery
   = JSNumEqual Double
   | JSNumLessThan Double
   | JSNumMoreThan Double
   | JSNumWithin Double Double
+  deriving (Eq, Show)
 
 data JsonObjectQuery
   = JSObjHasSub Text
   | JSObjSubQuery Text JsonQuery
+  deriving (Eq, Show)
 
 data JsonArrayQuery
   = JSArrLenEq Int
   | JSArrLenLessThan Int
   | JSArrLenMoreThan Int
+  deriving (Eq, Show)
 
 data JsonBoolQuery
   = JSBoolTrue
   | JSBoolFalse
+  deriving (Eq, Show)
 
 data JsonTypeQuery
   = JSIsText
@@ -49,6 +66,7 @@ data JsonTypeQuery
   | JSIsArray
   | JSIsBool
   | JSIsNull
+  deriving (Eq, Show)
 
 data JsonQuery
   = TextQuery JsonTextQuery
@@ -58,6 +76,7 @@ data JsonQuery
   | BoolQuery JsonBoolQuery
   | TypeQuery JsonTypeQuery
   | AnyQuery -- Used to test for the presence of metadata, whatever the value
+  deriving (Eq, Show)
 
 instance Default JsonQuery where
   def = AnyQuery
@@ -136,7 +155,7 @@ compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ do
     mtdt <- selectTable entriesMetadataTable
     where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryName)
     where_ $ mtdt ^. sqlKey .== sqlStrictText (q ^. _1)
-    pure $ compileJsonQuery (q ^. _2) (toNullable $ mtdt ^. sqlValue)
+    where_ $ compileJsonQuery (q ^. _2) (toNullable $ mtdt ^. sqlValue)
   pure entry
   where
     dir :: (SqlOrd b) => SortOrder -> (a -> Field b) -> Order a
@@ -217,3 +236,104 @@ compileJsonArrayQuery :: JsonArrayQuery -> Field (SqlArray SqlJsonb) -> Field Sq
 compileJsonArrayQuery (JSArrLenEq i) arr = sqlArrayLength arr 1 .== sqlInt4 i
 compileJsonArrayQuery (JSArrLenLessThan i) arr = sqlArrayLength arr 1 .< sqlInt4 i
 compileJsonArrayQuery (JSArrLenMoreThan i) arr = sqlArrayLength arr 1 .> sqlInt4 i
+
+-- _____
+
+-- |  _ \ __ _ _ __ ___  ___ _ __
+-- | |_) / _` | '__/ __|/ _ \ '__|
+-- |  __/ (_| | |  \__ \  __/ |
+-- |_|   \__,_|_|  |___/\___|_|
+
+-- Syntax of metadata query:
+--   |key1|key2|key3?query for sub queries
+--   key to check for key presence
+--   # for num queries
+--   : for type queries
+--   "" for text queries
+--   = for bool queries
+--   [] for array queries
+
+parseJSQuery :: Text -> Either Text JsonQuery
+parseJSQuery txt = case parse queryP "<jsquery>" txt of
+  Left err -> Left . T.pack $ show err
+  Right q -> Right q
+
+parseMtdtQuery :: Text -> Either Text (Text, JsonQuery)
+parseMtdtQuery txt = case parse mtdtQueryP "<mtdtquery>" txt of
+  Left err -> Left . T.pack $ show err
+  Right q -> Right q
+
+mtdtQueryP :: (Stream s Identity Char) => Parsec s u (Text, JsonQuery)
+mtdtQueryP =
+  (,)
+    <$> (T.pack <$> many1 (noneOf "|?"))
+    <*> queryP
+
+queryP :: (Stream s Identity Char) => Parsec s u JsonQuery
+queryP =
+  char '|' *> (ObjectQuery <$> subQueryP)
+    <|> char '?' *> leafQueryP <* eof
+
+subQueryP :: (Stream s Identity Char) => Parsec s u JsonObjectQuery
+subQueryP = do
+  key <- T.pack <$> many1 (noneOf "|?")
+  JSObjSubQuery key <$> queryP
+
+leafQueryP :: (Stream s Identity Char) => Parsec s u JsonQuery
+leafQueryP =
+  do
+    char '#' *> (NumQuery <$> numQueryP)
+    <|> char ':' *> (TypeQuery <$> typeQueryP)
+    <|> char '"' *> (TextQuery <$> textQueryP)
+    <|> char '=' *> (BoolQuery <$> boolQueryP)
+    <|> char '[' *> (ArrayQuery <$> arrayQueryP)
+    <|> (ObjectQuery <$> hasKeyP)
+
+numQueryP :: (Stream s Identity Char) => Parsec s u JsonNumQuery
+numQueryP =
+  char '=' *> (JSNumEqual <$> floating2 True)
+    <|> char '<' *> (JSNumLessThan <$> floating2 True)
+    <|> char '>' *> (JSNumMoreThan <$> floating2 True)
+    <|> ( do
+            void $ char '['
+            mn <- floating2 True
+            void $ char ':'
+            mx <- floating2 True
+            void $ char ']'
+            pure $ JSNumWithin mn mx
+        )
+
+typeQueryP :: (Stream s Identity Char) => Parsec s u JsonTypeQuery
+typeQueryP =
+  string "text" $> JSIsText
+    <|> string "number" $> JSIsNum
+    <|> string "object" $> JSIsObject
+    <|> string "array" $> JSIsArray
+    <|> string "bool" $> JSIsBool
+    <|> string "null" $> JSIsNull
+
+textQueryP :: (Stream s Identity Char) => Parsec s u JsonTextQuery
+textQueryP = do
+  txt <- T.pack <$> many (noneOf "\"")
+  void $ char '"'
+  mx <- optionMaybe $ char '<' *> decimal
+  pure $ case mx of
+    Just m -> JSTextLevenshtein txt m
+    Nothing -> JSTextEq txt
+
+boolQueryP :: (Stream s Identity Char) => Parsec s u JsonBoolQuery
+boolQueryP =
+  string "true" $> JSBoolTrue
+    <|> string "false" $> JSBoolFalse
+
+arrayQueryP :: (Stream s Identity Char) => Parsec s u JsonArrayQuery
+arrayQueryP = do
+  a <-
+    char '=' *> (JSArrLenEq <$> decimal)
+      <|> char '<' *> (JSArrLenLessThan <$> decimal)
+      <|> char '>' *> (JSArrLenMoreThan <$> decimal)
+  void $ char ']'
+  pure a
+
+hasKeyP :: (Stream s Identity Char) => Parsec s u JsonObjectQuery
+hasKeyP = JSObjHasSub . T.pack <$> many anyChar

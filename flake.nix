@@ -40,6 +40,7 @@
             hpkgs.lens-aeson
             hpkgs.text-manipulate
             hpkgs.optparse-applicative
+            hpkgs.xdg-basedir
           ]);
 
           pre-commit.hooks = {

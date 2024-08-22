@@ -45,7 +45,7 @@ run (Query cmd) = Query.run cmd
 main :: IO ()
 main = do
   cmd <- execParser parser
-  r <- runKorrM "dbname='korrvigs_new'" (run cmd)
+  r <- runKorrMWithConfig $ run cmd
   case r of
     Left err -> print err
     Right () -> pure ()

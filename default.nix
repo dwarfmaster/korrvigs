@@ -6,7 +6,7 @@
 , optparse-applicative, pandoc, pandoc-types, parsec
 , parsec3-numbers, postgresql-simple, process, product-profunctors
 , profunctors, temporary, text, text-builder, text-manipulate, time
-, unix, utf8-string, vector, xml-conduit
+, unix, utf8-string, vector, xdg-basedir, xml-conduit
 }:
 mkDerivation {
   pname = "korrvigs";
@@ -22,7 +22,7 @@ mkDerivation {
     optparse-applicative pandoc pandoc-types parsec parsec3-numbers
     postgresql-simple process product-profunctors profunctors temporary
     text text-builder text-manipulate time unix utf8-string vector
-    xml-conduit
+    xdg-basedir xml-conduit
   ];
   doHaddock = false;
   description = "A wiki system for my personal use";

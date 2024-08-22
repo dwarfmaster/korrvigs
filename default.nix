@@ -24,6 +24,7 @@ mkDerivation {
     profunctors temporary text text-builder text-manipulate time unix
     utf8-string vector xdg-basedir xml-conduit
   ];
+  testHaskellDepends = [ base HUnit ];
   doHaddock = false;
   description = "A wiki system for my personal use";
   license = lib.licenses.mit;

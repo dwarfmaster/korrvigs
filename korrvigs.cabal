@@ -164,4 +164,7 @@ test-suite korrvigs-test
   default-language: Haskell2010
   hs-source-dirs:   test
   main-is:          Main.hs
-  build-depends:    korrvigs-lib
+  build-depends:
+    , base          ^>=4.18.2.1
+    , HUnit         ^>=1.6.2.0
+    , korrvigs-lib

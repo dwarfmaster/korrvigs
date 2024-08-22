@@ -7,15 +7,22 @@
   };
 
   outputs = {
+    self,
     nixpkgs,
     devenv,
-    ...
   } @ inputs: let
     system = "x86_64-linux";
 
     pkgs = import nixpkgs {
       inherit system;
     };
+    inherit (pkgs) lib;
+
+    deps = [
+      pkgs.exiftool
+      pkgs.poppler_utils
+      pkgs.git
+    ];
 
     shell = devenv.lib.mkShell {
       inherit inputs pkgs;
@@ -52,20 +59,31 @@
             ormolu.enable = true;
           };
 
-          packages = [
-            pkgs.xdot
-            pkgs.broot
-            pkgs.haskellPackages.yesod-bin
-            pkgs.nodejs_20
-            pkgs.exiftool
-            pkgs.poppler_utils
-          ];
+          packages =
+            [
+              pkgs.xdot
+              pkgs.broot
+              pkgs.haskellPackages.yesod-bin
+              pkgs.nodejs_20
+            ]
+            ++ deps;
         }
       ];
     };
+
+    korrvigs = pkgs.haskellPackages.callPackage ./default.nix {};
+    korrvigs-wrapped = pkgs.writeShellScriptBin "korr" ''
+      PATH=${lib.makeBinPath deps}:$PATH exec ${korrvigs}/bin/korrvigs-cli "$@"
+    '';
   in {
     devShells.${system} = {
       default = shell;
+    };
+
+    packages.${system} = {
+      korrvigs-unwrapped = korrvigs;
+      korrvigs = korrvigs-wrapped;
+      default = self.packages.${system}.korrvigs;
     };
   };
 }

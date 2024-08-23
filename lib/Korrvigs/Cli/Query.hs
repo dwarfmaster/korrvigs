@@ -3,10 +3,14 @@ module Korrvigs.Cli.Query where
 import Control.Lens hiding (argument)
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Aeson hiding (json)
+import qualified Data.Aeson.Encoding as JEnc
+import qualified Data.ByteString.Lazy.UTF8 as BSL8
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import qualified Korrvigs.Cli.Info as Info
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
 import qualified Korrvigs.FTS as FTS
@@ -23,7 +27,8 @@ import Text.Parsec.Number
 
 data Cmd = Cmd
   { _query :: Query,
-    _format :: Maybe Text
+    _format :: Maybe Text,
+    _json :: Bool
   }
 
 makeLenses ''Cmd
@@ -82,6 +87,7 @@ parser' =
   Cmd
     <$> queryParser
     <*> optional (strOption (long "format" <> help "How to format found entries"))
+    <*> switch (long "json" <> help "Each entry is displayed as JSON")
 
 parser :: ParserInfo Cmd
 parser =
@@ -103,8 +109,14 @@ run cmd = do
   forM_ ids $ \i ->
     load i >>= \case
       Nothing -> liftIO $ TIO.putStrLn $ "Failed to load " <> unId i
-      Just entry -> case Fmt.run fmt entry of
-        Just render -> liftIO $ TIO.putStrLn render
-        Nothing -> pure ()
+      Just entry ->
+        if not (cmd ^. json)
+          then case Fmt.run fmt entry of
+            Just render -> liftIO $ TIO.putStrLn render
+            Nothing -> pure ()
+          else do
+            let mp = mconcat $ fmap (Info.buildInfoJSON entry) Info.entryInfoSpec
+            let obj = JEnc.encodingToLazyByteString $ JEnc.value $ toJSON mp
+            liftIO $ putStrLn $ BSL8.toString obj
   where
     defaultFormat = "[{kind}] {name}: {title::}"

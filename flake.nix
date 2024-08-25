@@ -94,7 +94,7 @@
       plugins.treesitter = {
         enable = true;
         nixGrammars = true;
-        ensureInstalled = "all";
+        settings.ensure_installed = "all";
         grammarPackages = config.plugins.treesitter.package.passthru.allGrammars;
         nixvimInjections = true;
       };

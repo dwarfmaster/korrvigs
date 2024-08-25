@@ -77,6 +77,10 @@
     korrvigs-wrapped = pkgs.writeShellScriptBin "korr" ''
       PATH=${lib.makeBinPath deps}:$PATH exec ${korrvigs}/bin/korrvigs-cli "$@"
     '';
+    korrvigs-plugin = pkgs.vimUtils.buildVimPlugin {
+      name = "nvim-korrvigs";
+      src = ./neovim;
+    };
 
     nvimConfig = {config, ...}: {
       opts = {
@@ -127,6 +131,7 @@
     packages.${system} = {
       korrvigs-unwrapped = korrvigs;
       korrvigs = korrvigs-wrapped;
+      nvim-korrvigs = korrvigs-plugin;
       default = self.packages.${system}.korrvigs;
       inherit nvim;
     };

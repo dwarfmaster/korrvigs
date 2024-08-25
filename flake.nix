@@ -4,12 +4,14 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     devenv.url = "github:cachix/devenv";
+    nixvim.url = "github:nix-community/nixvim";
   };
 
   outputs = {
     self,
     nixpkgs,
     devenv,
+    nixvim,
   } @ inputs: let
     system = "x86_64-linux";
 
@@ -75,15 +77,69 @@
     korrvigs-wrapped = pkgs.writeShellScriptBin "korr" ''
       PATH=${lib.makeBinPath deps}:$PATH exec ${korrvigs}/bin/korrvigs-cli "$@"
     '';
+
+    nvimConfig = {config, ...}: {
+      opts = {
+        number = true;
+        smartcase = true;
+        ignorecase = true;
+        autoindent = true;
+        smartindent = true;
+        # For ufo
+        foldcolumn = "1";
+        foldlevel = 99;
+        foldlevelstart = 99;
+        foldenable = true;
+      };
+      plugins.treesitter = {
+        enable = true;
+        nixGrammars = true;
+        ensureInstalled = "all";
+        grammarPackages = config.plugins.treesitter.package.passthru.allGrammars;
+        nixvimInjections = true;
+      };
+      colorschemes.everforest.enable = true;
+      plugins.telescope.enable = true;
+      plugins.headlines.enable = true;
+      plugins.nvim-ufo = {
+        enable = true;
+        providerSelector = ''
+          function(bufnr, filetype, buftype)
+            return {'treesitter', 'indent'}
+          end
+        '';
+      };
+    };
+    nvim = nixvim.legacyPackages.${system}.makeNixvim {
+      imports = [nvimConfig];
+    };
+
+    nvimShell = pkgs.mkShell {
+      packages = [korrvigs-wrapped nvim];
+    };
   in {
     devShells.${system} = {
-      default = shell;
+      haskellDev = shell;
+      default = self.devShells.${system}.haskellDev;
+      pluginDev = nvimShell;
     };
 
     packages.${system} = {
       korrvigs-unwrapped = korrvigs;
       korrvigs = korrvigs-wrapped;
       default = self.packages.${system}.korrvigs;
+      inherit nvim;
+    };
+
+    overlays = {
+      korrvigs = _: prev: {
+        inherit
+          (self.packages.${prev.system})
+          korrvigs-unwrapped
+          korrvigs
+          ;
+      };
+      default = self.overlays.korrvigs;
     };
   };
 }

@@ -9,6 +9,7 @@ local action_state = require "telescope.actions.state"
 local previewers = require "telescope.previewers"
 local prevutils = require "telescope.previewers.utils"
 local telstate = require "telescope.state"
+local builtin = require "telescope.builtin"
 local ts_utils = require "nvim-treesitter.ts_utils"
 
 function m.setup()
@@ -70,8 +71,7 @@ function m.jump_to_note(opts)
 end
 
 local function extract_buffer_text(srow,scol,erow,ecol)
-  local bufnr = vim.api.nvim_get_current_buf()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, srow, erow+1, true)
+  local lines = vim.api.nvim_buf_get_lines(0, srow, erow+1, true)
   if srow == erow then
     lines[1] = string.sub(lines[1],scol+1,ecol)
   else
@@ -147,12 +147,11 @@ function m.insert_link(opts)
             actions.close(prompt_bufnr)
             local selection = action_state.get_selected_entry()
             local link = "[" .. link .. "](" .. selection.value.name .. ")"
-            local bufnr = vim.api.nvim_get_current_buf()
             if range then
-              vim.api.nvim_buf_set_text(bufnr, range.srow, range.scol, range.erow, range.ecol, { link })
+              vim.api.nvim_buf_set_text(0, range.srow, range.scol, range.erow, range.ecol, { link })
             else
               local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-              vim.api.nvim_buf_set_text(bufnr, row - 1, col, row - 1, col, { link })
+              vim.api.nvim_buf_set_text(0, row - 1, col, row - 1, col, { link })
             end
           end)
           return true
@@ -160,5 +159,26 @@ function m.insert_link(opts)
       }):find()
     end)
 end
+
+function m.attach_file(dir)
+  local f = builtin.find_files({
+    cwd = dir,
+    attach_mappings = function(prompt_bufnr, map)
+      actions.select_default:replace(function()
+        actions.close(prompt_bufnr)
+        local selection = action_state.get_selected_entry()
+        local path = vim.fn.resolve(dir .. "/" .. selection[1])
+        local note = vim.api.nvim_buf_get_name(0)
+        local handle = io.popen("korr note attach --path " .. note .. " file \"" .. path .. "\"")
+        local result = handle:read("*a")
+        handle:close()
+        vim.fn.setreg('"', result)
+      end)
+      return true
+    end
+  })
+end
+
+m.attach_file("/home/luc/downloads")
 
 return m

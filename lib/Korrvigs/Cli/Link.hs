@@ -46,4 +46,4 @@ parser =
 run :: Cmd -> KorrM ()
 run (New url options) = do
   i <- new url options
-  liftIO $ putStrLn $ "New link as " <> T.unpack (unId i)
+  liftIO $ putStrLn $ T.unpack $ unId i

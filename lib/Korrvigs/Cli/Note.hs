@@ -155,7 +155,7 @@ run (Format path inline) = do
         Nothing -> pure ()
 run (New note) = do
   i <- new note
-  liftIO $ putStrLn $ "Added note as " <> unId i
+  liftIO $ putStrLn $ unId i
 run (Attach note isPath cmd) =
   resolveId note isPath >>= \case
     Nothing -> liftIO $ putStrLn $ note <> " is not a known note id or path"

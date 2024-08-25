@@ -48,4 +48,4 @@ run :: Cmd -> KorrM ()
 run (New path options remove) = do
   i <- new path options
   when remove $ liftIO $ removeFile path
-  liftIO $ putStrLn $ "Inserted \"" <> path <> "\" as " <> T.unpack (unId i)
+  liftIO $ putStrLn $ T.unpack $ unId i

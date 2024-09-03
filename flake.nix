@@ -133,7 +133,7 @@
       korrvigs = korrvigs-wrapped;
       nvim-korrvigs = korrvigs-plugin;
       default = self.packages.${system}.korrvigs;
-      inherit nvim;
+      nvim-with-korrvigs = nvim;
     };
 
     overlays = {
@@ -142,6 +142,7 @@
           (self.packages.${prev.system})
           korrvigs-unwrapped
           korrvigs
+          nvim-korrvigs
           ;
       };
       default = self.overlays.korrvigs;

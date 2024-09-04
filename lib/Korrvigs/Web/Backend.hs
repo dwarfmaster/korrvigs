@@ -1,5 +1,6 @@
 module Korrvigs.Web.Backend where
 
+import Data.Functor ((<&>))
 import Data.Text (Text)
 import Database.PostgreSQL.Simple (Connection)
 import qualified Korrvigs.Actions as Actions
@@ -20,6 +21,25 @@ mkYesodData "WebData" korrvigsRoutes
 getBase :: Handler (Int -> Text)
 getBase = web_theme <$> getYesod
 
+hdIsEntry :: Route WebData -> Bool
+hdIsEntry SearchR = True
+hdIsEntry (EntryR _) = True
+hdIsEntry (EntryDownloadR _) = True
+hdIsEntry _ = False
+
+headerContent :: [(Text, Route WebData, Route WebData -> Bool)]
+headerContent =
+  [ ("Home", HomeR, (== HomeR)),
+    ("Entry", SearchR, hdIsEntry)
+  ]
+
+mkHeader :: Handler Widget
+mkHeader =
+  getCurrentRoute
+    <&> Rcs.header . \case
+      Just route -> [(current route, txt, rt) | (txt, rt, current) <- headerContent]
+      Nothing -> [(False, txt, rt) | (txt, rt, _) <- headerContent]
+
 instance Yesod WebData where
   jsLoader _ = BottomOfBody
   makeSessionBackend _ =
@@ -27,7 +47,8 @@ instance Yesod WebData where
       Just <$> defaultClientSessionBackend (24 * 60) CS.defaultKeyFile
   defaultLayout w = do
     base <- getBase
-    let widget = sequence_ [Rcs.defaultCss base, w]
+    hd <- mkHeader
+    let widget = sequence_ [Rcs.defaultCss base, hd, w]
     p <- widgetToPageContent widget
     msgs <- getMessages
     withUrlRenderer

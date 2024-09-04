@@ -30,7 +30,7 @@ import Opaleye (DefaultFromField (..), Field, SqlText, ToFields, sqlStrictText)
 import Text.Printf
 
 newtype Id = MkId {unId :: Text}
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Read)
 
 instance Default ToFields Id (Field SqlText) where
   def = dimap unId id def

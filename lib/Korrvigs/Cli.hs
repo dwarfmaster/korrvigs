@@ -8,6 +8,7 @@ import qualified Korrvigs.Cli.Link as Link
 import Korrvigs.Cli.Monad
 import qualified Korrvigs.Cli.Note as Note
 import qualified Korrvigs.Cli.Query as Query
+import qualified Korrvigs.Cli.Server as Server
 import qualified Korrvigs.Cli.Sync as Sync
 import Options.Applicative
 
@@ -19,6 +20,7 @@ data KorrCommand
   | Sync Sync.Cmd
   | Query Query.Cmd
   | Config Config.Cmd
+  | Server Server.Cmd
 
 data Command
   = Init Init.Cmd
@@ -34,6 +36,7 @@ parser' =
       <> command "sync" (KCmd . Sync <$> Sync.parser)
       <> command "query" (KCmd . Query <$> Query.parser)
       <> command "config" (KCmd . Config <$> Config.parser)
+      <> command "server" (KCmd . Server <$> Server.parser)
       <> command "init" (Init <$> Init.parser)
 
 parser :: ParserInfo Command
@@ -51,6 +54,7 @@ run (File cmd) = File.run cmd
 run (Sync cmd) = Sync.run cmd
 run (Query cmd) = Query.run cmd
 run (Config cmd) = Config.run cmd
+run (Server cmd) = Server.run cmd
 
 main :: IO ()
 main = do

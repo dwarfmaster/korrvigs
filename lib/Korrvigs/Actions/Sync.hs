@@ -2,10 +2,10 @@
 
 module Korrvigs.Actions.Sync where
 
+import Conduit (throwM)
 import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad
-import Control.Monad.Except
 import Control.Monad.IO.Class
 import Data.List (find, foldl', singleton)
 import Data.Map (Map)
@@ -53,7 +53,7 @@ sync = do
   let conflict = M.toList $ M.filter ((>= 2) . length) ids
   case conflict of
     [] -> pure ()
-    (i, txts) : _ -> throwError $ KDuplicateId i (txts ^?! element 0) (txts ^?! element 1)
+    (i, txts) : _ -> throwM $ KDuplicateId i (txts ^?! element 0) (txts ^?! element 1)
   sqls <- sqlIDs
   let toRemove = view _1 <$> M.toList (M.difference sqls ids)
   forM_ toRemove remove
@@ -67,10 +67,10 @@ sync = do
   let checkRD = checkRelData $ \i -> isJust $ M.lookup i ids
   case foldr (firstJust . checkRD . view _2) Nothing (M.toList rels) of
     Nothing -> pure ()
-    Just i -> throwError $ KRelToUnknown i
+    Just i -> throwM $ KRelToUnknown i
   case hasCycle (view relSubOf <$> rels) of
     Nothing -> pure ()
-    Just cle -> throwError $ KSubCycle cle
+    Just cle -> throwM $ KSubCycle cle
   let subBindings = mkBindings $ view relSubOf <$> rels
   let refBindings = mkBindings $ view relRefTo <$> rels
   atomicInsert $ insertSubOf subBindings <> insertRefTo refBindings

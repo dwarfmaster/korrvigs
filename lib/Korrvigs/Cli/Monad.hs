@@ -2,6 +2,7 @@
 
 module Korrvigs.Cli.Monad where
 
+import Conduit (MonadThrow, throwM)
 import Control.Exception
 import Control.Lens hiding ((.=))
 import Control.Monad.Except
@@ -27,8 +28,8 @@ data KorrState = KState
 
 makeLenses ''KorrState
 
-newtype KorrM a = KorrM (ExceptT KorrvigsError (ReaderT KorrState IO) a)
-  deriving (Functor, Applicative, Monad, MonadIO, MonadReader KorrState, MonadError KorrvigsError)
+newtype KorrM a = KorrM (ExceptT SomeException (ReaderT KorrState IO) a)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadReader KorrState, MonadThrow)
 
 instance MonadKorrvigs KorrM where
   pgSQL = view korrConnection
@@ -45,7 +46,12 @@ runKorrM connSpec rt (KorrM action) = do
   conn <- connectPostgreSQL connSpec
   r <- runReaderT (runExceptT action) $ KState conn rt
   close conn
-  pure r
+  case r of
+    Left some ->
+      case fromException some of
+        Just e -> pure $ Left e
+        Nothing -> throwM some
+    Right v -> pure $ Right v
 
 data KorrConfig = KConfig
   { _kconfigRoot :: FilePath,

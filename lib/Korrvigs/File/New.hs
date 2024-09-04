@@ -1,9 +1,9 @@
 module Korrvigs.File.New (new, NewFile (..), nfParent, nfDate, nfTitle) where
 
+import Conduit (throwM)
 import Control.Applicative ((<|>))
 import Control.Lens
 import Control.Monad
-import Control.Monad.Except
 import Control.Monad.IO.Class
 import Data.Aeson.Text (encodeToLazyText)
 import qualified Data.ByteString as BS
@@ -79,7 +79,7 @@ choosePrefix mime
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
 new path options = do
   ex <- liftIO $ doesFileExist path
-  unless ex $ throwError $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
+  unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path
   mtdt <- liftIO $ extractMetadata path mime
   let extras = mtdtExtras mtdt

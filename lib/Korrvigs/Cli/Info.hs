@@ -1,7 +1,7 @@
 module Korrvigs.Cli.Info where
 
+import Conduit (throwM)
 import Control.Lens hiding (argument)
-import Control.Monad.Except
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
@@ -50,7 +50,7 @@ parser =
 run :: Cmd -> KorrM ()
 run (Cmd js i) =
   load i >>= \case
-    Nothing -> throwError $ KIdNotFound i
+    Nothing -> throwM $ KIdNotFound i
     Just entry ->
       liftIO $ if js then displayEntryJSON entry else displayEntry entry
 

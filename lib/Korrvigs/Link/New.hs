@@ -2,9 +2,9 @@
 
 module Korrvigs.Link.New (new, NewLink (..), nlOffline, nlDate, nlTitle, nlParent) where
 
+import Conduit (throwM)
 import Control.Lens hiding (noneOf)
 import Control.Monad
-import Control.Monad.Except
 import Data.Aeson hiding (json)
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
@@ -83,7 +83,7 @@ downloadInformation uri = do
 
 new :: (MonadKorrvigs m) => Text -> NewLink -> m Id
 new url options = case parseURI (T.unpack url) of
-  Nothing -> throwError $ KMiscError $ "Could not parse URL: " <> url
+  Nothing -> throwM $ KMiscError $ "Could not parse URL: " <> url
   Just uri -> do
     let protocol = T.pack $ uriScheme uri
     let link = T.pack $ uriToString id uri ""

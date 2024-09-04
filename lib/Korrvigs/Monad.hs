@@ -2,12 +2,13 @@
 
 module Korrvigs.Monad where
 
+import Conduit (MonadThrow, throwM)
 import Control.Exception
 import Control.Monad
-import Control.Monad.Except
 import Control.Monad.IO.Class
 import Data.Profunctor.Product.Default
 import Data.Text (Text)
+import Data.Typeable (Typeable)
 import Database.PostgreSQL.Simple (Connection, withTransaction)
 import Korrvigs.Entry
 import Opaleye hiding (null)
@@ -20,9 +21,11 @@ data KorrvigsError
   | KRelToUnknown Id
   | KIdNotFound Id
   | KMiscError Text
-  deriving (Show)
+  deriving (Typeable, Show)
 
-class (MonadIO m, MonadError KorrvigsError m) => MonadKorrvigs m where
+instance Exception KorrvigsError
+
+class (MonadIO m, MonadThrow m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
   load :: Id -> m (Maybe Entry)
@@ -71,10 +74,10 @@ newId =
       )
 
 throwMaybe :: (MonadKorrvigs m) => KorrvigsError -> Maybe a -> m a
-throwMaybe err = maybe (throwError err) pure
+throwMaybe err = maybe (throwM err) pure
 
-throwEither :: (MonadKorrvigs m) => (a -> KorrvigsError) -> Either a b -> m b
-throwEither err (Left t) = throwError $ err t
+throwEither :: (MonadKorrvigs m, Exception e) => (a -> e) -> Either a b -> m b
+throwEither err (Left t) = throwM $ err t
 throwEither _ (Right v) = pure v
 
 atomicSQL :: (MonadKorrvigs m) => (Connection -> IO a) -> m a

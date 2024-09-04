@@ -5,9 +5,9 @@
 , HUnit, lens, lens-aeson, lib, linear, mime-types, monad-loops
 , mtl, network-uri, opaleye, optparse-applicative, pandoc
 , pandoc-types, parsec, parsec3-numbers, postgresql-simple, process
-, product-profunctors, profunctors, temporary, text, text-builder
-, text-manipulate, time, unix, utf8-string, vector, xdg-basedir
-, xml-conduit, yesod, yesod-core
+, product-profunctors, profunctors, shakespeare, temporary, text
+, text-builder, text-manipulate, time, unix, utf8-string, vector
+, xdg-basedir, xml-conduit, yesod, yesod-core
 }:
 mkDerivation {
   pname = "korrvigs";
@@ -22,9 +22,9 @@ mkDerivation {
     http-conduit http-types HUnit lens lens-aeson linear mime-types
     monad-loops mtl network-uri opaleye optparse-applicative pandoc
     pandoc-types parsec parsec3-numbers postgresql-simple process
-    product-profunctors profunctors temporary text text-builder
-    text-manipulate time unix utf8-string vector xdg-basedir
-    xml-conduit yesod yesod-core
+    product-profunctors profunctors shakespeare temporary text
+    text-builder text-manipulate time unix utf8-string vector
+    xdg-basedir xml-conduit yesod yesod-core
   ];
   testHaskellDepends = [ base HUnit ];
   doHaddock = false;

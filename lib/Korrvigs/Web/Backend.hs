@@ -4,6 +4,7 @@ import Data.Text (Text)
 import Database.PostgreSQL.Simple (Connection)
 import qualified Korrvigs.Actions as Actions
 import Korrvigs.Monad
+import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Web.ClientSession as CS
 import Yesod
@@ -24,6 +25,27 @@ instance Yesod WebData where
   makeSessionBackend _ =
     strictSameSiteSessions $
       Just <$> defaultClientSessionBackend (24 * 60) CS.defaultKeyFile
+  defaultLayout w = do
+    base <- getBase
+    let widget = sequence_ [Rcs.defaultCss base, w]
+    p <- widgetToPageContent widget
+    msgs <- getMessages
+    withUrlRenderer
+      [hamlet|
+        $newline never
+        $doctype 5
+        <html>
+          <head>
+            <title>#{pageTitle p}
+            $maybe description <- pageDescription p
+              <meta name="description" content="#{description}">
+            ^{pageHead p}
+          <body>
+            <div #central>
+              $forall (status,msg) <- msgs
+                <p class="message #{status}">#{msg}
+              ^{pageBody p}
+        |]
 
 instance RenderMessage WebData FormMessage where
   renderMessage _ _ = defaultFormMessage

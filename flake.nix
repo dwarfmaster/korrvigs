@@ -50,6 +50,7 @@
             hpkgs.text-manipulate
             hpkgs.optparse-applicative
             hpkgs.xdg-basedir
+            hpkgs.password
           ]);
 
           pre-commit.hooks = {

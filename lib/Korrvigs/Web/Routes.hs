@@ -16,6 +16,7 @@ korrvigsRoutes =
   [parseRoutes|
 -- Home and login
 / HomeR GET POST
+/login LoginR GET POST
 
 -- Entry search and visualisation
 /entry SearchR GET

@@ -14,3 +14,6 @@ header pages = do
   toWidget $(whamletFile $ html "header.hamlet")
   toWidget $(cassiusFile $ css "header.cassius")
   toWidget $ mkJs $(embedFile $ js "header.js")
+
+formsStyle :: WidgetFor site ()
+formsStyle = toWidget $(cassiusFile $ css "forms.cassius")

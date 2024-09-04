@@ -98,6 +98,8 @@ library korrvigs-lib
     Korrvigs.Utils.Pandoc
     Korrvigs.Web
     Korrvigs.Web.Backend
+    Korrvigs.Web.Home
+    Korrvigs.Web.Login
     Korrvigs.Web.Ressources
     Korrvigs.Web.Ressources.Helpers
     Korrvigs.Web.Routes
@@ -137,6 +139,7 @@ library korrvigs-lib
     , pandoc-types          ^>=1.23.1
     , parsec                ^>=3.1.15.0
     , parsec3-numbers       ^>=0.1.0
+    , password              ^>=3.0.4.0
     , postgresql-simple     ^>=0.7.0.0
     , process               ^>=1.6.18.0
     , product-profunctors   ^>=0.11.1.0

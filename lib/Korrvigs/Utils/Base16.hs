@@ -61,7 +61,8 @@ instance FromJSON Base16Data where
     B16Data <$> assemble (\b -> v .: K.fromText (baseName b))
 
 readB16FromYaml :: (MonadIO m) => FilePath -> m Base16Data
-readB16FromYaml = liftIO . decodeFileThrow
+readB16FromYaml path =
+  B16Data . (("#" <>) .) . theme16 <$> liftIO (decodeFileThrow path)
 
 theme16 :: Base16Data -> Base16Index -> Text
 theme16 (B16Data l) i = l i

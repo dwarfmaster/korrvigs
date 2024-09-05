@@ -1,10 +1,12 @@
 module Korrvigs.Web.Backend where
 
 import Data.Functor ((<&>))
+import Data.Password.Scrypt
 import Data.Text (Text)
 import Database.PostgreSQL.Simple (Connection)
 import qualified Korrvigs.Actions as Actions
 import Korrvigs.Monad
+import Korrvigs.Utils.Base16
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Web.ClientSession as CS
@@ -13,12 +15,14 @@ import Yesod
 data WebData = WebData
   { web_connection :: Connection,
     web_root :: FilePath,
-    web_theme :: Int -> Text -- Base16 theme
+    web_theme :: Base16Index -> Text,
+    web_pwd :: PasswordHash Scrypt,
+    web_salt :: Text
   }
 
 mkYesodData "WebData" korrvigsRoutes
 
-getBase :: Handler (Int -> Text)
+getBase :: Handler (Base16Index -> Text)
 getBase = web_theme <$> getYesod
 
 hdIsEntry :: Route WebData -> Bool

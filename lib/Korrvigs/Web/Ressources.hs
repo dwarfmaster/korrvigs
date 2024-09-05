@@ -2,11 +2,12 @@ module Korrvigs.Web.Ressources where
 
 import Data.FileEmbed (embedFile)
 import Data.Text (Text)
+import Korrvigs.Utils.Base16
 import Korrvigs.Web.Ressources.Helpers
 import Text.Cassius (cassiusFile)
 import Yesod
 
-defaultCss :: (Int -> Text) -> WidgetFor site ()
+defaultCss :: (Base16Index -> Text) -> WidgetFor site ()
 defaultCss base = toWidget $(cassiusFile $ css "default.cassius")
 
 header :: [(Bool, Text, Route site)] -> WidgetFor site ()

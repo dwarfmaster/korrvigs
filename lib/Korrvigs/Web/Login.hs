@@ -14,12 +14,11 @@ newtype LoginData = LoginData {_password :: Text}
 
 makeLenses ''LoginData
 
--- TODO store it in the configuration with the salt
 getHashedPassword :: Handler (PasswordHash Scrypt)
-getHashedPassword = getPasswordSalt >>= hashPassword . mkPassword . ("password" <>)
+getHashedPassword = getsYesod web_pwd
 
 getPasswordSalt :: Handler Text
-getPasswordSalt = pure "mg8JU0QYIlmYInzV8mnoXS9AUQdzhMzGPOCNV4HDhhpxc9QK3pUhIh8Hmm5jPLDA"
+getPasswordSalt = getsYesod web_salt
 
 check :: Text -> Handler Bool
 check pass = do

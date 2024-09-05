@@ -1,21 +1,21 @@
 
 :root
-  --base00: #{base 0}
-  --base01: #{base 1}
-  --base02: #{base 2}
-  --base03: #{base 3}
-  --base04: #{base 4}
-  --base05: #{base 5}
-  --base06: #{base 6}
-  --base07: #{base 7}
-  --base08: #{base 8}
-  --base09: #{base 9}
-  --base0A: #{base 10}
-  --base0B: #{base 11}
-  --base0C: #{base 12}
-  --base0D: #{base 13}
-  --base0E: #{base 14}
-  --base0F: #{base 15}
+  --base00: #{base Base00}
+  --base01: #{base Base01}
+  --base02: #{base Base02}
+  --base03: #{base Base03}
+  --base04: #{base Base04}
+  --base05: #{base Base05}
+  --base06: #{base Base06}
+  --base07: #{base Base07}
+  --base08: #{base Base08}
+  --base09: #{base Base09}
+  --base0A: #{base Base0A}
+  --base0B: #{base Base0B}
+  --base0C: #{base Base0C}
+  --base0D: #{base Base0D}
+  --base0E: #{base Base0E}
+  --base0F: #{base Base0F}
 
 body
   background-color: var(--base00)

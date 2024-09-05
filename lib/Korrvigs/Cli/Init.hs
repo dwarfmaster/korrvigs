@@ -12,6 +12,7 @@ import Data.Password.Scrypt
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
+import Data.Text.Encoding.Base64
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.Types
 import Korrvigs.Cli.Monad
@@ -104,7 +105,7 @@ run cmd = do
   let rt = cmd ^. rootPath
   -- Generate Salt
   randomGen <- getStdGen
-  let salt = T.pack $ take 64 $ randoms randomGen
+  let salt = encodeBase64 $ T.pack $ take 64 $ randoms randomGen
   -- Ask password
   pass <- getPassword
   password <- hashPassword $ mkPassword $ pass <> salt

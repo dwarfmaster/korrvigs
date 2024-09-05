@@ -10,12 +10,10 @@ import Control.Monad.Reader
 import Data.Aeson
 import qualified Data.Aeson.Key as K
 import qualified Data.ByteString.Lazy as BSL
-import Data.Either (fromRight)
 import Data.Password.Scrypt
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
-import Data.Text.Encoding.Base64
 import Database.PostgreSQL.Simple (Connection, close, connectPostgreSQL)
 import qualified Korrvigs.Actions as Actions
 import Korrvigs.Monad
@@ -95,7 +93,7 @@ instance FromJSON KorrConfig where
         <*> v .: "connectionSpec"
         <*> v .: "port"
         <*> v .: "password"
-        <*> (fromRight "" . decodeBase64 <$> v .: "salt")
+        <*> v .: "salt"
         <*> parseJSON (Object v)
 
 instance ToJSON KorrConfig where
@@ -105,7 +103,7 @@ instance ToJSON KorrConfig where
         "connectionSpec" .= (cfg ^. kconfigPsql),
         "port" .= (cfg ^. kconfigPort),
         "password" .= (cfg ^. kconfigPassword),
-        "salt" .= (encodeBase64 $ cfg ^. kconfigSalt)
+        "salt" .= (cfg ^. kconfigSalt)
       ]
         ++ ( fmap (\b -> K.fromText (baseName b) .= theme16 (cfg ^. kconfigTheme) b) [minBound .. maxBound]
            )

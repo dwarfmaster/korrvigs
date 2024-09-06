@@ -18,8 +18,8 @@ sqlTextToJson = UOp.ap1 "to_jsonb"
 sqlNumToJson :: Field SqlFloat8 -> Field SqlJsonb
 sqlNumToJson = UOp.ap1 "to_jsonb"
 
-sqlJsonToText :: Field_ n SqlJsonb -> FieldNullable SqlText
-sqlJsonToText = UOp.sqlCast
+sqlJsonToText :: FieldNullable SqlJsonb -> FieldNullable SqlText
+sqlJsonToText js = js .#>> sqlArray id []
 
 sqlJsonToNum :: Field_ n SqlJsonb -> FieldNullable SqlFloat8
 sqlJsonToNum = UOp.sqlCast

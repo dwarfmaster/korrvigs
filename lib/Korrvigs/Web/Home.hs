@@ -23,8 +23,7 @@ getHomeR = do
       mtdt <- selectTable entriesMetadataTable
       where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryName)
       where_ $ mtdt ^. sqlKey .== sqlStrictText "title"
-      let titleText = sqlJsonToText $ mtdt ^. sqlValue
-      -- where_ $ not $ isNull $ entry ^. sqlEntryDate
+      let titleText = sqlJsonToText $ toNullable $ mtdt ^. sqlValue
       pure (entry, titleText)
   logWrap $
     defaultLayout

@@ -2,7 +2,11 @@ module Korrvigs.Web.Entry (getEntryR, postEntryR) where
 
 import Control.Lens
 import Control.Monad
+import qualified Data.Aeson.Encoding as VEnc
+import qualified Data.Map as M
 import Data.Text (Text)
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as Enc
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON
@@ -41,12 +45,44 @@ titleWidget entry = do
         (#{unId $ entry ^. name})
   |]
 
+mtdtWidget :: Entry -> Handler Widget
+mtdtWidget entry = do
+  pure
+    [whamlet|
+  <details>
+    <summary>Metadata
+    <table>
+      <tr>
+        <th>Key
+        <th>Value
+        <th>Read Only
+      $forall (key,val) <- M.toList (entry ^. metadata)
+        <tr>
+          <th>#{key}
+          <th>
+            #{prepareMtdtValue $ val ^. metaValue}
+          <th>
+            $if val ^. metaReadOnly
+              True
+            $else
+              False
+  |]
+  where
+    prepareMtdtValue :: Value -> LT.Text
+    prepareMtdtValue val =
+      let txt = Enc.decodeUtf8 $ VEnc.encodingToLazyByteString $ VEnc.value val
+       in if LT.length txt < 50
+            then txt
+            else LT.take 47 txt <> "..."
+
 entryWidget :: Entry -> Handler Widget
 entryWidget entry = do
   title <- titleWidget entry
+  mtdt <- mtdtWidget entry
   pure $ do
     Rcs.entryStyle
     title
+    mtdt
 
 getEntryR :: WebId -> Handler Html
 getEntryR (WId i) =

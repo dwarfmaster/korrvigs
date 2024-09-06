@@ -104,6 +104,7 @@ library korrvigs-lib
     Korrvigs.Web.Ressources
     Korrvigs.Web.Ressources.Helpers
     Korrvigs.Web.Routes
+    Korrvigs.Web.Utils
 
   build-depends:
     , aeson                 ^>=2.1.2.1

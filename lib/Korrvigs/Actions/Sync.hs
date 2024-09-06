@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Korrvigs.Actions.Sync where
 
 import Conduit (throwM)

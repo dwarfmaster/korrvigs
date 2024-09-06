@@ -18,3 +18,6 @@ header pages = do
 
 formsStyle :: WidgetFor site ()
 formsStyle = toWidget $(cassiusFile $ css "forms.cassius")
+
+entryStyle :: WidgetFor site ()
+entryStyle = toWidget $(cassiusFile $ css "entry.cassius")

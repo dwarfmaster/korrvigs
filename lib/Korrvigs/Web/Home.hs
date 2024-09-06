@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Korrvigs.Web.Home where
 
 import Control.Lens

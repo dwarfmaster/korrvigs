@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Korrvigs.Utils.Opaleye where
 
 import Control.Arrow ((&&&))

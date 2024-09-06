@@ -99,6 +99,7 @@ library korrvigs-lib
     Korrvigs.Utils.Pandoc
     Korrvigs.Web
     Korrvigs.Web.Backend
+    Korrvigs.Web.Entry
     Korrvigs.Web.Home
     Korrvigs.Web.Login
     Korrvigs.Web.Ressources
@@ -169,6 +170,7 @@ library korrvigs-lib
     MultiParamTypeClasses
     OverloadedStrings
     QuasiQuotes
+    ScopedTypeVariables
     TemplateHaskell
     TupleSections
     TypeFamilies

@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Korrvigs.Utils.Cycle where
 
 import Data.Graph

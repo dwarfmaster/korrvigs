@@ -22,4 +22,9 @@ korrvigsRoutes =
 /entry SearchR GET
 /entry/#WebId EntryR GET POST
 /entry/#WebId/download EntryDownloadR GET
+
+-- Specific visualisations
+-- TODO Date
+-- TODO Place
+-- TODO Graph
 |]

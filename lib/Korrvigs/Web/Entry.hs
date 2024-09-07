@@ -7,6 +7,7 @@ import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as Enc
+import Data.Time.Format.ISO8601 (iso8601Show)
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON
@@ -45,6 +46,17 @@ titleWidget entry = do
         (#{unId $ entry ^. name})
   |]
 
+-- TODO make link to day viewer
+dateWidget :: Entry -> Handler Widget
+dateWidget entry = case entry ^. date of
+  Just time ->
+    pure
+      [whamlet|
+      <a href="">
+        #{iso8601Show time}
+    |]
+  Nothing -> pure mempty
+
 mtdtWidget :: Entry -> Handler Widget
 mtdtWidget entry = do
   pure
@@ -78,10 +90,12 @@ mtdtWidget entry = do
 entryWidget :: Entry -> Handler Widget
 entryWidget entry = do
   title <- titleWidget entry
+  dt <- dateWidget entry
   mtdt <- mtdtWidget entry
   pure $ do
     Rcs.entryStyle
     title
+    dt
     mtdt
 
 getEntryR :: WebId -> Handler Html

@@ -12,6 +12,7 @@ import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Leaflet
 import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
@@ -57,6 +58,12 @@ dateWidget entry = case entry ^. date of
     |]
   Nothing -> pure mempty
 
+geometryWidget :: Entry -> Handler Widget
+geometryWidget entry = pure $ case entry ^. geo of
+  Nothing -> mempty
+  Just geometry ->
+    leafletWidget (Just "Geometry") [MapItem geometry Nothing]
+
 mtdtWidget :: Entry -> Handler Widget
 mtdtWidget entry = do
   pure
@@ -91,11 +98,13 @@ entryWidget :: Entry -> Handler Widget
 entryWidget entry = do
   title <- titleWidget entry
   dt <- dateWidget entry
+  geom <- geometryWidget entry
   mtdt <- mtdtWidget entry
   pure $ do
     Rcs.entryStyle
     title
     dt
+    geom
     mtdt
 
 getEntryR :: WebId -> Handler Html

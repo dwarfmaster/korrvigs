@@ -102,6 +102,7 @@ library korrvigs-lib
     Korrvigs.Web.Download
     Korrvigs.Web.Entry
     Korrvigs.Web.Home
+    Korrvigs.Web.Leaflet
     Korrvigs.Web.Login
     Korrvigs.Web.Ressources
     Korrvigs.Web.Ressources.Helpers

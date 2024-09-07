@@ -14,6 +14,9 @@
   a
     color: inherit
 
+#map
+  height: 30em
+
 h1
   color: var(--base0C)
   padding-top: 0

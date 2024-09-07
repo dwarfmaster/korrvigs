@@ -76,12 +76,24 @@ choosePrefix mime
   | BS.isPrefixOf "text" mime = "file"
   | otherwise = "doc"
 
+zonedTimeFromDay :: TimeZone -> Day -> ZonedTime
+zonedTimeFromDay tz day =
+  ZonedTime (LocalTime day (TimeOfDay 0 0 0)) tz
+
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
 new path options = do
   ex <- liftIO $ doesFileExist path
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path
-  mtdt <- liftIO $ extractMetadata path mime
+  mtdt' <- liftIO $ extractMetadata path mime
+  tz <- liftIO getCurrentTimeZone
+  let extrasFromNew =
+        def
+          & mtdtTitle .~ options ^. nfTitle
+          & mtdtDate .~ (zonedTimeFromDay tz <$> options ^. nfDate)
+          & mtdtParents .~ ((: []) <$> options ^. nfParent)
+  let mtdt'' = reifyMetadata extrasFromNew $ M.map (`MValue` True) mtdt'
+  let mtdt = M.map (^. metaValue) mtdt''
   let extras = mtdtExtras mtdt
   annex <- liftIO $ shouldAnnex path mime
   let idmk =

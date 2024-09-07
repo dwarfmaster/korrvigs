@@ -4,6 +4,7 @@ import Control.Lens
 import Control.Monad
 import Data.Maybe
 import Data.Text (Text)
+import qualified Data.Text.Lazy.Builder as Bld
 import Korrvigs.Geometry
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -23,6 +24,24 @@ points :: Geometry -> [V2 Double]
 points (GeoPoint pt) = [pt]
 points (GeoPath path) = path
 points (GeoPolygon (Polygon path _)) = path
+
+jsList' :: (a -> Bld.Builder) -> [a] -> Bld.Builder
+jsList' _ [] = "]"
+jsList' rdr [x] = rdr x <> "]"
+jsList' rdr (x : xs) = rdr x <> "," <> jsList' rdr xs
+
+jsList :: (a -> Bld.Builder) -> [a] -> Bld.Builder
+jsList rdr xs = "[" <> jsList' rdr xs
+
+jsPoint :: Point -> Bld.Builder
+jsPoint (V2 y x) =
+  "[" <> Bld.fromString (show x) <> "," <> Bld.fromString (show y) <> "]"
+
+jsPath :: Path -> RawJavascript
+jsPath = rawJS . jsList jsPoint
+
+jsPolygon :: Polygon -> RawJavascript
+jsPolygon (Polygon poly hls) = rawJS $ jsList (jsList jsPoint) $ poly : hls
 
 computeCenter :: [Geometry] -> Point
 computeCenter geoms = sum pts / V2 npts npts
@@ -57,13 +76,15 @@ leafletWidget details items = do
   forM_ items $ \item -> do
     markerVar <- newIdent
     case item ^. mitGeo of
-      GeoPoint (V2 y x) ->
+      GeoPoint pt ->
         toWidget
-          [julius|
-          var #{rawJS markerVar} = L.marker([#{rawJS $ show x}, #{rawJS $ show y}]).addTo(map)
-        |]
-      GeoPath path -> undefined
-      GeoPolygon poly -> undefined
+          [julius|var #{rawJS markerVar} = L.marker(#{rawJS $ jsPoint pt}).addTo(map)|]
+      GeoPath path ->
+        toWidget
+          [julius|var #{rawJS markerVar} = L.polyline(#{jsPath path}).addTo(map)|]
+      GeoPolygon poly ->
+        toWidget
+          [julius|var #{rawJS markerVar} = L.polygon(#{jsPolygon poly}).addTo(map)|]
     case item ^. mitContent of
       Nothing -> pure ()
       Just content ->

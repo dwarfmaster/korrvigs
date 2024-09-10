@@ -59,10 +59,23 @@ dateWidget entry = case entry ^. date of
   Nothing -> pure mempty
 
 geometryWidget :: Entry -> Handler Widget
-geometryWidget entry = pure $ case entry ^. geo of
-  Nothing -> mempty
-  Just geometry ->
-    leafletWidget (Just "Geometry") [MapItem geometry Nothing]
+geometryWidget entry = case entry ^. geo of
+  Nothing -> pure mempty
+  Just geometry -> do
+    detClass <- newIdent
+    pure $ do
+      [whamlet|
+        <details .#{detClass}>
+          <summary>Geometry
+          ^{leafletWidget "map" [MapItem geometry Nothing]}
+      |]
+      toWidget
+        [julius|
+        var details = document.querySelector(#{"." <> detClass})
+        details.addEventListener("toggle", function() {
+          map.invalidateSize()
+        })
+      |]
 
 mtdtWidget :: Entry -> Handler Widget
 mtdtWidget entry = do

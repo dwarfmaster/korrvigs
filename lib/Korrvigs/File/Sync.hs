@@ -24,6 +24,7 @@ import Korrvigs.Kind
 import Korrvigs.KindData
 import Korrvigs.Metadata
 import Korrvigs.Monad
+import Korrvigs.Utils (resolveSymbolicLink)
 import Korrvigs.Utils.DateTree
 import Opaleye hiding (not)
 import System.Directory
@@ -131,24 +132,10 @@ computeStatus path = do
   sym <- pathIsSymbolicLink path
   if sym
     then do
-      dest <- resolveSym path
+      dest <- resolveSymbolicLink path
       ex <- doesFileExist dest
       pure $ if ex then FilePresent else FileAbsent
     else pure FilePlain
-  where
-    resolveSym :: FilePath -> IO FilePath
-    resolveSym link = do
-      sym <- pathIsSymbolicLink link
-      if sym
-        then do
-          target <- getSymbolicLinkTarget link
-          let ntarget = combinePath (takeDirectory link) target
-          resolveSym ntarget
-        else pure link
-    combinePath :: FilePath -> FilePath -> FilePath
-    combinePath rt pth
-      | isAbsolute pth = pth
-      | otherwise = rt </> pth
 
 dSyncImpl :: (MonadKorrvigs m) => m (Map Id RelData)
 dSyncImpl =

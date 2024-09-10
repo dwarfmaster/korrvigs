@@ -22,6 +22,7 @@ import Korrvigs.File.Sync
 import Korrvigs.KindData
 import Korrvigs.Metadata
 import Korrvigs.Monad
+import Korrvigs.Utils (resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (storeFile)
 import Network.Mime
 import System.Directory
@@ -81,7 +82,8 @@ zonedTimeFromDay tz day =
   ZonedTime (LocalTime day (TimeOfDay 0 0 0)) tz
 
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
-new path options = do
+new path' options = do
+  path <- liftIO $ resolveSymbolicLink path'
   ex <- liftIO $ doesFileExist path
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path

@@ -1,6 +1,6 @@
 module Korrvigs.Web.Entry (getEntryR, postEntryR) where
 
-import Control.Lens
+import Control.Lens hiding (children)
 import Control.Monad
 import qualified Data.Aeson.Encoding as VEnc
 import qualified Data.Map as M
@@ -17,7 +17,7 @@ import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
-import Opaleye
+import Opaleye hiding (null)
 import Yesod
 
 -- An entry page is constitued of the following parts
@@ -107,18 +107,53 @@ mtdtWidget entry = do
             then txt
             else LT.take 47 txt <> "..."
 
+refsWidget :: Entry -> Handler Widget
+refsWidget entry = do
+  parents :: [Id] <- rSelect $ selectTargetsFor entriesSubTable $ entry ^. name
+  children :: [Id] <- rSelect $ selectSourcesFor entriesSubTable $ entry ^. name
+  backrefs :: [Id] <- rSelect $ selectSourcesFor entriesRefTable $ entry ^. name
+  if null parents && null children && null backrefs
+    then pure mempty
+    else
+      pure
+        [whamlet|
+        <details .refs>
+          <summary>References
+          <div .refsrow>
+            <div .refscol>
+              <h4> Parents
+              <ul>
+                $forall par <- parents
+                  <li>
+                    <a href=@{EntryR $ WId par}>#{unId par}
+            <div .refscol>
+              <h4> Childrent
+              <ul>
+                $forall ch <- children
+                  <li>
+                    <a href=@{EntryR $ WId ch}>#{unId ch}
+            <div .refscol>
+              <h4> Backreferences
+              <ul>
+                $forall back <- backrefs
+                  <li>
+                    <a href=@{EntryR $ WId back}>#{unId back}
+      |]
+
 entryWidget :: Entry -> Handler Widget
 entryWidget entry = do
   title <- titleWidget entry
   dt <- dateWidget entry
   geom <- geometryWidget entry
   mtdt <- mtdtWidget entry
+  refs <- refsWidget entry
   pure $ do
     Rcs.entryStyle
     title
     dt
     geom
     mtdt
+    refs
 
 getEntryR :: WebId -> Handler Html
 getEntryR (WId i) =

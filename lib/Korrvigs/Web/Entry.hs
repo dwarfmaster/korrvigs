@@ -14,6 +14,7 @@ import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
+import qualified Korrvigs.Web.Entry.Note as Note
 import Korrvigs.Web.Leaflet
 import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -145,7 +146,7 @@ refsWidget entry = do
 contentWidget :: Entry -> Handler Widget
 contentWidget entry = case entry ^. kindData of
   LinkD link -> Link.content link
-  NoteD note -> undefined
+  NoteD note -> Note.content note
   FileD file -> File.content file
 
 entryWidget :: Entry -> Handler Widget

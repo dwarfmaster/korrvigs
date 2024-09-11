@@ -103,6 +103,7 @@ library korrvigs-lib
     Korrvigs.Web.Entry
     Korrvigs.Web.Entry.File
     Korrvigs.Web.Entry.Link
+    Korrvigs.Web.Entry.Note
     Korrvigs.Web.Home
     Korrvigs.Web.Leaflet
     Korrvigs.Web.Login

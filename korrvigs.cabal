@@ -101,6 +101,7 @@ library korrvigs-lib
     Korrvigs.Web.Backend
     Korrvigs.Web.Download
     Korrvigs.Web.Entry
+    Korrvigs.Web.Entry.File
     Korrvigs.Web.Entry.Link
     Korrvigs.Web.Home
     Korrvigs.Web.Leaflet

@@ -12,6 +12,7 @@ import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
 import Korrvigs.Web.Leaflet
 import Korrvigs.Web.Login
@@ -145,7 +146,7 @@ contentWidget :: Entry -> Handler Widget
 contentWidget entry = case entry ^. kindData of
   LinkD link -> Link.content link
   NoteD note -> undefined
-  FileD file -> undefined
+  FileD file -> File.content file
 
 entryWidget :: Entry -> Handler Widget
 entryWidget entry = do

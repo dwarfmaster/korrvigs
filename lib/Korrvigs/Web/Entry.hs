@@ -12,6 +12,7 @@ import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Entry.Link as Link
 import Korrvigs.Web.Leaflet
 import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -140,6 +141,12 @@ refsWidget entry = do
                     <a href=@{EntryR $ WId back}>#{unId back}
       |]
 
+contentWidget :: Entry -> Handler Widget
+contentWidget entry = case entry ^. kindData of
+  LinkD link -> Link.content link
+  NoteD note -> undefined
+  FileD file -> undefined
+
 entryWidget :: Entry -> Handler Widget
 entryWidget entry = do
   title <- titleWidget entry
@@ -147,6 +154,7 @@ entryWidget entry = do
   geom <- geometryWidget entry
   mtdt <- mtdtWidget entry
   refs <- refsWidget entry
+  content <- contentWidget entry
   pure $ do
     Rcs.entryStyle
     title
@@ -154,6 +162,7 @@ entryWidget entry = do
     geom
     mtdt
     refs
+    content
 
 getEntryR :: WebId -> Handler Html
 getEntryR (WId i) =

@@ -9,6 +9,7 @@ import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Note
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Yesod hiding (Attr)
 
@@ -28,6 +29,7 @@ content note = do
           #{err}
       |]
     Right md -> pure $ do
+      Rcs.mathjax
       compileBlocks $ md ^. docContent
       toWidget
         [julius|
@@ -167,6 +169,6 @@ compileInline (PlainLink uri) =
   let url = show uri in [whamlet|<a href=#{url}>#{url}|]
 compileInline Space = toWidget (" " :: Text)
 compileInline Break = [whamlet|<br>|]
-compileInline (DisplayMath mth) = undefined
-compileInline (InlineMath mth) = undefined
+compileInline (DisplayMath mth) = toWidget . toHtml $ "$$" <> mth <> "$$"
+compileInline (InlineMath mth) = toWidget . toHtml $ "\\(" <> mth <> "\\)"
 compileInline (Sidenote side) = undefined

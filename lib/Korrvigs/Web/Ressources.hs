@@ -4,6 +4,7 @@ import Data.FileEmbed (embedFile)
 import Data.Text (Text)
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Ressources.Helpers
+import Text.Blaze.Html
 import Text.Cassius (cassiusFile)
 import Yesod
 
@@ -30,3 +31,22 @@ leaflet = do
   addStylesheetRemoteAttrs
     "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     [("integrity", "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="), ("crossorigin", "")]
+
+mathjax :: WidgetFor site ()
+mathjax = do
+  toWidgetHead $
+    preEscapedToHtml
+      ( "\
+        \<script type=\"text/x-mathjax-config\">\
+        \  MathJax: {\
+        \    tex: {\
+        \      inlineMath: [['\\\\(', '\\\\)']],\
+        \      processEscapes: true\
+        \    }\
+        \  }\
+        \</script>" ::
+          Text
+      )
+  addScriptRemoteAttrs
+    "https://cdn.jsdelivr.net/npm/mathjax@3.0.1/es5/tex-mml-chtml.js"
+    [("id", "MathJax-Script"), ("integrity", "sha384-/1zmJ1mBdfKIOnwPxpdG6yaRrxP6qu3eVYm0cz2nOx+AcL4d3AqEFrwcqGZVVroG"), ("crossorigin", "anonymous")]

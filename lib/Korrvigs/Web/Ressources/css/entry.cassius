@@ -97,3 +97,9 @@ th
 td
   background-color: var(--base01)
   border-radius: 0.25em
+
+mjx-container
+  display: inline-grid
+  overflow-x: auto
+  overflow-y: hidden
+  max-width: 100%

@@ -1,0 +1,38 @@
+/* Inspired from https://scripter.co/sidenotes-using-only-css/ */
+
+.sidenote
+  font-size: 80%
+  position: relative
+
+.sidenote p
+  margin: 0
+
+.sidenote-number::after
+  content: "."
+
+.sidenote-number
+  font-weight: bold
+
+.sidenote-ref
+  font-weight: bold
+  font-size: 0.8em
+  vertical-align: super
+
+@media (min-width: 82rem)
+  .sidenote
+    float: right
+    clear: right
+    margin-right: -22rem
+    text-align: left
+    top: -3rem
+    width: 20rem
+    margin-top: 1rem
+    background-color: var(--base01)
+
+@media (max-width: 100rem)
+  .sidenote
+    float: right
+    text-align: left
+    width: 100%
+    margin: 1rem 0
+    padding-right: 15rem

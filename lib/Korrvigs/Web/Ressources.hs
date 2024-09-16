@@ -21,7 +21,9 @@ formsStyle :: WidgetFor site ()
 formsStyle = toWidget $(cassiusFile $ css "forms.cassius")
 
 entryStyle :: WidgetFor site ()
-entryStyle = toWidget $(cassiusFile $ css "entry.cassius")
+entryStyle = do
+  toWidget $(cassiusFile $ css "entry.cassius")
+  toWidget $(cassiusFile $ css "sidenote.cassius")
 
 leaflet :: WidgetFor site ()
 leaflet = do

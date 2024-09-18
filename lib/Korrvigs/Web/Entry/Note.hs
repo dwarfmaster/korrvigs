@@ -1,4 +1,4 @@
-module Korrvigs.Web.Entry.Note (content) where
+module Korrvigs.Web.Entry.Note (content, embed) where
 
 import Control.Lens
 import Control.Monad
@@ -10,8 +10,11 @@ import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
+import Korrvigs.Monad
 import Korrvigs.Note
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Entry.File as File
+import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Yesod hiding (Attr, get, (.=))
@@ -19,18 +22,21 @@ import Yesod hiding (Attr, get, (.=))
 data CompileState = CState
   { _noteCounter :: Int,
     _notes :: [(Int, [Block])],
-    _topLevel :: Bool
+    _topLevel :: Bool,
+    _hdRootLevel :: Int,
+    _currentLevel :: Int,
+    _embedded :: Bool
   }
 
 makeLenses ''CompileState
 
 instance Default CompileState where
-  def = CState 1 [] True
+  def = CState 1 [] True 0 0 False
 
-type CompileM = State CompileState
+type CompileM = StateT CompileState Handler
 
-runCompile :: CompileM Widget -> Widget
-runCompile act = evalState act def
+runCompile :: CompileState -> CompileM Widget -> Handler Widget
+runCompile = flip evalStateT
 
 pushSide :: [Block] -> CompileM Int
 pushSide side = do
@@ -53,8 +59,16 @@ popNote =
     [] -> pure Nothing
     (n : nts) -> notes .= nts >> pure (Just n)
 
-content :: Note -> Handler Widget
-content note = do
+withLevel :: Int -> CompileM a -> CompileM a
+withLevel lvl act = do
+  prev <- use currentLevel
+  currentLevel .= lvl
+  r <- act
+  currentLevel .= prev
+  pure r
+
+embed :: Int -> Note -> Handler Widget
+embed lvl note = do
   let path = note ^. notePath
   mmd <- readNote path
   case mmd of
@@ -68,18 +82,30 @@ content note = do
         <code>
           #{err}
       |]
-    Right md -> pure $ do
-      Rcs.mathjax
-      runCompile $ compileBlocks $ md ^. docContent
-      toWidget
-        [julius|
-        var syms = document.querySelectorAll('.section-symbol')
-        for(let sym = 0; sym < syms.length; sym++) {
-          syms[sym].addEventListener("click", function () {
-            syms[sym].parentElement.parentElement.classList.toggle("collapsed")
-          })
-        }
-      |]
+    Right md -> do
+      let isEmbedded = lvl > 0
+      let st =
+            def
+              & hdRootLevel .~ lvl
+              & currentLevel .~ lvl
+              & embedded .~ isEmbedded
+      markdown <- runCompile st $ compileBlocks $ md ^. docContent
+      pure $ do
+        Rcs.mathjax
+        markdown
+        unless isEmbedded $
+          toWidget
+            [julius|
+          var syms = document.querySelectorAll('.section-symbol')
+          for(let sym = 0; sym < syms.length; sym++) {
+            syms[sym].addEventListener("click", function () {
+              syms[sym].parentElement.parentElement.classList.toggle("collapsed")
+            })
+          }
+        |]
+
+content :: Note -> Handler Widget
+content = embed 0
 
 compileBlocks :: [Block] -> CompileM Widget
 compileBlocks = fmap mconcat . mapM compileBlock
@@ -163,19 +189,43 @@ compileBlock' (Figure attr caption fig) = do
     ^{figW}
     <figcaption>^{captionW}
   |]
--- TODO deal with embedded documents
-compileBlock' (Embed i) = pure [whamlet|<a href=@{EntryR $ WId i}>Embedded document|]
+compileBlock' (Embed i) =
+  use embedded >>= \isEmbedded ->
+    if isEmbedded
+      then pure lnk
+      else
+        lift (load i) >>= \case
+          Nothing -> pure lnk
+          Just entry -> do
+            lvl <- use currentLevel
+            widget <- lift $ case entry ^. kindData of
+              LinkD link -> Link.embed lvl link
+              FileD file -> File.embed lvl file
+              NoteD note -> embed lvl note
+            pure
+              [whamlet|
+        <div .embedded>
+          ^{lnk}
+          ^{widget}
+      |]
+  where
+    lnk =
+      [whamlet|
+    <a href=@{EntryR $ WId i}>
+      <code>
+        @#{unId i}
+  |]
 compileBlock' (Sub hd) = do
-  contentW <- compileBlocks $ hd ^. hdContent
+  rtLvl <- use hdRootLevel
+  let lvl = rtLvl + hd ^. hdLevel
+  contentW <- withLevel lvl $ compileBlocks $ hd ^. hdContent
   pure
     [whamlet|
-    <section *{compileAttr $ hd ^. hdAttr} .collapsed class=#{"level" ++ show lvl}>
-      ^{compileHead (hd ^. hdLevel) (hd ^. hdTitle)}
+    <section *{compileAttr $ hd ^. hdAttr} .collapsed class=#{"level" ++ show (lvl + 1)}>
+      ^{compileHead lvl (hd ^. hdTitle)}
       <div .section-content>
         ^{contentW}
   |]
-  where
-    lvl = hd ^. hdLevel + 1
 compileBlock' (Table tbl) = do
   tableW <- compileTable (tbl ^. tableHeader) (tbl ^. tableFooter) (tbl ^. tableCells)
   captionW <- compileBlocks $ tbl ^. tableCaption

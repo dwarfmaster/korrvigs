@@ -1,4 +1,4 @@
-module Korrvigs.Web.Entry.File (content) where
+module Korrvigs.Web.Entry.File (content, embed) where
 
 import Control.Lens
 import qualified Data.ByteString as BS
@@ -61,12 +61,10 @@ pdfWidget file =
   let i = file ^. fileEntry . name
    in [whamlet|<embed src=@{EntryDownloadR $ WId i} width=100% height=20em type="application/pdf">|]
 
-content :: File -> Handler Widget
-content file
-  | file ^. fileStatus == FileAbsent =
-      pure $ statusWidget FileAbsent
-content file = pure $ do
-  statusWidget $ file ^. fileStatus
+embed :: Int -> File -> Handler Widget
+embed _ file
+  | file ^. fileStatus == FileAbsent = pure [whamlet|<code>#{file ^. filePath}|]
+embed _ file = pure $ do
   let mime = file ^. fileMime
   fromMaybe mempty $
     lookup
@@ -77,3 +75,10 @@ content file = pure $ do
         (BS.isPrefixOf "text/" mime, textWidget file),
         (mime == "application/pdf", pdfWidget file)
       ]
+
+content :: File -> Handler Widget
+content file = do
+  embeded <- embed 0 file
+  pure $ do
+    statusWidget $ file ^. fileStatus
+    embeded

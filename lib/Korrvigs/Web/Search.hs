@@ -34,16 +34,37 @@ mattr :: Maybe a -> Text -> (a -> Text) -> [(Text, Text)]
 mattr (Just x) attr val = [(attr, val x)]
 mattr Nothing _ _ = []
 
+selectConditional :: Text -> Text -> Widget
+selectConditional checkId cls =
+  toWidget
+    [julius|
+  document.getElementById(#{checkId}).addEventListener("change", function(ev) {
+    for (let e of document.getElementsByClassName(#{cls})) {
+      if (ev.currentTarget.checked) {
+        e.removeAttribute("disabled")
+      } else {
+        e.setAttribute("disabled", "")
+        var select = document.getElementById("sortSelId")
+        if (select.value == e.value) {
+          select.selectedIndex = 1
+        }
+      }
+    }
+  })
+|]
+
 ftsForm :: Maybe FTS.Query -> Handler Widget
-ftsForm fts =
-  pure
+ftsForm fts = do
+  checkId <- newIdent
+  pure $ do
     [whamlet|
       <details .search-group *{sattr "open" $ isJust fts}>
         <summary>
-          <input type=checkbox name=checkfts *{sattr "checked" $ isJust fts}>
+          <input ##{checkId} type=checkbox name=checkfts *{sattr "checked" $ isJust fts}>
           Full text search
         <input type=text name=fts *{mattr fts "value" FTS.renderQuery}>
     |]
+    selectConditional checkId "tsrank-order"
 
 timeForm :: Maybe ZonedTime -> Maybe ZonedTime -> Handler Widget
 timeForm after before = do
@@ -144,11 +165,12 @@ geoForm dist = do
   distId <- newIdent
   latId <- newIdent
   lngId <- newIdent
+  checkId <- newIdent
   pure $ do
     [whamlet|
       <details .search-group ##{detId} *{sattr "open" $ isJust dist}>
         <summary>
-          <input type=checkbox name=checkgeo *{sattr "checked" $ isJust dist}>
+          <input ##{checkId} type=checkbox name=checkgeo *{sattr "checked" $ isJust dist}>
           Geometry
         ^{leafletWidget "searchmap" [MapItem (GeoPoint defCenter) Nothing (Just "searchMarker")]}
         <input ##{distId} type=number min=0 name=geodist value=#{defDist}>
@@ -177,6 +199,7 @@ geoForm dist = do
         searchCircle.setRadius(Number(e.target.value) * 1000)
       })
     |]
+    selectConditional checkId "dist-order"
   where
     defCenter = maybe (V2 2.359775 48.915611) (view _1) dist
     defDist = maybe 1 ((/ 1000.0) . view _2) dist
@@ -184,7 +207,7 @@ geoForm dist = do
 sortOptions :: [Option (SortCriterion, SortOrder)]
 sortOptions = zipWith mkOption [1 ..] opts
   where
-    opts = (,) <$> [ById, ByDate] <*> [SortAsc, SortDesc]
+    opts = (,) <$> [ById, ByDate, ByDistanceTo (V2 0 0), ByTSRank (FTS.Phrase [])] <*> [SortAsc, SortDesc]
     mkOption :: Int -> (SortCriterion, SortOrder) -> Option (SortCriterion, SortOrder)
     mkOption i (crit, order) =
       Option
@@ -199,16 +222,23 @@ sortOptions = zipWith mkOption [1 ..] opts
     dOrd SortAsc = "ascending"
     dOrd SortDesc = "descending"
 
-sortForm :: (SortCriterion, SortOrder) -> Handler Widget
-sortForm sopt =
+sortForm :: Query -> Handler Widget
+sortForm q =
   pure
     [whamlet|
-      <select name=sortopts>
+      <select #sortSelId name=sortopts>
         $forall opt <- sortOptions
-          <option value=#{optionExternalValue opt} *{sattr "selected" $ optionInternalValue opt == sopt}>
+          <option value=#{optionExternalValue opt} *{sattr "selected" $ optionInternalValue opt == sopt} *{disableAttrs opt}>
             Sort by:
             #{optionDisplay opt}
     |]
+  where
+    sopt = q ^. querySort
+    disableAttrs :: Option (SortCriterion, SortOrder) -> [(Text, Text)]
+    disableAttrs opt = case optionInternalValue opt ^. _1 of
+      ByDistanceTo _ -> [("disabled", "") | isNothing $ q ^. queryDist] ++ [("class", "dist-order")]
+      ByTSRank _ -> [("disabled", "") | isNothing $ q ^. queryText] ++ [("class", "tsrank-order")]
+      _ -> []
 
 maxResultsOptions :: [Option Int]
 maxResultsOptions = mkOption <$> opts
@@ -238,7 +268,7 @@ searchForm query = do
   fts <- ftsForm $ query ^. queryText
   time <- timeForm (query ^. queryAfter) (query ^. queryBefore)
   kd <- kindForm $ query ^. queryKind
-  srt <- sortForm $ query ^. querySort
+  srt <- sortForm query
   mx <- maxResultsForm $ query ^. queryMaxResults
   mtdt <- mtdtForm $ query ^. queryMtdt
   geom <- geoForm $ query ^. queryDist
@@ -329,11 +359,20 @@ liftMaybe :: Bool -> (V2 (Maybe Double), Maybe Double) -> Maybe (V2 Double, Doub
 liftMaybe True (V2 (Just x) (Just y), Just d) = Just (V2 x y, d * 1000.0)
 liftMaybe _ _ = Nothing
 
+fixOrder :: Query -> Query
+fixOrder q@(Query _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
+  Just (pt, _) -> q & querySort . _1 .~ ByDistanceTo pt
+  Nothing -> q & querySort .~ def
+fixOrder q@(Query _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
+  Just fts -> q & querySort . _1 .~ ByTSRank fts
+  Nothing -> q & querySort .~ def
+fixOrder q = q
+
 getSearchR :: Handler Html
 getSearchR = do
   tz <- liftIO getCurrentTimeZone
   let mktz = fmap $ flip ZonedTime tz
-  q <-
+  q' <-
     runInputGet $
       Query
         <$> (getOpt <$> ireq checkBoxField "checkfts" <*> iopt ftsField "fts")
@@ -354,6 +393,7 @@ getSearchR = do
             )
         <*> (fromMaybe def <$> iopt optsField "sortopts")
         <*> iopt maxResultsField "maxresults"
+  let q = fixOrder q'
   r <- rSelect $ do
     entry <- compile q
     title <- optional $ limit 1 $ do

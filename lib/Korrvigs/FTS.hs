@@ -8,12 +8,14 @@ module Korrvigs.FTS
     (@@),
     (@@?),
     parseQuery,
+    renderQuery,
     Korrvigs.FTS.tests,
   )
 where
 
 import Korrvigs.FTS.Parser
 import Korrvigs.FTS.Query
+import Korrvigs.FTS.Render
 import Korrvigs.FTS.SQL
 import Test.HUnit
 

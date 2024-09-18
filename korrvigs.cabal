@@ -61,6 +61,7 @@ library korrvigs-lib
     Korrvigs.FTS
     Korrvigs.FTS.Parser
     Korrvigs.FTS.Query
+    Korrvigs.FTS.Render
     Korrvigs.FTS.SQL
     Korrvigs.Geometry
     Korrvigs.Geometry.Def

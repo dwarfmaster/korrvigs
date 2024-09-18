@@ -30,7 +30,6 @@ mattr :: Maybe a -> Text -> (a -> Text) -> [(Text, Text)]
 mattr (Just x) attr val = [(attr, val x)]
 mattr Nothing _ _ = []
 
--- TODO render query as text
 ftsForm :: Maybe FTS.Query -> Handler Widget
 ftsForm fts =
   pure
@@ -39,7 +38,7 @@ ftsForm fts =
         <summary>
           <input type=checkbox name=checkfts *{sattr "checked" $ isJust fts}>
           Full text search
-        <input type=text name=fts>
+        <input type=text name=fts *{mattr fts "value" FTS.renderQuery}>
     |]
 
 timeForm :: Maybe ZonedTime -> Maybe ZonedTime -> Handler Widget

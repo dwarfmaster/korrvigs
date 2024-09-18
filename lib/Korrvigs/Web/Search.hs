@@ -36,18 +36,21 @@ ftsForm fts =
     |]
 
 timeForm :: Maybe ZonedTime -> Maybe ZonedTime -> Handler Widget
-timeForm after before =
+timeForm after before = do
+  idAfter <- newIdent
+  idBefore <- newIdent
   pure
     [whamlet|
       <details .search-group *{sattr "open" anyJust}>
         <summary>
           <input type=checkbox name=checkdate *{sattr "checked" anyJust}>
           Time
-        After:
-        <input type=datetime-local name=after *{afterVal}>
-        <br>
-        Before:
-        <input type=datetime-local name=before *{beforeVal}>
+        <label for=#{idAfter}>
+          After:
+        <input id=#{idAfter} type=datetime-local name=after *{afterVal}>
+        <label for=#{idBefore}>
+          Before:
+        <input id=#{idBefore} type=datetime-local name=before *{beforeVal}>
     |]
   where
     anyJust = isJust after || isJust before

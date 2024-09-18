@@ -26,6 +26,12 @@ import Opaleye hiding (Field)
 import Text.Julius
 import Yesod
 
+-- TODO add others displays like graph and timeline
+data ResultDisplay
+  = DisplayList
+  | DisplayMap
+  deriving (Eq, Ord, Enum, Bounded)
+
 sattr :: Text -> Bool -> [(Text, Text)]
 sattr attr True = [(attr, "")]
 sattr _ False = []
@@ -263,8 +269,26 @@ maxResultsForm n =
             #{optionDisplay opt}
     |]
 
-searchForm :: Query -> Handler Widget
-searchForm query = do
+displayResultOptions :: [Option ResultDisplay]
+displayResultOptions = mkOption <$> [minBound .. maxBound]
+  where
+    mkOption :: ResultDisplay -> Option ResultDisplay
+    mkOption DisplayList = Option "list" DisplayList "1"
+    mkOption DisplayMap = Option "map" DisplayMap "2"
+
+displayResultForm :: ResultDisplay -> Handler Widget
+displayResultForm display =
+  pure
+    [whamlet|
+    <select name=display>
+      $forall opt <- displayResultOptions
+        <option value=#{optionExternalValue opt} *{sattr "selected" $ optionInternalValue opt == display}>
+          Display:
+          #{optionDisplay opt}
+  |]
+
+searchForm :: Query -> ResultDisplay -> Handler Widget
+searchForm query display = do
   fts <- ftsForm $ query ^. queryText
   time <- timeForm (query ^. queryAfter) (query ^. queryBefore)
   kd <- kindForm $ query ^. queryKind
@@ -272,6 +296,7 @@ searchForm query = do
   mx <- maxResultsForm $ query ^. queryMaxResults
   mtdt <- mtdtForm $ query ^. queryMtdt
   geom <- geoForm $ query ^. queryDist
+  disp <- displayResultForm display
   pure $ do
     Rcs.formsStyle
     [whamlet|
@@ -283,6 +308,7 @@ searchForm query = do
         ^{mtdt}
         ^{srt}
         ^{mx}
+        ^{disp}
         <input .search-button type=submit value="Search">
     |]
 
@@ -336,24 +362,52 @@ optsField = selectField $ pure $ mkOptionList sortOptions
 maxResultsField :: Field Handler Int
 maxResultsField = selectField $ pure $ mkOptionList maxResultsOptions
 
+displayResultsField :: Field Handler ResultDisplay
+displayResultsField = selectField $ pure $ mkOptionList displayResultOptions
+
 getOpt :: (Default a) => Bool -> a -> a
 getOpt False _ = def
 getOpt True x = x
 
-displayResults :: [(Kind, Id, Maybe (Maybe Text))] -> Handler Widget
-displayResults entries =
+displayEntry :: (EntryRow, Maybe (Maybe Text)) -> Handler Html
+displayEntry (entry, title) = do
+  kd <- htmlKind' $ entry ^. sqlEntryKind
+  [hamlet|
+    #{kd}
+    <a href=@{EntryR $ WId $ entry ^. sqlEntryName}>
+      $maybe t <- join title
+        #{t}
+      $nothing
+        @#{unId $ entry ^. sqlEntryName}
+  |]
+    <$> getUrlRenderParams
+
+displayResults :: ResultDisplay -> [(EntryRow, Maybe (Maybe Text))] -> Handler Widget
+displayResults DisplayList entries = do
+  entriesH <- mapM displayEntry entries
   pure
     [whamlet|
       <ul>
-        $forall (kd,i,title) <- entries
+        $forall entry <- entriesH
           <li>
-            ^{htmlKind kd}
-            <a href=@{EntryR $ WId i}>
-              $maybe t <- join title
-                #{t}
-              $nothing
-                @#{unId i}
+            #{entry}
     |]
+displayResults DisplayMap entries = do
+  items <- mapM mkItem entries
+  pure $ leafletWidget "resultmap" $ catMaybes items
+  where
+    mkItem :: (EntryRow, Maybe (Maybe Text)) -> Handler (Maybe MapItem)
+    mkItem (entry, title) = case entry ^. sqlEntryGeo of
+      Just geom -> do
+        html <- displayEntry (entry, title)
+        pure $
+          Just $
+            MapItem
+              { _mitGeo = geom,
+                _mitContent = Just html,
+                _mitVar = Nothing
+              }
+      Nothing -> pure Nothing
 
 liftMaybe :: Bool -> (V2 (Maybe Double), Maybe Double) -> Maybe (V2 Double, Double)
 liftMaybe True (V2 (Just x) (Just y), Just d) = Just (V2 x y, d * 1000.0)
@@ -393,6 +447,7 @@ getSearchR = do
             )
         <*> (fromMaybe def <$> iopt optsField "sortopts")
         <*> iopt maxResultsField "maxresults"
+  display <- runInputGet $ fromMaybe DisplayList <$> iopt displayResultsField "display"
   let q = fixOrder q'
   r <- rSelect $ do
     entry <- compile q
@@ -402,7 +457,7 @@ getSearchR = do
       where_ $ mtdt ^. sqlKey .== sqlStrictText "title"
       let titleText = sqlJsonToText $ toNullable $ mtdt ^. sqlValue
       pure titleText
-    pure (entry ^. sqlEntryKind, entry ^. sqlEntryName, title)
-  search <- searchForm q
-  results <- displayResults r
-  logWrap $ defaultLayout $ search <> results
+    pure (entry, title)
+  search <- searchForm q display
+  results <- displayResults display r
+  logWrap $ defaultLayout $ search <> [whamlet|<div .search-results> ^{results}|]

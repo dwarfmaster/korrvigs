@@ -71,3 +71,6 @@ form
     width: 100%
   tr
     width: 100%
+
+.search-results
+  margin-top: 1em

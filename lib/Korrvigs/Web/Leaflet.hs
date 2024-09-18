@@ -14,7 +14,7 @@ import Yesod
 
 data MapItem = MapItem
   { _mitGeo :: Geometry,
-    _mitContent :: Maybe ((Route WebData -> Text) -> Html),
+    _mitContent :: Maybe Html,
     _mitVar :: Maybe Text
   }
 
@@ -70,7 +70,6 @@ leafletWidget i items = do
       ##{i}
         height: 30em
     |]
-  render <- getUrlRender
   forM_ items $ \item -> do
     markerVar <- maybe newIdent pure $ item ^. mitVar
     case item ^. mitGeo of
@@ -88,5 +87,5 @@ leafletWidget i items = do
       Just content ->
         toWidget
           [julius|
-          #{rawJS markerVar}.bindPopup(#{renderHtml $ content render})
+          #{rawJS markerVar}.bindPopup(#{renderHtml content})
         |]

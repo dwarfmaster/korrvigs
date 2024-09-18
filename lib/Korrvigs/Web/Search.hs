@@ -1,18 +1,25 @@
 module Korrvigs.Web.Search (getSearchR) where
 
 import Control.Lens
+import Control.Monad (join)
 import Data.Default
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
+import Korrvigs.Entry
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Kind
+import Korrvigs.Monad
 import Korrvigs.Query
+import Korrvigs.Utils.JSON (sqlJsonToText)
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
+import Korrvigs.Web.Routes
+import Korrvigs.Web.Utils
+import Opaleye hiding (Field)
 import Yesod
 
 sattr :: Text -> Bool -> [(Text, Text)]
@@ -180,6 +187,21 @@ getOpt :: Bool -> Maybe a -> Maybe a
 getOpt False _ = Nothing
 getOpt True x = x
 
+displayResults :: [(Kind, Id, Maybe (Maybe Text))] -> Handler Widget
+displayResults entries =
+  pure
+    [whamlet|
+      <ul>
+        $forall (kd,i,title) <- entries
+          <li>
+            ^{htmlKind kd}
+            <a href=@{EntryR $ WId i}>
+              $maybe t <- join title
+                #{t}
+              $nothing
+                @#{unId i}
+    |]
+
 getSearchR :: Handler Html
 getSearchR = do
   tz <- liftIO getCurrentTimeZone
@@ -196,4 +218,15 @@ getSearchR = do
         <*> pure []
         <*> (fromMaybe def <$> iopt optsField "sortopts")
         <*> iopt maxResultsField "maxresults"
-  logWrap $ defaultLayout =<< searchForm q
+  r <- rSelect $ do
+    entry <- compile q
+    title <- optional $ limit 1 $ do
+      mtdt <- selectTable entriesMetadataTable
+      where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryName)
+      where_ $ mtdt ^. sqlKey .== sqlStrictText "title"
+      let titleText = sqlJsonToText $ toNullable $ mtdt ^. sqlValue
+      pure titleText
+    pure (entry ^. sqlEntryKind, entry ^. sqlEntryName, title)
+  search <- searchForm q
+  results <- displayResults r
+  logWrap $ defaultLayout $ search <> results

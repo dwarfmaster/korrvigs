@@ -70,7 +70,7 @@ geometryWidget entry = case entry ^. geo of
       [whamlet|
         <details .#{detClass}>
           <summary>Geometry
-          ^{leafletWidget "map" [MapItem geometry Nothing]}
+          ^{leafletWidget "map" [MapItem geometry Nothing Nothing]}
       |]
       toWidget
         [julius|

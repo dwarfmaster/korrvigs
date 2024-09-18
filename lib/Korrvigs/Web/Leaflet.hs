@@ -1,4 +1,4 @@
-module Korrvigs.Web.Leaflet (MapItem (..), leafletWidget) where
+module Korrvigs.Web.Leaflet (MapItem (..), mitGeo, mitContent, mitVar, leafletWidget, jsPoint) where
 
 import Control.Lens
 import Control.Monad
@@ -14,7 +14,8 @@ import Yesod
 
 data MapItem = MapItem
   { _mitGeo :: Geometry,
-    _mitContent :: Maybe ((Route WebData -> Text) -> Html)
+    _mitContent :: Maybe ((Route WebData -> Text) -> Html),
+    _mitVar :: Maybe Text
   }
 
 makeLenses ''MapItem
@@ -64,9 +65,14 @@ leafletWidget i items = do
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(#{mp});
   |]
+  toWidget
+    [cassius|
+      ##{i}
+        height: 30em
+    |]
   render <- getUrlRender
   forM_ items $ \item -> do
-    markerVar <- newIdent
+    markerVar <- maybe newIdent pure $ item ^. mitVar
     case item ^. mitGeo of
       GeoPoint pt ->
         toWidget

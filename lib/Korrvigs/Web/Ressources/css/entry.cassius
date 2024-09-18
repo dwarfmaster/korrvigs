@@ -14,9 +14,6 @@
   a
     color: inherit
 
-#map
-  height: 30em
-
 .refsrow
   width: 100%
 

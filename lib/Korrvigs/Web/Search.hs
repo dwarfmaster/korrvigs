@@ -10,16 +10,20 @@ import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import qualified Korrvigs.FTS as FTS
+import Korrvigs.Geometry
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Query
 import Korrvigs.Utils.JSON (sqlJsonToText)
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Leaflet
 import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
+import Linear.V2
 import Opaleye hiding (Field)
+import Text.Julius
 import Yesod
 
 sattr :: Text -> Bool -> [(Text, Text)]
@@ -134,6 +138,49 @@ mtdtForm qs = do
                 +
     |]
 
+geoForm :: Maybe (Point, Double) -> Handler Widget
+geoForm dist = do
+  detId <- newIdent
+  distId <- newIdent
+  latId <- newIdent
+  lngId <- newIdent
+  pure $ do
+    [whamlet|
+      <details .search-group ##{detId} *{sattr "open" $ isJust dist}>
+        <summary>
+          <input type=checkbox name=checkgeo *{sattr "checked" $ isJust dist}>
+          Geometry
+        ^{leafletWidget "searchmap" [MapItem (GeoPoint defCenter) Nothing (Just "searchMarker")]}
+        <input ##{distId} type=number min=0 name=geodist value=#{defDist}>
+        <input ##{latId} type=hidden name=geolat value=#{show $ defCenter ^. _2}>
+        <input ##{lngId} type=hidden name=geolng value=#{show $ defCenter ^. _1}>
+    |]
+    toWidget
+      [julius|
+      document.getElementById(#{detId}).addEventListener("toggle", function() {
+        searchmap.invalidateSize()
+      })
+      var searchColor = getComputedStyle(document.body).getPropertyValue('--base08')
+      var searchCircle = L.circle(#{rawJS $ jsPoint defCenter}, {
+        color: searchColor,
+        fillColor: searchColor,
+        fillOpacity: 0.5,
+        radius: #{rawJS $ show defDist} * 1000
+      }).addTo(searchmap)
+      searchmap.on('click', function(e) {
+        searchMarker.setLatLng(e.latlng)
+        searchCircle.setLatLng(e.latlng)
+        document.getElementById(#{latId}).value = e.latlng.lat
+        document.getElementById(#{lngId}).value = e.latlng.lng
+      })
+      document.getElementById(#{distId}).addEventListener("input", function(e) {
+        searchCircle.setRadius(Number(e.target.value) * 1000)
+      })
+    |]
+  where
+    defCenter = maybe (V2 2.359775 48.915611) (view _1) dist
+    defDist = maybe 1 ((/ 1000.0) . view _2) dist
+
 sortOptions :: [Option (SortCriterion, SortOrder)]
 sortOptions = zipWith mkOption [1 ..] opts
   where
@@ -194,12 +241,14 @@ searchForm query = do
   srt <- sortForm $ query ^. querySort
   mx <- maxResultsForm $ query ^. queryMaxResults
   mtdt <- mtdtForm $ query ^. queryMtdt
+  geom <- geoForm $ query ^. queryDist
   pure $ do
     Rcs.formsStyle
     [whamlet|
       <form action=@{SearchR}>
         ^{fts}
         ^{time}
+        ^{geom}
         ^{kd}
         ^{mtdt}
         ^{srt}
@@ -276,6 +325,10 @@ displayResults entries =
                 @#{unId i}
     |]
 
+liftMaybe :: Bool -> (V2 (Maybe Double), Maybe Double) -> Maybe (V2 Double, Double)
+liftMaybe True (V2 (Just x) (Just y), Just d) = Just (V2 x y, d * 1000.0)
+liftMaybe _ _ = Nothing
+
 getSearchR :: Handler Html
 getSearchR = do
   tz <- liftIO getCurrentTimeZone
@@ -287,7 +340,13 @@ getSearchR = do
         <*> (getOpt <$> ireq checkBoxField "checkdate" <*> (mktz <$> iopt datetimeLocalField "before"))
         <*> (getOpt <$> ireq checkBoxField "checkdate" <*> (mktz <$> iopt datetimeLocalField "after"))
         <*> pure Nothing
-        <*> pure Nothing
+        <*> ( liftMaybe
+                <$> ireq checkBoxField "checkgeo"
+                <*> ( (,)
+                        <$> (V2 <$> iopt doubleField "geolng" <*> iopt doubleField "geolat")
+                        <*> iopt doubleField "geodist"
+                    )
+            )
         <*> (getOpt <$> ireq checkBoxField "checkkind" <*> iopt kindField "kind")
         <*> ( getOpt
                 <$> ireq checkBoxField "checkmtdt"

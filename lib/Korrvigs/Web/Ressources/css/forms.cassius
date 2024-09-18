@@ -10,6 +10,8 @@ form
     outline-width: 2px
     outline-color: var(--base0F)
     border-style: none
+  input[type=checkbox]
+    width: auto
   input:focus
     outline-style: solid
   textarea
@@ -58,3 +60,8 @@ form
     outline-color: var(--base0F)
   select:focus
     outline-style: solid
+  .search-group
+    border-radius: 0.5em
+    border: 2px solid var(--base0E)
+    margin-bottom: 0.5em
+    padding: 0.25em

@@ -12,6 +12,7 @@ import Korrvigs.Kind
 import Korrvigs.Query
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Login
+import qualified Korrvigs.Web.Ressources as Rcs
 import Yesod
 
 sattr :: Text -> Bool -> [(Text, Text)]
@@ -95,6 +96,30 @@ sortForm sopt =
       <select name=sortopts>
         $forall opt <- sortOptions
           <option value=#{optionExternalValue opt} *{sattr "selected" $ optionInternalValue opt == sopt}>
+            Sort by:
+            #{optionDisplay opt}
+    |]
+
+maxResultsOptions :: [Option Int]
+maxResultsOptions = mkOption <$> opts
+  where
+    opts = [10, 25, 50]
+    mkOption :: Int -> Option Int
+    mkOption n =
+      Option
+        { optionDisplay = T.pack $ show n,
+          optionInternalValue = n,
+          optionExternalValue = T.pack $ show n
+        }
+
+maxResultsForm :: Maybe Int -> Handler Widget
+maxResultsForm n =
+  pure
+    [whamlet|
+      <select name=maxresults>
+        $forall opt <- maxResultsOptions
+          <option value=#{optionExternalValue opt} *{sattr "selected" $ Just (optionInternalValue opt) == n}>
+            Max results:
             #{optionDisplay opt}
     |]
 
@@ -104,13 +129,16 @@ searchForm query = do
   time <- timeForm (query ^. queryAfter) (query ^. queryBefore)
   kd <- kindForm $ query ^. queryKind
   srt <- sortForm $ query ^. querySort
+  mx <- maxResultsForm $ query ^. queryMaxResults
   pure $ do
+    Rcs.formsStyle
     [whamlet|
       <form action=@{SearchR}>
         ^{fts}
         ^{time}
         ^{kd}
         ^{srt}
+        ^{mx}
         <input .search-button type=submit value="Search">
     |]
 
@@ -142,6 +170,9 @@ kindField = selectField $ pure $ mkOptionList $ mkOption <$> [minBound .. maxBou
 optsField :: Field Handler (SortCriterion, SortOrder)
 optsField = selectField $ pure $ mkOptionList sortOptions
 
+maxResultsField :: Field Handler Int
+maxResultsField = selectField $ pure $ mkOptionList maxResultsOptions
+
 getOpt :: Bool -> Maybe a -> Maybe a
 getOpt False _ = Nothing
 getOpt True x = x
@@ -161,5 +192,5 @@ getSearchR = do
         <*> (getOpt <$> ireq checkBoxField "checkkind" <*> iopt kindField "kind")
         <*> pure []
         <*> (fromMaybe def <$> iopt optsField "sortopts")
-        <*> pure Nothing
+        <*> iopt maxResultsField "maxresults"
   logWrap $ defaultLayout =<< searchForm q

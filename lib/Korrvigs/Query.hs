@@ -86,6 +86,7 @@ data SortCriterion
   | ByTSRank FTS.Query
   | ByDistanceTo Point
   | ById
+  deriving (Eq)
 
 instance Default SortCriterion where
   def = ById
@@ -93,6 +94,7 @@ instance Default SortCriterion where
 data SortOrder
   = SortAsc
   | SortDesc
+  deriving (Eq)
 
 instance Default SortOrder where
   def = SortAsc

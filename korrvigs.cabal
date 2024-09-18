@@ -110,6 +110,7 @@ library korrvigs-lib
     Korrvigs.Web.Ressources
     Korrvigs.Web.Ressources.Helpers
     Korrvigs.Web.Routes
+    Korrvigs.Web.Search
     Korrvigs.Web.Utils
 
   build-depends:

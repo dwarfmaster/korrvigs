@@ -8,9 +8,7 @@ import Korrvigs.Web.Entry
 import Korrvigs.Web.Home
 import Korrvigs.Web.Login
 import Korrvigs.Web.Routes
+import Korrvigs.Web.Search
 import Yesod
 
 mkYesodDispatch "WebData" korrvigsRoutes
-
-getSearchR :: Handler Html
-getSearchR = logWrap undefined

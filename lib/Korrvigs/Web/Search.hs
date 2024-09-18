@@ -71,10 +71,10 @@ kindForm kd =
       <summary>
         <input type=checkbox name=checkkind *{sattr "checked" $ isJust kd}>
         Kind
-      <select name=kind>
-        $forall skd <- kinds
-          <option value=#{displayKind skd} *{sattr "selected" $ Just skd == kd}>
-            #{displayKind skd}
+      $forall skd <- kinds
+        <input type=radio name=kind value=#{displayKind skd} *{sattr "checked" $ Just skd == kd}>
+          #{displayKind skd}
+        <br>
   |]
   where
     kinds :: [Kind]
@@ -242,7 +242,7 @@ valuesField =
     }
 
 kindField :: Field Handler Kind
-kindField = selectField $ pure $ mkOptionList $ mkOption <$> [minBound .. maxBound]
+kindField = radioField $ pure $ mkOptionList $ mkOption <$> [minBound .. maxBound]
   where
     mkOption kd =
       Option

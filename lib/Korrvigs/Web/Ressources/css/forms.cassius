@@ -12,6 +12,8 @@ form
     border-style: none
   input[type=checkbox]
     width: auto
+  input[type=radio]
+    width: auto
   input:focus
     outline-style: solid
   textarea

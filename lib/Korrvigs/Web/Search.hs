@@ -80,6 +80,60 @@ kindForm kd =
     kinds :: [Kind]
     kinds = [minBound .. maxBound]
 
+mtdtForm :: [(Text, JsonQuery)] -> Handler Widget
+mtdtForm qs = do
+  tId <- newIdent
+  addId <- newIdent
+  qsId <- sequence $ newIdent <$ qs
+  pure $ do
+    let nrowTxt :: Text =
+          mconcat
+            [ "<td><input type=\"text\" name=\"mtdtKey\" /></td>",
+              "<td><input type=\"text\" name=\"mtdtVal\" /></td>",
+              "<td><button type=\"button\" onclick='rmMetaField(\"{}\")'>-</button></td>"
+            ]
+    toWidget
+      [julius|
+      const uid = function() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2)
+      }
+      const addMetaField = function() {
+        var tr = document.getElementById(#{addId})
+        const nid = uid()
+        var tds = #{nrowTxt}.replaceAll("{}", nid)
+        var ntr = document.createElement("tr")
+        console.log(nid)
+        ntr.id = nid
+        ntr.innerHTML = tds
+        tr.parentNode.insertBefore(ntr,tr)
+      }
+      const rmMetaField = function(i) {
+        var tr = document.getElementById(i)
+        tr.remove()
+      }
+    |]
+    let callRm i = "rmMetaField(\"" <> i <> "\")"
+    [whamlet|
+      <details .search-group *{sattr "open" $ qs /= []}>
+        <summary>
+          <input type=checkbox name=checkmtdt *{sattr "checked" $ qs /= []}>
+          Metadata
+        <table ##{tId}>
+          $forall (i,(key,q)) <- zip qsId qs
+            <tr ##{i}>
+              <td>
+                <input type=text name=mtdtKey value=#{key}>
+              <td>
+                <input type=text name=mtdtVal value=#{renderJSQuery q}>
+              <td>
+                <button type=button onclick=#{callRm i}>
+                  -
+          <tr ##{addId}>
+            <td colspan=3>
+              <button type=button onclick=addMetaField()>
+                +
+    |]
+
 sortOptions :: [Option (SortCriterion, SortOrder)]
 sortOptions = zipWith mkOption [1 ..] opts
   where
@@ -139,6 +193,7 @@ searchForm query = do
   kd <- kindForm $ query ^. queryKind
   srt <- sortForm $ query ^. querySort
   mx <- maxResultsForm $ query ^. queryMaxResults
+  mtdt <- mtdtForm $ query ^. queryMtdt
   pure $ do
     Rcs.formsStyle
     [whamlet|
@@ -146,6 +201,7 @@ searchForm query = do
         ^{fts}
         ^{time}
         ^{kd}
+        ^{mtdt}
         ^{srt}
         ^{mx}
         <input .search-button type=submit value="Search">
@@ -166,6 +222,25 @@ ftsField =
       fieldEnctype = UrlEncoded
     }
 
+keysField :: Field Handler [Text]
+keysField =
+  Field
+    { fieldParse = \rawVals _ -> pure $ Right $ Just rawVals,
+      fieldView = \_ _ _ _ _ -> mempty,
+      fieldEnctype = UrlEncoded
+    }
+
+valuesField :: Field Handler [JsonQuery]
+valuesField =
+  Field
+    { fieldParse = \rawVals _ ->
+        case mapM parseJSQuery rawVals of
+          Left err -> pure $ Left $ SomeMessage err
+          Right qs -> pure $ Right $ Just qs,
+      fieldView = \_ _ _ _ _ -> mempty,
+      fieldEnctype = UrlEncoded
+    }
+
 kindField :: Field Handler Kind
 kindField = selectField $ pure $ mkOptionList $ mkOption <$> [minBound .. maxBound]
   where
@@ -182,8 +257,8 @@ optsField = selectField $ pure $ mkOptionList sortOptions
 maxResultsField :: Field Handler Int
 maxResultsField = selectField $ pure $ mkOptionList maxResultsOptions
 
-getOpt :: Bool -> Maybe a -> Maybe a
-getOpt False _ = Nothing
+getOpt :: (Default a) => Bool -> a -> a
+getOpt False _ = def
 getOpt True x = x
 
 displayResults :: [(Kind, Id, Maybe (Maybe Text))] -> Handler Widget
@@ -214,7 +289,10 @@ getSearchR = do
         <*> pure Nothing
         <*> pure Nothing
         <*> (getOpt <$> ireq checkBoxField "checkkind" <*> iopt kindField "kind")
-        <*> pure []
+        <*> ( getOpt
+                <$> ireq checkBoxField "checkmtdt"
+                <*> (zip <$> ireq keysField "mtdtKey" <*> ireq valuesField "mtdtVal")
+            )
         <*> (fromMaybe def <$> iopt optsField "sortopts")
         <*> iopt maxResultsField "maxresults"
   r <- rSelect $ do

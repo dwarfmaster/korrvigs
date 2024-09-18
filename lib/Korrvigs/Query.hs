@@ -8,6 +8,8 @@ import Data.Default
 import Data.Functor (($>))
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Text.Lazy (toStrict)
+import Data.Text.Lazy.Builder
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
 import Data.Time.LocalTime
 import Korrvigs.Entry
@@ -290,6 +292,7 @@ leafQueryP =
     <|> char '=' *> (BoolQuery <$> boolQueryP)
     <|> char '[' *> (ArrayQuery <$> arrayQueryP)
     <|> (ObjectQuery <$> hasKeyP)
+    <|> pure AnyQuery
 
 numQueryP :: (Stream s Identity Char) => Parsec s u JsonNumQuery
 numQueryP =
@@ -338,4 +341,54 @@ arrayQueryP = do
   pure a
 
 hasKeyP :: (Stream s Identity Char) => Parsec s u JsonObjectQuery
-hasKeyP = JSObjHasSub . T.pack <$> many anyChar
+hasKeyP = JSObjHasSub . T.pack <$> many1 anyChar
+
+--  ____       _       _
+
+-- |  _ \ _ __(_)_ __ | |_ ___ _ __
+-- | |_) | '__| | '_ \| __/ _ \ '__|
+-- |  __/| |  | | | | | ||  __/ |
+-- |_|   |_|  |_|_| |_|\__\___|_|
+--
+-- Print JS queries
+renderJSQuery :: JsonQuery -> Text
+renderJSQuery = toStrict . toLazyText . renderJsonQuery
+
+renderJsonQuery :: JsonQuery -> Builder
+renderJsonQuery (TextQuery q) = "?\"" <> renderJSTextQuery q
+renderJsonQuery (NumQuery q) = "?#" <> renderJSNumQuery q
+renderJsonQuery (TypeQuery q) = "?:" <> renderJSTypeQuery q
+renderJsonQuery (BoolQuery q) = "?=" <> renderJSBoolQuery q
+renderJsonQuery (ArrayQuery q) = "?[" <> renderJSArrayQuery q <> "]"
+renderJsonQuery (ObjectQuery (JSObjHasSub sub)) = "?" <> fromText sub
+renderJsonQuery AnyQuery = "?"
+renderJsonQuery (ObjectQuery (JSObjSubQuery sub q)) =
+  "|" <> fromText sub <> renderJsonQuery q
+
+renderJSTextQuery :: JsonTextQuery -> Builder
+renderJSTextQuery (JSTextLevenshtein obj dist) = fromText obj <> "\"<" <> fromString (show dist)
+renderJSTextQuery (JSTextEq obj) = fromText obj <> "\""
+
+renderJSNumQuery :: JsonNumQuery -> Builder
+renderJSNumQuery (JSNumEqual x) = "=" <> fromString (show x)
+renderJSNumQuery (JSNumLessThan x) = "<" <> fromString (show x)
+renderJSNumQuery (JSNumMoreThan x) = ">" <> fromString (show x)
+renderJSNumQuery (JSNumWithin x y) =
+  "[" <> fromString (show x) <> ":" <> fromString (show y) <> "]"
+
+renderJSTypeQuery :: JsonTypeQuery -> Builder
+renderJSTypeQuery JSIsText = "text"
+renderJSTypeQuery JSIsNum = "number"
+renderJSTypeQuery JSIsObject = "object"
+renderJSTypeQuery JSIsArray = "array"
+renderJSTypeQuery JSIsBool = "bool"
+renderJSTypeQuery JSIsNull = "null"
+
+renderJSBoolQuery :: JsonBoolQuery -> Builder
+renderJSBoolQuery JSBoolTrue = "true"
+renderJSBoolQuery JSBoolFalse = "false"
+
+renderJSArrayQuery :: JsonArrayQuery -> Builder
+renderJSArrayQuery (JSArrLenEq i) = "=" <> fromString (show i)
+renderJSArrayQuery (JSArrLenLessThan i) = "<" <> fromString (show i)
+renderJSArrayQuery (JSArrLenMoreThan i) = ">" <> fromString (show i)

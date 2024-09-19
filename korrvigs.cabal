@@ -113,6 +113,7 @@ library korrvigs-lib
     Korrvigs.Web.Routes
     Korrvigs.Web.Search
     Korrvigs.Web.Utils
+    Korrvigs.Web.Vis
 
   build-depends:
     , aeson                 ^>=2.1.2.1

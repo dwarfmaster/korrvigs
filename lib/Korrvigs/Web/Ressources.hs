@@ -34,6 +34,12 @@ leaflet = do
     "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     [("integrity", "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="), ("crossorigin", "")]
 
+vis :: WidgetFor site ()
+vis = do
+  addScriptRemoteAttrs
+    "https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"
+    []
+
 mathjax :: WidgetFor site ()
 mathjax = do
   toWidgetHead $

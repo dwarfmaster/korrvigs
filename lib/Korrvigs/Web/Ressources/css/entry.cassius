@@ -14,16 +14,6 @@
   a
     color: inherit
 
-.refsrow
-  width: 100%
-
-.refscol
-  width: 30%
-  float: left
-  border: 2px solid var(--base06)
-  border-radius: 0.5em
-  margin: 0
-
 h1
   color: var(--base0C)
   padding-top: 0

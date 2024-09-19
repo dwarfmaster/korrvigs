@@ -14,7 +14,6 @@ import Korrvigs.Geometry
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Query
-import Korrvigs.Utils.Base16
 import Korrvigs.Utils.JSON (sqlJsonToText)
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Leaflet
@@ -427,8 +426,8 @@ displayResults DisplayGraph entries = do
     pure (ref ^. source, ref ^. target)
   base <- getBase
   edgeStyle <- Vis.defEdgeStyle
-  let subStyle = edgeStyle & Vis.edgeColor .~ base Base0E
-  let refStyle = edgeStyle & Vis.edgeColor .~ base Base0F
+  let subStyle = edgeStyle & Vis.edgeColor .~ base edgeSubColor
+  let refStyle = edgeStyle & Vis.edgeColor .~ base edgeRefColor
   let edges = (mkEdge subStyle <$> subs) ++ (mkEdge refStyle <$> refs)
   Vis.network "network" nodes edges
   where

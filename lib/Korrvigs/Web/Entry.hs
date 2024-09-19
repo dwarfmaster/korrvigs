@@ -3,6 +3,7 @@ module Korrvigs.Web.Entry (getEntryR, postEntryR) where
 import Control.Lens hiding (children)
 import Control.Monad
 import qualified Data.Aeson.Encoding as VEnc
+import Data.List
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text.Lazy as LT
@@ -10,6 +11,7 @@ import qualified Data.Text.Lazy.Encoding as Enc
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Korrvigs.Entry
 import Korrvigs.Monad
+import Korrvigs.Utils.Base16
 import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.File as File
@@ -20,7 +22,8 @@ import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
-import Opaleye hiding (null)
+import qualified Korrvigs.Web.Vis as Vis
+import Opaleye hiding (groupBy, null)
 import Yesod
 
 -- An entry page is constitued of the following parts
@@ -112,36 +115,74 @@ mtdtWidget entry = do
 
 refsWidget :: Entry -> Handler Widget
 refsWidget entry = do
-  parents :: [Id] <- rSelect $ selectTargetsFor entriesSubTable $ entry ^. name
-  children :: [Id] <- rSelect $ selectSourcesFor entriesSubTable $ entry ^. name
-  backrefs :: [Id] <- rSelect $ selectSourcesFor entriesRefTable $ entry ^. name
-  if null parents && null children && null backrefs
+  subs :: [(EntryRow, EntryRow)] <- rSelect $ selectBidir entriesSubTable
+  refs :: [(EntryRow, EntryRow)] <- rSelect $ selectBidir entriesRefTable
+  let rows =
+        (view _1 <$> subs)
+          ++ (view _2 <$> subs)
+          ++ (view _1 <$> refs)
+          ++ (view _2 <$> refs)
+  let entries = map head $ groupBy (\r1 r2 -> cmp r1 r2 == EQ) $ sortBy cmp rows
+  nodes <- mapM mkNode entries
+  edgeStyle <- Vis.defEdgeStyle
+  base <- getBase
+  let subStyle = edgeStyle & Vis.edgeColor .~ base edgeSubColor
+  let refStyle = edgeStyle & Vis.edgeColor .~ base edgeRefColor
+  let edges = (mkEdge subStyle <$> subs) ++ (mkEdge refStyle <$> refs)
+  if null entries
     then pure mempty
-    else
-      pure
+    else do
+      network <- Vis.network "network" nodes edges
+      detId <- newIdent
+      pure $ do
         [whamlet|
-        <details .refs>
-          <summary>References
-          <div .refsrow>
-            <div .refscol>
-              <h4> Parents
-              <ul>
-                $forall par <- parents
-                  <li>
-                    <a href=@{EntryR $ WId par}>#{unId par}
-            <div .refscol>
-              <h4> Childrent
-              <ul>
-                $forall ch <- children
-                  <li>
-                    <a href=@{EntryR $ WId ch}>#{unId ch}
-            <div .refscol>
-              <h4> Backreferences
-              <ul>
-                $forall back <- backrefs
-                  <li>
-                    <a href=@{EntryR $ WId back}>#{unId back}
-      |]
+          <details ##{detId}>
+            <summary>Network
+            ^{network}
+        |]
+        toWidget
+          [julius|
+          document.getElementById(#{detId}).addEventListener("toggle", function(e) {
+            if (e.newState == "open") {
+              network.fit()
+            }
+          })
+        |]
+  where
+    cmp :: EntryRow -> EntryRow -> Ordering
+    cmp row1 row2 = compare (row1 ^. sqlEntryName) (row2 ^. sqlEntryName)
+    selectBidir :: Table a RelRowSQL -> Select (EntryRowSQL, EntryRowSQL)
+    selectBidir tbl = do
+      sub <- selectTable tbl
+      where_ $
+        (sub ^. source)
+          .== sqlId (entry ^. name)
+          .|| (sub ^. target)
+          .== sqlId (entry ^. name)
+      src <- selectTable entriesTable
+      where_ $ (sub ^. source) .== (src ^. sqlEntryName)
+      tgt <- selectTable entriesTable
+      where_ $ (sub ^. target) .== (tgt ^. sqlEntryName)
+      pure (src, tgt)
+    mkNode :: EntryRow -> Handler (Text, Text, Vis.NodeStyle)
+    mkNode e = do
+      style <- Vis.defNodeStyle
+      render <- getUrlRender
+      base <- getBase
+      let color =
+            if e ^. sqlEntryName == entry ^. name
+              then base Base07
+              else base $ colorKind $ e ^. sqlEntryKind
+      pure
+        ( unId $ e ^. sqlEntryName,
+          "@" <> unId (e ^. sqlEntryName),
+          style
+            & Vis.nodeBorder .~ color
+            & Vis.nodeSelected .~ color
+            & Vis.nodeLink ?~ render (EntryR $ WId $ e ^. sqlEntryName)
+        )
+    mkEdge :: Vis.EdgeStyle -> (EntryRow, EntryRow) -> (Text, Text, Vis.EdgeStyle)
+    mkEdge style (r1, r2) = (unId $ r1 ^. sqlEntryName, unId $ r2 ^. sqlEntryName, style)
 
 contentWidget :: Entry -> Handler Widget
 contentWidget entry = case entry ^. kindData of

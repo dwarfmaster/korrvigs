@@ -1,4 +1,11 @@
-module Korrvigs.Web.Utils (colorKind, htmlKind, htmlKind') where
+module Korrvigs.Web.Utils
+  ( colorKind,
+    htmlKind,
+    htmlKind',
+    edgeSubColor,
+    edgeRefColor,
+  )
+where
 
 import Data.Text (Text)
 import Korrvigs.Kind
@@ -31,3 +38,9 @@ htmlKind :: Kind -> Widget
 htmlKind kd = do
   html <- handlerToWidget $ htmlKind' kd
   toWidget html
+
+edgeSubColor :: Base16Index
+edgeSubColor = Base0E
+
+edgeRefColor :: Base16Index
+edgeRefColor = Base0F

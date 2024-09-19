@@ -11,6 +11,7 @@ module Korrvigs.Web.Vis
     nodeShape,
     nodeMass,
     nodeBorderWidth,
+    nodeLink,
     defNodeStyle,
     EdgeStyle (..),
     edgeColor,
@@ -24,16 +25,11 @@ import Data.Aeson.Text (encodeToTextBuilder)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
-import Data.Text.Lazy.Builder
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
-import Text.Blaze.Html.Renderer.Text
 import Text.Julius
 import Yesod
-
-buildHtml :: Html -> Builder
-buildHtml = fromLazyText . renderHtml
 
 data NodeShape
   = ShapeEllipse
@@ -56,7 +52,8 @@ data NodeStyle = NodeStyle
     _nodeOpacity :: Double,
     _nodeShape :: NodeShape,
     _nodeMass :: Int,
-    _nodeBorderWidth :: Int
+    _nodeBorderWidth :: Int,
+    _nodeLink :: Maybe Text
   }
 
 makeLenses ''NodeStyle
@@ -74,7 +71,8 @@ defNodeStyle = do
         _nodeOpacity = 1.0,
         _nodeShape = ShapeEllipse,
         _nodeMass = 1,
-        _nodeBorderWidth = 2
+        _nodeBorderWidth = 2,
+        _nodeLink = Nothing
       }
 
 data EdgeStyle = EdgeStyle
@@ -96,18 +94,26 @@ defEdgeStyle = do
 rawJSON :: Value -> RawJavascript
 rawJSON = rawJS . encodeToTextBuilder
 
-mkNodeJS :: Int -> Html -> NodeStyle -> Value
+mkNodeJS :: Int -> Text -> NodeStyle -> Value
 mkNodeJS i content style =
   object
     [ "id" .= i,
-      "label" .= toLazyText (buildHtml content),
+      "label" .= content,
       "boderWidth" .= (style ^. nodeBorderWidth),
       "color"
         .= object
           [ "border" .= (style ^. nodeBorder),
             "background" .= (style ^. nodeBackground),
-            "highlight" .= object ["background" .= (style ^. nodeSelected)],
-            "hover" .= object ["background" .= (style ^. nodeHover)]
+            "highlight"
+              .= object
+                [ "background" .= (style ^. nodeBackground),
+                  "border" .= (style ^. nodeSelected)
+                ],
+            "hover"
+              .= object
+                [ "background" .= (style ^. nodeBackground),
+                  "border" .= (style ^. nodeHover)
+                ]
           ],
       "opacity" .= (style ^. nodeOpacity),
       "font" .= object ["color" .= (style ^. nodeFontColor)],
@@ -126,12 +132,17 @@ mkEdgeJS (Just from) (Just to) style =
       ]
 mkEdgeJS _ _ _ = Nothing
 
-network :: (Ord a) => Text -> [(a, Html, NodeStyle)] -> [(a, a, EdgeStyle)] -> Handler Widget
+mkLnk :: Int -> Maybe Text -> Maybe Value
+mkLnk _ Nothing = Nothing
+mkLnk i (Just dest) = Just $ array [toJSON i, toJSON dest]
+
+network :: (Ord a) => Text -> [(a, Text, NodeStyle)] -> [(a, a, EdgeStyle)] -> Handler Widget
 network var nodes edges = do
   let nodesWithId = zip nodes ([1 ..] :: [Int])
   let idMap = M.fromList $ (\((x, _, _), i) -> (x, i)) <$> nodesWithId
   let nodesJS = array $ map (\((_, content, style), i) -> mkNodeJS i content style) nodesWithId
   let edgesJS = array $ mapMaybe (\(from, to, style) -> mkEdgeJS (M.lookup from idMap) (M.lookup to idMap) style) edges
+  let lnkJS = array $ mapMaybe (\((_, _, style), i) -> mkLnk i $ style ^. nodeLink) nodesWithId
   netId <- newIdent
   let setup = rawJS $ "setup" <> var
   pure $ do
@@ -154,7 +165,17 @@ network var nodes edges = do
           edges: edges
         }
         var options = {}
-        return new vis.Network(container, data, options)
+        var lnkMap = new Map(#{rawJSON lnkJS})
+        var network = new vis.Network(container, data, options)
+        network.on('doubleClick', function(e) {
+          for(let node of e.nodes) {
+            var dest = lnkMap.get(node)
+            if (dest) {
+              window.location = dest
+            }
+          }
+        })
+        return network
       }
       var #{rawJS var} = #{setup}()
     |]

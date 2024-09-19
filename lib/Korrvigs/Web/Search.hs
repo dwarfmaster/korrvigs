@@ -14,6 +14,7 @@ import Korrvigs.Geometry
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Query
+import Korrvigs.Utils.Base16
 import Korrvigs.Utils.JSON (sqlJsonToText)
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Leaflet
@@ -21,15 +22,18 @@ import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
+import qualified Korrvigs.Web.Vis as Vis
 import Linear.V2
 import Opaleye hiding (Field)
+import qualified Opaleye as O
 import Text.Julius
 import Yesod
 
--- TODO add others displays like graph and timeline
+-- TODO add others displays like timeline
 data ResultDisplay
   = DisplayList
   | DisplayMap
+  | DisplayGraph
   deriving (Eq, Ord, Enum, Bounded)
 
 sattr :: Text -> Bool -> [(Text, Text)]
@@ -275,6 +279,7 @@ displayResultOptions = mkOption <$> [minBound .. maxBound]
     mkOption :: ResultDisplay -> Option ResultDisplay
     mkOption DisplayList = Option "list" DisplayList "1"
     mkOption DisplayMap = Option "map" DisplayMap "2"
+    mkOption DisplayGraph = Option "graph" DisplayGraph "3"
 
 displayResultForm :: ResultDisplay -> Handler Widget
 displayResultForm display =
@@ -408,6 +413,46 @@ displayResults DisplayMap entries = do
                 _mitVar = Nothing
               }
       Nothing -> pure Nothing
+displayResults DisplayGraph entries = do
+  nodes <- mapM mkNode entries
+  subs <- rSelect $ do
+    sub <- selectTable entriesSubTable
+    where_ $ sqlElem (sub ^. source) candidates
+    where_ $ sqlElem (sub ^. target) candidates
+    pure (sub ^. source, sub ^. target)
+  refs <- rSelect $ do
+    ref <- selectTable entriesRefTable
+    where_ $ sqlElem (ref ^. source) candidates
+    where_ $ sqlElem (ref ^. target) candidates
+    pure (ref ^. source, ref ^. target)
+  base <- getBase
+  edgeStyle <- Vis.defEdgeStyle
+  let subStyle = edgeStyle & Vis.edgeColor .~ base Base0E
+  let refStyle = edgeStyle & Vis.edgeColor .~ base Base0F
+  let edges = (mkEdge subStyle <$> subs) ++ (mkEdge refStyle <$> refs)
+  Vis.network "network" nodes edges
+  where
+    candidates :: O.Field (SqlArray SqlText)
+    candidates = sqlArray sqlId $ view (_1 . sqlEntryName) <$> entries
+    mkNode :: (EntryRow, Maybe (Maybe Text)) -> Handler (Text, Text, Vis.NodeStyle)
+    mkNode (entry, title) = do
+      style <- Vis.defNodeStyle
+      render <- getUrlRender
+      base <- getBase
+      let caption = case join title of
+            Just t -> t
+            Nothing -> "@" <> unId (entry ^. sqlEntryName)
+      let color = base $ colorKind $ entry ^. sqlEntryKind
+      pure
+        ( unId $ entry ^. sqlEntryName,
+          caption,
+          style
+            & Vis.nodeBorder .~ color
+            & Vis.nodeSelected .~ color
+            & Vis.nodeLink ?~ render (EntryR $ WId $ entry ^. sqlEntryName)
+        )
+    mkEdge :: Vis.EdgeStyle -> (Id, Id) -> (Text, Text, Vis.EdgeStyle)
+    mkEdge style (src, dst) = (unId src, unId dst, style)
 
 liftMaybe :: Bool -> (V2 (Maybe Double), Maybe Double) -> Maybe (V2 Double, Double)
 liftMaybe True (V2 (Just x) (Just y), Just d) = Just (V2 x y, d * 1000.0)

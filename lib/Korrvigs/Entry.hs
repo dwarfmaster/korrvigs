@@ -61,6 +61,8 @@ module Korrvigs.Entry
     entriesMetadataTable,
     entryFromRow,
     RelRowImpl (..),
+    source,
+    target,
     RelRow,
     RelRowSQL,
     entriesSubTable,

@@ -4,7 +4,6 @@ module Korrvigs.Event.ICalendar.Parser where
 
 import Control.Lens
 import Control.Monad
-import Control.Monad.Identity
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.UTF8 as B8

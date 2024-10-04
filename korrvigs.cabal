@@ -48,6 +48,10 @@ library korrvigs-lib
     Korrvigs.Entry.Ident
     Korrvigs.Entry.Ident.Stopwords
     Korrvigs.Entry.SQL
+    Korrvigs.Event
+    Korrvigs.Event.ICalendar
+    Korrvigs.Event.ICalendar.Defs
+    Korrvigs.Event.ICalendar.Parser
     Korrvigs.File
     Korrvigs.File.Mtdt
     Korrvigs.File.Mtdt.ExifTool

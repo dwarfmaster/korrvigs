@@ -51,7 +51,6 @@
             hpkgs.optparse-applicative
             hpkgs.xdg-basedir
             hpkgs.password
-            hpkgs.fixed-list
           ]);
 
           pre-commit.hooks = {

@@ -62,22 +62,23 @@ bldLine name val = do
   bldText $ val ^. icValue
   bldNewline
 
-bldType :: ICalType -> Text
-bldType VEVENT = "VEVENT"
-bldType VTIMEZONE = "VTIMEZONE"
-bldType (VOTHER tp) = tp
+runProduct :: (Monad m) => (a -> b -> m ()) -> (a, [b]) -> m ()
+runProduct f (x, l) = mapM_ (uncurry f) $ (x,) <$> l
 
-bldGroup :: ICalGroup -> RenderM ()
-bldGroup group = do
-  bldLine "BEGIN" $ ICValue M.empty $ bldType $ group ^. icType
-  mapM_ (uncurry bldLine) $ M.toList $ group ^. icValues
-  mapM_ bldGroup $ group ^. icSubGroups
-  bldLine "END" $ ICValue M.empty $ bldType $ group ^. icType
+bldAbstractGroup :: ICalAbstractGroup -> RenderM ()
+bldAbstractGroup group = do
+  mapM_ (runProduct bldLine) $ M.toList $ group ^. icValues
+  mapM_ (runProduct bldGroup) $ M.toList $ group ^. icGroups
+
+bldGroup :: Text -> ICalAbstractGroup -> RenderM ()
+bldGroup tp group = do
+  bldLine "BEGIN" $ ICValue M.empty tp
+  bldAbstractGroup group
+  bldLine "END" $ ICValue M.empty tp
 
 bldFile :: ICalFile -> RenderM ()
 bldFile ical = do
   bldLine "BEGIN" $ ICValue M.empty "VCALENDAR"
   bldLine "VERSION" $ ICValue M.empty $ ical ^. icVersion
-  mapM_ (uncurry bldLine) $ M.toList $ ical ^. icOther
-  mapM_ bldGroup $ ical ^. icGroups
+  bldAbstractGroup $ ical ^. icContent
   bldLine "END" $ ICValue M.empty "VCALENDAR"

@@ -7,6 +7,7 @@ import Control.Monad
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.UTF8 as B8
+import Data.Default
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -153,45 +154,53 @@ contentLineP = do
   crlfP
   pure (name, ICValue (M.fromList params) val)
 
+revAGroup :: ICalAbstractGroup -> ICalAbstractGroup
+revAGroup agroup =
+  agroup
+    & icValues . each %~ reverse
+    & icGroups . each %~ reverse
+
 icalFileP :: (Monad m, Stream s m Word8) => ParsecT s u m ICalFile
 icalFileP = do
   (name, val) <- contentLineP
   unless (name == "BEGIN" && val ^. icValue == "VCALENDAR") mzero
-  let start = ICFile "" [] M.empty
+  let start = ICFile "" def
   ical <- icalFileRecP start
-  pure $ ical & icGroups %~ reverse
+  pure $ ical & icContent %~ revAGroup
+
+onML :: ([a] -> [a]) -> Maybe [a] -> Maybe [a]
+onML f Nothing = Just $ f []
+onML f (Just l) = Just $ f l
+
+mlPush :: a -> Maybe [a] -> Maybe [a]
+mlPush v = onML (v :)
 
 icalFileRecP :: (Monad m, Stream s m Word8) => ICalFile -> ParsecT s u m ICalFile
 icalFileRecP ical = do
   (name, val) <- contentLineP
   case name of
     "BEGIN" -> do
-      group <- icalGroupP $ val ^. icValue
-      icalFileRecP $ ical & icGroups %~ (group :)
+      let gname = val ^. icValue
+      group <- icalAbstractGroupP gname
+      icalFileRecP $ ical & icContent . icGroups . at gname %~ mlPush group
     "END" -> do
       unless (val ^. icValue == "VCALENDAR") mzero
       pure ical
     "VERSION" -> icalFileRecP (ical & icVersion .~ val ^. icValue)
-    _ -> icalFileRecP (ical & icOther . at name ?~ val)
+    _ -> icalFileRecP (ical & icContent . icValues . at name %~ mlPush val)
 
-icalGroupP :: (Monad m, Stream s m Word8) => Text -> ParsecT s u m ICalGroup
-icalGroupP tp = do
-  let ictype = case tp of
-        "VEVENT" -> VEVENT
-        "VTIMEZONE" -> VTIMEZONE
-        _ -> VOTHER tp
-  let start = ICGroup ictype M.empty []
-  icgroup <- icalGroupRecP tp start
-  pure $ icgroup & icSubGroups %~ reverse
+icalAbstractGroupP :: (Monad m, Stream s m Word8) => Text -> ParsecT s u m ICalAbstractGroup
+icalAbstractGroupP tp = revAGroup <$> icalAbstractGroupRecP tp def
 
-icalGroupRecP :: (Monad m, Stream s m Word8) => Text -> ICalGroup -> ParsecT s u m ICalGroup
-icalGroupRecP tp icgroup = do
+icalAbstractGroupRecP :: (Monad m, Stream s m Word8) => Text -> ICalAbstractGroup -> ParsecT s u m ICalAbstractGroup
+icalAbstractGroupRecP tp icgroup = do
   (name, val) <- contentLineP
   case name of
     "BEGIN" -> do
-      group <- icalGroupP $ val ^. icValue
-      icalGroupRecP tp $ icgroup & icSubGroups %~ (group :)
+      let gname = val ^. icValue
+      group <- icalAbstractGroupP gname
+      icalAbstractGroupRecP tp $ icgroup & icGroups . at gname %~ mlPush group
     "END" -> do
       unless (val ^. icValue == tp) mzero
       pure icgroup
-    _ -> icalGroupRecP tp $ icgroup & icValues . at name ?~ val
+    _ -> icalAbstractGroupRecP tp $ icgroup & icValues . at name %~ mlPush val

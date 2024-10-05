@@ -1,8 +1,10 @@
 module Korrvigs.Event.ICalendar.Defs where
 
 import Control.Lens
+import Data.Default
 import Data.Map (Map)
 import Data.Text (Text)
+import Data.Time.LocalTime
 
 data ICalValue = ICValue
   { _icParams :: Map Text [Text],
@@ -10,27 +12,22 @@ data ICalValue = ICValue
   }
   deriving (Eq, Show)
 
-makeLenses ''ICalValue
-
-data ICalType
-  = VEVENT
-  | VTIMEZONE
-  | VOTHER Text
-  deriving (Eq, Show)
-
-data ICalGroup = ICGroup
-  { _icType :: ICalType,
-    _icValues :: Map Text ICalValue,
-    _icSubGroups :: [ICalGroup]
+data ICalAbstractGroup = ICAGroup
+  { _icValues :: Map Text [ICalValue],
+    _icGroups :: Map Text [ICalAbstractGroup]
   }
   deriving (Eq, Show)
 
-makeLenses ''ICalGroup
+instance Default ICalAbstractGroup where
+  def = ICAGroup def def
 
+makeLenses ''ICalAbstractGroup
+makeLenses ''ICalValue
+
+-- Global structure
 data ICalFile = ICFile
   { _icVersion :: Text,
-    _icGroups :: [ICalGroup],
-    _icOther :: Map Text ICalValue
+    _icContent :: ICalAbstractGroup
   }
   deriving (Eq, Show)
 

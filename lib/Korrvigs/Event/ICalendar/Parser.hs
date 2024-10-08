@@ -1,9 +1,11 @@
 module Korrvigs.Event.ICalendar.Parser where
 
+import Control.Arrow
 import Control.Lens
 import Control.Monad
 import qualified Data.ByteString.Lazy as BSL
 import Data.Default
+import Data.Either
 import Data.Map
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -13,6 +15,7 @@ import Data.Time.LocalTime
 import Data.Word
 import Korrvigs.Event.ICalendar.Defs
 import Korrvigs.Event.ICalendar.Parser.Basic
+import Korrvigs.Event.ICalendar.Parser.Types
 import Text.Parsec
 
 parseICalFile :: FilePath -> IO (Either Text ICalFile)
@@ -62,19 +65,25 @@ nameP = paramNameP
 crlfP :: (Monad m, Stream s m Word8) => ParsecT s u m ()
 crlfP = try (byteSeqP [0x0D, 0x0A]) <|> byteSeqP [0x0A]
 
-contentLineP :: (Monad m, Stream s m Word8) => Map Text (ParsecT s u m a) -> (Text -> a) -> ParsecT s u m (Text, ICalValue a)
-contentLineP parsers defCase = do
+contentLineP ::
+  (Monad m, Stream s m Word8) =>
+  Map Text (ParsecT s u m (Map Text [Text] -> a)) ->
+  ParsecT s u m (Text, Either (ICalValue Text) a)
+contentLineP parsers = do
   name <- nameP
   params <- many $ charP ';' >> paramP
   charP ':'
+  let parmp = M.fromList params
   val <- case M.lookup name parsers of
-    Just parser -> parser
-    Nothing -> defCase <$> valueP
+    Just parser -> parser <*> pure parmp <&> Right
+    Nothing -> Left . ICValue parmp <$> valueP
   crlfP
-  pure (name, ICValue (M.fromList params) val)
+  pure (name, val)
 
 contentLineDefP :: (Monad m, Stream s m Word8) => ParsecT s u m (Text, ICalValue Text)
-contentLineDefP = contentLineP M.empty id
+contentLineDefP = do
+  (name, val) <- contentLineP M.empty
+  pure (name, fromLeft (ICValue M.empty "") val)
 
 revAGroup :: ICalAbstractGroup -> ICalAbstractGroup
 revAGroup agroup =
@@ -101,10 +110,15 @@ icalFileRecP :: (Monad m, Stream s m Word8) => ICalFile -> ParsecT s u m ICalFil
 icalFileRecP ical = do
   (name, val) <- contentLineDefP
   case name of
-    "BEGIN" -> do
+    "BEGIN" ->
       let gname = val ^. icValue
-      group <- icalAbstractGroupP gname
-      icalFileRecP $ ical & icContent . icGroups . at gname %~ mlPush group
+       in case gname of
+            "VTIMEZONE" -> do
+              tz <- icalTZP
+              icalFileRecP $ ical & icTimezones . at (tz ^. ictzId) ?~ tz
+            _ -> do
+              group <- icalAbstractGroupP gname
+              icalFileRecP $ ical & icContent . icGroups . at gname %~ mlPush group
     "END" -> do
       unless (val ^. icValue == "VCALENDAR") mzero
       pure ical
@@ -164,4 +178,26 @@ icalTZSpecP isStandard = do
 
 icalTZSpecRecP :: (Monad m, Stream s m Word8) => ICalTZSpec -> ParsecT s u m ICalTZSpec
 icalTZSpecRecP tzs = do
-  pure undefined
+  (name, val) <- contentLineP lineSpec
+  case val of
+    Right spec -> icalTZSpecRecP $ spec tzs
+    Left v -> case name of
+      "BEGIN" -> do
+        let gname = v ^. icValue
+        group <- icalAbstractGroupP gname
+        icalTZSpecRecP $ tzs & ictzContent . icGroups . at gname %~ mlPush group
+      "END" -> pure tzs
+      _ -> icalTZSpecRecP $ tzs & ictzContent . icValues . at name %~ mlPush v
+  where
+    lineSpec :: (Monad m, Stream s m Word8) => Map Text (ParsecT s u m (Map Text [Text] -> ICalTZSpec -> ICalTZSpec))
+    lineSpec =
+      M.fromList $
+        fmap
+          (second (const <$>))
+          [ ("DTSTART", (ictzStart .~) . snd <$> dateTimeP),
+            ("TZOFFSETTO", (ictzOffsetTo .~) <$> utcOffsetP),
+            ("TZOFFSETFROM", (ictzOffsetFrom .~) <$> utcOffsetP),
+            ("RDATE", (ictzRdate ?~) . snd <$> dateTimeP),
+            ("TZNAME", (ictzName ?~) <$> textP),
+            ("RRULE", (ictzRRule ?~) <$> rruleP)
+          ]

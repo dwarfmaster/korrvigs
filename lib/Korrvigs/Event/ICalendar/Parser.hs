@@ -1,18 +1,18 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Korrvigs.Event.ICalendar.Parser where
 
 import Control.Lens
 import Control.Monad
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
-import qualified Data.ByteString.UTF8 as B8
 import Data.Default
+import Data.Map
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
+import Data.Time.LocalTime
 import Data.Word
 import Korrvigs.Event.ICalendar.Defs
+import Korrvigs.Event.ICalendar.Parser.Basic
 import Text.Parsec
 
 parseICalFile :: FilePath -> IO (Either Text ICalFile)
@@ -26,89 +26,6 @@ parseICalFile path = do
   where
     parser :: ParsecT [Word8] () Identity ICalFile
     parser = icalFileP <* eof
-
--- ByteRanges
-data CharSpec
-  = ByteRange Word8 Word8 -- Inclusive word range
-  | ExactByte Word8
-  | Any [CharSpec]
-  | Seq [CharSpec]
-
-utf8Tail :: CharSpec
-utf8Tail = ByteRange 0x80 0xBF
-
-utf8_2 :: CharSpec
-utf8_2 = Seq [ByteRange 0xC2 0xDF, utf8Tail]
-
-utf8_3 :: CharSpec
-utf8_3 =
-  Any
-    [ Seq [ExactByte 0xE0, ByteRange 0xA0 0xBF, utf8Tail],
-      Seq [ByteRange 0xE1 0xEC, utf8Tail, utf8Tail],
-      Seq [ExactByte 0xED, ByteRange 0x80 0x9F, utf8Tail],
-      Seq [ByteRange 0xEE 0xEF, utf8Tail, utf8Tail]
-    ]
-
-utf8_4 :: CharSpec
-utf8_4 =
-  Any
-    [ Seq [ExactByte 0xF0, ByteRange 0x90 0xBF, utf8Tail, utf8Tail],
-      Seq [ByteRange 0xF1 0xF3, utf8Tail, utf8Tail, utf8Tail],
-      Seq [ExactByte 0xF4, ByteRange 0x80 0x8F, utf8Tail, utf8Tail]
-    ]
-
-nonUsAscii :: CharSpec
-nonUsAscii = Any [utf8_2, utf8_3, utf8_4]
-
-wsp :: CharSpec
-wsp = Any [ExactByte 0x20, ExactByte 0x09]
-
-valueChar :: CharSpec
-valueChar = Any [wsp, ByteRange 0x21 0x7E, nonUsAscii]
-
-safeChar :: CharSpec
-safeChar = Any [wsp, ExactByte 0x21, ByteRange 0x23 0x2B, ByteRange 0x2D 0x39, ByteRange 0x3C 0x7E, nonUsAscii]
-
-qSafeChar :: CharSpec
-qSafeChar = Any [wsp, ExactByte 0x21, ByteRange 0x23 0x7E, nonUsAscii]
-
-nameChar :: CharSpec
-nameChar = Any [ByteRange 0x30 0x39, ExactByte 0x2D, ByteRange 0x41 0x5A, ByteRange 0x61 0x7A]
-
-getWord8 :: (Monad m, Stream s m Word8) => (Word8 -> Bool) -> ParsecT s u m Word8
-getWord8 p = tokenPrim showW nextPos doP
-  where
-    showW c = "'" ++ show c ++ "'"
-    nextPos pos c _ = if c == 0x0A then incSourceLine (setSourceColumn pos 1) 1 else incSourceColumn pos 1
-    doP c = if p c then Just c else Nothing
-
--- Ignore sequences of CRLF followed by space
-nextWord8 :: (Monad m, Stream s m Word8) => (Word8 -> Bool) -> ParsecT s u m Word8
-nextWord8 p = many (try seqP) >> getWord8 p
-  where
-    seqP = (try (getWord8 (== 0x0D)) <|> pure 0x0D) >> getWord8 (== 0x0A) >> getWord8 (== 0x20)
-
-runCharSpecP :: (Monad m, Stream s m Word8) => CharSpec -> ParsecT s u m [Word8]
-runCharSpecP (ByteRange low high) = (: []) <$> nextWord8 (\c -> c >= low && c <= high)
-runCharSpecP (ExactByte v) = (: []) <$> nextWord8 (== v)
-runCharSpecP (Seq specs) = mconcat <$> mapM runCharSpecP specs
-runCharSpecP (Any []) = mzero
-runCharSpecP (Any [spec]) = runCharSpecP spec
-runCharSpecP (Any (spec : specs)) = try (runCharSpecP spec) <|> runCharSpecP (Any specs)
-
-charSpecP :: (Monad m, Stream s m Word8) => CharSpec -> ParsecT s u m Char
-charSpecP spec = do
-  bytes <- runCharSpecP spec
-  let mc = B8.decode $ BS.pack bytes
-  case mc of
-    Nothing -> mzero
-    Just (c, _) -> pure c
-
-byteSeqP :: (Monad m, Stream s m Word8) => [Word8] -> ParsecT s u m ()
-byteSeqP = void . charSpecP . Seq . fmap ExactByte
-
-charP :: (Monad m, Stream s m Word8) => Char -> ParsecT s u m ()
-charP = byteSeqP . BS.unpack . B8.fromChar
 
 -- Follows RFC5545:
 --   https://datatracker.ietf.org/doc/html/rfc5545
@@ -145,14 +62,19 @@ nameP = paramNameP
 crlfP :: (Monad m, Stream s m Word8) => ParsecT s u m ()
 crlfP = try (byteSeqP [0x0D, 0x0A]) <|> byteSeqP [0x0A]
 
-contentLineP :: (Monad m, Stream s m Word8) => ParsecT s u m (Text, ICalValue)
-contentLineP = do
+contentLineP :: (Monad m, Stream s m Word8) => Map Text (ParsecT s u m a) -> (Text -> a) -> ParsecT s u m (Text, ICalValue a)
+contentLineP parsers defCase = do
   name <- nameP
   params <- many $ charP ';' >> paramP
   charP ':'
-  val <- valueP
+  val <- case M.lookup name parsers of
+    Just parser -> parser
+    Nothing -> defCase <$> valueP
   crlfP
   pure (name, ICValue (M.fromList params) val)
+
+contentLineDefP :: (Monad m, Stream s m Word8) => ParsecT s u m (Text, ICalValue Text)
+contentLineDefP = contentLineP M.empty id
 
 revAGroup :: ICalAbstractGroup -> ICalAbstractGroup
 revAGroup agroup =
@@ -162,9 +84,9 @@ revAGroup agroup =
 
 icalFileP :: (Monad m, Stream s m Word8) => ParsecT s u m ICalFile
 icalFileP = do
-  (name, val) <- contentLineP
+  (name, val) <- contentLineDefP
   unless (name == "BEGIN" && val ^. icValue == "VCALENDAR") mzero
-  let start = ICFile "" def
+  let start = ICFile "" def def
   ical <- icalFileRecP start
   pure $ ical & icContent %~ revAGroup
 
@@ -177,7 +99,7 @@ mlPush v = onML (v :)
 
 icalFileRecP :: (Monad m, Stream s m Word8) => ICalFile -> ParsecT s u m ICalFile
 icalFileRecP ical = do
-  (name, val) <- contentLineP
+  (name, val) <- contentLineDefP
   case name of
     "BEGIN" -> do
       let gname = val ^. icValue
@@ -194,7 +116,7 @@ icalAbstractGroupP tp = revAGroup <$> icalAbstractGroupRecP tp def
 
 icalAbstractGroupRecP :: (Monad m, Stream s m Word8) => Text -> ICalAbstractGroup -> ParsecT s u m ICalAbstractGroup
 icalAbstractGroupRecP tp icgroup = do
-  (name, val) <- contentLineP
+  (name, val) <- contentLineDefP
   case name of
     "BEGIN" -> do
       let gname = val ^. icValue
@@ -204,3 +126,42 @@ icalAbstractGroupRecP tp icgroup = do
       unless (val ^. icValue == tp) mzero
       pure icgroup
     _ -> icalAbstractGroupRecP tp $ icgroup & icValues . at name %~ mlPush val
+
+-- Timezones
+icalTZP :: (Monad m, Stream s m Word8) => ParsecT s u m ICalTimeZone
+icalTZP = do
+  tz <- icalTZRecP $ ICTZ "" [] def
+  pure $
+    tz
+      & ictzSpecs %~ reverse
+      & ictzTopLevel %~ revAGroup
+
+icalTZRecP :: (Monad m, Stream s m Word8) => ICalTimeZone -> ParsecT s u m ICalTimeZone
+icalTZRecP tz = do
+  (name, val) <- contentLineDefP
+  case name of
+    "BEGIN" -> case val ^. icValue of
+      "STANDARD" -> icalTZSpecP True >>= \spec -> icalTZRecP $ tz & ictzSpecs %~ (spec :)
+      "DAYLIGHT" -> icalTZSpecP False >>= \spec -> icalTZRecP $ tz & ictzSpecs %~ (spec :)
+      _ -> do
+        let gname = val ^. icValue
+        group <- icalAbstractGroupP gname
+        icalTZRecP $ tz & ictzTopLevel . icGroups . at gname %~ mlPush group
+    "END" -> do
+      unless (val ^. icValue == "VTIMEZONE") mzero
+      pure tz
+    _ -> case val ^. icValue of
+      "TZID" -> icalTZRecP $ tz & ictzId .~ val ^. icValue
+      _ -> icalTZRecP $ tz & ictzTopLevel . icValues . at name %~ mlPush val
+
+defDay :: LocalTime
+defDay = LocalTime (fromOrdinalDate 1971 1) midnight
+
+icalTZSpecP :: (Monad m, Stream s m Word8) => Bool -> ParsecT s u m ICalTZSpec
+icalTZSpecP isStandard = do
+  tzs <- icalTZSpecRecP $ ICTZSpec isStandard defDay 0 0 Nothing Nothing Nothing def
+  pure $ tzs & ictzContent %~ revAGroup
+
+icalTZSpecRecP :: (Monad m, Stream s m Word8) => ICalTZSpec -> ParsecT s u m ICalTZSpec
+icalTZSpecRecP tzs = do
+  pure undefined

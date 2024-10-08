@@ -50,8 +50,8 @@ bldParamValue :: Text -> RenderM ()
 bldParamValue v | shouldQuote v = bldChar '"' >> bldText v >> bldChar '"'
 bldParamValue v = bldText v
 
-bldLine :: Text -> ICalValue -> RenderM ()
-bldLine name val = do
+bldLine :: (a -> Text) -> Text -> ICalValue a -> RenderM ()
+bldLine rdr name val = do
   bldText name
   forM_ (M.toList $ val ^. icParams) $ \(param, pvalue) -> do
     bldChar ';'
@@ -59,26 +59,30 @@ bldLine name val = do
     bldChar '='
     bldSepBy (bldChar ',') $ bldParamValue <$> pvalue
   bldChar ':'
-  bldText $ val ^. icValue
+  bldText . rdr $ val ^. icValue
   bldNewline
+
+bldLineDef :: Text -> ICalValue Text -> RenderM ()
+bldLineDef = bldLine id
 
 runProduct :: (Monad m) => (a -> b -> m ()) -> (a, [b]) -> m ()
 runProduct f (x, l) = mapM_ (uncurry f) $ (x,) <$> l
 
 bldAbstractGroup :: ICalAbstractGroup -> RenderM ()
 bldAbstractGroup group = do
-  mapM_ (runProduct bldLine) $ M.toList $ group ^. icValues
+  mapM_ (runProduct bldLineDef) $ M.toList $ group ^. icValues
   mapM_ (runProduct bldGroup) $ M.toList $ group ^. icGroups
 
 bldGroup :: Text -> ICalAbstractGroup -> RenderM ()
 bldGroup tp group = do
-  bldLine "BEGIN" $ ICValue M.empty tp
+  bldLineDef "BEGIN" $ ICValue M.empty tp
   bldAbstractGroup group
-  bldLine "END" $ ICValue M.empty tp
+  bldLineDef "END" $ ICValue M.empty tp
 
 bldFile :: ICalFile -> RenderM ()
 bldFile ical = do
-  bldLine "BEGIN" $ ICValue M.empty "VCALENDAR"
-  bldLine "VERSION" $ ICValue M.empty $ ical ^. icVersion
+  bldLineDef "BEGIN" $ ICValue M.empty "VCALENDAR"
+  bldLineDef "VERSION" $ ICValue M.empty $ ical ^. icVersion
   bldAbstractGroup $ ical ^. icContent
-  bldLine "END" $ ICValue M.empty "VCALENDAR"
+  -- TODO render timezones
+  bldLineDef "END" $ ICValue M.empty "VCALENDAR"

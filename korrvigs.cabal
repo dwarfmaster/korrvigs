@@ -52,6 +52,8 @@ library korrvigs-lib
     Korrvigs.Event.ICalendar
     Korrvigs.Event.ICalendar.Defs
     Korrvigs.Event.ICalendar.Parser
+    Korrvigs.Event.ICalendar.Parser.Basic
+    Korrvigs.Event.ICalendar.Parser.Types
     Korrvigs.Event.ICalendar.Render
     Korrvigs.File
     Korrvigs.File.Mtdt
@@ -179,6 +181,7 @@ library korrvigs-lib
     , yesod-core            ^>=1.6.2.0
 
   default-extensions:
+    FlexibleContexts
     FlexibleInstances
     LambdaCase
     MultiParamTypeClasses

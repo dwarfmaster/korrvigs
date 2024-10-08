@@ -1,5 +1,6 @@
 module Korrvigs.Event.ICalendar.Parser.Types where
 
+import Control.Lens
 import Control.Monad
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as B64
@@ -11,6 +12,7 @@ import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.LocalTime
 import Data.Word
+import Korrvigs.Event.ICalendar.Defs
 import Korrvigs.Event.ICalendar.Parser.Basic
 import Network.URI
 import Text.Parsec
@@ -155,3 +157,64 @@ utcOffsetP = do
   minutes <- digitsP 2
   seconds <- fromMaybe 0 <$> optionMaybe (digitsP 2)
   pure $ sign * (hours * 3600 + minutes * 60 + seconds)
+
+-- Recurrence rule parser
+rruleP :: (Monad m, Stream s m Word8) => ParsecT s u m ICalRRule
+rruleP = rruleRecP $ ICRRule Yearly Nothing Nothing Nothing [] [] [] [] [] [] [] [] [] Nothing
+
+rruleRecP :: (Monad m, Stream s m Word8) => ICalRRule -> ParsecT s u m ICalRRule
+rruleRecP rrule = do
+  part <- rrulePartP
+  let nrule = part rrule
+  (charP ';' >> rruleRecP nrule) <|> pure nrule
+
+rrulePartP :: (Monad m, Stream s m Word8) => ParsecT s u m (ICalRRule -> ICalRRule)
+rrulePartP =
+  (try (stringP "FREQ") >> (icrrFreq .~) <$> freqP)
+    <|> (try (stringP "UNTIL") >> (icrrUntil ?~) . snd <$> dateTimeP)
+    <|> (try (stringP "COUNT") >> (icrrCount ?~) <$> numberP)
+    <|> (try (stringP "INTERVAL") >> (icrrInterval ?~) <$> numberP)
+    <|> (try (stringP "BYSECOND") >> (icrrBySec .~) <$> listOf numberP)
+    <|> (try (stringP "BYMINUTE") >> (icrrByMin .~) <$> listOf numberP)
+    <|> (try (stringP "BYHOUR") >> (icrrByHour .~) <$> listOf numberP)
+    <|> (try (stringP "BYDAY") >> (icrrByDay .~) <$> listOf weekdayNumP)
+    <|> (try (stringP "BYMONTHDAY") >> (icrrByMonthDay .~) <$> listOf signedNumberP)
+    <|> (try (stringP "BYYEARDAY") >> (icrrByYearDay .~) <$> listOf signedNumberP)
+    <|> (try (stringP "BYWEEKNO") >> (icrrByWeekNo .~) <$> listOf signedNumberP)
+    <|> (try (stringP "BYSETPOS") >> (icrrBySetPos .~) <$> listOf signedNumberP)
+    <|> (stringP "WKST" >> (icrrWkst ?~) <$> weekdayP)
+  where
+    listOf :: (Monad m, Stream s m Word8) => ParsecT s u m a -> ParsecT s u m [a]
+    listOf = flip sepBy $ charP ','
+
+freqP :: (Monad m, Stream s m Word8) => ParsecT s u m ICalFreq
+freqP =
+  (try (stringP "SECONDLY") $> Secondly)
+    <|> (try (stringP "MINUTELY") $> Minutely)
+    <|> (try (stringP "HOURLY") $> Hourly)
+    <|> (try (stringP "DAILY") $> Daily)
+    <|> (try (stringP "WEEKLY") $> Weekly)
+    <|> (try (stringP "MONTHLY") $> Monthly)
+    <|> (stringP "YEARLY" $> Yearly)
+
+weekdayP :: (Monad m, Stream s m Word8) => ParsecT s u m DayOfWeek
+weekdayP =
+  (try (stringP "SU") $> Sunday)
+    <|> (try (stringP "MO") $> Monday)
+    <|> (try (stringP "TU") $> Tuesday)
+    <|> (try (stringP "WE") $> Wednesday)
+    <|> (try (stringP "TH") $> Thursday)
+    <|> (try (stringP "FR") $> Friday)
+    <|> (stringP "SA" $> Saturday)
+
+signedNumberP :: (Num a, Read a, Monad m, Stream s m Word8) => ParsecT s u m a
+signedNumberP = do
+  sign <- signP
+  num <- numberP
+  pure $ (if sign then 1 else -1) * num
+
+weekdayNumP :: (Monad m, Stream s m Word8) => ParsecT s u m (Maybe Int, DayOfWeek)
+weekdayNumP = do
+  offset <- optionMaybe signedNumberP
+  day <- weekdayP
+  pure (offset, day)

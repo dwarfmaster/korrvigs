@@ -4,6 +4,7 @@ import Control.Lens
 import Data.Default
 import Data.Map (Map)
 import Data.Text (Text)
+import Data.Time.Calendar
 import Data.Time.LocalTime
 
 data ICalValue a = ICValue
@@ -24,6 +25,37 @@ instance Default ICalAbstractGroup where
 makeLenses ''ICalAbstractGroup
 makeLenses ''ICalValue
 
+-- Recurrence rules
+data ICalFreq
+  = Secondly
+  | Minutely
+  | Hourly
+  | Daily
+  | Weekly
+  | Monthly
+  | Yearly
+  deriving (Eq, Show)
+
+data ICalRRule = ICRRule
+  { _icrrFreq :: ICalFreq,
+    _icrrUntil :: Maybe LocalTime,
+    _icrrCount :: Maybe Int,
+    _icrrInterval :: Maybe Int,
+    _icrrBySec :: [Int],
+    _icrrByMin :: [Int],
+    _icrrByHour :: [Int],
+    _icrrByDay :: [(Maybe Int, DayOfWeek)],
+    _icrrByMonthDay :: [Int],
+    _icrrByYearDay :: [Int],
+    _icrrByWeekNo :: [Int],
+    _icrrByMonth :: [Int],
+    _icrrBySetPos :: [Int],
+    _icrrWkst :: Maybe DayOfWeek
+  }
+  deriving (Eq, Show)
+
+makeLenses ''ICalRRule
+
 -- TimeZones
 
 data ICalTZSpec = ICTZSpec
@@ -33,7 +65,7 @@ data ICalTZSpec = ICTZSpec
     _ictzOffsetFrom :: Int,
     _ictzRdate :: Maybe LocalTime,
     _ictzName :: Maybe Text,
-    _ictzRRule :: Maybe (),
+    _ictzRRule :: Maybe ICalRRule,
     _ictzContent :: ICalAbstractGroup
   }
   deriving (Eq, Show)

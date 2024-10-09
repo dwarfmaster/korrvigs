@@ -164,7 +164,7 @@ icalTZRecP tz = do
     "END" -> do
       unless (val ^. icValue == "VTIMEZONE") mzero
       pure tz
-    _ -> case val ^. icValue of
+    _ -> case name of
       "TZID" -> icalTZRecP $ tz & ictzId .~ val ^. icValue
       _ -> icalTZRecP $ tz & ictzTopLevel . icValues . at name %~ mlPush val
 

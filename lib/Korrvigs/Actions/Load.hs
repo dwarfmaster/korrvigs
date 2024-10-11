@@ -30,3 +30,4 @@ load i = do
         Note -> dLoad i $ mkEntry (Nothing :: Maybe Note) row mtdt
         Link -> dLoad i $ mkEntry (Nothing :: Maybe Link) row mtdt
         File -> dLoad i $ mkEntry (Nothing :: Maybe File) row mtdt
+        Event -> dLoad i $ mkEntry (Nothing :: Maybe Event) row mtdt

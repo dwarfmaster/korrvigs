@@ -1,6 +1,7 @@
 module Korrvigs.AllEntries where
 
 import Korrvigs.Entry
+import Korrvigs.Event ()
 import Korrvigs.File ()
 import Korrvigs.KindData
 import Korrvigs.Link ()
@@ -10,3 +11,4 @@ data AnyIdentifier
   = LinkID (KDIdentifier Link)
   | NoteID (KDIdentifier Note)
   | FileID (KDIdentifier File)
+  | EventID (KDIdentifier Event)

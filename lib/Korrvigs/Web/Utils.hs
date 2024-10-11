@@ -28,11 +28,13 @@ colorKind :: Kind -> Base16Index
 colorKind Note = Base08
 colorKind File = Base09
 colorKind Link = Base0A
+colorKind Event = Base0B
 
 htmlKind' :: Kind -> Handler Html
 htmlKind' Note = mkHtmlKind "Note" $ colorKind Note
 htmlKind' File = mkHtmlKind "File" $ colorKind File
 htmlKind' Link = mkHtmlKind "Link" $ colorKind Link
+htmlKind' Event = mkHtmlKind "Event" $ colorKind Event
 
 htmlKind :: Kind -> Widget
 htmlKind kd = do

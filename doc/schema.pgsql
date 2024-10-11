@@ -1,4 +1,4 @@
-CREATE TYPE KIND AS ENUM ('note', 'link', 'file');
+CREATE TYPE KIND AS ENUM ('note', 'link', 'file', 'event');
 CREATE TABLE entries (
   name TEXT NOT NULL UNIQUE,
   kind KIND NOT NULL,
@@ -60,5 +60,15 @@ CREATE TABLE files (
   status FILESTATUS NOT NULL,
   mime TEXT NOT NULL,
   CONSTRAINT files_entries
+    FOREIGN KEY (name,kind) references entries(name,kind)
+);
+
+CREATE TABLE events (
+  name TEXT NOT NULL PRIMARY KEY,
+  kind KIND NOT NULL CHECK(kind = 'event'),
+  calendar TEXT NOT NULL,
+  file TEXT NOT NULL,
+  uid TEXT NOT NULL,
+  CONSTRAINT events_entries
     FOREIGN KEY (name,kind) references entries(name,kind)
 );

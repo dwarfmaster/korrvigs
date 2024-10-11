@@ -61,16 +61,26 @@ data File = MkFile
   }
   deriving (Show)
 
+data Event = MkEvent
+  { _eventEntry :: Entry,
+    _eventCalendar :: Text,
+    _eventFile :: Text,
+    _eventUid :: Text
+  }
+  deriving (Show)
+
 data KindData
   = LinkD Link
   | NoteD Note
   | FileD File
+  | EventD Event
   deriving (Show)
 
 kindDataKind :: KindData -> Kind
 kindDataKind (LinkD _) = Link
 kindDataKind (NoteD _) = Note
 kindDataKind (FileD _) = File
+kindDataKind (EventD _) = Event
 
 data Entry = MkEntry
   { _name :: Id,
@@ -82,6 +92,7 @@ data Entry = MkEntry
   }
   deriving (Show)
 
+makeLenses ''Event
 makeLenses ''Note
 makeLenses ''Link
 makeLenses ''File
@@ -99,3 +110,6 @@ _Link = kindData . _LinkD
 
 _File :: Traversal' Entry File
 _File = kindData . _FileD
+
+_Event :: Traversal' Entry Event
+_Event = kindData . _EventD

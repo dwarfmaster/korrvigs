@@ -2,6 +2,7 @@ module Korrvigs.Web.Download (getEntryDownloadR) where
 
 import Control.Lens
 import Korrvigs.Entry
+import Korrvigs.Event (eventPath)
 import Korrvigs.Monad
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Login
@@ -17,6 +18,9 @@ downloadEntry (FileD file) = case file ^. fileStatus of
     pure $ toTypedContent (file ^. fileMime, ContentFile (file ^. filePath) Nothing)
 downloadEntry (NoteD note) =
   pure $ toTypedContent (typePlain, ContentFile (note ^. notePath) Nothing)
+downloadEntry (EventD event) = do
+  path <- eventPath event
+  pure $ toTypedContent ("text/calendar" :: ContentType, ContentFile path Nothing)
 
 getEntryDownloadR :: WebId -> Handler TypedContent
 getEntryDownloadR (WId i) =

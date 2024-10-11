@@ -8,3 +8,4 @@ displayKind :: Kind -> Text
 displayKind Link = "link"
 displayKind Note = "note"
 displayKind File = "file"
+displayKind Event = "event"

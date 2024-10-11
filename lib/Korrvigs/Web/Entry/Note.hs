@@ -13,6 +13,7 @@ import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Note
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -201,6 +202,7 @@ compileBlock' (Embed i) =
             widget <- lift $ case entry ^. kindData of
               LinkD link -> Link.embed lvl link
               FileD file -> File.embed lvl file
+              EventD event -> Event.embed lvl event
               NoteD note -> embed lvl note
             pure
               [whamlet|

@@ -24,7 +24,7 @@ executable korrvigs-cli
   build-depends:      korrvigs-lib
 
 library korrvigs-lib
-  ghc-options:        -Wall
+  ghc-options:        -Wall -Werror=incomplete-patterns
   exposed-modules:
     Korrvigs
     Korrvigs.Actions
@@ -109,6 +109,7 @@ library korrvigs-lib
     Korrvigs.Web.Backend
     Korrvigs.Web.Download
     Korrvigs.Web.Entry
+    Korrvigs.Web.Entry.Event
     Korrvigs.Web.Entry.File
     Korrvigs.Web.Entry.Link
     Korrvigs.Web.Entry.Note

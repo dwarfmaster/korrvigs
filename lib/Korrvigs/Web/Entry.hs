@@ -14,6 +14,7 @@ import Korrvigs.Monad
 import Korrvigs.Utils.Base16
 import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Entry.Note as Note
@@ -189,6 +190,7 @@ contentWidget entry = case entry ^. kindData of
   LinkD link -> Link.content link
   NoteD note -> Note.content note
   FileD file -> File.content file
+  EventD event -> Event.content event
 
 entryWidget :: Entry -> Handler Widget
 entryWidget entry = do

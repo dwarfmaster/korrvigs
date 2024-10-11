@@ -12,6 +12,7 @@ toSqlKind :: Kind -> String
 toSqlKind Note = "note"
 toSqlKind Link = "link"
 toSqlKind File = "file"
+toSqlKind Event = "event"
 
 sqlKindMapper :: EnumMapper SqlKind Kind
 sqlKindMapper = makeSqlMapper "kind" toSqlKind

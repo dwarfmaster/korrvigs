@@ -16,6 +16,7 @@ dispatchRemove entry =
     NoteD note -> dRemove (dIdentify note)
     LinkD link -> dRemove (dIdentify link)
     FileD file -> dRemove (dIdentify file)
+    EventD event -> dRemove (dIdentify event)
 
 remove :: (MonadKorrvigs m) => Id -> m ()
 remove i = load i >>= mapM_ dispatchRemove
@@ -45,6 +46,7 @@ dispatchRemoveDB entry =
     Note -> genRemoveDB i $ dRemoveDB (Nothing :: Maybe Note) i
     Link -> genRemoveDB i $ dRemoveDB (Nothing :: Maybe Link) i
     File -> genRemoveDB i $ dRemoveDB (Nothing :: Maybe File) i
+    Event -> genRemoveDB i $ dRemoveDB (Nothing :: Maybe Event) i
   where
     i = entry ^. name
 

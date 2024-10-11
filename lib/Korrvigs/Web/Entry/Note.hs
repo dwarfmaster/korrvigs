@@ -305,9 +305,9 @@ compileInline (Styled SuperScript inls) = do
   inlsW <- compileInlines inls
   pure [whamlet|<sup>^{inlsW}|]
 compileInline (Code attr txt) = pure [whamlet|<code *{compileAttr attr}>#{txt}|]
-compileInline (Link attr inls target) = do
+compileInline (Link attr inls tgt) = do
   inlsW <- compileInlines inls
-  pure [whamlet|<a href=@{EntryR $ WId target} *{compileAttr attr}>^{inlsW}|]
+  pure [whamlet|<a href=@{EntryR $ WId tgt} *{compileAttr attr}>^{inlsW}|]
 compileInline (Cite i) = pure [whamlet|<cite><a href=@{EntryR $ WId i}>@#{unId i}|]
 compileInline (PlainLink uri) =
   let url = show uri in pure [whamlet|<a href=#{url}>#{url}|]

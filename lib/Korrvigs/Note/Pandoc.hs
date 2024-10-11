@@ -70,14 +70,14 @@ headerLvl :: ParseM Int
 headerLvl = access $ stack . bszLevel
 
 bszToHeader :: BlockStackZipper -> WithParent A.Header
-bszToHeader (BSZ lvl attr title ref bks _) doc parent =
+bszToHeader bsz doc parent =
   let hd =
         A.Header
-          { A._hdAttr = attr,
-            A._hdTitle = title,
-            A._hdRefTo = ref,
-            A._hdLevel = lvl,
-            A._hdContent = reverse $ bks <&> \blk -> blk doc (Just hd),
+          { A._hdAttr = bsz ^. bszAttr,
+            A._hdTitle = bsz ^. bszTitle,
+            A._hdRefTo = bsz ^. bszRefTo,
+            A._hdLevel = bsz ^. bszLevel,
+            A._hdContent = reverse $ (bsz ^. bszLeft) <&> \blk -> blk doc (Just hd),
             A._hdParent = parent,
             A._hdDocument = doc
           }

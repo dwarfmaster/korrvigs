@@ -1,0 +1,5 @@
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO luc;
+CREATE EXTENSION postgis;
+CREATE EXTENSION address_standardizer;

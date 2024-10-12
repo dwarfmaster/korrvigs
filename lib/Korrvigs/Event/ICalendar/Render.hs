@@ -254,14 +254,11 @@ bldTZSpec spec = do
   bldLine (bldDateTime False) "DTSTART" $ ICValue M.empty $ spec ^. ictzStart
   bldLine bldUtcOffset "TZOFFSETTO" $ ICValue M.empty $ spec ^. ictzOffsetTo
   bldLine bldUtcOffset "TZOFFSETFROM" $ ICValue M.empty $ spec ^. ictzOffsetFrom
-  whenJust (spec ^. ictzRdate) $ \dt -> bldLine (bldDateTime False) "RDATE" $ ICValue M.empty dt
-  whenJust (spec ^. ictzName) $ \nm -> bldLineDef "TZNAME" $ ICValue M.empty nm
-  whenJust (spec ^. ictzRRule) $ \rr -> bldLine bldRRule "RRULE" $ ICValue M.empty rr
+  forM_ (spec ^. ictzRdate) $ \dt -> bldLine (bldDateTime False) "RDATE" $ ICValue M.empty dt
+  forM_ (spec ^. ictzName) $ \nm -> bldLineDef "TZNAME" $ ICValue M.empty nm
+  forM_ (spec ^. ictzRRule) $ \rr -> bldLine bldRRule "RRULE" $ ICValue M.empty rr
   bldAbstractGroup $ spec ^. ictzContent
   bldLineDef "END" $ ICValue M.empty gname
-  where
-    whenJust :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
-    whenJust = flip $ maybe $ pure ()
 
 bldTZ :: ICalTimeZone -> RenderM ()
 bldTZ tz = do
@@ -271,10 +268,44 @@ bldTZ tz = do
   bldAbstractGroup $ tz ^. ictzTopLevel
   bldLineDef "END" $ ICValue M.empty "VTIMEZONE"
 
+bldTimeSpec :: Text -> ICalTimeSpec -> RenderM ()
+bldTimeSpec lbl spec =
+  bldLine (bldDateTime $ spec ^. ictmUTC) lbl $ ICValue params $ spec ^. ictmDate
+  where
+    params = case spec ^. ictmTimeZone of
+      Just tz -> M.singleton "TZID" [tz]
+      Nothing -> M.empty
+
+bldGeo :: (Float, Float) -> RenderM ()
+bldGeo (lat, lon) = bldFloat lat >> bldChar ';' >> bldFloat lon
+
+bldTransp :: Bool -> RenderM ()
+bldTransp True = bldText "TRANSPARENT"
+bldTransp False = bldText "OPAQUE"
+
+bldEvent :: ICalEvent -> RenderM ()
+bldEvent ev = do
+  bldLineDef "BEGIN" $ ic "VEVENT"
+  bldLineDef "UID" $ ic $ ev ^. iceUid
+  forM_ (ev ^. iceStart) $ bldTimeSpec "DTSTART"
+  forM_ (ev ^. iceEnd) $ bldTimeSpec "DTEND"
+  forM_ (ev ^. iceDuration) $ bldLine bldDuration "DURATION" . ic
+  forM_ (ev ^. iceComment) $ bldLine bldTextValue "COMMENT" . ic
+  forM_ (ev ^. iceSummary) $ bldLine bldTextValue "SUMMARY" . ic
+  forM_ (ev ^. iceDescription) $ bldLine bldTextValue "DESCRIPTION" . ic
+  forM_ (ev ^. iceGeo) $ bldLine bldGeo "GEO" . ic
+  forM_ (ev ^. iceLocation) $ bldLine bldTextValue "LOCATION" . ic
+  bldLine bldTransp "TRANSP" $ ic $ ev ^. iceTransparent
+  bldAbstractGroup $ ev ^. iceContent
+  bldLineDef "END" $ ic "VEVENT"
+  where
+    ic = ICValue M.empty
+
 bldFile :: ICalFile -> RenderM ()
 bldFile ical = do
   bldLineDef "BEGIN" $ ICValue M.empty "VCALENDAR"
   bldLineDef "VERSION" $ ICValue M.empty $ ical ^. icVersion
   bldAbstractGroup $ ical ^. icContent
+  mapM_ bldEvent $ ical ^. icEvent
   mapM_ bldTZ $ ical ^. icTimezones
   bldLineDef "END" $ ICValue M.empty "VCALENDAR"

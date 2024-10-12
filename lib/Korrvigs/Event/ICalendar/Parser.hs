@@ -6,6 +6,7 @@ import Control.Monad
 import qualified Data.ByteString.Lazy as BSL
 import Data.Default
 import Data.Either
+import Data.Functor
 import Data.Map
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -95,7 +96,7 @@ icalFileP :: (Monad m, Stream s m Word8) => ParsecT s u m ICalFile
 icalFileP = do
   (name, val) <- contentLineDefP
   unless (name == "BEGIN" && val ^. icValue == "VCALENDAR") mzero
-  let start = ICFile "" def def
+  let start = ICFile "" def def def
   ical <- icalFileRecP start
   pure $ ical & icContent %~ revAGroup
 
@@ -116,6 +117,9 @@ icalFileRecP ical = do
             "VTIMEZONE" -> do
               tz <- icalTZP
               icalFileRecP $ ical & icTimezones . at (tz ^. ictzId) ?~ tz
+            "VEVENT" -> do
+              ev <- icalEventP
+              icalFileRecP $ ical & icEvent ?~ ev
             _ -> do
               group <- icalAbstractGroupP gname
               icalFileRecP $ ical & icContent . icGroups . at gname %~ mlPush group
@@ -201,3 +205,55 @@ icalTZSpecRecP tzs = do
             ("TZNAME", (ictzName ?~) <$> textP),
             ("RRULE", (ictzRRule ?~) <$> rruleP)
           ]
+
+-- Events
+icalEventP :: (Monad m, Stream s m Word8) => ParsecT s u m ICalEvent
+icalEventP = icalEventRecP $ ICEvent "" [] Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing False def
+
+icalEventRecP :: (Monad m, Stream s m Word8) => ICalEvent -> ParsecT s u m ICalEvent
+icalEventRecP ev = do
+  (name, val) <- contentLineP lineSpec
+  case val of
+    Right spec -> icalEventRecP $ spec ev
+    Left v -> case name of
+      "BEGIN" -> do
+        let gname = v ^. icValue
+        group <- icalAbstractGroupP gname
+        icalEventRecP $ ev & iceContent . icGroups . at gname %~ mlPush group
+      "END" -> pure ev
+      _ -> icalEventRecP $ ev & iceContent . icValues . at name %~ mlPush v
+  where
+    lineSpec :: (Monad m, Stream s m Word8) => Map Text (ParsecT s u m (Map Text [Text] -> ICalEvent -> ICalEvent))
+    lineSpec =
+      M.fromList
+        [ ("UID", const . (iceUid .~) <$> valueP),
+          ("CATEGORIES", const . (iceCategories .~) <$> listOfP textP),
+          ("COMMENT", const . (iceComment ?~) <$> textP),
+          ("SUMMARY", const . (iceSummary ?~) <$> textP),
+          ("DESCRIPTION", const . (iceDescription ?~) <$> textP),
+          ("GEO", const . (iceGeo ?~) <$> geoP),
+          ("LOCATION", const . (iceLocation ?~) <$> textP),
+          ("DTSTART", mkTimeSpec (iceStart ?~) <$> dateTimeP),
+          ("DTEND", mkTimeSpec (iceEnd ?~) <$> dateTimeP),
+          ("DURATION", const . (iceDuration ?~) <$> durationP),
+          ("TRANSP", const . (iceTransparent .~) <$> transpP)
+        ]
+
+geoP :: (Monad m, Stream s m Word8) => ParsecT s u m (Float, Float)
+geoP = (,) <$> floatP <*> (charP ';' >> floatP)
+
+transpP :: (Monad m, Stream s m Word8) => ParsecT s u m Bool
+transpP = (stringP "TRANSPARENT" $> True) <|> pure True
+
+mkTimeSpec :: (ICalTimeSpec -> ICalEvent -> ICalEvent) -> (Bool, LocalTime) -> Map Text [Text] -> ICalEvent -> ICalEvent
+mkTimeSpec bld (isUTC, time) params = bld spec
+  where
+    spec :: ICalTimeSpec
+    spec =
+      ICTmSpec
+        { _ictmDate = time,
+          _ictmUTC = isUTC,
+          _ictmTimeZone = case M.lookup "TZID" params of
+            Just (tz : _) -> Just tz
+            _ -> Nothing
+        }

@@ -168,25 +168,25 @@ rruleRecP rrule = do
   let nrule = part rrule
   (charP ';' >> rruleRecP nrule) <|> pure nrule
 
+listOfP :: (Monad m, Stream s m Word8) => ParsecT s u m a -> ParsecT s u m [a]
+listOfP = flip sepBy $ charP ','
+
 rrulePartP :: (Monad m, Stream s m Word8) => ParsecT s u m (ICalRRule -> ICalRRule)
 rrulePartP =
   (try (stringP "FREQ=") >> (icrrFreq .~) <$> freqP)
     <|> (try (stringP "UNTIL=") >> (icrrUntil ?~) . snd <$> dateTimeP)
     <|> (try (stringP "COUNT=") >> (icrrCount ?~) <$> numberP)
     <|> (try (stringP "INTERVAL=") >> (icrrInterval ?~) <$> numberP)
-    <|> (try (stringP "BYSECOND=") >> (icrrBySec .~) <$> listOf numberP)
-    <|> (try (stringP "BYMINUTE=") >> (icrrByMin .~) <$> listOf numberP)
-    <|> (try (stringP "BYHOUR=") >> (icrrByHour .~) <$> listOf numberP)
-    <|> (try (stringP "BYDAY=") >> (icrrByDay .~) <$> listOf weekdayNumP)
-    <|> (try (stringP "BYMONTHDAY=") >> (icrrByMonthDay .~) <$> listOf signedNumberP)
-    <|> (try (stringP "BYYEARDAY=") >> (icrrByYearDay .~) <$> listOf signedNumberP)
-    <|> (try (stringP "BYWEEKNO=") >> (icrrByWeekNo .~) <$> listOf signedNumberP)
-    <|> (try (stringP "BYMONTH=") >> (icrrByMonth .~) <$> listOf numberP)
-    <|> (try (stringP "BYSETPOS=") >> (icrrBySetPos .~) <$> listOf signedNumberP)
+    <|> (try (stringP "BYSECOND=") >> (icrrBySec .~) <$> listOfP numberP)
+    <|> (try (stringP "BYMINUTE=") >> (icrrByMin .~) <$> listOfP numberP)
+    <|> (try (stringP "BYHOUR=") >> (icrrByHour .~) <$> listOfP numberP)
+    <|> (try (stringP "BYDAY=") >> (icrrByDay .~) <$> listOfP weekdayNumP)
+    <|> (try (stringP "BYMONTHDAY=") >> (icrrByMonthDay .~) <$> listOfP signedNumberP)
+    <|> (try (stringP "BYYEARDAY=") >> (icrrByYearDay .~) <$> listOfP signedNumberP)
+    <|> (try (stringP "BYWEEKNO=") >> (icrrByWeekNo .~) <$> listOfP signedNumberP)
+    <|> (try (stringP "BYMONTH=") >> (icrrByMonth .~) <$> listOfP numberP)
+    <|> (try (stringP "BYSETPOS=") >> (icrrBySetPos .~) <$> listOfP signedNumberP)
     <|> (stringP "WKST=" >> (icrrWkst ?~) <$> weekdayP)
-  where
-    listOf :: (Monad m, Stream s m Word8) => ParsecT s u m a -> ParsecT s u m [a]
-    listOf = flip sepBy $ charP ','
 
 freqP :: (Monad m, Stream s m Word8) => ParsecT s u m ICalFreq
 freqP =

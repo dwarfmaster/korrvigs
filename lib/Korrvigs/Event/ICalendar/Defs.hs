@@ -5,6 +5,7 @@ import Data.Default
 import Data.Map (Map)
 import Data.Text (Text)
 import Data.Time.Calendar
+import Data.Time.Clock
 import Data.Time.LocalTime
 
 data ICalValue a = ICValue
@@ -81,13 +82,39 @@ makeLenses ''ICalTZSpec
 makeLenses ''ICalTimeZone
 
 -- Events
--- TODO
+
+data ICalTimeSpec = ICTmSpec
+  { _ictmDate :: LocalTime,
+    _ictmUTC :: Bool,
+    _ictmTimeZone :: Maybe Text
+  }
+  deriving (Eq, Show)
+
+data ICalEvent = ICEvent
+  { _iceUid :: Text, -- UID
+    _iceCategories :: [Text], -- CATEGORIES
+    _iceComment :: Maybe Text, -- COMMENT
+    _iceSummary :: Maybe Text, -- SUMMARY
+    _iceDescription :: Maybe Text, -- DESCRIPTION
+    _iceGeo :: Maybe (Float, Float), -- GEO
+    _iceLocation :: Maybe Text, -- LOCATION
+    _iceStart :: Maybe ICalTimeSpec, -- DTSTART
+    _iceEnd :: Maybe ICalTimeSpec, -- DTEND
+    _iceDuration :: Maybe NominalDiffTime, -- DURATION
+    _iceTransparent :: Bool, -- TRANSP
+    _iceContent :: ICalAbstractGroup
+  }
+  deriving (Eq, Show)
+
+makeLenses ''ICalTimeSpec
+makeLenses ''ICalEvent
 
 -- Global structure
 data ICalFile = ICFile
   { _icVersion :: Text,
     _icContent :: ICalAbstractGroup,
-    _icTimezones :: Map Text ICalTimeZone
+    _icTimezones :: Map Text ICalTimeZone,
+    _icEvent :: Maybe ICalEvent
   }
   deriving (Eq, Show)
 

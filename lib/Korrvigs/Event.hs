@@ -3,31 +3,33 @@
 module Korrvigs.Event where
 
 import Control.Lens
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
+import Korrvigs.Event.Sync
 import Korrvigs.Kind
 import Korrvigs.KindData
 import Korrvigs.Monad
 import System.FilePath
 
 instance IsKD Event where
-  data KDIdentifier Event = EventIdentifier Text Text
+  data KDIdentifier Event = EventIdentifier Id Text Text
     deriving (Ord, Eq)
-  dLoad = undefined
-  dRemoveDB = undefined
-  dList _ = undefined
-  dGetId (EventIdentifier _ _) = undefined
-  dSync _ = undefined
-  dSyncOne (EventIdentifier _ _) = undefined
-  dRemove (EventIdentifier _ _) = undefined
+  dLoad = dLoadImpl
+  dRemoveDB _ = dRemoveDBImpl
+  dList _ = S.map (\(i, cal, ics) -> EventIdentifier i cal ics) <$> dListImpl
+  dGetId (EventIdentifier i _ _) = i
+  dSync _ = dSyncImpl
+  dSyncOne (EventIdentifier _ cal ics) = dSyncOneImpl cal ics
+  dRemove (EventIdentifier _ cal ics) = dRemoveImpl cal ics
   dKind = const Event
   dEntry = view eventEntry
-  dIdentify ev = EventIdentifier (ev ^. eventCalendar) (ev ^. eventFile)
+  dIdentify ev = EventIdentifier (ev ^. eventEntry . name) (ev ^. eventCalendar) (ev ^. eventFile)
   dToData = EventD
 
 displayEventId :: KDIdentifier Event -> Text
-displayEventId (EventIdentifier cal file) = "event:" <> cal <> ":" <> file
+displayEventId (EventIdentifier _ cal file) = "event:" <> cal <> ":" <> file
 
 calendarDirectory :: (MonadKorrvigs m) => Text -> m FilePath
 calendarDirectory cal = joinPath . (: ["files", T.unpack cal]) <$> root

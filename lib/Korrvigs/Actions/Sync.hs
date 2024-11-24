@@ -13,6 +13,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Database.PostgreSQL.Simple as Simple
 import Korrvigs.Entry
+import Korrvigs.Event
 import Korrvigs.File
 import Korrvigs.KindData
 import Korrvigs.Link
@@ -32,7 +33,8 @@ loadIDs = do
     sequence
       [ loadIDsFor (Nothing :: Maybe Link) displayLinkId,
         loadIDsFor (Nothing :: Maybe Note) displayNoteId,
-        loadIDsFor (Nothing :: Maybe File) displayFileId
+        loadIDsFor (Nothing :: Maybe File) displayFileId,
+        loadIDsFor (Nothing :: Maybe Event) displayEventId
       ]
   pure $ M.unionsWith (<>) allIDs
 
@@ -59,7 +61,8 @@ sync = do
     sequence
       [ dSync (Nothing :: Maybe Link),
         dSync (Nothing :: Maybe Note),
-        dSync (Nothing :: Maybe File)
+        dSync (Nothing :: Maybe File),
+        dSync (Nothing :: Maybe Event)
       ]
   let rels = foldl' M.union M.empty allrels
   let checkRD = checkRelData $ \i -> isJust $ M.lookup i ids

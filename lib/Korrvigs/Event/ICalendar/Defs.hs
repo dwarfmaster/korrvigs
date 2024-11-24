@@ -35,7 +35,7 @@ data ICalFreq
   | Weekly
   | Monthly
   | Yearly
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 data ICalRRule = ICRRule
   { _icrrFreq :: ICalFreq,

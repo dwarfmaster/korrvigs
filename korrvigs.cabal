@@ -55,6 +55,7 @@ library korrvigs-lib
     Korrvigs.Event.ICalendar.Parser.Basic
     Korrvigs.Event.ICalendar.Parser.Types
     Korrvigs.Event.ICalendar.Render
+    Korrvigs.Event.ICalendar.RRule
     Korrvigs.File
     Korrvigs.File.Mtdt
     Korrvigs.File.Mtdt.ExifTool

@@ -45,6 +45,12 @@ sqlIDs = do
     pure $ erow ^. sqlEntryName
   pure $ M.fromList $ (MkId &&& const []) <$> ids
 
+processRelData :: (MonadKorrvigs m) => Id -> RelData -> m ()
+processRelData i rd = do
+  let subsOf = (i,) <$> rd ^. relSubOf
+  let refsTo = (i,) <$> rd ^. relRefTo
+  atomicInsert $ insertSubOf subsOf <> insertRefTo refsTo
+
 sync :: (MonadKorrvigs m) => m ()
 sync = do
   conn <- pgSQL

@@ -34,6 +34,7 @@ library korrvigs-lib
     Korrvigs.AllEntries
     Korrvigs.Cli
     Korrvigs.Cli.Config
+    Korrvigs.Cli.Event
     Korrvigs.Cli.File
     Korrvigs.Cli.Info
     Korrvigs.Cli.Init

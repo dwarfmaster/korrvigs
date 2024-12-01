@@ -98,7 +98,7 @@ dListImpl = do
   withIds <- mapM listOne evs
   pure $ S.fromList $ map (\(a, b, c, _) -> (a, b, c)) $ catMaybes withIds
 
-register :: (MonadKorrvigs m) => (Text, Text) -> m (Id, ICalEvent)
+register :: (MonadKorrvigs m) => (Text, Text) -> m (Id, ICalEvent, Bool)
 register (calendar, ics) = do
   rt <- eventsDirectory
   let path = joinPath [rt, T.unpack calendar, T.unpack ics]
@@ -108,16 +108,16 @@ register (calendar, ics) = do
   case ical ^. icEvent of
     Nothing -> throwM $ KMiscError $ "ics file \"" <> T.pack path <> "\" has no event"
     Just ievent -> case M.lookup "X-KORRVIGS-NAME" (ievent ^. iceContent . icValues) of
-      Just [val] -> pure (MkId $ val ^. icValue, ievent)
+      Just [val] -> pure (MkId $ val ^. icValue, ievent, False)
       _ -> do
-        let summary = ievent ^? iceContent . icValues . at "SUMMARY" . _Just . _Cons . _1 . icValue
+        let summary = ievent ^. iceSummary
         let startSpec = ievent ^? iceStart . _Just
         let start = resolveICalTime ical <$> startSpec
         i <- newId $ imk "ics" & idTitle .~ summary & idDate .~ start
         let nevent = ievent & iceContent . icValues . at "X-KORRVIGS-NAME" ?~ [ICValue M.empty (unId i)]
         let ncal = ical & icEvent ?~ nevent
         liftIO $ BSL.writeFile path $ renderICalFile ncal
-        pure (i, nevent)
+        pure (i, nevent, True)
 
 syncOne :: (MonadKorrvigs m) => Id -> Text -> Text -> ICalEvent -> m RelData
 syncOne i calendar ics ical = do
@@ -165,7 +165,7 @@ syncEvent i calendar ics ical = do
   let erow = EntryRow i Event tm dur geom Nothing :: EntryRow
   let mrows = (\(key, val) -> MetadataRow i key val False) <$> M.toList mtdt :: [MetadataRow]
   let evrow = EventRow i calendar (T.unpack ics) (ical ^. iceUid) :: EventRow
-  let txt = ical ^? iceContent . icValues . at "SUMMARY" . _Just . _Cons . _1 . icValue
+  let txt = ical ^. iceSummary
   atomicSQL $ \conn -> do
     void $
       runInsert conn $

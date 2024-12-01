@@ -48,7 +48,7 @@ paramTextP :: (Monad m, Stream s m Word8) => ParsecT s u m Text
 paramTextP = T.pack <$> many (charSpecP safeChar)
 
 paramValueP :: (Monad m, Stream s m Word8) => ParsecT s u m Text
-paramValueP = paramTextP <|> quotedStringP
+paramValueP = quotedStringP <|> paramTextP
 
 paramNameP :: (Monad m, Stream s m Word8) => ParsecT s u m Text
 paramNameP = T.pack <$> many1 (charSpecP nameChar)
@@ -78,7 +78,7 @@ contentLineP parsers = do
   val <- case M.lookup name parsers of
     Just parser -> parser <*> pure parmp <&> Right
     Nothing -> Left . ICValue parmp <$> valueP
-  crlfP
+  crlfP <|> eof
   pure (name, val)
 
 contentLineDefP :: (Monad m, Stream s m Word8) => ParsecT s u m (Text, ICalValue Text)
@@ -233,8 +233,8 @@ icalEventRecP ev = do
           ("DESCRIPTION", const . (iceDescription ?~) <$> textP),
           ("GEO", const . (iceGeo ?~) <$> geoP),
           ("LOCATION", const . (iceLocation ?~) <$> textP),
-          ("DTSTART", mkTimeSpec (iceStart ?~) <$> dateTimeP),
-          ("DTEND", mkTimeSpec (iceEnd ?~) <$> dateTimeP),
+          ("DTSTART", mkTimeSpec (iceStart ?~) <$> dateMTimeP),
+          ("DTEND", mkTimeSpec (iceEnd ?~) <$> dateMTimeP),
           ("DURATION", const . (iceDuration ?~) <$> durationP),
           ("TRANSP", const . (iceTransparent .~) <$> transpP)
         ]
@@ -243,7 +243,7 @@ geoP :: (Monad m, Stream s m Word8) => ParsecT s u m (Float, Float)
 geoP = (,) <$> floatP <*> (charP ';' >> floatP)
 
 transpP :: (Monad m, Stream s m Word8) => ParsecT s u m Bool
-transpP = (stringP "TRANSPARENT" $> True) <|> pure True
+transpP = (stringP "TRANSPARENT" $> True) <|> (stringP "OPAQUE" $> False)
 
 mkTimeSpec :: (ICalTimeSpec -> ICalEvent -> ICalEvent) -> (Bool, LocalTime) -> Map Text [Text] -> ICalEvent -> ICalEvent
 mkTimeSpec bld (isUTC, time) params = bld spec

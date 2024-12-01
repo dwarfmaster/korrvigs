@@ -6,6 +6,7 @@ import qualified Data.ByteString.UTF8 as B8
 import Data.Functor
 import Data.Word
 import Text.Parsec
+import Text.Printf (printf)
 
 -- ByteRanges
 data CharSpec
@@ -64,15 +65,18 @@ nameChar = Any [digitChar, ExactByte 0x2D, alphaChar]
 getWord8 :: (Monad m, Stream s m Word8) => (Word8 -> Bool) -> ParsecT s u m Word8
 getWord8 p = tokenPrim showW nextPos doP
   where
-    showW c = "'" ++ show c ++ "'"
+    showW = printf "'0x%02x'"
     nextPos pos c _ = if c == 0x0A then incSourceLine (setSourceColumn pos 1) 1 else incSourceColumn pos 1
     doP c = if p c then Just c else Nothing
 
 -- Ignore sequences of CRLF followed by space
 nextWord8 :: (Monad m, Stream s m Word8) => (Word8 -> Bool) -> ParsecT s u m Word8
-nextWord8 p = many (try seqP) >> getWord8 p
+nextWord8 p = try $ many (try seqP) >> getWord8 p
   where
-    seqP = (try (getWord8 (== 0x0D)) <|> pure 0x0D) >> getWord8 (== 0x0A) >> getWord8 (== 0x20)
+    seqP = do
+      void $ optional $ getWord8 (== 0x0D)
+      void $ getWord8 (== 0x0A)
+      void $ getWord8 (== 0x20)
 
 runCharSpecP :: (Monad m, Stream s m Word8) => CharSpec -> ParsecT s u m [Word8]
 runCharSpecP (ByteRange low high) = (: []) <$> nextWord8 (\c -> c >= low && c <= high)

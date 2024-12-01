@@ -58,6 +58,14 @@ dateTimeP = do
   (isUTC, time) <- timeP
   pure (isUTC, LocalTime date time)
 
+dateMTimeP :: (Monad m, Stream s m Word8) => ParsecT s u m (Bool, LocalTime)
+dateMTimeP = do
+  date <- dateP
+  (isUTC, time) <- option (False, TimeOfDay 0 0 0) $ do
+    charP 'T'
+    timeP
+  pure (isUTC, LocalTime date time)
+
 signP :: (Monad m, Stream s m Word8) => ParsecT s u m Bool
 signP =
   charP '+' $> True

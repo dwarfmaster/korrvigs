@@ -32,7 +32,7 @@ displayEventId :: KDIdentifier Event -> Text
 displayEventId (EventIdentifier _ cal file) = "event:" <> cal <> ":" <> file
 
 calendarDirectory :: (MonadKorrvigs m) => Text -> m FilePath
-calendarDirectory cal = joinPath . (: ["files", T.unpack cal]) <$> root
+calendarDirectory cal = joinPath . (: ["events", T.unpack cal]) <$> root
 
 eventPath :: (MonadKorrvigs m) => Event -> m FilePath
 eventPath ev =

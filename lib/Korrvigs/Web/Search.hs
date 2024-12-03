@@ -466,6 +466,9 @@ fixOrder q@(Query _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
   Nothing -> q & querySort .~ def
 fixOrder q = q
 
+fixMaxResults :: Query -> Query
+fixMaxResults = queryMaxResults %~ maybe (Just 10) Just
+
 getSearchR :: Handler Html
 getSearchR = do
   tz <- liftIO getCurrentTimeZone
@@ -492,7 +495,7 @@ getSearchR = do
         <*> (fromMaybe def <$> iopt optsField "sortopts")
         <*> iopt maxResultsField "maxresults"
   display <- runInputGet $ fromMaybe DisplayList <$> iopt displayResultsField "display"
-  let q = fixOrder q'
+  let q = fixMaxResults $ fixOrder q'
   r <- rSelect $ do
     entry <- compile q
     title <- optional $ limit 1 $ do

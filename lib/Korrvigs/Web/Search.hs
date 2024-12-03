@@ -21,7 +21,7 @@ import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
-import qualified Korrvigs.Web.Vis as Vis
+import qualified Korrvigs.Web.Vis.Network as Network
 import Linear.V2
 import Opaleye hiding (Field)
 import qualified Opaleye as O
@@ -425,17 +425,17 @@ displayResults DisplayGraph entries = do
     where_ $ sqlElem (ref ^. target) candidates
     pure (ref ^. source, ref ^. target)
   base <- getBase
-  edgeStyle <- Vis.defEdgeStyle
-  let subStyle = edgeStyle & Vis.edgeColor .~ base edgeSubColor
-  let refStyle = edgeStyle & Vis.edgeColor .~ base edgeRefColor
+  edgeStyle <- Network.defEdgeStyle
+  let subStyle = edgeStyle & Network.edgeColor .~ base edgeSubColor
+  let refStyle = edgeStyle & Network.edgeColor .~ base edgeRefColor
   let edges = (mkEdge subStyle <$> subs) ++ (mkEdge refStyle <$> refs)
-  Vis.network "network" nodes edges
+  Network.network "network" nodes edges
   where
     candidates :: O.Field (SqlArray SqlText)
     candidates = sqlArray sqlId $ view (_1 . sqlEntryName) <$> entries
-    mkNode :: (EntryRow, Maybe (Maybe Text)) -> Handler (Text, Text, Vis.NodeStyle)
+    mkNode :: (EntryRow, Maybe (Maybe Text)) -> Handler (Text, Text, Network.NodeStyle)
     mkNode (entry, title) = do
-      style <- Vis.defNodeStyle
+      style <- Network.defNodeStyle
       render <- getUrlRender
       base <- getBase
       let caption = case join title of
@@ -446,11 +446,11 @@ displayResults DisplayGraph entries = do
         ( unId $ entry ^. sqlEntryName,
           caption,
           style
-            & Vis.nodeBorder .~ color
-            & Vis.nodeSelected .~ color
-            & Vis.nodeLink ?~ render (EntryR $ WId $ entry ^. sqlEntryName)
+            & Network.nodeBorder .~ color
+            & Network.nodeSelected .~ color
+            & Network.nodeLink ?~ render (EntryR $ WId $ entry ^. sqlEntryName)
         )
-    mkEdge :: Vis.EdgeStyle -> (Id, Id) -> (Text, Text, Vis.EdgeStyle)
+    mkEdge :: Network.EdgeStyle -> (Id, Id) -> (Text, Text, Network.EdgeStyle)
     mkEdge style (src, dst) = (unId src, unId dst, style)
 
 liftMaybe :: Bool -> (V2 (Maybe Double), Maybe Double) -> Maybe (V2 Double, Double)

@@ -1,4 +1,4 @@
-module Korrvigs.Web.Vis
+module Korrvigs.Web.Vis.Network
   ( network,
     NodeShape (..),
     NodeStyle (..),
@@ -146,7 +146,7 @@ network var nodes edges = do
   netId <- newIdent
   let setup = rawJS $ "setup" <> var
   pure $ do
-    Rcs.vis
+    Rcs.visNetwork
     [whamlet|<div ##{netId}>|]
     toWidget
       [cassius|

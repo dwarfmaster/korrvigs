@@ -23,7 +23,7 @@ import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
-import qualified Korrvigs.Web.Vis as Vis
+import qualified Korrvigs.Web.Vis.Network as Network
 import Opaleye hiding (groupBy, null)
 import Yesod
 
@@ -125,15 +125,15 @@ refsWidget entry = do
           ++ (view _2 <$> refs)
   let entries = map head $ groupBy (\r1 r2 -> cmp r1 r2 == EQ) $ sortBy cmp rows
   nodes <- mapM mkNode entries
-  edgeStyle <- Vis.defEdgeStyle
+  edgeStyle <- Network.defEdgeStyle
   base <- getBase
-  let subStyle = edgeStyle & Vis.edgeColor .~ base edgeSubColor
-  let refStyle = edgeStyle & Vis.edgeColor .~ base edgeRefColor
+  let subStyle = edgeStyle & Network.edgeColor .~ base edgeSubColor
+  let refStyle = edgeStyle & Network.edgeColor .~ base edgeRefColor
   let edges = (mkEdge subStyle <$> subs) ++ (mkEdge refStyle <$> refs)
   if null entries
     then pure mempty
     else do
-      network <- Vis.network "network" nodes edges
+      network <- Network.network "network" nodes edges
       detId <- newIdent
       pure $ do
         [whamlet|
@@ -165,9 +165,9 @@ refsWidget entry = do
       tgt <- selectTable entriesTable
       where_ $ (sub ^. target) .== (tgt ^. sqlEntryName)
       pure (src, tgt)
-    mkNode :: EntryRow -> Handler (Text, Text, Vis.NodeStyle)
+    mkNode :: EntryRow -> Handler (Text, Text, Network.NodeStyle)
     mkNode e = do
-      style <- Vis.defNodeStyle
+      style <- Network.defNodeStyle
       render <- getUrlRender
       base <- getBase
       let color =
@@ -178,11 +178,11 @@ refsWidget entry = do
         ( unId $ e ^. sqlEntryName,
           "@" <> unId (e ^. sqlEntryName),
           style
-            & Vis.nodeBorder .~ color
-            & Vis.nodeSelected .~ color
-            & Vis.nodeLink ?~ render (EntryR $ WId $ e ^. sqlEntryName)
+            & Network.nodeBorder .~ color
+            & Network.nodeSelected .~ color
+            & Network.nodeLink ?~ render (EntryR $ WId $ e ^. sqlEntryName)
         )
-    mkEdge :: Vis.EdgeStyle -> (EntryRow, EntryRow) -> (Text, Text, Vis.EdgeStyle)
+    mkEdge :: Network.EdgeStyle -> (EntryRow, EntryRow) -> (Text, Text, Network.EdgeStyle)
     mkEdge style (r1, r2) = (unId $ r1 ^. sqlEntryName, unId $ r2 ^. sqlEntryName, style)
 
 contentWidget :: Entry -> Handler Widget

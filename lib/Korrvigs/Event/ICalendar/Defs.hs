@@ -62,8 +62,8 @@ makeLenses ''ICalRRule
 data ICalTZSpec = ICTZSpec
   { _ictzStandard :: Bool,
     _ictzStart :: LocalTime,
-    _ictzOffsetTo :: Int,
-    _ictzOffsetFrom :: Int,
+    _ictzOffsetTo :: Int, -- In seconds
+    _ictzOffsetFrom :: Int, -- In seconds
     _ictzRdate :: Maybe LocalTime,
     _ictzName :: Maybe Text,
     _ictzRRule :: Maybe ICalRRule,

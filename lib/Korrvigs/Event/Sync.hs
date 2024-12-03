@@ -229,6 +229,13 @@ syncEvent i calendar ics ifile ical = do
 
 syncOneEvent :: (MonadKorrvigs m) => Id -> Text -> Text -> ICalFile -> ICalEvent -> m RelData
 syncOneEvent i calendar ics ifile ievent = do
+  prev <- load i
+  case prev of
+    Nothing -> pure ()
+    Just prevEntry ->
+      case prevEntry ^. kindData of
+        EventD event | event ^. eventCalendar == calendar && event ^. eventFile == ics -> dispatchRemoveDB prevEntry
+        _ -> dispatchRemove prevEntry
   mtdt <- syncEvent i calendar ics ifile ievent
   let extras = mtdtExtras mtdt
   pure $

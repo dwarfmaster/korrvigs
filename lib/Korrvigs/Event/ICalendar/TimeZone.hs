@@ -38,7 +38,7 @@ resolveICalTime file time =
       Nothing -> ZonedTime (time ^. ictmDate) utc
       Just tz ->
         let spec = solveTimeZone (time ^. ictmDate) $ timeZoneTimes tz
-         in ZonedTime (time ^. ictmDate) $ TimeZone (spec ^. ictzOffsetTo) (not $ spec ^. ictzStandard) (maybe "" T.unpack $ spec ^. ictzName)
+         in ZonedTime (time ^. ictmDate) $ TimeZone (spec ^. ictzOffsetTo `div` 60) (not $ spec ^. ictzStandard) (maybe "" T.unpack $ spec ^. ictzName)
 
 -- Find a timezone in the ical file that resolves to the right timezone
 findTimeZone :: ZonedTime -> ICalFile -> Maybe Text

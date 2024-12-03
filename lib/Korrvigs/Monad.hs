@@ -10,6 +10,7 @@ import Data.Profunctor.Product.Default
 import Data.Text (Text)
 import Data.Typeable (Typeable)
 import Database.PostgreSQL.Simple (Connection, withTransaction)
+import qualified Database.PostgreSQL.Simple as Simple
 import Korrvigs.Entry
 import Opaleye hiding (null)
 
@@ -34,6 +35,11 @@ class (MonadIO m, MonadThrow m) => MonadKorrvigs m where
   removeDB :: Id -> m ()
   dispatchRemoveDB :: Entry -> m ()
   sync :: m ()
+
+setupPsql :: (MonadKorrvigs m) => m ()
+setupPsql = do
+  conn <- pgSQL
+  void $ liftIO $ Simple.execute_ conn "SET intervalstyle = 'iso_8601'"
 
 rSelect :: (Default FromFields fields haskell, MonadKorrvigs m) => Select fields -> m [haskell]
 rSelect query = do

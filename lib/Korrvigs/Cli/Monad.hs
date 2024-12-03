@@ -62,7 +62,7 @@ instance MonadKorrvigs KorrM where
   sync = Actions.sync
 
 runKorrM :: KorrConfig -> KorrM a -> IO (Either KorrvigsError a)
-runKorrM config (KorrM action) = do
+runKorrM config act = do
   conn <- connectPostgreSQL $ Enc.encodeUtf8 $ config ^. kconfigPsql
   let state =
         KState
@@ -76,6 +76,7 @@ runKorrM config (KorrM action) = do
                   _webTheme = config ^. kconfigTheme
                 }
           }
+  let (KorrM action) = setupPsql >> act
   r <- runReaderT (runExceptT action) state
   close conn
   case r of
@@ -105,8 +106,7 @@ instance ToJSON KorrConfig where
         "password" .= (cfg ^. kconfigPassword),
         "salt" .= (cfg ^. kconfigSalt)
       ]
-        ++ ( fmap (\b -> K.fromText (baseName b) .= theme16 (cfg ^. kconfigTheme) b) [minBound .. maxBound]
-           )
+        ++ fmap (\b -> K.fromText (baseName b) .= theme16 (cfg ^. kconfigTheme) b) [minBound .. maxBound]
 
 configPath :: IO FilePath
 configPath = do

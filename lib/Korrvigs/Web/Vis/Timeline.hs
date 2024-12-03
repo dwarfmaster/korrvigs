@@ -70,6 +70,18 @@ timeline var items = do
       [cassius|
         ##{timeId}
           width: 100%
+        .vis-text
+          color: var(--base07) !important
+        .vis-inner
+          color: var(--base07)
+        .vis-item
+          border-width: 2px !important
+          background-color: var(--base00) !important
+          color: var(--base07) !important
+        .vis-box
+          border-color: var(--base0E) !important
+        .vis-range
+          border-color: var(--base0F) !important
       |]
     toWidget
       [julius|

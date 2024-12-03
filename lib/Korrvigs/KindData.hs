@@ -30,7 +30,7 @@ class IsKD a where
   dSync :: (MonadKorrvigs m) => f a -> m (Map Id RelData)
   dSyncOne :: (MonadKorrvigs m) => KDIdentifier a -> m RelData
 
-  -- Remove from all the tables and the filesystem, including the entries table
+  -- Remove from the filesystem only, must be called in addtion to dRemoveDB
   dRemove :: (MonadKorrvigs m) => KDIdentifier a -> m ()
 
   -- Query basic information

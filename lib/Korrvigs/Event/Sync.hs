@@ -63,15 +63,6 @@ dRemoveImpl calendar ics = do
   let path = joinPath [rt, T.unpack calendar, T.unpack ics]
   exists <- liftIO $ doesFileExist path
   when exists $ liftIO $ removeFile path
-  conn <- pgSQL
-  void $
-    liftIO $
-      runDelete conn $
-        Delete
-          { dTable = eventsTable,
-            dWhere = \erow -> (erow ^. sqlEventFile) .== sqlStrictText ics .&& (erow ^. sqlEventCalendar) .== sqlStrictText calendar,
-            dReturning = rCount
-          }
 
 eventsDirectory :: (MonadKorrvigs m) => m FilePath
 eventsDirectory = joinPath . (: ["events"]) <$> root

@@ -19,7 +19,9 @@ dispatchRemove entry =
     EventD event -> dRemove (dIdentify event)
 
 remove :: (MonadKorrvigs m) => Id -> m ()
-remove i = load i >>= mapM_ dispatchRemove
+remove i = do
+  entry <- load i
+  mapM_ (\e -> dispatchRemove e >> dispatchRemoveDB e) entry
 
 genRemoveDB :: (MonadKorrvigs m) => Id -> [Delete Int64] -> m ()
 genRemoveDB i dels =

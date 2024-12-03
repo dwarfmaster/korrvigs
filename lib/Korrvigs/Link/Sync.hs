@@ -129,10 +129,8 @@ dRemoveDBImpl i =
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
-  let i = linkIdFromPath path
   exists <- liftIO $ doesFileExist path
   when exists $ liftIO $ removeFile path
-  removeDB i
 
 linkFromRow :: LinkRow -> Entry -> Link
 linkFromRow row entry =

@@ -103,13 +103,11 @@ dRemoveDBImpl i =
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
-  let i = dGetIdImpl path
   exists <- liftIO $ doesFileExist path
   when exists $ liftIO $ removeFile path
   let meta = metaPath path
   existsMeta <- liftIO $ doesFileExist meta
   when existsMeta $ liftIO $ removeFile meta
-  removeDB i
 
 filesDirectory :: (MonadKorrvigs m) => m FilePath
 filesDirectory = joinPath . (: ["files"]) <$> root

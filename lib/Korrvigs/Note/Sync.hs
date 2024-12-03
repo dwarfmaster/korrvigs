@@ -54,10 +54,8 @@ dRemoveDBImpl i =
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
-  let i = dGetIdImpl path
   exists <- liftIO $ doesFileExist path
   when exists $ liftIO $ removeFile path
-  removeDB i
 
 noteDirectory :: (MonadKorrvigs m) => m FilePath
 noteDirectory = joinPath . (: ["notes"]) <$> root

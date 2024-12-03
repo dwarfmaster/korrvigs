@@ -108,13 +108,13 @@ durationP = do
   secs <- durWeekP <|> durGregP
   pure $ fromInteger $ (if sign then 1 else -1) * secs
 
-floatP :: (Monad m, Stream s m Word8) => ParsecT s u m Float
+floatP :: (Monad m, Stream s m Word8) => ParsecT s u m Double
 floatP = do
   sign <- signP
   integral :: Int <- numberP
   decimal :: Maybe Int <- optionMaybe (charP '.' >> numberP)
-  let intF :: Float = fromIntegral integral
-  let decF :: Float = maybe 0 fromIntegral decimal
+  let intF :: Double = fromIntegral integral
+  let decF :: Double = maybe 0 fromIntegral decimal
   let e :: Int = ceiling (logBase 10 decF)
   let absolute = intF + decF / (10.0 ** fromIntegral e)
   pure $ (if sign then 1 else -1) * absolute

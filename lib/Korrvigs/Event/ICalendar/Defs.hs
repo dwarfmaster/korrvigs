@@ -96,7 +96,7 @@ data ICalEvent = ICEvent
     _iceComment :: Maybe Text, -- COMMENT
     _iceSummary :: Maybe Text, -- SUMMARY
     _iceDescription :: Maybe Text, -- DESCRIPTION
-    _iceGeo :: Maybe (Float, Float), -- GEO
+    _iceGeo :: Maybe (Double, Double), -- GEO
     _iceLocation :: Maybe Text, -- LOCATION
     _iceStart :: Maybe ICalTimeSpec, -- DTSTART
     _iceEnd :: Maybe ICalTimeSpec, -- DTEND

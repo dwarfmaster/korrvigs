@@ -239,7 +239,7 @@ icalEventRecP ev = do
           ("TRANSP", const . (iceTransparent .~) <$> transpP)
         ]
 
-geoP :: (Monad m, Stream s m Word8) => ParsecT s u m (Float, Float)
+geoP :: (Monad m, Stream s m Word8) => ParsecT s u m (Double, Double)
 geoP = (,) <$> floatP <*> (charP ';' >> floatP)
 
 transpP :: (Monad m, Stream s m Word8) => ParsecT s u m Bool

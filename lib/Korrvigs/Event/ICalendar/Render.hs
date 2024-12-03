@@ -155,7 +155,7 @@ bldDuration diff = do
     weekSecs = 7 * daySecs
     isWeeks = seconds `mod` weekSecs == 0
 
-bldFloat :: Float -> RenderM ()
+bldFloat :: Double -> RenderM ()
 bldFloat = bldText . T.pack . flip (showEFloat Nothing) ""
 
 bldInteger :: Int -> RenderM ()
@@ -276,7 +276,7 @@ bldTimeSpec lbl spec =
       Just tz -> M.singleton "TZID" [tz]
       Nothing -> M.empty
 
-bldGeo :: (Float, Float) -> RenderM ()
+bldGeo :: (Double, Double) -> RenderM ()
 bldGeo (lat, lon) = bldFloat lat >> bldChar ';' >> bldFloat lon
 
 bldTransp :: Bool -> RenderM ()

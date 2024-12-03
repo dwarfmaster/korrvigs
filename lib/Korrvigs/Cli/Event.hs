@@ -43,9 +43,9 @@ run :: Cmd -> KorrM ()
 run (Register silent json) = do
   evs <- allEvents
   forM_ evs $ \(cal, ics) -> do
-    (i, ievent, new) <- register (cal, ics)
+    (i, ical, ievent, new) <- register (cal, ics)
     when new $ do
-      syncOneEvent i cal ics ievent >>= processRelData i
+      syncOneEvent i cal ics ical ievent >>= processRelData i
       unless silent $
         liftIO $
           if json

@@ -15,6 +15,7 @@ import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Query
 import Korrvigs.Utils.JSON (sqlJsonToText)
+import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Leaflet
 import Korrvigs.Web.Login
@@ -22,17 +23,18 @@ import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
 import qualified Korrvigs.Web.Vis.Network as Network
+import qualified Korrvigs.Web.Vis.Timeline as Timeline
 import Linear.V2
 import Opaleye hiding (Field)
 import qualified Opaleye as O
 import Text.Julius
 import Yesod
 
--- TODO add others displays like timeline
 data ResultDisplay
   = DisplayList
   | DisplayMap
   | DisplayGraph
+  | DisplayTimeline
   deriving (Eq, Ord, Enum, Bounded)
 
 sattr :: Text -> Bool -> [(Text, Text)]
@@ -279,6 +281,7 @@ displayResultOptions = mkOption <$> [minBound .. maxBound]
     mkOption DisplayList = Option "list" DisplayList "1"
     mkOption DisplayMap = Option "map" DisplayMap "2"
     mkOption DisplayGraph = Option "graph" DisplayGraph "3"
+    mkOption DisplayTimeline = Option "timeline" DisplayTimeline "4"
 
 displayResultForm :: ResultDisplay -> Handler Widget
 displayResultForm display =
@@ -452,6 +455,31 @@ displayResults DisplayGraph entries = do
         )
     mkEdge :: Network.EdgeStyle -> (Id, Id) -> (Text, Text, Network.EdgeStyle)
     mkEdge style (src, dst) = (unId src, unId dst, style)
+displayResults DisplayTimeline entries = do
+  items <- mapM mkItem entries
+  timelineId <- newIdent
+  Timeline.timeline timelineId $ catMaybes items
+  where
+    mkItem :: (EntryRow, Maybe (Maybe Text)) -> Handler (Maybe Timeline.Item)
+    mkItem (entry, title) = do
+      render <- getUrlRender
+      let caption = case join title of
+            Just t -> t
+            Nothing -> "@" <> unId (entry ^. sqlEntryName)
+      pure $ case entry ^. sqlEntryDate of
+        Nothing -> Nothing
+        Just start ->
+          let end = case entry ^. sqlEntryDuration of
+                Nothing -> Nothing
+                Just dur -> Just $ addCalendar dur start
+           in Just $
+                Timeline.Item
+                  { Timeline._itemText = caption,
+                    Timeline._itemStart = start,
+                    Timeline._itemEnd = end,
+                    Timeline._itemGroup = displayKind $ entry ^. sqlEntryKind,
+                    Timeline._itemTarget = Just $ render $ EntryR $ WId $ entry ^. sqlEntryName
+                  }
 
 liftMaybe :: Bool -> (V2 (Maybe Double), Maybe Double) -> Maybe (V2 Double, Double)
 liftMaybe True (V2 (Just x) (Just y), Just d) = Just (V2 x y, d * 1000.0)

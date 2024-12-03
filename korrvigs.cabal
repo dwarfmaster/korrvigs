@@ -110,6 +110,7 @@ library korrvigs-lib
     Korrvigs.Utils.Lens
     Korrvigs.Utils.Opaleye
     Korrvigs.Utils.Pandoc
+    Korrvigs.Utils.Time
     Korrvigs.Web
     Korrvigs.Web.Backend
     Korrvigs.Web.Download
@@ -127,6 +128,7 @@ library korrvigs-lib
     Korrvigs.Web.Search
     Korrvigs.Web.Utils
     Korrvigs.Web.Vis.Network
+    Korrvigs.Web.Vis.Timeline
 
   build-depends:
     , aeson                 ^>=2.1.2.1
@@ -137,6 +139,7 @@ library korrvigs-lib
     , base64                ^>=0.4.2.4
     , binary                ^>=0.8.9.0
     , blaze-html            ^>=0.9.2.0
+    , blaze-markup          ^>=0.8.3.0
     , bytestring            ^>=0.11.4.0
     , case-insensitive      ^>=1.2.1.0
     , clientsession         ^>=0.9.1.0

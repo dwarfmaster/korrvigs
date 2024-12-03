@@ -40,6 +40,12 @@ visNetwork = do
     "https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"
     []
 
+visTimeline :: WidgetFor site ()
+visTimeline = do
+  addScriptRemoteAttrs
+    "https://unpkg.com/vis-timeline/standalone/umd/vis-timeline-graph2d.min.js"
+    []
+
 mathjax :: WidgetFor site ()
 mathjax = do
   toWidgetHead $

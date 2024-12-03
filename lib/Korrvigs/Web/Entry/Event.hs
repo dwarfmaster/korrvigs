@@ -1,12 +1,11 @@
 module Korrvigs.Web.Entry.Event (content, embed) where
 
 import Control.Lens
-import Data.Time.Clock
 import Data.Time.Format
-import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Event
 import Korrvigs.Event.ICalendar
+import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
 import Yesod hiding (joinPath)
 
@@ -34,7 +33,7 @@ embed _ event = do
         let fmtTime = formatTime defaultTimeLocale timeFormat
         let endTime = case (startTime, ievent ^. iceDuration) of
               (Just start, Just dur) ->
-                Just $ utcToZonedTime (zonedTimeZone start) $ addUTCTime dur $ zonedTimeToUTC start
+                Just $ addNominal dur start
               _ -> resolveICalTime ical <$> ievent ^. iceEnd
         let description = ievent ^. iceDescription
         let transp = ievent ^. iceTransparent

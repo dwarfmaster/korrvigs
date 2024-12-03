@@ -2,6 +2,7 @@ module Korrvigs.Web.Vis.Timeline where
 
 import Control.Lens hiding ((.=))
 import Data.Aeson.Text (encodeToTextBuilder)
+import Data.List (nub)
 import Data.Text (Text)
 import qualified Data.Text.Lazy as LT
 import Data.Time.Calendar
@@ -48,10 +49,19 @@ mkItemJS item =
       Nothing -> False
       Just end -> zonedDay end /= zonedDay (item ^. itemStart)
 
+mkGroupJS :: Text -> Value
+mkGroupJS group =
+  object
+    [ "id" .= group,
+      "content" .= group
+    ]
+
 timeline :: Text -> [Item] -> Handler Widget
 timeline var items = do
   timeId <- newIdent
   let setup = rawJS $ "setup" <> var
+  let groups = mkGroupJS <$> nub (view itemGroup <$> items)
+  let groupsJS = rawJS $ encodeToTextBuilder groups
   let itemsJS = rawJS $ encodeToTextBuilder $ array $ mkItemJS <$> items
   pure $ do
     Rcs.visTimeline
@@ -72,8 +82,9 @@ timeline var items = do
           end: ((item.end == null) ? null : Date.parse(item.end)),
           group: item.group
         }));
+        const groups = #{groupsJS}
         const options = {};
-        var timeline = new vis.Timeline(div, timeItems, options);
+        var timeline = new vis.Timeline(div, timeItems, groups, options);
         return timeline
       }
       var #{rawJS var} = #{setup}()

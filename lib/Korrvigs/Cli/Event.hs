@@ -4,7 +4,7 @@ import Control.Lens hiding (argument)
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Text.IO (putStrLn)
-import Korrvigs.Actions (processRelData, sync)
+import Korrvigs.Actions (processRelData)
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
 import Korrvigs.Event.Sync
@@ -51,4 +51,3 @@ run (Register silent json) = do
           if json
             then putStrLn $ "\"" <> unId i <> "\""
             else putStrLn $ "Registered " <> cal <> "/" <> ics <> " as " <> unId i
-  sync

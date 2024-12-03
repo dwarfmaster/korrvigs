@@ -84,7 +84,7 @@ listOne (calendar, ics) = do
   parsed <- liftIO $ parseICalFile path
   case parsed of
     Left _ -> pure Nothing
-    Right ical -> case M.lookup "X-KORRVIGS-NAME" (ical ^. icContent . icValues) of
+    Right ical -> case M.lookup "X-KORRVIGS-NAME" =<< (ical ^? icEvent . _Just . iceContent . icValues) of
       Just [val] -> pure $ (MkId $ val ^. icValue,calendar,ics,ical,) <$> ical ^. icEvent
       _ -> pure Nothing
 
@@ -188,7 +188,7 @@ syncEvent i calendar ics ifile ical = do
   let erow = EntryRow i Event tm dur geom Nothing :: EntryRow
   let mrows = (\(key, val) -> MetadataRow i key val False) <$> M.toList mtdt :: [MetadataRow]
   let evrow = EventRow i calendar (T.unpack ics) (ical ^. iceUid) :: EventRow
-  let txt = ical ^. iceSummary
+  let txt = extras ^. mtdtText
   atomicSQL $ \conn -> do
     void $
       runInsert conn $

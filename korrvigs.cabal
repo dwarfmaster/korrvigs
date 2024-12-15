@@ -106,6 +106,8 @@ library korrvigs-lib
     Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateParser
     Korrvigs.Utils.DateTree
+    Korrvigs.Utils.Git
+    Korrvigs.Utils.Git.Status
     Korrvigs.Utils.JSON
     Korrvigs.Utils.Lens
     Korrvigs.Utils.Opaleye
@@ -119,6 +121,7 @@ library korrvigs-lib
     Korrvigs.Web.Entry.File
     Korrvigs.Web.Entry.Link
     Korrvigs.Web.Entry.Note
+    Korrvigs.Web.Git
     Korrvigs.Web.Home
     Korrvigs.Web.Leaflet
     Korrvigs.Web.Login

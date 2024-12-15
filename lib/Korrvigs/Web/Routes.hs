@@ -23,6 +23,9 @@ korrvigsRoutes =
 /entry/#WebId EntryR GET POST
 /entry/#WebId/download EntryDownloadR GET
 
+-- Git visualisation and manipulation
+/git GitR GET POST
+
 -- Specific visualisations
 -- TODO Date
 -- TODO Place

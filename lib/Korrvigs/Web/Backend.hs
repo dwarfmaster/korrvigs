@@ -34,7 +34,8 @@ hdIsEntry _ = False
 headerContent :: [(Text, Route WebData, Route WebData -> Bool)]
 headerContent =
   [ ("Home", HomeR, (== HomeR)),
-    ("Entry", SearchR, hdIsEntry)
+    ("Entry", SearchR, hdIsEntry),
+    ("Git", GitR, (== GitR))
   ]
 
 mkHeader :: Handler Widget

@@ -11,7 +11,10 @@ import Korrvigs.Event.Sync
 import Options.Applicative
 import Prelude hiding (putStrLn)
 
-data Cmd = Register {_regSilent :: Bool, _regJSON :: Bool}
+data Cmd
+  = Register {_regSilent :: Bool, _regJSON :: Bool}
+  | Pull
+  | Push
 
 makeLenses ''Cmd
 
@@ -31,6 +34,22 @@ parser' =
               <> header "korr event register -- register events"
           )
       )
+      <> command
+        "pull"
+        ( info
+            (pure Pull <**> helper)
+            ( progDesc "Pull events in separate worktree"
+                <> header "korr event pull -- pull events"
+            )
+        )
+      <> command
+        "push"
+        ( info
+            (pure Push <**> helper)
+            ( progDesc "Push events from main worktree"
+                <> header "korr event push -- push events"
+            )
+        )
 
 parser :: ParserInfo Cmd
 parser =
@@ -51,3 +70,5 @@ run (Register silent json) = do
           if json
             then putStrLn $ "\"" <> unId i <> "\""
             else putStrLn $ "Registered " <> cal <> "/" <> ics <> " as " <> unId i
+run Pull = undefined
+run Push = undefined

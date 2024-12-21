@@ -65,7 +65,7 @@ gitStatus :: FilePath -> IO (Either Text [FileStatus])
 gitStatus repo = do
   devNull <- openFile "/dev/null" WriteMode
   let gstatus =
-        (proc "git" ["status", ".", "--porcelain=v2"])
+        (proc "git" ["status", ".", "--porcelain=v2", "--no-renames", "--untracked-files=all"])
           { std_out = CreatePipe,
             std_err = UseHandle devNull,
             cwd = Just repo
@@ -75,7 +75,7 @@ gitStatus repo = do
   let r = case runParser allStatusP () "git status" contents of
         Left err -> Left $ T.pack $ show err
         Right v -> Right v
-  void $ waitForProcess prc
+  seq r $ void $ waitForProcess prc
   hClose devNull
   pure r
 
@@ -98,7 +98,7 @@ statusP =
     _ -> many (noneOf "\n\r") >> pure Nothing
 
 allStatusP :: Parser [FileStatus]
-allStatusP = catMaybes <$> sepEndBy statusP newline
+allStatusP = (catMaybes <$> sepEndBy statusP newline) <* eof
 
 shortP :: Parser Short
 shortP =

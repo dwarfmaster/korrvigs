@@ -8,7 +8,7 @@ import Data.List.Split
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Monad
-import System.IO
+import Korrvigs.Utils.Process
 import System.Process
 
 data CommitStatus
@@ -25,17 +25,7 @@ data CommitData = CiData
 makeLenses ''CommitData
 
 runGitIn :: FilePath -> [String] -> IO ()
-runGitIn rt args = do
-  devNull <- openFile "/dev/null" WriteMode
-  let git =
-        (proc "git" args)
-          { std_out = UseHandle devNull,
-            std_err = UseHandle devNull,
-            cwd = Just rt
-          }
-  (_, _, _, prc) <- createProcess git
-  void $ waitForProcess prc
-  hClose devNull
+runGitIn rt args = void $ runSilent (proc "git" args) {cwd = Just rt}
 
 gitRm :: FilePath -> [FilePath] -> IO ()
 gitRm rt files = runGitIn rt $ "rm" : files

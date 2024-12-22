@@ -60,6 +60,7 @@ library korrvigs-lib
     Korrvigs.Event.ICalendar.TimeZone
     Korrvigs.Event.SQL
     Korrvigs.Event.Sync
+    Korrvigs.Event.VDirSyncer
     Korrvigs.File
     Korrvigs.File.Mtdt
     Korrvigs.File.Mtdt.ExifTool
@@ -113,6 +114,7 @@ library korrvigs-lib
     Korrvigs.Utils.Lens
     Korrvigs.Utils.Opaleye
     Korrvigs.Utils.Pandoc
+    Korrvigs.Utils.Process
     Korrvigs.Utils.Time
     Korrvigs.Web
     Korrvigs.Web.Backend

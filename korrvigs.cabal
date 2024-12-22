@@ -107,6 +107,7 @@ library korrvigs-lib
     Korrvigs.Utils.DateParser
     Korrvigs.Utils.DateTree
     Korrvigs.Utils.Git
+    Korrvigs.Utils.Git.Commit
     Korrvigs.Utils.Git.Status
     Korrvigs.Utils.JSON
     Korrvigs.Utils.Lens

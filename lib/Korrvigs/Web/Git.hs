@@ -71,7 +71,11 @@ simplifyFileTree' path (FileTreeDir subs) = case M.toList subs of
   lsubs -> (path, FileTreeDir $ M.fromList $ uncurry simplifyFileTree' <$> lsubs)
 
 simplifyFileTree :: FileTree -> FileTree
-simplifyFileTree = snd . simplifyFileTree' ""
+simplifyFileTree ft =
+  let (path, nft) = simplifyFileTree' "" ft
+   in if path == ""
+        then nft
+        else FileTreeDir $ M.singleton path nft
 
 gitFileTree :: [St.FileStatus] -> FileTree
 gitFileTree statuses = simplifyFileTree $ foldr (uncurry insertIntoFileTree) emptyFileTree $ extractGitStatus =<< statuses

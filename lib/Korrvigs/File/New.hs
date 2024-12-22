@@ -133,6 +133,14 @@ new path' options = do
             }
     (_, _, _, prc) <- createProcess gannex
     void $ waitForProcess prc
+    let gunstage =
+          (proc "git" ["restore", "--staged", stored])
+            { std_out = UseHandle devNull,
+              std_err = UseHandle devNull,
+              cwd = Just rt
+            }
+    (_, _, _, prcUnstage) <- createProcess gunstage
+    void $ waitForProcess prcUnstage
     hClose devNull
   relData <- dSyncOneImpl stored
   atomicInsertRelData i relData

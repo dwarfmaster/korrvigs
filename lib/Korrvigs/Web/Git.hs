@@ -5,11 +5,13 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Text.Encoding.Base64
 import Korrvigs.Utils.Base16
 import qualified Korrvigs.Utils.Git.Status as St
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Login (logWrap)
+import qualified Korrvigs.Web.Ressources as Rcs
 import System.FilePath
 import Text.Cassius
 import Text.Julius
@@ -83,14 +85,14 @@ renderSubTree parent sub ft@(FileTreeDir _) = do
   [whamlet|
     <details open>
       <summary>
-        <input type=checkbox id=#{checkId} .gitSelect *{renderParent parent}>
+        <input type=checkbox ##{checkId} .gitSelect *{renderParent parent}>
         <tt>#{sub}
       ^{renderFileTree (Just checkId) ft}
   |]
-renderSubTree parent sub (FileTreeFile _ status) = do
+renderSubTree parent sub (FileTreeFile path status) = do
   checkId <- newIdent
   [whamlet|
-    <input type=checkbox id=#{checkId} .gitSelect *{renderParent parent}>
+    <input type=checkbox ##{checkId} .gitSelect .gitFile data-path=#{path} *{renderParent parent}>
     <tt *{sym}>#{sub}
   |]
   where
@@ -226,19 +228,58 @@ renderFileTree parent (FileTreeDir subs) = do
     attrs :: [(Text, Text)]
     attrs = [("class", "gitTree") | isNothing parent]
 
+commitJs :: Text -> JavascriptUrl url
+commitJs aggregateId =
+  [julius|
+  function aggregate_files() {
+    var aggregate = document.getElementById(#{aggregateId})
+    const paths = Array.from(document.querySelectorAll('.gitFile'))
+      .filter((file) => file.checked)
+      .map((file) => file.getAttribute("data-path"))
+      .join('\0')
+    aggregate.value = paths
+  }
+|]
+
 getGitR :: Handler Html
 getGitR = do
   statuses <- St.gitStatusKorr
   let ft = gitFileTree statuses
   base <- getBase
+  commitId <- newIdent
+  msgId <- newIdent
+  aggregateId <- newIdent
   logWrap $
     defaultLayout $ do
       toWidget $ fileTreeCss base
       toWidget fileTreeJs
+      toWidget $ commitJs aggregateId
+      Rcs.formsStyle
       [whamlet|
   <h1>Status
   ^{renderFileTree Nothing ft}
+  <form onsubmit="aggregate_files()" action=@{GitR} method=POST>
+    <input type="text" name=commitmsg ##{msgId}>
+    <input type="hidden" name=commitfiles ##{aggregateId}>
+    <button type="submit" ##{commitId}>
+      Commit
   |]
 
+data CommitData = CommitData
+  { _ciMsg :: Text,
+    _ciFiles :: Text -- \n separated filepaths from korrvigs root
+  }
+  deriving (Eq, Show)
+
+makeLenses ''CommitData
+
 postGitR :: Handler Html
-postGitR = pure undefined
+postGitR = do
+  ci <-
+    runInputPost $
+      CommitData
+        <$> ireq textField "commitmsg"
+        <*> ireq textField "commitfiles"
+  let files = T.split (== '\0') $ ci ^. ciFiles
+  -- TODO do the commit
+  redirect GitR

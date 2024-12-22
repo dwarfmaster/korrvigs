@@ -1,16 +1,18 @@
 module Korrvigs.Web.Git (getGitR, postGitR) where
 
 import Control.Lens
-import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import Data.Text.Encoding.Base64
+import Korrvigs.Utils.Base16
 import qualified Korrvigs.Utils.Git.Status as St
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Login (logWrap)
 import System.FilePath
 import Text.Cassius
+import Text.Julius
 import Yesod hiding (joinPath)
 
 data GitStatus
@@ -71,16 +73,24 @@ simplifyFileTree = snd . simplifyFileTree' ""
 gitFileTree :: [St.FileStatus] -> FileTree
 gitFileTree statuses = simplifyFileTree $ foldr (uncurry insertIntoFileTree) emptyFileTree $ extractGitStatus =<< statuses
 
-renderSubTree :: FilePath -> FileTree -> Widget
-renderSubTree sub ft@(FileTreeDir _) =
+renderParent :: Maybe Text -> [(Text, Text)]
+renderParent Nothing = []
+renderParent (Just parent) = [("data-parent", parent)]
+
+renderSubTree :: Maybe Text -> FilePath -> FileTree -> Widget
+renderSubTree parent sub ft@(FileTreeDir _) = do
+  checkId <- newIdent
   [whamlet|
     <details open>
       <summary>
+        <input type=checkbox id=#{checkId} .gitSelect *{renderParent parent}>
         <tt>#{sub}
-      ^{renderFileTree False ft}
+      ^{renderFileTree (Just checkId) ft}
   |]
-renderSubTree sub (FileTreeFile _ status) =
+renderSubTree parent sub (FileTreeFile _ status) = do
+  checkId <- newIdent
   [whamlet|
+    <input type=checkbox id=#{checkId} .gitSelect *{renderParent parent}>
     <tt *{sym}>#{sub}
   |]
   where
@@ -90,8 +100,9 @@ renderSubTree sub (FileTreeFile _ status) =
       GitDeletedFile -> [("style", "color:var(--base08);")]
       GitChangedFile -> []
 
-fileTreeCss :: routes -> Css
-fileTreeCss =
+-- Css taken from: https://iamkate.com/code/tree-views/
+fileTreeCss :: (Base16Index -> Text) -> routes -> Css
+fileTreeCss base =
   [cassius|
   .gitTree
     --radius: 8px
@@ -148,7 +159,7 @@ fileTreeCss =
       background: var(--base00)
     summary::before
       z-index: 1
-      background: #696 url('data:image/svg+xml;base64,#{encodeBase64 svg}') 0 0
+      background: var(--base0D) url('data:image/svg+xml;base64,#{encodeBase64 svg}') 0 0
     details[open] > summary::before
       background-position: calc(-2 * var(--radius)) 0
 |]
@@ -157,35 +168,76 @@ fileTreeCss =
     svg =
       "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
       \<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"16\">\
-      \  <g fill=\"#fff\" transform=\"scale(0.8)\">\
-      \    <path d=\"m5 9h4v-4h2v4h4v2h-4v4h-2v-4h-4z\"/>\
-      \    <path d=\"m25 9h10v2h-10z\"/>\
-      \  </g>\
-      \</svg>"
+      \  <g fill=\""
+        <> base Base00
+        <> "\" transform=\"scale(0.8)\">\
+           \    <path d=\"m5 9h4v-4h2v4h4v2h-4v4h-2v-4h-4z\"/>\
+           \    <path d=\"m25 9h10v2h-10z\"/>\
+           \  </g>\
+           \</svg>"
 
-renderFileTree :: Bool -> FileTree -> Widget
+fileTreeJs :: JavascriptUrl url
+fileTreeJs =
+  [julius|
+  document.querySelectorAll(".gitSelect").forEach((checkbox) => {
+    checkbox.addEventListener('change', (event) => {
+      const id = checkbox.id
+      var childs = Array.from(document.querySelectorAll(`.gitSelect[data-parent="${id}"]`))
+      while(childs.length > 0) {
+        const child = childs.pop()
+        child.indeterminate = false
+        child.checked = checkbox.checked
+        const granchilds = document.querySelectorAll(`.gitSelect[data-parent="${child.id}"]`)
+        childs.push(...granchilds)
+      }
+
+      var parentId = checkbox.getAttribute("data-parent")
+      while(parentId) {
+        var parent = document.getElementById(parentId)
+        const childs = Array.from(document.querySelectorAll(`.gitSelect[data-parent="${parentId}"]`))
+        const all = childs.every((child) => child.checked)
+        const none = childs.every((child) => !child.checked)
+        const inde = childs.some((child) => child.indeterminate)
+        if(all && !inde) {
+          parent.indeterminate = false
+          parent.checked = true
+        } else if(none && !inde) {
+          parent.indeterminate = false
+          parent.checked = false
+        } else {
+          parent.indeterminate = true
+        }
+        parentId = parent.getAttribute("data-parent")
+      }
+    })
+  })
+|]
+
+renderFileTree :: Maybe Text -> FileTree -> Widget
 renderFileTree _ (FileTreeFile _ _) = mempty
-renderFileTree isTopLevel (FileTreeDir subs) = do
-  when isTopLevel $ toWidget fileTreeCss
+renderFileTree parent (FileTreeDir subs) = do
   [whamlet|
     <ul *{attrs}>
       $forall (path,sub) <- M.toList subs
         <li>
-          ^{renderSubTree path sub}
+          ^{renderSubTree parent path sub}
   |]
   where
     attrs :: [(Text, Text)]
-    attrs = [("class", "gitTree") | isTopLevel]
+    attrs = [("class", "gitTree") | isNothing parent]
 
 getGitR :: Handler Html
 getGitR = do
   statuses <- St.gitStatusKorr
   let ft = gitFileTree statuses
+  base <- getBase
   logWrap $
-    defaultLayout
+    defaultLayout $ do
+      toWidget $ fileTreeCss base
+      toWidget fileTreeJs
       [whamlet|
   <h1>Status
-  ^{renderFileTree True ft}
+  ^{renderFileTree Nothing ft}
   |]
 
 postGitR :: Handler Html

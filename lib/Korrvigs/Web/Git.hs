@@ -8,6 +8,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding.Base64
 import Korrvigs.Utils.Base16
+import qualified Korrvigs.Utils.Git.Commit as Ci
 import qualified Korrvigs.Utils.Git.Status as St
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Login (logWrap)
@@ -92,7 +93,7 @@ renderSubTree parent sub ft@(FileTreeDir _) = do
 renderSubTree parent sub (FileTreeFile path status) = do
   checkId <- newIdent
   [whamlet|
-    <input type=checkbox ##{checkId} .gitSelect .gitFile data-path=#{path} *{renderParent parent}>
+    <input type=checkbox ##{checkId} .gitSelect .gitFile data-path=#{path} data-status=#{st} *{renderParent parent}>
     <tt *{sym}>#{sub}
   |]
   where
@@ -101,6 +102,11 @@ renderSubTree parent sub (FileTreeFile path status) = do
       GitNewFile -> [("style", "color:var(--base0B);")]
       GitDeletedFile -> [("style", "color:var(--base08);")]
       GitChangedFile -> []
+    st :: Text
+    st = case status of
+      GitNewFile -> "a"
+      GitChangedFile -> "a"
+      GitDeletedFile -> "r"
 
 -- Css taken from: https://iamkate.com/code/tree-views/
 fileTreeCss :: (Base16Index -> Text) -> routes -> Css
@@ -235,7 +241,7 @@ commitJs aggregateId =
     var aggregate = document.getElementById(#{aggregateId})
     const paths = Array.from(document.querySelectorAll('.gitFile'))
       .filter((file) => file.checked)
-      .map((file) => file.getAttribute("data-path"))
+      .map((file) => `${file.getAttribute("data-status")}:${file.getAttribute("data-path")}`)
       .join('\0')
     aggregate.value = paths
   }
@@ -273,6 +279,13 @@ data CommitData = CommitData
 
 makeLenses ''CommitData
 
+extractFile :: Text -> (FilePath, Ci.CommitStatus)
+extractFile file =
+  let (st, path) = T.splitAt 2 file
+   in if st == "a:"
+        then (T.unpack path, Ci.CiAdded)
+        else (T.unpack path, Ci.CiDeleted)
+
 postGitR :: Handler Html
 postGitR = do
   ci <-
@@ -281,5 +294,6 @@ postGitR = do
         <$> ireq textField "commitmsg"
         <*> ireq textField "commitfiles"
   let files = T.split (== '\0') $ ci ^. ciFiles
-  -- TODO do the commit
+  let cid = Ci.CiData (ci ^. ciMsg) (extractFile <$> files)
+  Ci.gitCommitKorr cid
   redirect GitR

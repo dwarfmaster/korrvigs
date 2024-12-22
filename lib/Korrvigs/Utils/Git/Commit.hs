@@ -3,6 +3,8 @@ module Korrvigs.Utils.Git.Commit where
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.List
+import Data.List.Split
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Monad
@@ -35,17 +37,19 @@ runGitIn rt args = do
   void $ waitForProcess prc
   hClose devNull
 
-gitRm :: FilePath -> FilePath -> IO ()
-gitRm rt file = runGitIn rt ["rm", file]
+gitRm :: FilePath -> [FilePath] -> IO ()
+gitRm rt files = runGitIn rt $ "rm" : files
 
-gitAdd :: FilePath -> FilePath -> IO ()
-gitAdd rt file = runGitIn rt ["add", file]
+gitAdd :: FilePath -> [FilePath] -> IO ()
+gitAdd rt files = runGitIn rt $ "add" : files
 
 gitCommit :: FilePath -> CommitData -> IO ()
 gitCommit rt ci = do
-  forM_ (ci ^. ciFiles) $ \(file, status) -> case status of
-    CiDeleted -> gitRm rt file
-    CiAdded -> gitAdd rt file
+  let (toAdd, toRm) = partition (\(_, status) -> status == CiAdded) $ ci ^. ciFiles
+  let toAddChunks = chunksOf 20 $ fst <$> toAdd
+  let toRmChunks = chunksOf 20 $ fst <$> toRm
+  forM_ toAddChunks $ gitAdd rt
+  forM_ toRmChunks $ gitRm rt
   runGitIn rt ["commit", "-m", T.unpack $ ci ^. ciMessage]
 
 gitCommitKorr :: (MonadKorrvigs m) => CommitData -> m ()

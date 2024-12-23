@@ -7,9 +7,9 @@
 , optparse-applicative, pandoc, pandoc-types, parsec
 , parsec3-numbers, password, postgresql-simple, process
 , product-profunctors, profunctors, random, shakespeare, split
-, temporary, text, text-builder, text-manipulate, time, unix
-, utf8-string, vector, xdg-basedir, xml-conduit, yaml, yesod
-, yesod-core
+, temporary, text, text-builder, text-manipulate, time
+, transformers, unix, utf8-string, vector, xdg-basedir, xml-conduit
+, yaml, yesod, yesod-core
 }:
 mkDerivation {
   pname = "korrvigs";
@@ -26,8 +26,8 @@ mkDerivation {
     optparse-applicative pandoc pandoc-types parsec parsec3-numbers
     password postgresql-simple process product-profunctors profunctors
     random shakespeare split temporary text text-builder
-    text-manipulate time unix utf8-string vector xdg-basedir
-    xml-conduit yaml yesod yesod-core
+    text-manipulate time transformers unix utf8-string vector
+    xdg-basedir xml-conduit yaml yesod yesod-core
   ];
   testHaskellDepends = [ base HUnit ];
   doHaddock = false;

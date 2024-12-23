@@ -8,13 +8,13 @@ import Korrvigs.Actions (processRelData)
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
 import Korrvigs.Event.Sync
+import Korrvigs.Event.VDirSyncer
 import Options.Applicative
 import Prelude hiding (putStrLn)
 
 data Cmd
   = Register {_regSilent :: Bool, _regJSON :: Bool}
-  | Pull
-  | Push
+  | Sync
 
 makeLenses ''Cmd
 
@@ -35,19 +35,11 @@ parser' =
           )
       )
       <> command
-        "pull"
+        "sync"
         ( info
-            (pure Pull <**> helper)
-            ( progDesc "Pull events in separate worktree"
-                <> header "korr event pull -- pull events"
-            )
-        )
-      <> command
-        "push"
-        ( info
-            (pure Push <**> helper)
-            ( progDesc "Push events from main worktree"
-                <> header "korr event push -- push events"
+            (pure Sync <**> helper)
+            ( progDesc "Sync events with nextcloud"
+                <> header "korr event sync -- sync events"
             )
         )
 
@@ -70,5 +62,10 @@ run (Register silent json) = do
           if json
             then putStrLn $ "\"" <> unId i <> "\""
             else putStrLn $ "Registered " <> cal <> "/" <> ics <> " as " <> unId i
-run Pull = undefined
-run Push = undefined
+run Sync =
+  vdirSync >>= \case
+    VDirtyRepo -> liftIO $ putStrLn "Cannot sync, there are uncommited changed to the repo"
+    VDirNothingToDo -> liftIO $ putStrLn "Already up to date"
+    VDirMergeFailed -> liftIO $ putStrLn "Merge failed"
+    VDirMerged -> liftIO $ putStrLn "Successfully synced"
+    VDirError err -> liftIO $ putStrLn $ "Unexpected error: " <> err

@@ -71,7 +71,7 @@ postEntryMtdtR (WId i) =
           runDelete conn $
             Delete
               { dTable = entriesMetadataTable,
-                dWhere = \mtdt -> sqlElem (mtdt ^. sqlKey) $ sqlArray sqlStrictText $ mtdts ^. mtdtRm,
+                dWhere = \mtdt -> sqlElem (mtdt ^. sqlKey) (sqlArray sqlStrictText $ mtdts ^. mtdtRm) .&& mtdt ^. sqlEntry .== sqlId i,
                 dReturning = rCount
               }
         void $

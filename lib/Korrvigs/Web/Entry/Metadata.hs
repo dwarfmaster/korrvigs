@@ -40,7 +40,7 @@ widget entry = do
               <button .mtdt-button .mtdt-rm-button data-mtdt-id=#{ident}>❌
       <tr>
         <td colspan=2>
-          <button .mtdt-button .mtdt-add-button>➕
+          <button .mtdt-button #mtdt-add-button>➕
   |]
   where
     prepareMtdtValue :: Value -> LT.Text

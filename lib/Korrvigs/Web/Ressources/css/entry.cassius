@@ -35,7 +35,7 @@
 .mtdt-confirm-button
   background-color: var(--base0B)
   width: 2em
-.mtdt-add-button
+#mtdt-add-button
   background-color: var(--base0B)
   width: 100%
 .mtdt-input

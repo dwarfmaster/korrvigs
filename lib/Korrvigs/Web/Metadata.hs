@@ -49,6 +49,8 @@ instance FromJSON MtdtPost where
   parseJSON invalid =
     prependFailure "parsing mtdt post value failed, " $ typeMismatch "Object" invalid
 
+-- TODO metadata changes should be reflected on the files, not just in the database,
+-- otherwise any change will be lost after the next sync
 postEntryMtdtR :: WebId -> Handler Value
 postEntryMtdtR (WId i) =
   load i >>= \case

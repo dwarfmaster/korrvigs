@@ -64,3 +64,7 @@ mathjax = do
   addScriptRemoteAttrs
     "https://cdn.jsdelivr.net/npm/mathjax@3.0.1/es5/tex-mml-chtml.js"
     [("id", "MathJax-Script"), ("integrity", "sha384-/1zmJ1mBdfKIOnwPxpdG6yaRrxP6qu3eVYm0cz2nOx+AcL4d3AqEFrwcqGZVVroG"), ("crossorigin", "anonymous")]
+
+mtdtCode :: WidgetFor site ()
+mtdtCode =
+  toWidget $ mkJs $(embedFile $ js "mtdt.js")

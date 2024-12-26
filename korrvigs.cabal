@@ -123,11 +123,13 @@ library korrvigs-lib
     Korrvigs.Web.Entry.Event
     Korrvigs.Web.Entry.File
     Korrvigs.Web.Entry.Link
+    Korrvigs.Web.Entry.Metadata
     Korrvigs.Web.Entry.Note
     Korrvigs.Web.Git
     Korrvigs.Web.Home
     Korrvigs.Web.Leaflet
     Korrvigs.Web.Login
+    Korrvigs.Web.Metadata
     Korrvigs.Web.Ressources
     Korrvigs.Web.Ressources.Helpers
     Korrvigs.Web.Routes

@@ -22,6 +22,7 @@ korrvigsRoutes =
 /entry SearchR GET
 /entry/#WebId EntryR GET POST
 /entry/#WebId/download EntryDownloadR GET
+/entry/#WebId/metadata EntryMtdtR GET POST
 
 -- Git visualisation and manipulation
 /git GitR GET POST

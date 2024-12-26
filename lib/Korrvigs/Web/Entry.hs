@@ -2,12 +2,8 @@ module Korrvigs.Web.Entry (getEntryR, postEntryR) where
 
 import Control.Lens hiding (children)
 import Control.Monad
-import qualified Data.Aeson.Encoding as VEnc
 import Data.List
-import qualified Data.Map as M
 import Data.Text (Text)
-import qualified Data.Text.Lazy as LT
-import qualified Data.Text.Lazy.Encoding as Enc
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Korrvigs.Entry
 import Korrvigs.Monad
@@ -17,6 +13,7 @@ import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
+import qualified Korrvigs.Web.Entry.Metadata as Mtdt
 import qualified Korrvigs.Web.Entry.Note as Note
 import Korrvigs.Web.Leaflet
 import Korrvigs.Web.Login
@@ -83,36 +80,6 @@ geometryWidget entry = case entry ^. geo of
           map.invalidateSize()
         })
       |]
-
-mtdtWidget :: Entry -> Handler Widget
-mtdtWidget entry = do
-  pure
-    [whamlet|
-  <details>
-    <summary>Metadata
-    <table>
-      <tr>
-        <th>Key
-        <th>Value
-        <th>Read Only
-      $forall (key,val) <- M.toList (entry ^. metadata)
-        <tr>
-          <th>#{key}
-          <th>
-            #{prepareMtdtValue $ val ^. metaValue}
-          <th>
-            $if val ^. metaReadOnly
-              True
-            $else
-              False
-  |]
-  where
-    prepareMtdtValue :: Value -> LT.Text
-    prepareMtdtValue val =
-      let txt = Enc.decodeUtf8 $ VEnc.encodingToLazyByteString $ VEnc.value val
-       in if LT.length txt < 50
-            then txt
-            else LT.take 47 txt <> "..."
 
 refsWidget :: Entry -> Handler Widget
 refsWidget entry = do
@@ -197,7 +164,7 @@ entryWidget entry = do
   title <- titleWidget entry
   dt <- dateWidget entry
   geom <- geometryWidget entry
-  mtdt <- mtdtWidget entry
+  mtdt <- Mtdt.widget entry
   refs <- refsWidget entry
   content <- contentWidget entry
   pure $ do

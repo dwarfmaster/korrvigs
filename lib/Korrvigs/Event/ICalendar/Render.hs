@@ -283,6 +283,9 @@ bldTransp :: Bool -> RenderM ()
 bldTransp True = bldText "TRANSPARENT"
 bldTransp False = bldText "OPAQUE"
 
+bldCategories :: [Text] -> RenderM ()
+bldCategories cats = bldSepBy (bldChar ',') $ bldTextValue <$> cats
+
 bldEvent :: ICalEvent -> RenderM ()
 bldEvent ev = do
   bldLineDef "BEGIN" $ ic "VEVENT"
@@ -295,6 +298,8 @@ bldEvent ev = do
   forM_ (ev ^. iceDescription) $ bldLine bldTextValue "DESCRIPTION" . ic
   forM_ (ev ^. iceGeo) $ bldLine bldGeo "GEO" . ic
   forM_ (ev ^. iceLocation) $ bldLine bldTextValue "LOCATION" . ic
+  let cats = ev ^. iceCategories
+  unless (null cats) $ bldLine bldCategories "CATEGORIES" $ ic cats
   bldLine bldTransp "TRANSP" $ ic $ ev ^. iceTransparent
   bldAbstractGroup $ ev ^. iceContent
   bldLineDef "END" $ ic "VEVENT"

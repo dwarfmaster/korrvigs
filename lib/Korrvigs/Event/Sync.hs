@@ -4,8 +4,9 @@ import Conduit (throwM)
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson (Value (Array, Null, String))
+import Data.Aeson (Result (Error, Success), Value (Array, Null, String), fromJSON)
 import Data.Aeson.Decoding (decode)
+import Data.Aeson.Text (encodeToTextBuilder)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Default
 import Data.Map (Map)
@@ -16,6 +17,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Builder as Bld
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.Clock
 import Data.Time.LocalTime
@@ -135,7 +137,7 @@ syncOne i calendar ics ifile ical = do
       }
 
 eventMtdt :: ICalFile -> ICalEvent -> Metadata
-eventMtdt ical ievent = reifyMetadata extras $ mconcat [flip MValue False <$> basic, categories]
+eventMtdt ical ievent = reifyMetadataRO True extras $ mconcat [flip MValue False <$> basic, categories]
   where
     prepBasic :: (Text, [ICalValue Text]) -> Maybe (Text, Value)
     prepBasic (nm, vs) = case T.stripPrefix "X-KORRMTDT-" nm of
@@ -149,7 +151,7 @@ eventMtdt ical ievent = reifyMetadata extras $ mconcat [flip MValue False <$> ba
               Just xs -> Just (nnm, Array $ V.fromList xs)
     basic :: Map Text Value
     basic = ievent ^. iceContent . icValues . to M.toList . to (map prepBasic) . to catMaybes . to M.fromList
-    categories = M.singleton "categories" $ flip MValue True $ Array $ V.fromList $ String <$> ievent ^. iceCategories
+    categories = M.singleton "categories" $ flip MValue False $ Array $ V.fromList $ String <$> ievent ^. iceCategories
     extras :: MtdtExtras
     extras =
       def
@@ -186,7 +188,7 @@ syncEvent i calendar ics ifile ical = do
   let tm = extras ^. mtdtDate
   let dur = extras ^. mtdtDuration
   let erow = EntryRow i Event tm dur geom Nothing :: EntryRow
-  let mrows = (\(key, val) -> MetadataRow i key val False) <$> M.toList mtdt :: [MetadataRow]
+  let mrows = (\(key, MValue val ro) -> MetadataRow i key val ro) <$> M.toList mtdt' :: [MetadataRow]
   let evrow = EventRow i calendar (T.unpack ics) (ical ^. iceUid) :: EventRow
   let txt = extras ^. mtdtText
   atomicSQL $ \conn -> do
@@ -256,3 +258,28 @@ dSyncImpl = do
   evs <- catMaybes <$> forM files listOne
   rdata <- forM evs $ \(i, calendar, ics, ifile, ievent) -> (i,) <$> syncOneEvent i calendar ics ifile ievent
   pure $ M.fromList rdata
+
+dUpdateMetadataImpl :: (MonadKorrvigs m) => Event -> Map Text Value -> [Text] -> m ()
+dUpdateMetadataImpl event upd rm = do
+  let cal = event ^. eventCalendar
+  let ics = event ^. eventFile
+  rt <- eventsDirectory
+  let path = joinPath [rt, T.unpack cal, T.unpack ics]
+  ical <-
+    liftIO (parseICalFile path)
+      >>= throwEither (\err -> KMiscError $ "Failed to read \"" <> T.pack path <> "\" : " <> err)
+  let ncal = ical & icEvent . _Just %~ doMtdt
+  liftIO $ BSL.writeFile path $ renderICalFile ncal
+  where
+    rmMtdt :: Text -> ICalEvent -> ICalEvent
+    rmMtdt "categories" ievent = ievent & iceCategories .~ []
+    rmMtdt key ievent = ievent & iceContent . icValues %~ M.delete ("X-KORRMTDT-" <> key)
+    updMtdt :: Text -> Value -> ICalEvent -> ICalEvent
+    updMtdt "categories" val ievent = case fromJSON val of
+      Success cats -> ievent & iceCategories .~ cats
+      Error _ -> ievent
+    updMtdt key val ievent =
+      let ival = ICValue M.empty (LT.toStrict $ Bld.toLazyText $ encodeToTextBuilder val)
+       in ievent & iceContent . icValues . at ("X-KORRMTDT-" <> key) ?~ [ival]
+    doMtdt :: ICalEvent -> ICalEvent
+    doMtdt = foldr (.) id $ (uncurry updMtdt <$> M.toList upd) ++ (rmMtdt <$> rm)

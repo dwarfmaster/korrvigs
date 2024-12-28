@@ -60,6 +60,7 @@ instance IsKD Note where
   dSync _ = dSyncImpl
   dSyncOne (NoteIdentifier path) = dSyncOneImpl path
   dRemove (NoteIdentifier path) = dRemoveImpl path
+  dUpdateMetadata = dUpdateMetadataImpl
   dKind = const Note
   dEntry = view noteEntry
   dIdentify = NoteIdentifier . view notePath

@@ -22,6 +22,7 @@ instance IsKD File where
   dSync _ = dSyncImpl
   dSyncOne (FileIdentifier path) = dSyncOneImpl path
   dRemove (FileIdentifier path) = dRemoveImpl path
+  dUpdateMetadata = dUpdateMetadataImpl
   dKind = const File
   dEntry = view fileEntry
   dIdentify = FileIdentifier . view filePath

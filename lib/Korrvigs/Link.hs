@@ -32,6 +32,7 @@ instance IsKD Link where
   dSync = dSyncImpl
   dSyncOne (LinkIdentifier path) = dSyncOneImpl path
   dRemove (LinkIdentifier path) = dRemoveImpl path
+  dUpdateMetadata = dUpdateMetadataImpl
   dKind = const Link
   dEntry = view linkEntry
   dIdentify = LinkIdentifier . view linkPath

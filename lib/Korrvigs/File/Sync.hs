@@ -6,7 +6,7 @@ import Control.Monad (void, when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson hiding (json)
 import Data.Aeson.Types
-import Data.ByteString.Lazy (readFile)
+import Data.ByteString.Lazy (readFile, writeFile)
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -29,7 +29,7 @@ import Korrvigs.Utils.DateTree
 import Opaleye hiding (not)
 import System.Directory
 import System.FilePath
-import Prelude hiding (readFile)
+import Prelude hiding (readFile, writeFile)
 
 data FileMetadata = FileMetadata
   { _savedMime :: Text,
@@ -204,3 +204,11 @@ dSyncOneImpl path = do
       { _relSubOf = fromMaybe [] $ extras ^. mtdtParents,
         _relRefTo = []
       }
+
+dUpdateMetadataImpl :: (MonadKorrvigs m) => File -> Map Text Value -> [Text] -> m ()
+dUpdateMetadataImpl file upd rm = do
+  let i = file ^. fileEntry . name
+  let meta = file ^. fileMeta
+  json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
+  let njson = json & annoted %~ M.union upd . flip (foldr M.delete) rm
+  liftIO $ writeFile meta $ encode njson

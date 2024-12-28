@@ -1,8 +1,10 @@
 module Korrvigs.KindData where
 
 import Control.Lens
+import Data.Aeson (Value)
 import Data.Map (Map)
 import Data.Set (Set)
+import Data.Text (Text)
 import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -32,6 +34,11 @@ class IsKD a where
 
   -- Remove from the filesystem only, must be called in addtion to dRemoveDB
   dRemove :: (MonadKorrvigs m) => KDIdentifier a -> m ()
+
+  -- Update metadata in the filesystem only
+  -- The first argument are metadata keys to be updated/inserted, and the second one metadata keys
+  -- to be removed. It is assumed the removal happen first.
+  dUpdateMetadata :: (MonadKorrvigs m) => a -> Map Text Value -> [Text] -> m ()
 
   -- Query basic information
   dKind :: a -> Kind

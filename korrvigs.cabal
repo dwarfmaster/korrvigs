@@ -29,6 +29,7 @@ library korrvigs-lib
     Korrvigs
     Korrvigs.Actions
     Korrvigs.Actions.Load
+    Korrvigs.Actions.Metadata
     Korrvigs.Actions.Remove
     Korrvigs.Actions.Sync
     Korrvigs.AllEntries

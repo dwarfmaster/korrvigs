@@ -5,7 +5,7 @@ import Control.Lens
 import Control.Monad (void, when)
 import Control.Monad.IO.Class
 import Data.Aeson (Value, eitherDecode, encode)
-import Data.ByteString.Lazy (readFile)
+import Data.ByteString.Lazy (readFile, writeFile)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Set (Set)
@@ -26,7 +26,7 @@ import Korrvigs.Utils.DateTree (listFiles, storeFile)
 import Opaleye
 import System.Directory (doesFileExist, removeFile)
 import System.FilePath (takeBaseName)
-import Prelude hiding (readFile)
+import Prelude hiding (readFile, writeFile)
 
 linkIdFromPath :: FilePath -> Id
 linkIdFromPath = MkId . T.pack . takeBaseName
@@ -185,3 +185,11 @@ newLink mk = do
   (erow, lrow) <- syncLinkJSON i path json
   -- Create haskell objects
   pure $ entryFromRow LinkD erow metaValues $ linkFromRow lrow
+
+dUpdateMetadataImpl :: (MonadKorrvigs m) => Link -> Map Text Value -> [Text] -> m ()
+dUpdateMetadataImpl link upd rm = do
+  let path = link ^. linkPath
+  let i = link ^. linkEntry . name
+  json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
+  let njson = json & lkjsMetadata %~ M.union upd . flip (foldr M.delete) rm
+  liftIO $ writeFile path $ encode njson

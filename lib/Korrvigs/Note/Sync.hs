@@ -4,12 +4,15 @@ import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad (void, when)
 import Control.Monad.IO.Class
+import Data.Aeson (Value)
+import Data.ByteString.Lazy (writeFile)
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
+import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Int (Int64)
 import Korrvigs.Entry
@@ -21,11 +24,13 @@ import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers
 import Korrvigs.Note.Pandoc
+import Korrvigs.Note.Render (writeNoteLazy)
 import Korrvigs.Note.SQL
 import Korrvigs.Utils.DateTree
 import Opaleye
 import System.Directory (doesFileExist, removeFile)
 import System.FilePath (joinPath, takeBaseName)
+import Prelude hiding (writeFile)
 
 dGetIdImpl :: FilePath -> Id
 dGetIdImpl = MkId . T.pack . takeBaseName
@@ -141,3 +146,11 @@ syncDocument i path doc = do
             uReturning = rCount
           }
   pure ()
+
+dUpdateMetadataImpl :: (MonadKorrvigs m) => Note -> Map Text Value -> [Text] -> m ()
+dUpdateMetadataImpl note upd rm = do
+  let path = note ^. notePath
+  let i = note ^. noteEntry . name
+  doc <- readNote path >>= throwEither (KCantLoad i)
+  let ndoc = doc & docMtdt %~ M.union upd . flip (foldr M.delete) rm
+  liftIO $ writeFile path $ writeNoteLazy ndoc

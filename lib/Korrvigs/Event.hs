@@ -23,6 +23,7 @@ instance IsKD Event where
   dSync _ = dSyncImpl
   dSyncOne (EventIdentifier _ cal ics) = dSyncOneImpl cal ics
   dRemove (EventIdentifier _ cal ics) = dRemoveImpl cal ics
+  dUpdateMetadata = dUpdateMetadataImpl
   dKind = const Event
   dEntry = view eventEntry
   dIdentify ev = EventIdentifier (ev ^. eventEntry . name) (ev ^. eventCalendar) (ev ^. eventFile)

@@ -1,4 +1,16 @@
-module Korrvigs.Metadata (MtdtExtras, mtdtGeometry, mtdtDate, mtdtDuration, mtdtParents, mtdtExtras, mtdtText, mtdtTitle, reifyMetadata) where
+module Korrvigs.Metadata
+  ( MtdtExtras,
+    mtdtGeometry,
+    mtdtDate,
+    mtdtDuration,
+    mtdtParents,
+    mtdtExtras,
+    mtdtText,
+    mtdtTitle,
+    reifyMetadata,
+    reifyMetadataRO,
+  )
+where
 
 import Control.Lens
 import Data.Aeson
@@ -83,29 +95,40 @@ insertWithRO key val mtdt = M.insert key (MValue val ro) mtdt
   where
     ro = maybe True (view metaReadOnly) $ M.lookup key mtdt
 
-insertGeom :: Geometry -> Metadata -> Metadata
-insertGeom geom = insertWithRO "geometry" $ toJSON $ decodeUtf8 $ writeGeometry geom
+insertWithFixed :: Bool -> Text -> Value -> Metadata -> Metadata
+insertWithFixed ro key val = M.insert key (MValue val ro)
 
-insertDate :: ZonedTime -> Metadata -> Metadata
-insertDate dt = insertWithRO "date" $ toJSON $ formatShow iso8601Format dt
+type Inserter = Text -> Value -> Metadata -> Metadata
 
-insertDuration :: CalendarDiffTime -> Metadata -> Metadata
-insertDuration dur = insertWithRO "duration" $ toJSON $ formatShow durationTimeFormat dur
+insertGeom :: Inserter -> Geometry -> Metadata -> Metadata
+insertGeom ins geom = ins "geometry" $ toJSON $ decodeUtf8 $ writeGeometry geom
 
-insertParents :: [Id] -> Metadata -> Metadata
-insertParents pars = insertWithRO "parents" $ toJSON $ unId <$> pars
+insertDate :: Inserter -> ZonedTime -> Metadata -> Metadata
+insertDate ins dt = ins "date" $ toJSON $ formatShow iso8601Format dt
 
-insertText :: Text -> Metadata -> Metadata
-insertText txt = insertWithRO "textContent" $ toJSON txt
+insertDuration :: Inserter -> CalendarDiffTime -> Metadata -> Metadata
+insertDuration ins dur = ins "duration" $ toJSON $ formatShow durationTimeFormat dur
 
-insertTitle :: Text -> Metadata -> Metadata
-insertTitle title = insertWithRO "title" $ toJSON title
+insertParents :: Inserter -> [Id] -> Metadata -> Metadata
+insertParents ins pars = ins "parents" $ toJSON $ unId <$> pars
+
+insertText :: Inserter -> Text -> Metadata -> Metadata
+insertText ins txt = ins "textContent" $ toJSON txt
+
+insertTitle :: Inserter -> Text -> Metadata -> Metadata
+insertTitle ins title = ins "title" $ toJSON title
+
+reifyMetadataImpl :: Inserter -> MtdtExtras -> Metadata -> Metadata
+reifyMetadataImpl ins ex =
+  maybe id (insertGeom ins) (ex ^. mtdtGeometry)
+    . maybe id (insertDate ins) (ex ^. mtdtDate)
+    . maybe id (insertDuration ins) (ex ^. mtdtDuration)
+    . maybe id (insertParents ins) (ex ^. mtdtParents)
+    . maybe id (insertText ins) (ex ^. mtdtText)
+    . maybe id (insertTitle ins) (ex ^. mtdtTitle)
 
 reifyMetadata :: MtdtExtras -> Metadata -> Metadata
-reifyMetadata ex =
-  maybe id insertGeom (ex ^. mtdtGeometry)
-    . maybe id insertDate (ex ^. mtdtDate)
-    . maybe id insertDuration (ex ^. mtdtDuration)
-    . maybe id insertParents (ex ^. mtdtParents)
-    . maybe id insertText (ex ^. mtdtText)
-    . maybe id insertTitle (ex ^. mtdtTitle)
+reifyMetadata = reifyMetadataImpl insertWithRO
+
+reifyMetadataRO :: Bool -> MtdtExtras -> Metadata -> Metadata
+reifyMetadataRO = reifyMetadataImpl . insertWithFixed

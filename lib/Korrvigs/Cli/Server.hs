@@ -8,12 +8,18 @@ import Korrvigs.Utils.Base16
 import Korrvigs.Web ()
 import Korrvigs.Web.Backend
 import Options.Applicative
+import System.Environment
 import Yesod
 import Yesod.Static
 
 data Cmd = Cmd {_port :: Maybe Int, _staticPath :: Maybe FilePath}
 
 makeLenses ''Cmd
+
+firstJust :: a -> [Maybe a] -> a
+firstJust df [] = df
+firstJust _ (Just x : _) = x
+firstJust df (Nothing : xs) = firstJust df xs
 
 parser' :: Parser Cmd
 parser' =
@@ -37,7 +43,8 @@ run cmd = do
   pwd <- view $ korrWeb . webPassword
   salt <- view $ korrWeb . webSalt
   theme <- view $ korrWeb . webTheme
-  let staticP = fromMaybe "./static" $ cmd ^. staticPath
+  staticEnv <- liftIO $ lookupEnv "KORRVIGS_WEB_STATIC"
+  let staticP = firstJust "./static" [cmd ^. staticPath, staticEnv]
   stc <- liftIO $ staticDevel staticP
   liftIO $
     warp prt $

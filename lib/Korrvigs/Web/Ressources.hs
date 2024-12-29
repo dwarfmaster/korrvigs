@@ -28,16 +28,16 @@ entryStyle = do
 
 leaflet :: (Route Static -> Route site) -> WidgetFor site ()
 leaflet mkStatic = do
-  addScript $ mkStatic $ StaticRoute ["js", "leaflet.js"] []
-  addStylesheet $ mkStatic $ StaticRoute ["css", "leaflet.css"] []
+  addScript $ mkStatic $ StaticRoute ["leaflet", "leaflet.js"] []
+  addStylesheet $ mkStatic $ StaticRoute ["leaflet", "leaflet.css"] []
 
 visNetwork :: (Route Static -> Route site) -> WidgetFor site ()
 visNetwork mkStatic =
-  addScript $ mkStatic $ StaticRoute ["js", "vis-network.min.js"] []
+  addScript $ mkStatic $ StaticRoute ["vis", "vis-network.min.js"] []
 
 visTimeline :: (Route Static -> Route site) -> WidgetFor site ()
 visTimeline mkStatic =
-  addScript $ mkStatic $ StaticRoute ["js", "vis-timeline-graph2d.min.js"] []
+  addScript $ mkStatic $ StaticRoute ["vis", "vis-timeline-graph2d.min.js"] []
 
 mathjax :: (Route Static -> Route site) -> WidgetFor site ()
 mathjax mkStatic = do
@@ -54,7 +54,7 @@ mathjax mkStatic = do
         \</script>" ::
           Text
       )
-  addScriptAttrs (mkStatic $ StaticRoute ["js", "mathjax.js"] []) [("id", "Mathjax-Script")]
+  addScriptAttrs (mkStatic $ StaticRoute ["mathjax", "tex-mml-chtml.js"] []) [("id", "Mathjax-Script"), ("async", "")]
 
 mtdtCode :: WidgetFor site ()
 mtdtCode =

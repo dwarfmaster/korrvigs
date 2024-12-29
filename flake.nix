@@ -26,6 +26,8 @@
       pkgs.git
     ];
 
+    static = pkgs.callPackage ./static.nix {};
+
     shell = devenv.lib.mkShell {
       inherit inputs pkgs;
       modules = [
@@ -71,6 +73,8 @@
               pkgs.nodejs_20
             ]
             ++ deps;
+
+          env.KORRVIGS_WEB_STATIC = "${static}";
         }
       ];
     };
@@ -132,6 +136,7 @@
 
     packages.${system} = {
       korrvigs-unwrapped = korrvigs;
+      korrvigs-static = static;
       korrvigs = korrvigs-wrapped;
       nvim-korrvigs = korrvigs-plugin;
       default = self.packages.${system}.korrvigs;

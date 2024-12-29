@@ -92,7 +92,7 @@ embed lvl note = do
               & embedded .~ isEmbedded
       markdown <- runCompile st $ compileBlocks $ md ^. docContent
       pure $ do
-        Rcs.mathjax
+        Rcs.mathjax StaticR
         markdown
         unless isEmbedded $
           toWidget

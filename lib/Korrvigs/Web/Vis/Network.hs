@@ -146,7 +146,7 @@ network var nodes edges = do
   netId <- newIdent
   let setup = rawJS $ "setup" <> var
   pure $ do
-    Rcs.visNetwork
+    Rcs.visNetwork StaticR
     [whamlet|<div ##{netId}>|]
     toWidget
       [cassius|

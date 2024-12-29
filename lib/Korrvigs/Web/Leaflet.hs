@@ -54,7 +54,7 @@ computeCenter geoms = sum pts / V2 npts npts
 leafletWidget :: Text -> [MapItem] -> Widget
 leafletWidget i items = do
   let mp = rawJS i
-  Rcs.leaflet
+  Rcs.leaflet StaticR
   [whamlet|<div ##{i}>|]
   let (V2 centerY centerX) = computeCenter $ (^. mitGeo) <$> items
   toWidget

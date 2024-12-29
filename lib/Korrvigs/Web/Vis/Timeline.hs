@@ -64,7 +64,7 @@ timeline var items = do
   let groupsJS = rawJS $ encodeToTextBuilder groups
   let itemsJS = rawJS $ encodeToTextBuilder $ array $ mkItemJS <$> items
   pure $ do
-    Rcs.visTimeline
+    Rcs.visTimeline StaticR
     [whamlet|<div ##{timeId}>|]
     toWidget
       [cassius|

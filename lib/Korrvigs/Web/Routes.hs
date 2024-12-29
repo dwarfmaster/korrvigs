@@ -27,6 +27,9 @@ korrvigsRoutes =
 -- Git visualisation and manipulation
 /git GitR GET POST
 
+-- Data
+/static StaticR Static getStaticR
+
 -- Specific visualisations
 -- TODO Date
 -- TODO Place

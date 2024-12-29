@@ -9,7 +9,7 @@
 , product-profunctors, profunctors, random, shakespeare, split
 , temporary, text, text-builder, text-manipulate, time
 , transformers, unix, utf8-string, vector, xdg-basedir, xml-conduit
-, yaml, yesod, yesod-core
+, yaml, yesod, yesod-core, yesod-static
 }:
 mkDerivation {
   pname = "korrvigs";
@@ -27,7 +27,7 @@ mkDerivation {
     password postgresql-simple process product-profunctors profunctors
     random shakespeare split temporary text text-builder
     text-manipulate time transformers unix utf8-string vector
-    xdg-basedir xml-conduit yaml yesod yesod-core
+    xdg-basedir xml-conduit yaml yesod yesod-core yesod-static
   ];
   testHaskellDepends = [ base HUnit ];
   doHaddock = false;

@@ -199,6 +199,7 @@ library korrvigs-lib
     , yaml                  ^>=0.11.11.2
     , yesod                 ^>=1.6.2.0
     , yesod-core            ^>=1.6.2.0
+    , yesod-static          ^>=1.6.1.0
 
   default-extensions:
     FlexibleContexts

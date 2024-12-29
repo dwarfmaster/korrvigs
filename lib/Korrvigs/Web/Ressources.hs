@@ -7,6 +7,7 @@ import Korrvigs.Web.Ressources.Helpers
 import Text.Blaze.Html
 import Text.Cassius (cassiusFile)
 import Yesod
+import Yesod.Static
 
 defaultCss :: (Base16Index -> Text) -> WidgetFor site ()
 defaultCss base = toWidget $(cassiusFile $ css "default.cassius")
@@ -25,29 +26,21 @@ entryStyle = do
   toWidget $(cassiusFile $ css "entry.cassius")
   toWidget $(cassiusFile $ css "sidenote.cassius")
 
-leaflet :: WidgetFor site ()
-leaflet = do
-  addScriptRemoteAttrs
-    "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    [("integrity", "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="), ("crossorigin", "")]
-  addStylesheetRemoteAttrs
-    "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    [("integrity", "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="), ("crossorigin", "")]
+leaflet :: (Route Static -> Route site) -> WidgetFor site ()
+leaflet mkStatic = do
+  addScript $ mkStatic $ StaticRoute ["js", "leaflet.js"] []
+  addStylesheet $ mkStatic $ StaticRoute ["css", "leaflet.css"] []
 
-visNetwork :: WidgetFor site ()
-visNetwork = do
-  addScriptRemoteAttrs
-    "https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"
-    []
+visNetwork :: (Route Static -> Route site) -> WidgetFor site ()
+visNetwork mkStatic =
+  addScript $ mkStatic $ StaticRoute ["js", "vis-network.min.js"] []
 
-visTimeline :: WidgetFor site ()
-visTimeline = do
-  addScriptRemoteAttrs
-    "https://unpkg.com/vis-timeline/standalone/umd/vis-timeline-graph2d.min.js"
-    []
+visTimeline :: (Route Static -> Route site) -> WidgetFor site ()
+visTimeline mkStatic =
+  addScript $ mkStatic $ StaticRoute ["js", "vis-timeline-graph2d.min.js"] []
 
-mathjax :: WidgetFor site ()
-mathjax = do
+mathjax :: (Route Static -> Route site) -> WidgetFor site ()
+mathjax mkStatic = do
   toWidgetHead $
     preEscapedToHtml
       ( "\
@@ -61,9 +54,7 @@ mathjax = do
         \</script>" ::
           Text
       )
-  addScriptRemoteAttrs
-    "https://cdn.jsdelivr.net/npm/mathjax@3.0.1/es5/tex-mml-chtml.js"
-    [("id", "MathJax-Script"), ("integrity", "sha384-/1zmJ1mBdfKIOnwPxpdG6yaRrxP6qu3eVYm0cz2nOx+AcL4d3AqEFrwcqGZVVroG"), ("crossorigin", "anonymous")]
+  addScriptAttrs (mkStatic $ StaticRoute ["js", "mathjax.js"] []) [("id", "Mathjax-Script")]
 
 mtdtCode :: WidgetFor site ()
 mtdtCode =

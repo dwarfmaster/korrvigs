@@ -11,14 +11,19 @@ import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Web.ClientSession as CS
 import Yesod
+import Yesod.Static
 
 data WebData = WebData
   { web_connection :: Connection,
     web_root :: FilePath,
     web_theme :: Base16Index -> Text,
     web_pwd :: PasswordHash Scrypt,
-    web_salt :: Text
+    web_salt :: Text,
+    web_static :: Static
   }
+
+getStaticR :: WebData -> Static
+getStaticR = web_static
 
 mkYesodData "WebData" korrvigsRoutes
 

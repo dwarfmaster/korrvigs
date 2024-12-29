@@ -34,6 +34,7 @@
           languages.haskell.enable = true;
           languages.haskell.package = pkgs.haskellPackages.ghcWithPackages (hpkgs: [
             hpkgs.yesod
+            hpkgs.yesod-static
             (pkgs.haskell.lib.dontCheck hpkgs.opaleye)
             hpkgs.pandoc
             hpkgs.lens

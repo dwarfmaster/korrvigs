@@ -10,7 +10,6 @@ import Conduit
 import Control.Lens
 import qualified Data.ByteString.Lazy as BSL
 import Data.Conduit.Combinators (fold)
-import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
@@ -18,6 +17,7 @@ import Korrvigs.Actions.Load
 import Korrvigs.Entry
 import Korrvigs.Monad (KorrvigsError (KMiscError))
 import Korrvigs.Note
+import Korrvigs.Note.Pandoc
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import System.IO
@@ -38,7 +38,7 @@ postNoteR (WId i) =
     Just entry -> case entry ^. kindData of
       NoteD note -> do
         let path = note ^. notePath
-        runConduit $ rawRequestBody .| sinkFileCautious path
+        runConduit $ rawRequestBody .| sinkFileCautious path -- TODO parse and render
         redirect $ NoteR $ WId i
       _ -> notFound
 
@@ -49,7 +49,7 @@ getNoteSubR (WId i) (WLoc loc) =
     Just entry -> case entry ^. kindData of
       NoteD note ->
         readNote (note ^. notePath) >>= \case
-          Left err -> error $ T.unpack err
+          Left err -> throwM $ KMiscError err
           Right doc -> case loc of
             LocCode lc -> case doc ^? code lc of
               Nothing -> notFound
@@ -66,12 +66,19 @@ postNoteSubR (WId i) (WLoc loc) =
     Just entry -> case entry ^. kindData of
       NoteD note ->
         readNote (note ^. notePath) >>= \case
-          Left err -> error $ T.unpack err
+          Left err -> throwM $ KMiscError err
           Right doc -> do
             body <- runConduit $ rawRequestBody .| fold
+            let txt = Enc.decodeUtf8 body
             ndoc <- case loc of
-              LocCode lc -> pure $ setCode lc doc $ Enc.decodeUtf8 body
-              LocSub lc -> undefined
+              LocCode lc -> pure $ setCode lc doc txt
+              LocSub lc -> do
+                let lvl = length $ lc ^. subOffsets
+                hd <- readNoteFromText (parseHeader lvl) txt
+                case hd of
+                  Left err -> throwM $ KMiscError err
+                  Right Nothing -> throwM $ KMiscError "Partial markdown file is not a single header"
+                  Right (Just hdv) -> pure $ setSub lc doc hdv
             let path = note ^. notePath
             fd <- liftIO $ openFile path WriteMode
             writeNote fd ndoc >>= \case

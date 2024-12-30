@@ -1,4 +1,4 @@
-module Korrvigs.Note.Pandoc (readNote) where
+module Korrvigs.Note.Pandoc (readNote, readNoteFromText, parsePandoc, parseHeader) where
 
 import Control.Arrow ((&&&))
 import Control.Exception (SomeException, try)
@@ -134,11 +134,13 @@ readNote pth = liftIO $ do
   file <- try $ readFile pth :: IO (Either SomeException Text)
   case file of
     Left e -> pure . Left . T.pack $ "IO error: " <> show e
-    Right f -> do
-      doRead <- runIO $ readMarkdown readerOptions f
-      case doRead of
-        Left e -> pure . Left $ "Pandoc error: " <> renderError e
-        Right pandoc -> pure . Right $ parsePandoc pandoc
+    Right f -> readNoteFromText parsePandoc f
+
+readNoteFromText :: (MonadIO m) => (Pandoc -> a) -> Text -> m (Either Text a)
+readNoteFromText reader txt =
+  liftIO (runIO $ readMarkdown readerOptions txt) <&> \case
+    Left e -> Left $ "Pandoc error: " <> renderError e
+    Right pandoc -> Right $ reader pandoc
   where
     readerOptions :: ReaderOptions
     readerOptions =
@@ -152,6 +154,13 @@ parsePandoc (Pandoc mtdt bks) = run act (M.map parseMetaValue $ unMeta mtdt) bks
     act = do
       title <- concatMapM parseInline $ docTitle mtdt
       stack . bszTitle .= renderInlines title
+      whileJust_ getBlock parseTopBlock
+
+parseHeader :: Int -> Pandoc -> Maybe A.Header
+parseHeader lvl (Pandoc _ bks) = run act M.empty bks ^? A.docContent . ix 0 . A._Sub
+  where
+    act = do
+      stack . bszLevel .= lvl
       whileJust_ getBlock parseTopBlock
 
 parseTopBlock :: Block -> ParseM ()

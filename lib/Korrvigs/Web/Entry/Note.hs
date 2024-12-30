@@ -6,12 +6,15 @@ import Control.Monad.Loops (whileJust)
 import Control.Monad.State
 import Data.Array
 import Data.Default
+import Data.List
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Note
+import qualified Korrvigs.Web.Ace as Ace
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
@@ -144,13 +147,13 @@ compileBlock' (LineBlock lns) = do
       ^{line}
       <hr>
   |]
--- TODO syntax highlighting
-compileBlock' (CodeBlock attr code) =
+compileBlock' (CodeBlock attr code) = do
+  let language = fromMaybe "text" $ find Ace.isLanguage $ attr ^. attrClasses
+  ace <- lift $ Ace.preview code language
   pure
     [whamlet|
   <div .sourceCode *{compileAttr attr}>
-    <pre .sourceCode>
-      #{code}
+    ^{ace}
   |]
 compileBlock' (BlockQuote bks) = do
   bksW <- compileBlocks bks

@@ -118,6 +118,7 @@ library korrvigs-lib
     Korrvigs.Utils.Process
     Korrvigs.Utils.Time
     Korrvigs.Web
+    Korrvigs.Web.Ace
     Korrvigs.Web.Backend
     Korrvigs.Web.Download
     Korrvigs.Web.Entry

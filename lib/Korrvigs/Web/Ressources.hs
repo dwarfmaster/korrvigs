@@ -54,8 +54,12 @@ mathjax mkStatic = do
         \</script>" ::
           Text
       )
-  addScriptAttrs (mkStatic $ StaticRoute ["mathjax", "tex-mml-chtml.js"] []) [("id", "Mathjax-Script"), ("async", "")]
+  addScriptAttrs (mkStatic $ StaticRoute ["mathjax", "es5", "tex-mml-chtml.js"] []) [("id", "Mathjax-Script"), ("async", "")]
 
 mtdtCode :: WidgetFor site ()
 mtdtCode =
   toWidget $ mkJs $(embedFile $ js "mtdt.js")
+
+ace :: (Route Static -> Route site) -> WidgetFor site ()
+ace mkStatic =
+  addScript $ mkStatic $ StaticRoute ["ace", "ace.js"] []

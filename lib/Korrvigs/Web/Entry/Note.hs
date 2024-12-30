@@ -95,6 +95,7 @@ embed lvl note = do
               & embedded .~ isEmbedded
       markdown <- runCompile st $ compileBlocks $ md ^. docContent
       pure $ do
+        Ace.setup
         Rcs.mathjax StaticR
         markdown
         unless isEmbedded $

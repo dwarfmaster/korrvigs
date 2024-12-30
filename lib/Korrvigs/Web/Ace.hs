@@ -1,4 +1,4 @@
-module Korrvigs.Web.Ace (preview, isLanguage) where
+module Korrvigs.Web.Ace (setup, preview, isLanguage) where
 
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -60,13 +60,43 @@ languageMode language = fromMaybe "text" $ M.lookup language modeMap
 isLanguage :: Text -> Bool
 isLanguage = flip M.member modeMap
 
+setupAceJs :: JavascriptUrl url
+setupAceJs =
+  [julius|
+  function setupAceEditor(id, mode, readOnly) {
+    var editor = ace.edit(id)
+    editor.setTheme("ace/theme/github_dark")
+    editor.session.setMode("ace/mode/" + mode)
+    editor.setOptions({
+      maxLines: Infinity,
+    })
+    if(readOnly) {
+      editor.setOptions({
+        readOnly: true,
+        highlightActiveLine: false,
+        highlightGutterLine: false
+      })
+      editor.renderer.$cursorLayer.element.style.display = "none"
+      editor.session.setUseWorker(false)
+    } else {
+      editor.setKeyboardHandler("ace/keyboard/vim")
+    }
+    return editor
+  }
+|]
+
+-- Setup must be included once in every page using the ace editor
+setup :: Widget
+setup = do
+  Rcs.ace StaticR
+  toWidget setupAceJs
+
 -- Use Ace for read-only syntax highlighting
 preview :: Text -> Text -> Handler Widget
 preview code language = do
   ident <- newIdent
   jsEditor <- rawJS <$> newIdent
   pure $ do
-    Rcs.ace StaticR
     toWidget
       [cassius|
       ##{ident}
@@ -74,22 +104,7 @@ preview code language = do
     |]
     toWidget
       [julius|
-      function setup#{jsEditor}() {
-        var editor = ace.edit(#{ident})
-        editor.setTheme("ace/theme/github_dark")
-        editor.session.setMode("ace/mode/" + #{languageMode language})
-        // editor.setKeyboardHandler("ace/keyboard/vim")
-        editor.setOptions({
-          maxLines: Infinity,
-          readOnly: true,
-          highlightActiveLine: false,
-          highlightGutterLine: false
-        })
-        editor.renderer.$cursorLayer.element.style.display = "none"
-        editor.session.setUseWorker(false)
-        return editor
-      }
-      var #{jsEditor} = setup#{jsEditor}()
+      var #{jsEditor} = setupAceEditor(#{ident}, #{languageMode language}, true)
     |]
     [whamlet|
       <div ##{ident}>

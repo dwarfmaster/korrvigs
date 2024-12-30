@@ -13,7 +13,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Monad
-import Korrvigs.Note
+import Korrvigs.Note hiding (code)
 import qualified Korrvigs.Web.Ace as Ace
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Event as Event

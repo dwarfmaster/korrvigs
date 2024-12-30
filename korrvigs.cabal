@@ -95,6 +95,7 @@ library korrvigs-lib
     Korrvigs.Note
     Korrvigs.Note.AST
     Korrvigs.Note.Helpers
+    Korrvigs.Note.Loc
     Korrvigs.Note.New
     Korrvigs.Note.Pandoc
     Korrvigs.Note.Render

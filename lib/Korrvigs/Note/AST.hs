@@ -1,6 +1,6 @@
 module Korrvigs.Note.AST where
 
-import Control.Lens.TH (makeLenses)
+import Control.Lens.TH (makeLenses, makePrisms)
 import Data.Aeson (Value)
 import Data.Array
 import Data.Map (Map)
@@ -94,3 +94,5 @@ makeLenses ''Attr
 makeLenses ''Header
 makeLenses ''Cell
 makeLenses ''Table
+makePrisms ''Block
+makePrisms ''Inline

@@ -35,6 +35,7 @@ module Korrvigs.Note
     readNote,
     writeNote,
     displayNoteId,
+    module Korrvigs.Note.Loc,
   )
 where
 
@@ -46,6 +47,7 @@ import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.KindData
 import Korrvigs.Note.AST
+import Korrvigs.Note.Loc
 import Korrvigs.Note.Pandoc
 import Korrvigs.Note.Render
 import Korrvigs.Note.Sync

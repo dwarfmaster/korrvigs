@@ -35,6 +35,8 @@ hdIsEntry SearchR = True
 hdIsEntry (EntryR _) = True
 hdIsEntry (EntryDownloadR _) = True
 hdIsEntry (EntryMtdtR _) = True
+hdIsEntry (NoteR _) = True
+hdIsEntry (NoteSubR _ _) = True
 hdIsEntry _ = False
 
 headerContent :: [(Text, Route WebData, Route WebData -> Bool)]

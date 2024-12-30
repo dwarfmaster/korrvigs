@@ -34,6 +34,8 @@ module Korrvigs.Note
     tableFooter,
     readNote,
     writeNote,
+    writeNoteLazy,
+    writeHeaderLazy,
     displayNoteId,
     module Korrvigs.Note.Loc,
   )

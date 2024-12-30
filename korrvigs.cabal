@@ -133,6 +133,7 @@ library korrvigs-lib
     Korrvigs.Web.Leaflet
     Korrvigs.Web.Login
     Korrvigs.Web.Metadata
+    Korrvigs.Web.Note
     Korrvigs.Web.Ressources
     Korrvigs.Web.Ressources.Helpers
     Korrvigs.Web.Routes

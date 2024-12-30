@@ -9,6 +9,7 @@ import Korrvigs.Web.Git
 import Korrvigs.Web.Home
 import Korrvigs.Web.Login
 import Korrvigs.Web.Metadata
+import Korrvigs.Web.Note
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search
 import Yesod

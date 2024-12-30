@@ -13,6 +13,7 @@ module Korrvigs.Note.Loc
     setCode,
     renderSubLoc,
     renderCodeLoc,
+    renderLoc,
     parseLoc,
   )
 where
@@ -33,7 +34,7 @@ import Text.Parsec.Number
 newtype SubLoc = SubLoc
   { _subOffsets :: [Int] -- Offsets are in reversed order
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Read)
 
 makeLenses ''SubLoc
 
@@ -41,14 +42,14 @@ data CodeLoc = CodeLoc
   { _codeSub :: SubLoc,
     _codeOffset :: Int
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Read)
 
 makeLenses ''CodeLoc
 
 data AnyLoc
   = LocSub SubLoc
   | LocCode CodeLoc
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Read)
 
 subOff :: (Applicative f) => Int -> (Header -> f Header) -> [Block] -> f [Block]
 subOff = elementOf (each . _Sub)
@@ -95,6 +96,10 @@ buildCodeLoc loc =
 
 renderCodeLoc :: CodeLoc -> Text
 renderCodeLoc = doRender . buildCodeLoc
+
+renderLoc :: AnyLoc -> Text
+renderLoc (LocSub loc) = renderSubLoc loc
+renderLoc (LocCode loc) = renderCodeLoc loc
 
 -- Parse AST location
 subLocP :: (Stream s Identity Char) => Parsec s u SubLoc

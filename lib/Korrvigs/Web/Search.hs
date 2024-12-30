@@ -184,7 +184,7 @@ geoForm dist = do
           <input ##{checkId} type=checkbox name=checkgeo *{sattr "checked" $ isJust dist}>
           Geometry
         ^{leafletWidget "searchmap" [MapItem (GeoPoint defCenter) Nothing (Just "searchMarker")]}
-        <input ##{distId} type=number min=0 name=geodist value=#{defDist}>
+        <input ##{distId} type=number min=0 step=0.25 name=geodist value=#{defDist}>
         <input ##{latId} type=hidden name=geolat value=#{show $ defCenter ^. _2}>
         <input ##{lngId} type=hidden name=geolng value=#{show $ defCenter ^. _1}>
     |]

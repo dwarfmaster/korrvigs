@@ -52,6 +52,14 @@ form
     margin-top: 0.5em
     background-color: var(--base02)
     border-radius: 0.5em
+  .optional
+    font-style: italic
+    text-align: center
+    padding: 0.5em
+    margin: 0
+    margin-top: 0.5em
+    background-color: var(--base02)
+    border-radius: 0.5em
   select
     width: 100%
     background-color: var(--base07)

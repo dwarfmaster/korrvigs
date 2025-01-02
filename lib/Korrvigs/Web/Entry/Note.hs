@@ -31,13 +31,14 @@ data CompileState = CState
     _embedded :: Bool,
     _currentEntry :: Id,
     _subLoc :: SubLoc,
-    _subCount :: Int
+    _subCount :: Int,
+    _codeCount :: Int
   }
 
 makeLenses ''CompileState
 
 initCState :: Id -> CompileState
-initCState i = CState 1 [] True 0 0 False i (SubLoc []) 0
+initCState i = CState 1 [] True 0 0 False i (SubLoc []) 0 0
 
 type CompileM = StateT CompileState Handler
 
@@ -153,9 +154,19 @@ compileBlock' (LineBlock lns) = do
 compileBlock' (CodeBlock attr code) = do
   let language = fromMaybe "text" $ find Ace.isLanguage $ attr ^. attrClasses
   ace <- lift $ Ace.preview code language
-  pure
-    [whamlet|
-  <div .sourceCode *{compileAttr attr}>
+  divId <- newIdent
+  buttonId <- newIdent
+  entry <- use currentEntry
+  subL <- use subLoc
+  codeO <- use codeCount
+  js <- lift $ Ace.editOnClick buttonId divId language $ NoteSubR (WId entry) $ WLoc $ LocCode $ CodeLoc subL codeO
+  codeCount %= (+ 1)
+  pure $
+    js
+      >> [whamlet|
+  <div ##{divId} .sourceCode *{compileAttr attr}>
+    <div ##{buttonId} .edit-code>
+      ✎
     ^{ace}
   |]
 compileBlock' (BlockQuote bks) = do
@@ -232,9 +243,12 @@ compileBlock' (Sub hd) = do
   subCount .= 0
   subLoc . subOffsets %= (subC :)
   subL <- use subLoc
+  oldCodeCount <- use codeCount
+  codeCount .= 0
   contentW <- withLevel lvl $ compileBlocks $ hd ^. hdContent
   subLoc . subOffsets %= tail
   subCount .= subC + 1
+  codeCount .= oldCodeCount
   -- Render header
   editIdent <- newIdent
   entry <- use currentEntry

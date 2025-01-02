@@ -5,7 +5,7 @@ import Control.Exception (SomeException, try)
 import Control.Lens hiding ((<|))
 import Control.Monad
 import Control.Monad.Extra (concatMapM)
-import Control.Monad.Loops (whileJust_, whileM_)
+import Control.Monad.Loops (iterateWhile, whileJust_, whileM_)
 import Control.Monad.ST
 import Control.Monad.State.Lazy
 import Data.Aeson hiding ((.=))
@@ -63,11 +63,8 @@ pushBlock blk = stack . bszLeft %= (blk :)
 pushHeader :: Int -> A.Attr -> ParseM ()
 pushHeader lvl attr = stack %= BSZ lvl attr "" S.empty [] . Just
 
-access :: Getting a ParseState a -> ParseM a
-access l = get <&> (^. l)
-
 headerLvl :: ParseM Int
-headerLvl = access $ stack . bszLevel
+headerLvl = use $ stack . bszLevel
 
 bszToHeader :: BlockStackZipper -> WithParent A.Header
 bszToHeader bsz doc parent =
@@ -95,15 +92,16 @@ data BuildingCell = BCell
 
 makeLenses ''BuildingCell
 
-popHeader :: ParseM ()
+popHeader :: ParseM Bool
 popHeader = do
-  bsz <- access stack
+  bsz <- use stack
   case bsz ^. bszParent of
     Just parent -> do
       stack .= parent
       stack . bszRefTo %= S.union (bsz ^. bszRefTo)
       pushBlock $ \doc hd -> A.Sub (bszToHeader bsz doc hd)
-    Nothing -> pure ()
+      pure True
+    Nothing -> pure False
 
 startHeader :: Int -> A.Attr -> ParseM ()
 startHeader lvl attr = do
@@ -126,7 +124,7 @@ run act mtdt bks =
    in doc
   where
     st =
-      execState (act >> whileM_ (headerLvl <&> (> 0)) popHeader) $
+      execState (act >> iterateWhile id popHeader) $
         ParseState bks (BSZ 0 emptyAttr "" S.empty [] Nothing)
 
 readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
@@ -160,7 +158,7 @@ parseHeader :: Int -> Pandoc -> Maybe A.Header
 parseHeader lvl (Pandoc _ bks) = run act M.empty bks ^? A.docContent . ix 0 . A._Sub
   where
     act = do
-      stack . bszLevel .= lvl
+      stack . bszLevel .= lvl - 1
       whileJust_ getBlock parseTopBlock
 
 parseTopBlock :: Block -> ParseM ()

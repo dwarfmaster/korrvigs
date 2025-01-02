@@ -27,21 +27,23 @@ makeLenses ''NewLink
 makeLenses ''NewFile
 
 newNoteForm :: Html -> MForm Handler (FormResult NewNote, Widget)
-newNoteForm = renderDivs $ NewNote <$> areq textField "Title" Nothing
+newNoteForm = identifyForm "newnote" $ renderDivs $ NewNote <$> areq textField "Title" Nothing
 
 newLinkForm :: Html -> MForm Handler (FormResult NewLink, Widget)
 newLinkForm =
-  renderDivs $
-    NewLink
-      <$> aopt textField "Title" Nothing
-      <*> areq textField "URL" Nothing
+  identifyForm "newlink" $
+    renderDivs $
+      NewLink
+        <$> aopt textField "Title" Nothing
+        <*> areq textField "URL" Nothing
 
 newFileForm :: Html -> MForm Handler (FormResult NewFile, Widget)
 newFileForm =
-  renderDivs $
-    NewFile
-      <$> aopt textField "Title" Nothing
-      <*> fileAFormReq ("" {fsLabel = "File"})
+  identifyForm "newfile" $
+    renderDivs $
+      NewFile
+        <$> aopt textField "Title" Nothing
+        <*> fileAFormReq ("" {fsLabel = "File"})
 
 renderForm :: Text -> (Html -> MForm Handler (FormResult a, Widget)) -> Handler Widget
 renderForm title form = do

@@ -7,6 +7,7 @@ import Data.Text (Text)
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Korrvigs.Entry
 import Korrvigs.Monad
+import Korrvigs.Note.Loc (SubLoc (SubLoc))
 import Korrvigs.Utils.Base16
 import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
@@ -31,13 +32,15 @@ import Yesod
 -- The backlinks,parents and subs
 -- The entry content
 
-titleWidget :: Entry -> Handler Widget
-titleWidget entry = do
+-- Takes the ID of the div containing the content
+titleWidget :: Entry -> Text -> Handler Widget
+titleWidget entry contentId = do
   title :: Maybe Text <- fmap join $ rSelectOne $ do
     mtdt <- selectTable entriesMetadataTable
     where_ $ (mtdt ^. sqlEntry) .== sqlId (entry ^. name)
     where_ $ mtdt ^. sqlKey .== sqlStrictText "title"
     pure $ sqlJsonToText $ toNullable $ mtdt ^. sqlValue
+  medit <- editWidget
   pure
     [whamlet|
     ^{htmlKind $ entry ^. kind}
@@ -49,7 +52,16 @@ titleWidget entry = do
         #{t}
       <span .entry-name>
         (#{unId $ entry ^. name})
+      $maybe edit <- medit
+        ^{edit}
   |]
+  where
+    editWidget :: Handler (Maybe Widget)
+    editWidget = case entry ^. kindData of
+      LinkD _ -> pure Nothing
+      FileD _ -> pure Nothing
+      EventD _ -> pure Nothing
+      NoteD _ -> Just <$> Note.editButton (entry ^. name) 0 contentId (SubLoc [])
 
 -- TODO make link to day viewer
 dateWidget :: Entry -> Handler Widget
@@ -161,7 +173,8 @@ contentWidget entry = case entry ^. kindData of
 
 entryWidget :: Entry -> Handler Widget
 entryWidget entry = do
-  title <- titleWidget entry
+  contentId <- newIdent
+  title <- titleWidget entry contentId
   dt <- dateWidget entry
   geom <- geometryWidget entry
   mtdt <- Mtdt.widget entry
@@ -174,7 +187,10 @@ entryWidget entry = do
     geom
     mtdt
     refs
-    content
+    [whamlet|
+      <div ##{contentId}>
+        ^{content}
+    |]
 
 getEntryR :: WebId -> Handler Html
 getEntryR (WId i) =

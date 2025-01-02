@@ -1,4 +1,4 @@
-module Korrvigs.Web.Entry.Note (content, embed) where
+module Korrvigs.Web.Entry.Note (content, embed, editButton) where
 
 import Control.Lens
 import Control.Monad
@@ -307,7 +307,7 @@ compileHead entry _ t edit subL = do
 editButton :: Id -> Int -> Text -> SubLoc -> Handler Widget
 editButton entry i edit subL = do
   buttonId <- newIdent
-  js <- Ace.editOnClick buttonId edit "pandoc" $ NoteSubR (WId entry) $ WLoc $ LocSub subL
+  js <- Ace.editOnClick buttonId edit "pandoc" link
   pure $
     js
       >> [whamlet|
@@ -317,6 +317,11 @@ editButton entry i edit subL = do
   where
     lvl :: Int
     lvl = i + 1
+    link :: Route WebData
+    link =
+      if null (subL ^. subOffsets)
+        then NoteR (WId entry)
+        else NoteSubR (WId entry) $ WLoc $ LocSub subL
 
 compileTable :: Int -> Int -> Array (Int, Int) Cell -> CompileM Widget
 compileTable header footer cells = do

@@ -6,13 +6,15 @@ import Korrvigs.Web.Backend
 import Yesod
 
 embed :: Int -> Link -> Handler Widget
-embed _ link =
+embed lvl link =
   pure
     [whamlet|
-    <a href=#{lnk}>#{link ^. linkRef}
+    <a href=#{ref}>#{ref}
+    $if lvl == 0
+      <iframe width=100% height=700 src=#{ref}>
   |]
   where
-    lnk = link ^. linkProtocol <> "://" <> link ^. linkRef
+    ref = link ^. linkRef
 
 content :: Link -> Handler Widget
 content = embed 0

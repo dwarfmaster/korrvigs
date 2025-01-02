@@ -59,7 +59,7 @@ textWidget file =
 pdfWidget :: File -> Widget
 pdfWidget file =
   let i = file ^. fileEntry . name
-   in [whamlet|<embed src=@{EntryDownloadR $ WId i} width=100% height=20em type="application/pdf">|]
+   in [whamlet|<embed src=@{EntryDownloadR $ WId i} width=100% height=700 type="application/pdf">|]
 
 embed :: Int -> File -> Handler Widget
 embed _ file

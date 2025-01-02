@@ -5,6 +5,7 @@ import Control.Lens
 import Data.Default
 import Data.Text (Text)
 import qualified Data.Text as T
+import Korrvigs.Entry.Ident
 import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
 import qualified Korrvigs.Note.New as NNote
@@ -14,7 +15,6 @@ import Korrvigs.Web.Routes
 import System.FilePath
 import System.IO.Temp
 import Yesod hiding (joinPath)
-import Prelude hiding (not)
 
 newtype NewNote = NewNote {_nnoteTitle :: Text}
 
@@ -59,8 +59,8 @@ renderForm title form = do
           #{title}
   |]
 
-getHomeR :: Handler Html
-getHomeR = do
+displayHome :: [Text] -> Handler Html
+displayHome errMsgs = do
   newNote <- renderForm "Create new note" newNoteForm
   newLink <- renderForm "Create new link" newLinkForm
   newFile <- renderForm "Create new file" newFileForm
@@ -68,55 +68,60 @@ getHomeR = do
     Rcs.formsStyle
     [whamlet|
     <h1>Welcome to Korrvigs
+    $if not (null errMsgs)
+      <ul>
+        $forall msg <- errMsgs
+          <li> #{msg}
     ^{newNote}
     ^{newLink}
     ^{newFile}
   |]
 
+getHomeR :: Handler Html
+getHomeR = displayHome []
+
 postHomeR :: Handler Html
-postHomeR = do
-  runNewNote
-  runNewLink
-  runNewFile
-  getHomeR
+postHomeR =
+  foldr
+    ($)
+    (displayHome [])
+    [ runForm newNoteForm runNewNote,
+      runForm newLinkForm runNewLink,
+      runForm newFileForm runNewFile
+    ]
 
-runNewNote :: Handler ()
-runNewNote = do
-  ((result, _), _) <- runFormPost newNoteForm
+runForm :: (Html -> MForm Handler (FormResult a, Widget)) -> (a -> Handler Id) -> Handler Html -> Handler Html
+runForm form handler defaultContent = do
+  ((result, _), _) <- runFormPost form
   case result of
-    FormSuccess nnote | nnote ^. nnoteTitle /= "" -> do
-      let settings = NNote.NewNote (nnote ^. nnoteTitle) Nothing
-      i <- NNote.new settings
+    FormSuccess x -> do
+      i <- handler x
       redirect $ EntryR $ WId i
-    _ -> pure ()
+    FormMissing -> defaultContent
+    FormFailure err -> displayHome err
 
-runNewLink :: Handler ()
-runNewLink = do
-  ((result, _), _) <- runFormPost newLinkForm
-  case result of
-    FormSuccess nlink | nlink ^. nlinkUrl /= "" -> do
-      let settings =
-            NLink.NewLink
-              { NLink._nlOffline = False,
-                NLink._nlDate = Nothing,
-                NLink._nlTitle = nlink ^. nlinkTitle,
-                NLink._nlParent = Nothing
-              }
-      i <- NLink.new (nlink ^. nlinkUrl) settings
-      redirect $ EntryR $ WId i
-    _ -> pure ()
+runNewNote :: NewNote -> Handler Id
+runNewNote nnote =
+  let settings = NNote.NewNote (nnote ^. nnoteTitle) Nothing
+   in NNote.new settings
 
-runNewFile :: Handler ()
-runNewFile = do
-  ((result, _), _) <- runFormPost newFileForm
-  case result of
-    FormSuccess nfile -> do
-      i <- withRunInIO $ \runIO ->
-        withSystemTempDirectory "korrUpload" $ \dir -> do
-          let filename = T.unpack $ fileName $ nfile ^. nfileContent
-          let path = joinPath [dir, filename]
-          fileMove (nfile ^. nfileContent) path
-          let settings = def & NFile.nfTitle .~ nfile ^. nfileTitle
-          runIO $ NFile.new path settings
-      redirect $ EntryR $ WId i
-    _ -> pure ()
+runNewLink :: NewLink -> Handler Id
+runNewLink nlink =
+  let settings =
+        NLink.NewLink
+          { NLink._nlOffline = False,
+            NLink._nlDate = Nothing,
+            NLink._nlTitle = nlink ^. nlinkTitle,
+            NLink._nlParent = Nothing
+          }
+   in NLink.new (nlink ^. nlinkUrl) settings
+
+runNewFile :: NewFile -> Handler Id
+runNewFile nfile =
+  withRunInIO $ \runIO ->
+    withSystemTempDirectory "korrUpload" $ \dir -> do
+      let filename = T.unpack $ fileName $ nfile ^. nfileContent
+      let path = joinPath [dir, filename]
+      fileMove (nfile ^. nfileContent) path
+      let settings = def & NFile.nfTitle .~ nfile ^. nfileTitle
+      runIO $ NFile.new path settings

@@ -24,7 +24,7 @@ korrvigsRoutes :: [ResourceTree String]
 korrvigsRoutes =
   [parseRoutes|
 -- Home and login
-/ HomeR GET
+/ HomeR GET POST
 /login LoginR GET POST
 
 -- Entry search and visualisation

@@ -1,39 +1,46 @@
-module Korrvigs.Web.Home where
+module Korrvigs.Web.Home (getHomeR, postHomeR) where
 
 import Control.Lens
 import Data.Text (Text)
-import Korrvigs.Entry
-import Korrvigs.Monad
-import Korrvigs.Utils.JSON
+import qualified Korrvigs.Note.New as NNote
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Login (logWrap)
+import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
-import Korrvigs.Web.Utils
-import Opaleye
 import Yesod
 import Prelude hiding (not)
 
+newtype NewNote = NewNote {_nnoteTitle :: Text}
+
+makeLenses ''NewNote
+
+newNoteForm :: Html -> MForm Handler (FormResult NewNote, Widget)
+newNoteForm = renderDivs $ NewNote <$> areq textField "Title" Nothing
+
 getHomeR :: Handler Html
 getHomeR = do
-  entries :: [(EntryRow, Maybe Text)] <-
-    rSelect $ limit 10 $ orderBy (descNullsLast (^. _1 . sqlEntryDate)) $ do
-      entry <- selectTable entriesTable
-      mtdt <- selectTable entriesMetadataTable
-      where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryName)
-      where_ $ mtdt ^. sqlKey .== sqlStrictText "title"
-      let titleText = sqlJsonToText $ toNullable $ mtdt ^. sqlValue
-      pure (entry, titleText)
+  (nnoteW, nnoteEnctype) <- generateFormPost newNoteForm
   logWrap $
-    defaultLayout
+    defaultLayout $ do
+      Rcs.formsStyle
       [whamlet|
       <h1>Welcome to Korrvigs
-      <ul>
-        $forall (entry,title) <- entries
-          <li>
-            ^{htmlKind $ entry ^. sqlEntryKind}
-            <a href=@{EntryR $ WId $ entry ^. sqlEntryName}>
-              $maybe t <- title
-                #{t}
-              $nothing
-                #{unId $ entry ^. sqlEntryName}
+      <details .search-group>
+        <summary>Create new note
+        <form method=post action=@{HomeR} enctype=#{nnoteEnctype}>
+          ^{nnoteW}
+          <button>New note
     |]
+
+postHomeR :: Handler Html
+postHomeR = runNewNote
+
+runNewNote :: Handler Html
+runNewNote = do
+  ((result, _), _) <- runFormPost newNoteForm
+  case result of
+    FormSuccess nnote | nnote ^. nnoteTitle /= "" -> do
+      let settings = NNote.NewNote (nnote ^. nnoteTitle) Nothing
+      i <- NNote.new settings
+      redirect $ EntryR $ WId i
+    _ -> getHomeR

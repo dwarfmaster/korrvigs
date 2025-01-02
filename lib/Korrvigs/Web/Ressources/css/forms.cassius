@@ -62,11 +62,6 @@ form
     outline-color: var(--base0F)
   select:focus
     outline-style: solid
-  .search-group
-    border-radius: 0.5em
-    border: 2px solid var(--base0E)
-    margin-bottom: 0.5em
-    padding: 0.25em
   table
     width: 100%
   tr
@@ -74,3 +69,8 @@ form
 
 .search-results
   margin-top: 1em
+.search-group
+  border-radius: 0.5em
+  border: 2px solid var(--base0E)
+  margin-bottom: 0.5em
+  padding: 0.25em

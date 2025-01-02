@@ -64,6 +64,36 @@ isLanguage = flip M.member modeMap
 setupAceJs :: JavascriptUrl url
 setupAceJs =
   [julius|
+  function aceSave(cm) {
+    const editor = cm.ace
+    const content = editor.getValue()
+    const url = editor.korrvigs.postUrl
+    console.log("fetching " + url)
+    return fetch(url, {
+      method: "POST",
+      body: content,
+      headers: {
+        "Content-Type": "text/plain; charset=UTF-8"
+      }
+    })
+  }
+  function aceQuit() {
+    location.reload()
+  }
+  function setupAceVimMode() {
+    ace.config.loadModule("ace/keyboard/vim", function(module) {
+      var VimApi = module.CodeMirror.Vim
+      VimApi.defineEx("write", "w", function(cm) {
+        aceSave(cm)
+      })
+      VimApi.defineEx("quit", "q", function(cm) {
+        aceQuit(cm)
+      })
+      VimApi.defineEx("wq", null, function(cm) {
+        aceSave(cm).then(function() { aceQuit(cm) })
+      })
+    })
+  }
   function setupAceEditor(id, mode, readOnly) {
     var editor = ace.edit(id)
     editor.setTheme("ace/theme/github_dark")
@@ -91,7 +121,12 @@ setupAceJs =
     }
     fetch(url).then((response) => response.text()).then((content) => {
       div.textContent = content
-      setupAceEditor(id, mode, false)
+      var editor = setupAceEditor(id, mode, false)
+      editor.korrvigs = {
+        postUrl: url
+      }
+      setupAceVimMode()
+      editor.focus()
     })
   }
 |]

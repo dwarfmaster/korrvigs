@@ -131,7 +131,6 @@ library korrvigs-lib
     Korrvigs.Web.Git
     Korrvigs.Web.Home
     Korrvigs.Web.Leaflet
-    Korrvigs.Web.Login
     Korrvigs.Web.Metadata
     Korrvigs.Web.Note
     Korrvigs.Web.Ressources

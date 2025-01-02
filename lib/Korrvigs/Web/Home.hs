@@ -9,7 +9,6 @@ import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
 import qualified Korrvigs.Note.New as NNote
 import Korrvigs.Web.Backend
-import Korrvigs.Web.Login (logWrap)
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import System.FilePath
@@ -63,15 +62,14 @@ getHomeR = do
   newNote <- renderForm "Create new note" newNoteForm
   newLink <- renderForm "Create new link" newLinkForm
   newFile <- renderForm "Create new file" newFileForm
-  logWrap $
-    defaultLayout $ do
-      Rcs.formsStyle
-      [whamlet|
-      <h1>Welcome to Korrvigs
-      ^{newNote}
-      ^{newLink}
-      ^{newFile}
-    |]
+  defaultLayout $ do
+    Rcs.formsStyle
+    [whamlet|
+    <h1>Welcome to Korrvigs
+    ^{newNote}
+    ^{newLink}
+    ^{newFile}
+  |]
 
 postHomeR :: Handler Html
 postHomeR = do

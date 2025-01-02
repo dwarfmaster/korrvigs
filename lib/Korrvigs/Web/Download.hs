@@ -5,7 +5,6 @@ import Korrvigs.Entry
 import Korrvigs.Event (eventPath)
 import Korrvigs.Monad
 import Korrvigs.Web.Backend
-import Korrvigs.Web.Login
 import Korrvigs.Web.Routes
 import Yesod
 
@@ -25,5 +24,5 @@ downloadEntry (EventD event) = do
 getEntryDownloadR :: WebId -> Handler TypedContent
 getEntryDownloadR (WId i) =
   load i >>= \case
-    Just entry -> logWrap $ downloadEntry $ entry ^. kindData
+    Just entry -> downloadEntry $ entry ^. kindData
     Nothing -> notFound

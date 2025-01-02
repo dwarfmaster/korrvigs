@@ -11,7 +11,6 @@ import Korrvigs.Utils.Base16
 import qualified Korrvigs.Utils.Git.Commit as Ci
 import qualified Korrvigs.Utils.Git.Status as St
 import Korrvigs.Web.Backend
-import Korrvigs.Web.Login (logWrap)
 import qualified Korrvigs.Web.Ressources as Rcs
 import System.FilePath
 import Text.Cassius
@@ -259,21 +258,20 @@ getGitR = do
   commitId <- newIdent
   msgId <- newIdent
   aggregateId <- newIdent
-  logWrap $
-    defaultLayout $ do
-      toWidget $ fileTreeCss base
-      toWidget fileTreeJs
-      toWidget $ commitJs aggregateId
-      Rcs.formsStyle
-      [whamlet|
-  <h1>Status
-  ^{renderFileTree Nothing ft}
-  <form onsubmit="aggregate_files()" action=@{GitR} method=POST>
-    <input type="text" name=commitmsg ##{msgId}>
-    <input type="hidden" name=commitfiles ##{aggregateId}>
-    <button type="submit" ##{commitId}>
-      Commit
-  |]
+  defaultLayout $ do
+    toWidget $ fileTreeCss base
+    toWidget fileTreeJs
+    toWidget $ commitJs aggregateId
+    Rcs.formsStyle
+    [whamlet|
+    <h1>Status
+    ^{renderFileTree Nothing ft}
+    <form onsubmit="aggregate_files()" action=@{GitR} method=POST>
+      <input type="text" name=commitmsg ##{msgId}>
+      <input type="hidden" name=commitfiles ##{aggregateId}>
+      <button type="submit" ##{commitId}>
+        Commit
+    |]
 
 data CommitData = CommitData
   { _ciMsg :: Text,

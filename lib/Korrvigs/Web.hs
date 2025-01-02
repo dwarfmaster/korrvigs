@@ -7,7 +7,6 @@ import Korrvigs.Web.Download
 import Korrvigs.Web.Entry
 import Korrvigs.Web.Git
 import Korrvigs.Web.Home
-import Korrvigs.Web.Login
 import Korrvigs.Web.Metadata
 import Korrvigs.Web.Note
 import Korrvigs.Web.Routes

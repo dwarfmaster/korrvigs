@@ -18,7 +18,6 @@ import Korrvigs.Utils.JSON (sqlJsonToText)
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Leaflet
-import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
@@ -535,4 +534,4 @@ getSearchR = do
     pure (entry, title)
   search <- searchForm q display
   results <- displayResults display r
-  logWrap $ defaultLayout $ search <> [whamlet|<div .search-results> ^{results}|]
+  defaultLayout $ search <> [whamlet|<div .search-results> ^{results}|]

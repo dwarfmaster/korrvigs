@@ -17,7 +17,6 @@ import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Entry.Metadata as Mtdt
 import qualified Korrvigs.Web.Entry.Note as Note
 import Korrvigs.Web.Leaflet
-import Korrvigs.Web.Login
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
@@ -195,8 +194,8 @@ entryWidget entry = do
 getEntryR :: WebId -> Handler Html
 getEntryR (WId i) =
   load i >>= \case
-    Just entry -> entryWidget entry >>= logWrap . defaultLayout
+    Just entry -> entryWidget entry >>= defaultLayout
     Nothing -> notFound
 
 postEntryR :: WebId -> Handler Html
-postEntryR (WId _) = logWrap undefined
+postEntryR (WId _) = undefined

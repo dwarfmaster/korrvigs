@@ -58,6 +58,7 @@ instance Yesod WebData where
   makeSessionBackend _ =
     strictSameSiteSessions $
       Just <$> defaultClientSessionBackend (24 * 60) CS.defaultKeyFile
+  maximumContentLength _ _ = Nothing
   defaultLayout w = do
     base <- getBase
     hd <- mkHeader

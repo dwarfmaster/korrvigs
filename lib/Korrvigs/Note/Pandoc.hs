@@ -12,6 +12,7 @@ import Data.Aeson hiding ((.=))
 import Data.Array.Base hiding (array)
 import qualified Data.Array.ST as SAr
 import Data.Bitraversable (bimapM)
+import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -175,7 +176,9 @@ parseBlock (Plain inls) = pure . A.Para <$> concatMapM parseInline inls
 parseBlock (Para inls) = pure . A.Para <$> concatMapM parseInline inls
 parseBlock (LineBlock lns) = pure . A.LineBlock <$> mapM (concatMapM parseInline) lns
 parseBlock (CodeBlock attr txt) = pure . pure $ A.CodeBlock (parseAttr attr) txt
-parseBlock (RawBlock (Format "Embed") i) = pure . pure . A.Embed . MkId $ i
+parseBlock (RawBlock (Format fmt) i)
+  | CI.mk fmt == "Embed" =
+      pure . pure . A.Embed . MkId $ i
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks
 parseBlock (OrderedList _ bks) =

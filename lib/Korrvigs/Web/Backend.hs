@@ -93,3 +93,6 @@ instance MonadKorrvigs Handler where
   removeDB = Actions.removeDB
   dispatchRemoveDB = Actions.dispatchRemoveDB
   sync = Actions.sync
+
+getFaviconR :: Handler TypedContent
+getFaviconR = redirect $ StaticR $ StaticRoute ["favicon.ico"] []

@@ -42,6 +42,7 @@ korrvigsRoutes =
 
 -- Data
 /static StaticR Static getStaticR
+/favicon.ico FaviconR GET
 
 -- Specific visualisations
 -- TODO Date

@@ -33,4 +33,5 @@ in
     cp ${vis-network} $out/vis/vis-network.min.js
     cp ${vis-timeline} $out/vis/vis-timeline-graph2d.min.js
     cp -r ${ace}/src-min $out/ace
+    cp ${./ressources/favicon.ico} $out/favicon.ico
   ''

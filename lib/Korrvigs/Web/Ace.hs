@@ -1,4 +1,4 @@
-module Korrvigs.Web.Ace (setup, preview, isLanguage) where
+module Korrvigs.Web.Ace (setup, preview, isLanguage, editOnClick) where
 
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -14,6 +14,7 @@ modeMap =
   M.fromList
     [ -- Markup
       ("markdown", "markdown"),
+      ("pandoc", "markdown"),
       ("html", "html"),
       ("css", "css"),
       ("dot", "dot"),
@@ -83,6 +84,16 @@ setupAceJs =
     }
     return editor
   }
+  function aceEdit(id, mode, url) {
+    var div = document.getElementById(id)
+    while(div.firstChild) {
+      div.removeChild(div.firstChild)
+    }
+    fetch(url).then((response) => response.text()).then((content) => {
+      div.textContent = content
+      setupAceEditor(id, mode, false)
+    })
+  }
 |]
 
 -- Setup must be included once in every page using the ace editor
@@ -110,3 +121,14 @@ preview code language = do
       <div ##{ident}>
         #{code}
     |]
+
+editOnClick :: Text -> Text -> Text -> Route WebData -> Handler Widget
+editOnClick buttonId divId language url = do
+  pure $
+    toWidget
+      [julius|
+    document.getElementById(#{buttonId}).addEventListener("click", (event) => {
+      aceEdit(#{divId}, #{languageMode language}, "@{url}")
+      event.currentTarget.remove()
+    })
+  |]

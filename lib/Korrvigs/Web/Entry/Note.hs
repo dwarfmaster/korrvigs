@@ -5,7 +5,6 @@ import Control.Monad
 import Control.Monad.Loops (whileJust)
 import Control.Monad.State
 import Data.Array
-import Data.Default
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe
@@ -29,13 +28,16 @@ data CompileState = CState
     _topLevel :: Bool,
     _hdRootLevel :: Int,
     _currentLevel :: Int,
-    _embedded :: Bool
+    _embedded :: Bool,
+    _currentEntry :: Id,
+    _subLoc :: SubLoc,
+    _subCount :: Int
   }
 
 makeLenses ''CompileState
 
-instance Default CompileState where
-  def = CState 1 [] True 0 0 False
+initCState :: Id -> CompileState
+initCState i = CState 1 [] True 0 0 False i (SubLoc []) 0
 
 type CompileM = StateT CompileState Handler
 
@@ -89,7 +91,7 @@ embed lvl note = do
     Right md -> do
       let isEmbedded = lvl > 0
       let st =
-            def
+            initCState (note ^. noteEntry . name)
               & hdRootLevel .~ lvl
               & currentLevel .~ lvl
               & embedded .~ isEmbedded
@@ -222,14 +224,26 @@ compileBlock' (Embed i) =
         @#{unId i}
   |]
 compileBlock' (Sub hd) = do
+  -- Compute level shift
   rtLvl <- use hdRootLevel
   let lvl = rtLvl + hd ^. hdLevel
+  -- Render header content
+  subC <- use subCount
+  subCount .= 0
+  subLoc . subOffsets %= (subC :)
+  subL <- use subLoc
   contentW <- withLevel lvl $ compileBlocks $ hd ^. hdContent
+  subLoc . subOffsets %= tail
+  subCount .= subC + 1
+  -- Render header
+  editIdent <- newIdent
+  entry <- use currentEntry
+  hdW <- lift $ compileHead entry lvl (hd ^. hdTitle) editIdent subL
   pure
     [whamlet|
     <section *{compileAttr $ hd ^. hdAttr} .collapsed class=#{"level" ++ show (lvl + 1)}>
-      ^{compileHead lvl (hd ^. hdTitle)}
-      <div .section-content>
+      ^{hdW}
+      <div .section-content ##{editIdent}>
         ^{contentW}
   |]
 compileBlock' (Table tbl) = do
@@ -253,14 +267,42 @@ compileAttr attr =
 symb :: Text -> Widget
 symb s = [whamlet|<span .section-symbol>#{s}|]
 
-compileHead :: Int -> Text -> Widget
-compileHead 0 t = [whamlet|<h1> ^{symb "●"} #{t}|]
-compileHead 1 t = [whamlet|<h2> ^{symb "◉"} #{t}|]
-compileHead 2 t = [whamlet|<h3> ^{symb "✿"} #{t}|]
-compileHead 3 t = [whamlet|<h4> ^{symb "✸"} #{t}|]
-compileHead 4 t = [whamlet|<h5> ^{symb "○"} #{t}|]
-compileHead 5 t = [whamlet|<h6> ^{symb "◆"} #{t}|]
-compileHead _ t = [whamlet|<h6> ^{symb "◇"} #{t}|]
+compileHead :: Id -> Int -> Text -> Text -> SubLoc -> Handler Widget
+compileHead entry 0 t edit subL = do
+  btm <- editButton entry 0 edit subL
+  pure [whamlet|<h1> ^{symb "●"} #{t} ^{btm}|]
+compileHead entry 1 t edit subL = do
+  btm <- editButton entry 1 edit subL
+  pure [whamlet|<h2> ^{symb "◉"} #{t} ^{btm}|]
+compileHead entry 2 t edit subL = do
+  btm <- editButton entry 2 edit subL
+  pure [whamlet|<h3> ^{symb "✿"} #{t} ^{btm}|]
+compileHead entry 3 t edit subL = do
+  btm <- editButton entry 3 edit subL
+  pure [whamlet|<h4> ^{symb "✸"} #{t} ^{btm}|]
+compileHead entry 4 t edit subL = do
+  btm <- editButton entry 4 edit subL
+  pure [whamlet|<h5> ^{symb "○"} #{t} ^{btm}|]
+compileHead entry 5 t edit subL = do
+  btm <- editButton entry 5 edit subL
+  pure [whamlet|<h6> ^{symb "◆"} #{t} ^{btm}|]
+compileHead entry _ t edit subL = do
+  btm <- editButton entry 5 edit subL
+  pure [whamlet|<h6> ^{symb "◇"} #{t} ^{btm}|]
+
+editButton :: Id -> Int -> Text -> SubLoc -> Handler Widget
+editButton entry i edit subL = do
+  buttonId <- newIdent
+  js <- Ace.editOnClick buttonId edit "pandoc" $ NoteSubR (WId entry) $ WLoc $ LocSub subL
+  pure $
+    js
+      >> [whamlet|
+    <span ##{buttonId} .edit-header .#{"edit-header-" <> show lvl}>
+      ✎
+  |]
+  where
+    lvl :: Int
+    lvl = i + 1
 
 compileTable :: Int -> Int -> Array (Int, Int) Cell -> CompileM Widget
 compileTable header footer cells = do

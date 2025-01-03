@@ -16,12 +16,14 @@ import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Entry.Metadata as Mtdt
 import qualified Korrvigs.Web.Entry.Note as Note
+import qualified Korrvigs.Web.Home as Home
 import Korrvigs.Web.Leaflet
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
 import qualified Korrvigs.Web.Vis.Network as Network
 import Opaleye hiding (groupBy, null)
+import Text.Julius (rawJS)
 import Yesod
 
 -- An entry page is constitued of the following parts
@@ -170,8 +172,18 @@ contentWidget entry = case entry ^. kindData of
   FileD file -> File.content file
   EventD event -> Event.content event
 
-entryWidget :: Entry -> Handler Widget
-entryWidget entry = do
+newFormWidget :: [Text] -> Entry -> Handler Widget
+newFormWidget errMsgs entry = do
+  nw <- Home.newForms (EntryR $ WId $ entry ^. name) "Attach" errMsgs
+  pure
+    [whamlet|
+    <details>
+      <summary>Attach entry
+      ^{nw}
+  |]
+
+entryWidget :: [Text] -> Entry -> Handler Widget
+entryWidget errMsgs entry = do
   contentId <- newIdent
   title <- titleWidget entry contentId
   dt <- dateWidget entry
@@ -179,10 +191,13 @@ entryWidget entry = do
   mtdt <- Mtdt.widget entry
   refs <- refsWidget entry
   content <- contentWidget entry
+  nw <- newFormWidget errMsgs entry
   pure $ do
     Rcs.entryStyle
+    Rcs.formsStyle
     title
     dt
+    nw
     geom
     mtdt
     refs
@@ -194,8 +209,30 @@ entryWidget entry = do
 getEntryR :: WebId -> Handler Html
 getEntryR (WId i) =
   load i >>= \case
-    Just entry -> entryWidget entry >>= defaultLayout
+    Just entry -> entryWidget [] entry >>= defaultLayout
     Nothing -> notFound
 
 postEntryR :: WebId -> Handler Html
-postEntryR (WId _) = undefined
+postEntryR (WId i) =
+  load i >>= \case
+    Nothing -> notFound
+    Just entry -> do
+      (err, w) <-
+        Home.runNewForms (Just i) >>= \case
+          Nothing -> pure ([], mempty)
+          Just (Left err) -> pure (err, mempty)
+          Just (Right ni) -> pure ([], copyToClipboard ni)
+      entryW <- entryWidget err entry
+      defaultLayout $ w >> entryW
+  where
+    -- TODO find how to copy to clipboard
+    copyToClipboard :: Id -> Widget
+    copyToClipboard (MkId ni) = do
+      ident <- rawJS <$> newIdent
+      toWidget
+        [julius|
+        function #{ident}() {
+          alert("Created " + #{ni})
+        }
+        #{ident}()
+      |]

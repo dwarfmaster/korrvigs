@@ -78,7 +78,7 @@ setupAceJs =
     })
   }
   function aceQuit() {
-    location.reload()
+    location.assign(location.href)
   }
   function setupAceVimMode() {
     ace.config.loadModule("ace/keyboard/vim", function(module) {

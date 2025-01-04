@@ -2,7 +2,7 @@ module Korrvigs.File.Sync where
 
 import Control.Arrow ((&&&))
 import Control.Lens hiding ((.=))
-import Control.Monad (void, when)
+import Control.Monad (forM_, void, when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson hiding (json)
 import Data.Aeson.Types
@@ -143,12 +143,7 @@ dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
 dSyncOneImpl path = do
   let i = dGetIdImpl path
   prev <- load i
-  case prev of
-    Nothing -> pure ()
-    Just prevEntry ->
-      case prevEntry ^. kindData of
-        FileD file | file ^. filePath == path -> dispatchRemoveDB prevEntry
-        _ -> dispatchRemove prevEntry
+  forM_ prev dispatchRemoveDB
   let meta = metaPath path
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   let mtdt = fileMetadataToMetadata json

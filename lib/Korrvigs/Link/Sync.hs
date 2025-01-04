@@ -2,7 +2,7 @@ module Korrvigs.Link.Sync where
 
 import Control.Arrow ((&&&))
 import Control.Lens
-import Control.Monad (void, when)
+import Control.Monad (forM_, void, when)
 import Control.Monad.IO.Class
 import Data.Aeson (Value, eitherDecode, encode)
 import Data.ByteString.Lazy (readFile, writeFile)
@@ -84,12 +84,7 @@ syncLink :: (MonadKorrvigs m) => FilePath -> m RelData
 syncLink path = do
   let i = linkIdFromPath path
   prev <- load i
-  case prev of
-    Nothing -> pure ()
-    Just prevEntry ->
-      case prevEntry ^. kindData of
-        LinkD lnk | lnk ^. linkPath == path -> dispatchRemoveDB prevEntry
-        _ -> dispatchRemove prevEntry
+  forM_ prev dispatchRemoveDB
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   void $ syncLinkJSON i path json
   pure $

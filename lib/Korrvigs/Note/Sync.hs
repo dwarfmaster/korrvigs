@@ -2,7 +2,7 @@ module Korrvigs.Note.Sync where
 
 import Control.Arrow ((&&&))
 import Control.Lens
-import Control.Monad (void, when)
+import Control.Monad (forM_, void, when)
 import Control.Monad.IO.Class
 import Data.Aeson (Value)
 import Data.ByteString.Lazy (writeFile)
@@ -86,12 +86,7 @@ dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
 dSyncOneImpl path = do
   let i = dGetIdImpl path
   prev <- load i
-  case prev of
-    Nothing -> pure ()
-    Just prevEntry ->
-      case prevEntry ^. kindData of
-        NoteD note | note ^. notePath == path -> dispatchRemoveDB prevEntry
-        _ -> dispatchRemove prevEntry
+  forM_ prev dispatchRemoveDB
   doc <- readNote path >>= throwEither (KCantLoad i)
   syncDocument i path doc
   let extras = mtdtExtras $ doc ^. docMtdt

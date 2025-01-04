@@ -148,11 +148,14 @@
         inherit
           (self.packages.${prev.system})
           korrvigs-unwrapped
+          korrvigs-static
           korrvigs
           nvim-korrvigs
           ;
       };
       default = self.overlays.korrvigs;
     };
+
+    nixosModules.korrvigs = import ./nixos.nix self.overlays.korrvigs;
   };
 }

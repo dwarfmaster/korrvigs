@@ -1,0 +1,191 @@
+overlay: {
+  config,
+  pkgs,
+  lib,
+  ...
+}: let
+  inherit (lib) types mkEnableOption mkOption mkMerge mkIf;
+  colorOption = d:
+    mkOption {
+      type = types.str;
+      description = "An hexadecimal rgb color with the hash";
+      default = d;
+    };
+
+  cfg = config.programs.korrvigs;
+  server = cfg.server;
+  psql = cfg.postgresql;
+  nginx = server.nginx;
+
+  configContent = {
+    inherit
+      (cfg.theme)
+      base00
+      base01
+      base02
+      base03
+      base04
+      base05
+      base06
+      base07
+      base08
+      base09
+      base0A
+      base0B
+      base0C
+      base0D
+      base0E
+      base0F
+      ;
+    inherit (cfg) connectionSpec root;
+    inherit (server) port;
+  };
+in {
+  options.program.korrvigs = {
+    enable = mkEnableOption "korrvigs app";
+    package = mkOption {
+      type = types.package;
+      description = "The korrvigs package";
+      default = pkgs.korrvigs;
+    };
+    user = mkOption {
+      type = types.str;
+      description = "Name of the user to enable it for";
+    };
+    root = mkOption {
+      type = types.str;
+      description = "Path to the git-annexed root of korrvigs files";
+    };
+    connectionSpec = mkOption {
+      type = types.str;
+      description = "Connection string to the postgreSQL database";
+    };
+    theme = {
+      base00 = colorOption "#231e18";
+      base01 = colorOption "#302b25";
+      base02 = colorOption "#48413a";
+      base03 = colorOption "#9d8b70";
+      base04 = colorOption "#b4a490";
+      base05 = colorOption "#cabcb1";
+      base06 = colorOption "#d7c8bc";
+      base07 = colorOption "#e4d4c8";
+      base08 = colorOption "#d35c5c";
+      base09 = colorOption "#ca7f32";
+      base0A = colorOption "#e0ac16";
+      base0B = colorOption "#b7ba53";
+      base0C = colorOption "#6eb958";
+      base0D = colorOption "#88a4d3";
+      base0E = colorOption "#bb90e2";
+      base0F = colorOption "#b49368";
+    };
+    postgresql = {
+      enable = mkEnableOption "korrvigs postgreSQL database";
+      database = mkOption {
+        type = types.str;
+        description = "Name of the database to use";
+        default = "korrvigs";
+      };
+    };
+
+    server = {
+      enable = mkEnableOption "Korrvigs server";
+      port = mkOption {
+        type = types.port;
+        description = "Port to server korrvigs on";
+        default = 3000;
+      };
+      nginx = {
+        enable = mkEnableOption "nginx korrvigs proxy";
+        user = mkOption {
+          type = types.str;
+          description = "Name of the user";
+        };
+        passwordHash = mkOption {
+          type = types.str;
+          description = "Hash of the password for the user. Must be a valid htpasswd hash";
+        };
+        domain = mkOption {
+          type = types.str;
+          description = "Domain to serve korrvigs from.";
+        };
+        staticDomain = mkOption {
+          type = types.nullOr types.str;
+          description = "Domain to serve static files from.";
+          default = null;
+        };
+      };
+    };
+  };
+
+  config = mkMerge [
+    {
+      nixpkgs.overlays = [overlay];
+    }
+    (mkIf cfg.enable {
+      home-manager.users.${cfg.user} = {
+        xdg.configFile."korrvigs/config.json".text = builtins.toJSON configContent;
+        home.packages = [cfg.package];
+      };
+    })
+
+    (mkIf (cfg.enable && psql.enable) {
+      services.postgresql = {
+        enable = true;
+        extraPlugins = [config.services.postgresql.package.pkgs.postgis];
+        ensureDatabases = [psql.database];
+        ensureUsers = [
+          {name = "luc";}
+        ];
+      };
+      programs.korrvigs.connectionSpec = "dbname='${psql.database}'";
+      systemd.services.postgresql.postStart = lib.mkAfter ''
+        $PSQL service1 -d ${psql.database} -c 'CREATE EXTENSION postgis';
+        $PSQL service1 -d ${psql.database} -c 'CREATE EXTENSION address_standardizer';
+        $PSQL service1 -d ${psql.database} -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${cfg.user}';
+        $PSQL service1 -d ${psql.database} -f ${./doc/schema.pgsql}
+      '';
+    })
+
+    (mkIf (cfg.enable && server.enable) {
+      systemd.services.korrvigs = {
+        description = "Korrvigs server";
+        wantedBy = ["multi-user.target"];
+        after = ["postgresql.service"];
+        before = ["nginx.service"];
+
+        serviceConfig = {
+          User = cfg.user;
+          Group = config.users.users.${cfg.user}.group;
+          Type = "simple";
+        };
+
+        script = "${cfg.package}/bin/korr server";
+      };
+    })
+
+    (mkIf (cfg.enable && server.enable && nginx.enable) {
+      services.nginx = {
+        enable = true;
+        virtualHosts.${nginx.domain} = {
+          enableACME = true;
+          forceSSL = true;
+          locations."/" = {
+            proxyPass = "http://localhost:${server.port}";
+            recommandedProxySettings = true;
+            basicAuthFile = pkgs.writeText "korrvigs-htpasswd" ''
+              ${cfg.user}:${nginx.passwordHash}
+            '';
+          };
+        };
+      };
+    })
+
+    (mkIf (cfg.enable && server.enable && nginx.enable && !(builtins.isNull nginx.staticDomain)) {
+      services.nginx.virtualHosts.${nginx.staticDomain} = {
+        enableACME = true;
+        forceSSL = true;
+        locations."/".root = pkgs.korrvigs-static;
+      };
+    })
+  ];
+}

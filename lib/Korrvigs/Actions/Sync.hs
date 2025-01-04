@@ -20,12 +20,12 @@ import Korrvigs.Link
 import Korrvigs.Monad
 import Korrvigs.Note
 import Korrvigs.Utils.Cycle
-import Opaleye hiding (not)
+import Opaleye hiding (not, null)
 
 loadIDsFor :: forall a m f. (IsKD a, MonadKorrvigs m) => f a -> (KDIdentifier a -> Text) -> m (Map Id [Text])
 loadIDsFor _ showId = do
   st <- dList (Nothing :: Maybe a)
-  pure . M.fromList . S.toList $ S.map (dGetId &&& singleton . showId) st
+  pure . M.fromListWith (<>) . S.toList $ S.map (dGetId &&& singleton . showId) st
 
 loadIDs :: (MonadKorrvigs m) => m (Map Id [Text])
 loadIDs = do
@@ -57,9 +57,7 @@ sync = do
   void $ liftIO $ Simple.execute_ conn "truncate entries_sub, entries_ref_to"
   ids <- loadIDs
   let conflict = M.toList $ M.filter ((>= 2) . length) ids
-  case conflict of
-    [] -> pure ()
-    (i, txts) : _ -> throwM $ KDuplicateId i (txts ^?! element 0) (txts ^?! element 1)
+  unless (null conflict) $ throwM $ KDuplicateId conflict
   sqls <- sqlIDs
   let toRemove = view _1 <$> M.toList (M.difference sqls ids)
   forM_ toRemove remove

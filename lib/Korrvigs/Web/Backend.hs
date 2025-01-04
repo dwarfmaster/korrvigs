@@ -1,7 +1,6 @@
 module Korrvigs.Web.Backend where
 
 import Data.Functor ((<&>))
-import Data.Password.Scrypt
 import Data.Text (Text)
 import Database.PostgreSQL.Simple (Connection)
 import qualified Korrvigs.Actions as Actions
@@ -17,8 +16,6 @@ data WebData = WebData
   { web_connection :: Connection,
     web_root :: FilePath,
     web_theme :: Base16Index -> Text,
-    web_pwd :: PasswordHash Scrypt,
-    web_salt :: Text,
     web_static :: Static
   }
 

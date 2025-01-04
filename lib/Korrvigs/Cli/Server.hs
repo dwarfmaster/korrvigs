@@ -40,8 +40,6 @@ run cmd = do
   conn <- pgSQL
   defaultPort <- view $ korrWeb . webPort
   let prt = fromMaybe defaultPort $ cmd ^. port
-  pwd <- view $ korrWeb . webPassword
-  salt <- view $ korrWeb . webSalt
   theme <- view $ korrWeb . webTheme
   staticEnv <- liftIO $ lookupEnv "KORRVIGS_WEB_STATIC"
   let staticP = firstJust "./static" [cmd ^. staticPath, staticEnv]
@@ -52,7 +50,5 @@ run cmd = do
         { web_connection = conn,
           web_root = rt,
           web_theme = theme16 theme,
-          web_pwd = pwd,
-          web_salt = salt,
           web_static = stc
         }

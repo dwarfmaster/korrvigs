@@ -10,7 +10,6 @@ import Control.Monad.Reader
 import Data.Aeson
 import qualified Data.Aeson.Key as K
 import qualified Data.ByteString.Lazy as BSL
-import Data.Password.Scrypt
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -24,8 +23,6 @@ import System.FilePath
 
 data WebState = WState
   { _webPort :: Int,
-    _webPassword :: PasswordHash Scrypt,
-    _webSalt :: Text,
     _webTheme :: Base16Data
   }
 
@@ -39,8 +36,6 @@ data KorrConfig = KConfig
   { _kconfigRoot :: FilePath,
     _kconfigPsql :: Text,
     _kconfigPort :: Int,
-    _kconfigPassword :: Text,
-    _kconfigSalt :: Text,
     _kconfigTheme :: Base16Data
   }
 
@@ -71,8 +66,6 @@ runKorrM config act = do
             _korrWeb =
               WState
                 { _webPort = config ^. kconfigPort,
-                  _webPassword = PasswordHash $ config ^. kconfigPassword,
-                  _webSalt = config ^. kconfigSalt,
                   _webTheme = config ^. kconfigTheme
                 }
           }
@@ -93,8 +86,6 @@ instance FromJSON KorrConfig where
         <$> v .: "root"
         <*> v .: "connectionSpec"
         <*> v .: "port"
-        <*> v .: "password"
-        <*> v .: "salt"
         <*> parseJSON (Object v)
 
 instance ToJSON KorrConfig where
@@ -102,9 +93,7 @@ instance ToJSON KorrConfig where
     object $
       [ "root" .= (cfg ^. kconfigRoot),
         "connectionSpec" .= (cfg ^. kconfigPsql),
-        "port" .= (cfg ^. kconfigPort),
-        "password" .= (cfg ^. kconfigPassword),
-        "salt" .= (cfg ^. kconfigSalt)
+        "port" .= (cfg ^. kconfigPort)
       ]
         ++ fmap (\b -> K.fromText (baseName b) .= theme16 (cfg ^. kconfigTheme) b) [minBound .. maxBound]
 

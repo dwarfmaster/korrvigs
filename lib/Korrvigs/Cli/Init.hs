@@ -8,11 +8,9 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import Data.FileEmbed
-import Data.Password.Scrypt
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
-import Data.Text.Encoding.Base64
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.Types
 import Korrvigs.Cli.Monad
@@ -23,7 +21,6 @@ import System.Directory
 import System.FilePath
 import System.IO
 import System.Process
-import System.Random
 
 -- The database must exists with the following extension created:
 --   CREATE EXTENSION postgis;
@@ -103,12 +100,6 @@ defaultTheme = B16Data $ \case
 run :: Cmd -> IO ()
 run cmd = do
   let rt = cmd ^. rootPath
-  -- Generate Salt
-  randomGen <- getStdGen
-  let salt = encodeBase64 $ T.pack $ take 64 $ randoms randomGen
-  -- Ask password
-  pass <- getPassword
-  password <- hashPassword $ mkPassword $ pass <> salt
   -- Read Base16 theme
   thm <- case cmd ^. theme of
     Nothing -> pure defaultTheme
@@ -119,8 +110,6 @@ run cmd = do
           { _kconfigRoot = rt,
             _kconfigPsql = cmd ^. psqlSpec,
             _kconfigPort = cmd ^. port,
-            _kconfigPassword = unPasswordHash password,
-            _kconfigSalt = salt,
             _kconfigTheme = thm
           }
   -- Store config

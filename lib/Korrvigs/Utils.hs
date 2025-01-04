@@ -27,3 +27,10 @@ firstJustM = foldlM go Nothing
     go :: (Monad m) => Maybe a -> m (Maybe a) -> m (Maybe a)
     go Nothing action = action
     go result _ = pure result
+
+partitionM :: (Monad m) => (a -> m Bool) -> [a] -> m ([a], [a])
+partitionM _ [] = pure ([], [])
+partitionM check (x : xs) = do
+  c <- check x
+  (checked, unchecked) <- partitionM check xs
+  pure $ if c then (x : checked, unchecked) else (checked, x : unchecked)

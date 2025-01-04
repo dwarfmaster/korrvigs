@@ -1,5 +1,6 @@
 module Korrvigs.Event.VDirSyncer (vdirSync, VDirStatus (..)) where
 
+import Control.Lens
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.IO.Class
@@ -8,10 +9,14 @@ import Data.Char (isSpace)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Actions.Sync (processRelData)
+import Korrvigs.Event.SQL
 import Korrvigs.Event.Sync
 import Korrvigs.Monad
+import Korrvigs.Utils (partitionM)
 import qualified Korrvigs.Utils.Git.Status as St
 import Korrvigs.Utils.Process
+import Opaleye hiding (not, null)
+import System.Directory (doesFileExist)
 import System.Exit
 import System.FilePath
 import System.Process
@@ -31,6 +36,11 @@ splitICalPath :: FilePath -> (Text, Text)
 splitICalPath path = case reverse (splitPath path) of
   ics : calendar : _ -> (T.pack calendar, T.pack ics)
   _ -> ("", "")
+
+joinICalPath :: (MonadKorrvigs m) => (Text, Text) -> m FilePath
+joinICalPath (cal, ics) = do
+  rt <- eventsDirectory
+  pure $ joinPath [rt, T.unpack cal, T.unpack ics]
 
 data VDirStatus
   = VDirtyRepo
@@ -83,7 +93,15 @@ vdirImpl = do
   -- We register the new calendar entries and commit the changes
   changedFilesRaw <- liftIO $ readCreateProcess ((proc "git" ["diff", "--name-only", "main", mainCi]) {cwd = Just rt}) ""
   let changedFiles = (\f -> splitICalPath $ joinPath [gitRoot, f]) <$> lines changedFilesRaw
-  forM_ changedFiles $ \(cal, ics) -> do
+  (addedFiles, removedFiles) <-
+    lift $ partitionM (joinICalPath >=> liftIO . doesFileExist) changedFiles
+  forM_ removedFiles $ \(cal, ics) -> lift $ do
+    mi <- rSelectOne $ do
+      erow <- selectTable eventsTable
+      where_ $ (erow ^. sqlEventCalendar) .== sqlStrictText cal .&& (erow ^. sqlEventFile) .== sqlStrictText ics
+      pure $ erow ^. sqlEventName
+    forM_ mi remove
+  forM_ addedFiles $ \(cal, ics) -> do
     (i, ical, ievent, new) <- lift $ register (cal, ics)
     when new $ lift $ syncOneEvent i cal ics ical ievent >>= processRelData i
   newReg <- lift St.gitStatusKorr

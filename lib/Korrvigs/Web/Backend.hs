@@ -12,7 +12,6 @@ import Korrvigs.Utils.Base16
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Network.HTTP.Types
-import qualified Web.ClientSession as CS
 import Yesod
 import Yesod.Static
 
@@ -61,9 +60,7 @@ mkQuery (key, val) = (Enc.encodeUtf8 key, Just $ Enc.encodeUtf8 val)
 
 instance Yesod WebData where
   jsLoader _ = BottomOfBody
-  makeSessionBackend _ =
-    strictSameSiteSessions $
-      Just <$> defaultClientSessionBackend (24 * 60) CS.defaultKeyFile
+  makeSessionBackend _ = pure Nothing
   maximumContentLength _ _ = Nothing
   defaultLayout w = do
     base <- getBase

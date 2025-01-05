@@ -104,10 +104,6 @@ in {
       };
       nginx = {
         enable = mkEnableOption "nginx korrvigs proxy";
-        user = mkOption {
-          type = types.str;
-          description = "Name of the user";
-        };
         passwordHash = mkOption {
           type = types.str;
           description = "Hash of the password for the user. Must be a valid htpasswd hash";
@@ -178,8 +174,8 @@ in {
           enableACME = true;
           forceSSL = true;
           locations."/" = {
-            proxyPass = "http://localhost:${server.port}";
-            recommandedProxySettings = true;
+            proxyPass = "http://localhost:${builtins.toString server.port}";
+            recommendedProxySettings = true;
             basicAuthFile = pkgs.writeText "korrvigs-htpasswd" ''
               ${cfg.user}:${nginx.passwordHash}
             '';

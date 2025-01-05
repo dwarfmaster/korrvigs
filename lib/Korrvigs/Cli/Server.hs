@@ -42,13 +42,16 @@ run cmd = do
   let prt = fromMaybe defaultPort $ cmd ^. port
   theme <- view $ korrWeb . webTheme
   staticEnv <- liftIO $ lookupEnv "KORRVIGS_WEB_STATIC"
-  let staticP = firstJust "./static" [cmd ^. staticPath, staticEnv]
+  staticCfg <- view $ korrWeb . webStaticDir
+  let staticP = firstJust "./static" [cmd ^. staticPath, staticEnv, staticCfg]
   stc <- liftIO $ staticDevel staticP
+  staticRedirect <- view $ korrWeb . webStaticRedirect
   liftIO $
     warp prt $
       WebData
         { web_connection = conn,
           web_root = rt,
           web_theme = theme16 theme,
-          web_static = stc
+          web_static = stc,
+          web_static_redirect = staticRedirect
         }

@@ -110,7 +110,9 @@ run cmd = do
           { _kconfigRoot = rt,
             _kconfigPsql = cmd ^. psqlSpec,
             _kconfigPort = cmd ^. port,
-            _kconfigTheme = thm
+            _kconfigTheme = thm,
+            _kconfigStaticDir = Nothing,
+            _kconfigStaticRedirect = Nothing
           }
   -- Store config
   putStrLn ">>> Saving configuration"

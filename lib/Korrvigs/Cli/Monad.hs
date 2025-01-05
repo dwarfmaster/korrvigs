@@ -23,7 +23,9 @@ import System.FilePath
 
 data WebState = WState
   { _webPort :: Int,
-    _webTheme :: Base16Data
+    _webTheme :: Base16Data,
+    _webStaticDir :: Maybe FilePath,
+    _webStaticRedirect :: Maybe Text
   }
 
 data KorrState = KState
@@ -36,7 +38,9 @@ data KorrConfig = KConfig
   { _kconfigRoot :: FilePath,
     _kconfigPsql :: Text,
     _kconfigPort :: Int,
-    _kconfigTheme :: Base16Data
+    _kconfigTheme :: Base16Data,
+    _kconfigStaticDir :: Maybe FilePath,
+    _kconfigStaticRedirect :: Maybe Text
   }
 
 makeLenses ''KorrState
@@ -66,7 +70,9 @@ runKorrM config act = do
             _korrWeb =
               WState
                 { _webPort = config ^. kconfigPort,
-                  _webTheme = config ^. kconfigTheme
+                  _webTheme = config ^. kconfigTheme,
+                  _webStaticDir = config ^. kconfigStaticDir,
+                  _webStaticRedirect = config ^. kconfigStaticRedirect
                 }
           }
   let (KorrM action) = setupPsql >> act
@@ -87,6 +93,8 @@ instance FromJSON KorrConfig where
         <*> v .: "connectionSpec"
         <*> v .: "port"
         <*> parseJSON (Object v)
+        <*> v .:? "staticDir"
+        <*> v .:? "staticRedirect"
 
 instance ToJSON KorrConfig where
   toJSON cfg =

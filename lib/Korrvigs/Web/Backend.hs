@@ -1,13 +1,17 @@
 module Korrvigs.Web.Backend where
 
+import Data.Binary.Builder
 import Data.Functor ((<&>))
 import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as Enc
 import Database.PostgreSQL.Simple (Connection)
 import qualified Korrvigs.Actions as Actions
 import Korrvigs.Monad
 import Korrvigs.Utils.Base16
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
+import Network.HTTP.Types
 import qualified Web.ClientSession as CS
 import Yesod
 import Yesod.Static
@@ -16,7 +20,8 @@ data WebData = WebData
   { web_connection :: Connection,
     web_root :: FilePath,
     web_theme :: Base16Index -> Text,
-    web_static :: Static
+    web_static :: Static,
+    web_static_redirect :: Maybe Text
   }
 
 getStaticR :: WebData -> Static
@@ -50,6 +55,10 @@ mkHeader =
       Just route -> [(current route, txt, rt) | (txt, rt, current) <- headerContent]
       Nothing -> [(False, txt, rt) | (txt, rt, _) <- headerContent]
 
+mkQuery :: (Text, Text) -> QueryItem
+mkQuery (key, val) | T.null val = (Enc.encodeUtf8 key, Nothing)
+mkQuery (key, val) = (Enc.encodeUtf8 key, Just $ Enc.encodeUtf8 val)
+
 instance Yesod WebData where
   jsLoader _ = BottomOfBody
   makeSessionBackend _ =
@@ -78,6 +87,14 @@ instance Yesod WebData where
                 <p class="message #{status}">#{msg}
               ^{pageBody p}
         |]
+  urlParamRenderOverride web (StaticR (StaticRoute route _)) query =
+    case web_static_redirect web of
+      Nothing -> Nothing
+      Just url ->
+        let httpQuery = mkQuery <$> query
+         in let path = encodePath route httpQuery
+             in Just $ fromByteString (Enc.encodeUtf8 url) <> path
+  urlParamRenderOverride _ _ _ = Nothing
 
 instance RenderMessage WebData FormMessage where
   renderMessage _ _ = defaultFormMessage

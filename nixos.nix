@@ -17,29 +17,36 @@ overlay: {
   psql = cfg.postgresql;
   nginx = server.nginx;
 
-  configContent = {
-    inherit
-      (cfg.theme)
-      base00
-      base01
-      base02
-      base03
-      base04
-      base05
-      base06
-      base07
-      base08
-      base09
-      base0A
-      base0B
-      base0C
-      base0D
-      base0E
-      base0F
-      ;
-    inherit (cfg) connectionSpec root;
-    inherit (server) port;
-  };
+  configContent =
+    {
+      inherit
+        (cfg.theme)
+        base00
+        base01
+        base02
+        base03
+        base04
+        base05
+        base06
+        base07
+        base08
+        base09
+        base0A
+        base0B
+        base0C
+        base0D
+        base0E
+        base0F
+        ;
+      inherit (cfg) connectionSpec root;
+      inherit (server) port;
+      staticDir = "${pkgs.korrvigs-static}";
+    }
+    // (
+      if builtins.isNull nginx.staticDomain
+      then {}
+      else {staticRedirect = "https://${nginx.staticDomain}";}
+    );
   pgUser = config.services.postgresql.superUser;
 in {
   options.programs.korrvigs = {

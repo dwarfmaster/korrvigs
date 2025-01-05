@@ -1,5 +1,10 @@
-CREATE TYPE KIND AS ENUM ('note', 'link', 'file', 'event');
-CREATE TABLE entries (
+DO $$ BEGIN
+  CREATE TYPE KIND AS ENUM ('note', 'link', 'file', 'event');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS entries (
   name TEXT NOT NULL UNIQUE,
   kind KIND NOT NULL,
   date TIMESTAMP WITH TIME ZONE,
@@ -10,7 +15,7 @@ CREATE TABLE entries (
     UNIQUE(name,kind)
 );
 
-CREATE TABLE entries_metadata (
+CREATE TABLE IF NOT EXISTS entries_metadata (
   name TEXT NOT NULL REFERENCES entries(name),
   key TEXT NOT NULL,
   value JSONB NOT NULL,
@@ -19,21 +24,21 @@ CREATE TABLE entries_metadata (
     UNIQUE(name,key)
 );
 
-CREATE TABLE entries_sub (
+CREATE TABLE IF NOT EXISTS entries_sub (
   child TEXT NOT NULL REFERENCES entries(name),
   parent TEXT NOT NULL REFERENCES entries(name),
   CONSTRAINT entries_sub_unique
     UNIQUE(child,parent)
 );
 
-CREATE TABLE entries_ref_to (
+CREATE TABLE IF NOT EXISTS entries_ref_to (
   referer TEXT NOT NULL REFERENCES entries(name),
   referee TEXT NOT NULL REFERENCES entries(name),
   CONSTRAINT entries_ref_unique
     UNIQUE(referer,referee)
 );
 
-CREATE TABLE notes (
+CREATE TABLE IF NOT EXISTS notes (
   name TEXT NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'note'),
   path TEXT NOT NULL,
@@ -41,7 +46,7 @@ CREATE TABLE notes (
     FOREIGN KEY (name,kind) references entries(name,kind)
 );
 
-CREATE TABLE links (
+CREATE TABLE IF NOT EXISTS links (
   name TEXT NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'link'),
   protocol TEXT NOT NULL,
@@ -51,8 +56,13 @@ CREATE TABLE links (
     FOREIGN KEY (name,kind) references entries(name,kind)
 );
 
-CREATE TYPE FILESTATUS AS ENUM ('fileplain', 'filepresent', 'fileabsent');
-CREATE TABLE files (
+DO $$ BEGIN
+  CREATE TYPE FILESTATUS AS ENUM ('fileplain', 'filepresent', 'fileabsent');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS files (
   name TEXT NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'file'),
   path TEXT NOT NULL,
@@ -63,7 +73,7 @@ CREATE TABLE files (
     FOREIGN KEY (name,kind) references entries(name,kind)
 );
 
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
   name TEXT NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'event'),
   calendar TEXT NOT NULL,

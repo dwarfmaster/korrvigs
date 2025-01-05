@@ -157,5 +157,6 @@
     };
 
     nixosModules.korrvigs = import ./nixos.nix self.overlays.korrvigs;
+    nixosModule = self.nixosModules.korrvigs;
   };
 }

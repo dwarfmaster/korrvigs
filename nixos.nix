@@ -40,8 +40,9 @@ overlay: {
     inherit (cfg) connectionSpec root;
     inherit (server) port;
   };
+  pgUser = config.services.postgresql.superUser;
 in {
-  options.program.korrvigs = {
+  options.programs.korrvigs = {
     enable = mkEnableOption "korrvigs app";
     package = mkOption {
       type = types.package;
@@ -139,10 +140,10 @@ in {
       };
       programs.korrvigs.connectionSpec = "dbname='${psql.database}'";
       systemd.services.postgresql.postStart = lib.mkAfter ''
-        $PSQL service1 -d ${psql.database} -c 'CREATE EXTENSION postgis';
-        $PSQL service1 -d ${psql.database} -c 'CREATE EXTENSION address_standardizer';
-        $PSQL service1 -d ${psql.database} -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${cfg.user}';
-        $PSQL service1 -d ${psql.database} -f ${./doc/schema.pgsql}
+        $PSQL ${pgUser} -d ${psql.database} -c 'CREATE EXTENSION IF NOT EXISTS postgis';
+        $PSQL ${pgUser} -d ${psql.database} -c 'CREATE EXTENSION IF NOT EXISTS address_standardizer';
+        $PSQL ${pgUser} -d ${psql.database} -f ${./doc/schema.pgsql}
+        $PSQL ${pgUser} -d ${psql.database} -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${cfg.user}';
       '';
     })
 

@@ -5,14 +5,17 @@ import System.Directory
 import System.FilePath
 
 resolveSymbolicLink :: FilePath -> IO FilePath
-resolveSymbolicLink link = do
-  sym <- pathIsSymbolicLink link
-  if sym
-    then do
-      target <- getSymbolicLinkTarget link
-      let ntarget = combinePath (takeDirectory link) target
-      resolveSymbolicLink ntarget
-    else pure link
+resolveSymbolicLink link =
+  doesFileExist link >>= \case
+    True -> do
+      sym <- pathIsSymbolicLink link
+      if sym
+        then do
+          target <- getSymbolicLinkTarget link
+          let ntarget = combinePath (takeDirectory link) target
+          resolveSymbolicLink ntarget
+        else pure link
+    False -> pure link
 
 combinePath :: FilePath -> FilePath -> FilePath
 combinePath rt pth

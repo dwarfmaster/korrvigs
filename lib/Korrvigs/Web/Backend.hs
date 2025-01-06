@@ -77,6 +77,7 @@ instance Yesod WebData where
             <title>#{pageTitle p}
             $maybe description <- pageDescription p
               <meta name="description" content="#{description}">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
             ^{pageHead p}
           <body>
             <div #central>

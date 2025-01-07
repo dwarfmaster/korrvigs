@@ -144,7 +144,7 @@ readNoteFromText reader txt =
     readerOptions :: ReaderOptions
     readerOptions =
       def
-        { readerExtensions = pandocExtensions
+        { readerExtensions = disableExtension Ext_task_lists pandocExtensions
         }
 
 parsePandoc :: Pandoc -> A.Document

@@ -63,6 +63,9 @@ h1
   padding-left: 0.25em
 h2
   color: var(--base08)
+  font-size: 1.17em
+  margin-top: 0.5em
+  margin-bottom: 0.5em
 .edit-header-2
   background-color: var(--base08)
 .level2
@@ -70,6 +73,9 @@ h2
   padding-left: 0.25em
 h3
   color: var(--base09)
+  font-size: 1em
+  margin-top: 0.5em
+  margin-bottom: 0.5em
 .edit-header-3
   background-color: var(--base09)
 .level3
@@ -77,6 +83,9 @@ h3
   padding-left: 0.25em
 h4
   color: var(--base0A)
+  font-size: 0.83em
+  margin-top: 0.5em
+  margin-bottom: 0.5em
 .edit-header-4
   background-color: var(--base0A)
 .level4
@@ -84,6 +93,9 @@ h4
   padding-left: 0.25em
 h5
   color: var(--base0B)
+  font-size: 0.67em
+  margin-top: 0.5em
+  margin-bottom: 0.5em
 .edit-header-5
   background-color: var(--base0B)
 .level5
@@ -91,6 +103,9 @@ h5
   padding-left: 0.25em
 h6
   color: var(--base0D)
+  font-size: 0.67em
+  margin-top: 0.5em
+  margin-bottom: 0.5em
 .edit-header-6
   background-color: var(--base0D)
 .level6

@@ -100,6 +100,7 @@ setupAceJs =
     editor.session.setMode("ace/mode/" + mode)
     editor.setOptions({
       maxLines: Infinity,
+      autoScrollEditorIntoView: true,
     })
     if(readOnly) {
       editor.setOptions({
@@ -147,6 +148,9 @@ preview code language = do
       [cassius|
       ##{ident}
         width: 100%
+        position: absolute
+      .ace_text-input
+        position: absolute!important
     |]
     toWidget
       [julius|

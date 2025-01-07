@@ -14,10 +14,12 @@ import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Actions.Load
+import Korrvigs.Actions.Sync (processRelData)
 import Korrvigs.Entry
 import Korrvigs.Monad (KorrvigsError (KMiscError))
 import Korrvigs.Note
 import Korrvigs.Note.Pandoc
+import Korrvigs.Note.Sync (dSyncOneImpl)
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import System.IO
@@ -37,9 +39,22 @@ postNoteR (WId i) =
     Nothing -> notFound
     Just entry -> case entry ^. kindData of
       NoteD note -> do
-        let path = note ^. notePath
-        runConduit $ rawRequestBody .| sinkFileCautious path -- TODO parse and render
-        redirect $ NoteR $ WId i
+        body <- runConduit $ rawRequestBody .| fold
+        let txt = Enc.decodeUtf8 body
+        nt <- readNoteFromText parsePandoc txt
+        case nt of
+          Left err -> throwM $ KMiscError err
+          Right doc -> do
+            let path = note ^. notePath
+            fd <- liftIO $ openFile path WriteMode
+            writeNote fd doc >>= \case
+              Just err -> do
+                liftIO $ hClose fd
+                throwM $ KMiscError err
+              Nothing -> pure ()
+            liftIO $ hClose fd
+            dSyncOneImpl path >>= processRelData i
+            redirect $ NoteR $ WId i
       _ -> notFound
 
 getNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text
@@ -87,5 +102,6 @@ postNoteSubR (WId i) (WLoc loc) =
                 throwM $ KMiscError err
               Nothing -> pure ()
             liftIO $ hClose fd
+            dSyncOneImpl path >>= processRelData i
             redirect $ NoteSubR (WId i) (WLoc loc)
       _ -> notFound

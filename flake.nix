@@ -54,6 +54,7 @@
             hpkgs.optparse-applicative
             hpkgs.xdg-basedir
             hpkgs.password
+            hpkgs.iconv
           ]);
 
           pre-commit.hooks = {

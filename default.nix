@@ -2,10 +2,10 @@
 , base64, binary, blaze-html, blaze-markup, bytestring
 , case-insensitive, clientsession, conduit, containers
 , data-default, data-endian, directory, extra, file-embed, filepath
-, hmatrix-glpk, http-conduit, http-types, HUnit, lens, lens-aeson
-, lib, linear, mime-types, monad-loops, mtl, network-uri, opaleye
-, optparse-applicative, pandoc, pandoc-types, parsec
-, parsec3-numbers, password, postgresql-simple, process
+, hmatrix-glpk, http-conduit, http-types, HUnit, iconv, lens
+, lens-aeson, lib, linear, mime-types, monad-loops, mtl
+, network-uri, opaleye, optparse-applicative, pandoc, pandoc-types
+, parsec, parsec3-numbers, password, postgresql-simple, process
 , product-profunctors, profunctors, random, shakespeare, split
 , temporary, text, text-builder, text-manipulate, time
 , transformers, unix, utf8-string, vector, xdg-basedir, xml-conduit
@@ -21,8 +21,8 @@ mkDerivation {
     aeson array async base base16-bytestring base64 binary blaze-html
     blaze-markup bytestring case-insensitive clientsession conduit
     containers data-default data-endian directory extra file-embed
-    filepath hmatrix-glpk http-conduit http-types HUnit lens lens-aeson
-    linear mime-types monad-loops mtl network-uri opaleye
+    filepath hmatrix-glpk http-conduit http-types HUnit iconv lens
+    lens-aeson linear mime-types monad-loops mtl network-uri opaleye
     optparse-applicative pandoc pandoc-types parsec parsec3-numbers
     password postgresql-simple process product-profunctors profunctors
     random shakespeare split temporary text text-builder

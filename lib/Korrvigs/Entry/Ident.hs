@@ -14,9 +14,11 @@ module Korrvigs.Entry.Ident
   )
 where
 
+import Codec.Text.IConv
 import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad.Extra (findM)
+import qualified Data.ByteString.Lazy as LBS
 import Data.Char
 import Data.List (unfoldr)
 import Data.Maybe (fromJust, isNothing)
@@ -24,6 +26,7 @@ import Data.Profunctor.Product.Default
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as Enc
 import Data.Time
 import Korrvigs.Entry.Ident.Stopwords
 import Opaleye (DefaultFromField (..), Field, SqlText, ToFields, sqlStrictText)
@@ -65,8 +68,15 @@ imk prefix = IdMaker prefix Nothing Nothing Nothing Nothing
 prepTitle :: Text -> Text
 prepTitle title = foldl (<>) "" content
   where
+    ascii :: Text
+    ascii =
+      Enc.decodeASCII $
+        LBS.toStrict $
+          convertFuzzy Transliterate "utf-8" "ascii" $
+            LBS.fromStrict $
+              Enc.encodeUtf8 title
     wds :: [Text]
-    wds = T.map toLower <$> T.split (\c -> isPunctuation c || isSpace c) title
+    wds = T.map toLower <$> T.split (\c -> isPunctuation c || isSpace c) ascii
     toDrop :: Text -> Bool
     toDrop t = S.member t stopwords || T.length t <= 1
     content :: [Text]

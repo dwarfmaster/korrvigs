@@ -29,10 +29,11 @@
     margin-top: 1rem
     background-color: var(--base01)
 
-@media (max-width: 100rem)
+@media (max-width: 82rem)
   .sidenote
-    float: right
+    float: left
     text-align: left
     width: 100%
     margin: 1rem 0
     padding-right: 15rem
+    background-color: var(--base00)

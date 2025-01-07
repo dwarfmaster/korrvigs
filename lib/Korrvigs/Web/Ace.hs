@@ -101,6 +101,7 @@ setupAceJs =
     editor.setOptions({
       maxLines: Infinity,
       autoScrollEditorIntoView: true,
+      printMarginColumn: 81,
     })
     if(readOnly) {
       editor.setOptions({

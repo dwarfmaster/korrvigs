@@ -376,8 +376,12 @@ compileInline (Link attr inls tgt) = do
   inlsW <- compileInlines inls
   pure [whamlet|<a href=@{EntryR $ WId tgt} *{compileAttr attr}>^{inlsW}|]
 compileInline (Cite i) = pure [whamlet|<cite><a href=@{EntryR $ WId i}>@#{unId i}|]
-compileInline (PlainLink uri) =
-  let url = show uri in pure [whamlet|<a href=#{url}>#{url}|]
+compileInline (PlainLink mtitle uri) = do
+  let url = show uri
+  title <- case mtitle of
+    Just t -> compileInlines t
+    Nothing -> pure [whamlet|#{url}|]
+  pure [whamlet|<a href=#{url}>^{title}|]
 compileInline Space = pure $ toWidget (" " :: Text)
 compileInline Break = pure [whamlet|<br>|]
 compileInline (DisplayMath mth) = pure . toWidget . toHtml $ "$$" <> mth <> "$$"

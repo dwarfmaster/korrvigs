@@ -227,19 +227,20 @@ parseInline (Quoted _ inls) = pure . A.Styled A.Quote <$> concatMapM parseInline
 parseInline (Cite cts _) = pure $ A.Cite . MkId . citationId <$> cts
 parseInline (Code attr cd) = pure . pure $ A.Code (parseAttr attr) cd
 parseInline Space = pure $ pure A.Space
-parseInline SoftBreak = pure $ pure A.Break
+parseInline SoftBreak = pure $ pure A.Space
 parseInline LineBreak = pure $ pure A.Break
 parseInline (Math DisplayMath mth) = pure . pure $ A.DisplayMath mth
 parseInline (Math InlineMath mth) = pure . pure $ A.InlineMath mth
 parseInline (RawInline _ _) = pure []
 parseInline (Link attr txt (url, _)) = do
+  title <- concatMapM parseInline txt
   if T.isInfixOf "://" url
     then do
-      pure . pure $ A.PlainLink $ fromMaybe nullURI $ parseURI $ T.unpack url
+      let mtitle = if null txt then Nothing else Just title
+      pure . pure $ A.PlainLink mtitle $ fromMaybe nullURI $ parseURI $ T.unpack url
     else do
       let i = MkId url
       refTo i
-      title <- concatMapM parseInline txt
       pure . pure $ A.Link (parseAttr attr) title i
 parseInline (Image attr txt url) = parseInline $ Link attr txt url
 parseInline (Note bks) = pure . A.Sidenote <$> concatMapM parseBlock bks

@@ -49,7 +49,7 @@ data Inline
   | Code Attr Text
   | Link Attr [Inline] Id -- Named link to another entry
   | Cite Id -- Citation to entry
-  | PlainLink URI -- Unnamed link to URI
+  | PlainLink (Maybe [Inline]) URI -- Named link to URI
   | Space
   | Break
   | DisplayMath Text

@@ -17,7 +17,8 @@ inlineToText (Styled _ inls) = inlinesToText inls
 inlineToText (Code _ txt) = "`" <> fromText txt <> "`"
 inlineToText (Link _ inls _) = inlinesToText inls
 inlineToText (Cite i) = "@" <> fromText (unId i)
-inlineToText (PlainLink uri) = fromString $ uriToString id uri ""
+inlineToText (PlainLink inls uri) =
+  maybe mempty ((<> " ") . inlinesToText) inls <> fromString (uriToString id uri "")
 inlineToText Space = " "
 inlineToText Break = "\n"
 inlineToText (DisplayMath txt) = "$" <> fromText txt <> "$"

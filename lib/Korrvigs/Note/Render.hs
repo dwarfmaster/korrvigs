@@ -164,7 +164,7 @@ renderInline (Link attr txt (MkId i)) = do
   writeText "](" >> writeText i >> writeText ")"
   renderAttr attr
 renderInline (Cite (MkId i)) = writeText "[@" >> writeText i >> writeText "]"
-renderInline (PlainLink uri) =
+renderInline (PlainLink _ uri) =
   writeText "<" >> writeText (T.pack $ show uri) >> writeText ">"
 renderInline Space = flush
 renderInline Break = flush

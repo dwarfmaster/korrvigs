@@ -30,6 +30,32 @@ flushNotes = do
     withPrefix "  " $ separatedBks 2 note
   notes .= []
 
+flushLinks :: RenderM ()
+flushLinks = do
+  lks <- use links
+  separatedRenders 1 $ for (reverse lks) $ \(i, link) -> do
+    writeText "["
+    writeText $ T.pack $ show i
+    writeText "]: "
+    writeText link
+    withoutBreak flush
+  links .= []
+
+shouldSpaceList :: [[Block]] -> Bool
+shouldSpaceList = any ((>= 2) . length)
+
+withListMarker :: (RenderM () -> RenderM a) -> RenderM a
+withListMarker rdr = do
+  d <- use listDepth
+  let marker = case d `mod` 3 of
+        0 -> '-'
+        1 -> '+'
+        _ -> '*'
+  listDepth += 1
+  r <- rdr $ writeText $ T.singleton marker
+  listDepth .= d
+  pure r
+
 writeNote :: (MonadIO m) => Handle -> Document -> m (Maybe Text)
 writeNote file doc = do
   let txt = writeNoteLazy doc
@@ -57,6 +83,8 @@ renderTopLevel :: Bool -> [Block] -> RenderM ()
 renderTopLevel nts bks =
   separatedRenders 2 $ for bks $ \bk -> do
     renderBlock bk >> flush
+    hasL <- hasLinks
+    when (nts && hasL) $ replicateM_ 2 newline >> flushLinks >> flush
     hasN <- hasNotes
     when (nts && hasN) $ replicateM_ 2 newline >> flushNotes >> flush
 
@@ -92,7 +120,7 @@ renderBlock (OrderedList bks) = do
     withoutBreak flush
     withPrefix prefix $ separatedBks 2 bk
     flush
-    unless (i == length bks) newline
+    unless (i == length bks) $ replicateM_ seps newline
   where
     shift :: Int
     shift = (3 +) . floor . logBase (10.0 :: Double) . fromIntegral $ length bks
@@ -102,20 +130,36 @@ renderBlock (OrderedList bks) = do
     renderNum i =
       let num = T.pack $ show i
        in num <> "." <> mconcat (replicate (shift - T.length num - 1) " ")
+    seps :: Int
+    seps
+      | shouldSpaceList bks = 2
+      | otherwise = 1
 renderBlock (BulletList bks) =
-  separatedRenders 1 $ for bks $ \bk -> do
-    writeText "- " >> withoutBreak flush
+  withListMarker $ \marker -> separatedRenders seps $ for bks $ \bk -> do
+    marker >> writeText " " >> withoutBreak flush
     withPrefix "  " $ separatedBks 2 bk
+  where
+    seps :: Int
+    seps
+      | shouldSpaceList bks = 2
+      | otherwise = 1
 renderBlock (DefinitionList defs) =
-  separatedRenders 1 $ for defs $ \(term, def) -> do
+  separatedRenders seps $ for defs $ \(term, def) -> do
     withoutBreak $ do
       forM_ term renderInline
       flush
     newline
-    separatedRenders 1 $ for def $ \bk -> do
+    separatedRenders seps $ for def $ \bk -> do
       writeText ": " >> withoutBreak flush
       withPrefix "  " $ separatedBks 2 bk
       flush
+  where
+    bks :: [[Block]]
+    bks = defs ^.. each . _2 . each
+    seps :: Int
+    seps
+      | shouldSpaceList bks = 2
+      | otherwise = 1
 renderBlock (Figure attr caption bks) = withoutBreak $ do
   writeText "!["
   separatedBks 0 caption
@@ -164,8 +208,15 @@ renderInline (Link attr txt (MkId i)) = do
   writeText "](" >> writeText i >> writeText ")"
   renderAttr attr
 renderInline (Cite (MkId i)) = writeText "[@" >> writeText i >> writeText "]"
-renderInline (PlainLink _ uri) =
+renderInline (PlainLink Nothing uri) =
   writeText "<" >> writeText (T.pack $ show uri) >> writeText ">"
+renderInline (PlainLink (Just title) uri) = do
+  writeText "["
+  forM_ title renderInline
+  writeText "]["
+  count <- registerLink $ T.pack $ show uri
+  writeText $ T.pack $ show count
+  writeText "]"
 renderInline Space = flush
 renderInline Break = flush
 renderInline (DisplayMath mth) = surrounded "$$" $ writeText mth

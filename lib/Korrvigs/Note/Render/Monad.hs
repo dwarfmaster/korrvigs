@@ -19,7 +19,10 @@ data RenderState = RS
     _prefixLen :: Int,
     _symbol :: Maybe (Builder, Int),
     _notes :: [(Int, [Block])],
-    _noteCount :: Int
+    _noteCount :: Int,
+    _linkCount :: Int,
+    _links :: [(Int, Text)], -- Links to add at the end of section
+    _listDepth :: Int
   }
 
 makeLenses ''RenderState
@@ -118,8 +121,18 @@ registerNote note = do
   noteCount += 1
   pure num
 
+registerLink :: Text -> RenderM Int
+registerLink uri = do
+  num <- use linkCount
+  links %= ((num, uri) :)
+  linkCount += 1
+  pure num
+
 hasNotes :: RenderM Bool
 hasNotes = use $ notes . to (not . null)
+
+hasLinks :: RenderM Bool
+hasLinks = use $ links . to (not . null)
 
 separatedRenders :: Int -> [RenderM ()] -> RenderM ()
 separatedRenders n rdrs =
@@ -141,5 +154,8 @@ runRenderM width rdr =
           _prefixLen = 0,
           _symbol = Nothing,
           _notes = [],
-          _noteCount = 1
+          _noteCount = 1,
+          _linkCount = 0,
+          _links = [],
+          _listDepth = 0
         }

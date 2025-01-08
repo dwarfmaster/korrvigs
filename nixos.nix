@@ -135,7 +135,7 @@ in {
     (mkIf (cfg.enable && psql.enable) {
       services.postgresql = {
         enable = true;
-        extraPlugins = [config.services.postgresql.package.pkgs.postgis];
+        extensions = [config.services.postgresql.package.pkgs.postgis];
         ensureDatabases = [psql.database];
         ensureUsers = [
           {name = "luc";}

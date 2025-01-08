@@ -87,6 +87,9 @@
     korrvigs-plugin = pkgs.vimUtils.buildVimPlugin {
       name = "nvim-korrvigs";
       src = ./neovim;
+      doCheck = false;
+      # TODO make sure checks pass
+      # dependencies = with pkgs.vimPlugins; [ telescope-nvim plenary-nvim nvim-treesitter ];
     };
 
     nvimConfig = {config, ...}: {

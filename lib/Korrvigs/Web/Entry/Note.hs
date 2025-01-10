@@ -32,13 +32,15 @@ data CompileState = CState
     _currentEntry :: Id,
     _subLoc :: SubLoc,
     _subCount :: Int,
-    _codeCount :: Int
+    _codeCount :: Int,
+    _openedSub :: SubLoc,
+    _currentHeaderId :: Maybe Text
   }
 
 makeLenses ''CompileState
 
 initCState :: Id -> CompileState
-initCState i = CState 1 [] True 0 0 False i (SubLoc []) 0 0
+initCState i = CState 1 [] True 0 0 False i (SubLoc []) 0 0 (SubLoc []) Nothing
 
 type CompileM = StateT CompileState Handler
 
@@ -91,11 +93,16 @@ embed lvl note = do
       |]
     Right md -> do
       let isEmbedded = lvl > 0
-      let st =
+      subL <- fmap parseLoc <$> lookupGetParam "open"
+      let st' =
             initCState (note ^. noteEntry . name)
               & hdRootLevel .~ lvl
               & currentLevel .~ lvl
               & embedded .~ isEmbedded
+      let st = case subL of
+            Just (Right (LocSub loc)) -> st' & openedSub .~ loc
+            Just (Right (LocCode loc)) -> st' & openedSub .~ (loc ^. codeSub)
+            _ -> st'
       markdown <- runCompile st $ compileBlocks $ md ^. docContent
       pure $ do
         Ace.setup
@@ -159,7 +166,17 @@ compileBlock' (CodeBlock attr code) = do
   entry <- use currentEntry
   subL <- use subLoc
   codeO <- use codeCount
-  js <- lift $ Ace.editOnClick buttonId divId language $ NoteSubR (WId entry) $ WLoc $ LocCode $ CodeLoc subL codeO
+  let loc = LocCode $ CodeLoc subL codeO
+  hdId <- use currentHeaderId
+  redirUrl <- lift $ aceRedirect entry hdId subL
+  js <-
+    lift $
+      Ace.editOnClick
+        buttonId
+        divId
+        language
+        (NoteSubR (WId entry) $ WLoc loc)
+        redirUrl
   codeCount %= (+ 1)
   pure $
     js
@@ -238,6 +255,10 @@ compileBlock' (Sub hd) = do
   -- Compute level shift
   rtLvl <- use hdRootLevel
   let lvl = rtLvl + hd ^. hdLevel
+  -- Set header id
+  let htmlId = hd ^. hdAttr . attrId
+  let hdId = if T.null htmlId then Nothing else Just htmlId
+  currentHeaderId .= hdId
   -- Render header content
   subC <- use subCount
   subCount .= 0
@@ -252,10 +273,14 @@ compileBlock' (Sub hd) = do
   -- Render header
   editIdent <- newIdent
   entry <- use currentEntry
-  hdW <- lift $ compileHead entry lvl (hd ^. hdTitle) editIdent subL
+  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent subL
+  openedLoc <- use openedSub
+  let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
+  let lvlClass = [T.pack $ "level" <> show (lvl + 1)]
+  let classes = collapsedClass ++ lvlClass
   pure
     [whamlet|
-    <section *{compileAttr $ hd ^. hdAttr} .collapsed class=#{"level" ++ show (lvl + 1)}>
+    <section *{compileAttrWithClasses classes $ hd ^. hdAttr}>
       ^{hdW}
       <div .section-content ##{editIdent}>
         ^{contentW}
@@ -272,42 +297,54 @@ compileBlock' (Table tbl) = do
       ^{captionW}
   |]
 
-compileAttr :: Attr -> [(Text, Text)]
-compileAttr attr =
+compileAttrWithClasses :: [Text] -> Attr -> [(Text, Text)]
+compileAttrWithClasses cls attr =
   [("id", attr ^. attrId) | not (T.null $ attr ^. attrId)]
-    ++ (("class",) <$> attr ^. attrClasses)
+    ++ [("class", T.intercalate " " $ cls ++ (attr ^. attrClasses))]
     ++ M.toList (attr ^. attrMtdt)
+
+compileAttr :: Attr -> [(Text, Text)]
+compileAttr = compileAttrWithClasses []
 
 symb :: Text -> Widget
 symb s = [whamlet|<span .section-symbol>#{s}|]
 
-compileHead :: Id -> Int -> Text -> Text -> SubLoc -> Handler Widget
-compileHead entry 0 t edit subL = do
-  btm <- editButton entry 0 edit subL
+compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> SubLoc -> Handler Widget
+compileHead entry 0 hdId t edit subL = do
+  btm <- editButton entry 0 hdId edit subL
   pure [whamlet|<h1> ^{symb "●"} #{t} ^{btm}|]
-compileHead entry 1 t edit subL = do
-  btm <- editButton entry 1 edit subL
+compileHead entry 1 hdId t edit subL = do
+  btm <- editButton entry 1 hdId edit subL
   pure [whamlet|<h2> ^{symb "◉"} #{t} ^{btm}|]
-compileHead entry 2 t edit subL = do
-  btm <- editButton entry 2 edit subL
+compileHead entry 2 hdId t edit subL = do
+  btm <- editButton entry 2 hdId edit subL
   pure [whamlet|<h3> ^{symb "✿"} #{t} ^{btm}|]
-compileHead entry 3 t edit subL = do
-  btm <- editButton entry 3 edit subL
+compileHead entry 3 hdId t edit subL = do
+  btm <- editButton entry 3 hdId edit subL
   pure [whamlet|<h4> ^{symb "✸"} #{t} ^{btm}|]
-compileHead entry 4 t edit subL = do
-  btm <- editButton entry 4 edit subL
+compileHead entry 4 hdId t edit subL = do
+  btm <- editButton entry 4 hdId edit subL
   pure [whamlet|<h5> ^{symb "○"} #{t} ^{btm}|]
-compileHead entry 5 t edit subL = do
-  btm <- editButton entry 5 edit subL
+compileHead entry 5 hdId t edit subL = do
+  btm <- editButton entry 5 hdId edit subL
   pure [whamlet|<h6> ^{symb "◆"} #{t} ^{btm}|]
-compileHead entry _ t edit subL = do
-  btm <- editButton entry 5 edit subL
+compileHead entry _ hdId t edit subL = do
+  btm <- editButton entry 5 hdId edit subL
   pure [whamlet|<h6> ^{symb "◇"} #{t} ^{btm}|]
 
-editButton :: Id -> Int -> Text -> SubLoc -> Handler Widget
-editButton entry i edit subL = do
+aceRedirect :: Id -> Maybe Text -> SubLoc -> Handler Text
+aceRedirect i mhdId loc = do
+  render <- getUrlRenderParams
+  let url = render (EntryR $ WId i) [("open", renderLoc $ LocSub loc)]
+  pure $ case mhdId of
+    Nothing -> url
+    Just hdId -> url <> "#" <> hdId
+
+editButton :: Id -> Int -> Maybe Text -> Text -> SubLoc -> Handler Widget
+editButton entry i hdId edit subL = do
   buttonId <- newIdent
-  js <- Ace.editOnClick buttonId edit "pandoc" link
+  redirUrl <- aceRedirect entry hdId subL
+  js <- Ace.editOnClick buttonId edit "pandoc" link redirUrl
   pure $
     js
       >> [whamlet|

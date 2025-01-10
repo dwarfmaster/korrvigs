@@ -62,7 +62,7 @@ titleWidget entry contentId = do
       LinkD _ -> pure Nothing
       FileD _ -> pure Nothing
       EventD _ -> pure Nothing
-      NoteD _ -> Just <$> Note.editButton (entry ^. name) 0 contentId (SubLoc [])
+      NoteD _ -> Just <$> Note.editButton (entry ^. name) 0 Nothing contentId (SubLoc [])
 
 -- TODO make link to day viewer
 dateWidget :: Entry -> Handler Widget

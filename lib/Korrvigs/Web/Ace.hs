@@ -68,7 +68,6 @@ setupAceJs =
     const editor = cm.ace
     const content = editor.getValue()
     const url = editor.korrvigs.postUrl
-    console.log("fetching " + url)
     return fetch(url, {
       method: "POST",
       body: content,
@@ -77,8 +76,10 @@ setupAceJs =
       }
     })
   }
-  function aceQuit() {
-    location.assign(location.href)
+  function aceQuit(cm) {
+    const editor = cm.ace
+    const url = editor.korrvigs.redirectUrl
+    location.assign(url)
   }
   function setupAceVimMode() {
     ace.config.loadModule("ace/keyboard/vim", function(module) {
@@ -116,7 +117,7 @@ setupAceJs =
     }
     return editor
   }
-  function aceEdit(id, mode, url) {
+  function aceEdit(id, mode, url, nextUrl) {
     var div = document.getElementById(id)
     while(div.firstChild) {
       div.removeChild(div.firstChild)
@@ -125,7 +126,8 @@ setupAceJs =
       div.textContent = content
       var editor = setupAceEditor(id, mode, false)
       editor.korrvigs = {
-        postUrl: url
+        postUrl: url,
+        redirectUrl: nextUrl
       }
       setupAceVimMode()
       editor.focus()
@@ -162,13 +164,13 @@ preview code language = do
         #{code}
     |]
 
-editOnClick :: Text -> Text -> Text -> Route WebData -> Handler Widget
-editOnClick buttonId divId language url = do
+editOnClick :: Text -> Text -> Text -> Route WebData -> Text -> Handler Widget
+editOnClick buttonId divId language url redirUrl = do
   pure $
     toWidget
       [julius|
     document.getElementById(#{buttonId}).addEventListener("click", (event) => {
-      aceEdit(#{divId}, #{languageMode language}, "@{url}")
+      aceEdit(#{divId}, #{languageMode language}, "@{url}", #{redirUrl})
       event.currentTarget.remove()
     })
   |]

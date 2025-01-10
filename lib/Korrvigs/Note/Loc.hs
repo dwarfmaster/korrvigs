@@ -15,6 +15,7 @@ module Korrvigs.Note.Loc
     renderCodeLoc,
     renderLoc,
     parseLoc,
+    subPrefix,
   )
 where
 
@@ -22,6 +23,7 @@ import Control.Lens
 import Control.Monad
 import Data.ByteString.Builder
 import Data.Functor (($>))
+import Data.List (isSuffixOf)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
@@ -53,6 +55,9 @@ data AnyLoc
 
 subOff :: (Applicative f) => Int -> (Header -> f Header) -> [Block] -> f [Block]
 subOff = elementOf (each . _Sub)
+
+subPrefix :: SubLoc -> SubLoc -> Bool
+subPrefix (SubLoc l1) (SubLoc l2) = l1 `isSuffixOf` l2
 
 -- sub :: SubLoc -> Traversal' Document Header
 sub :: (Applicative f) => SubLoc -> (Header -> f Header) -> Document -> f Document

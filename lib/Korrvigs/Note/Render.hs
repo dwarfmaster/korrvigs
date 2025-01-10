@@ -16,6 +16,7 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import Korrvigs.Entry.Ident
 import Korrvigs.Note.AST
+import Korrvigs.Note.Helpers (renderInlines)
 import Korrvigs.Note.Render.Monad
 import Korrvigs.Note.Render.Table
 import System.IO hiding (hPutStr)
@@ -211,12 +212,19 @@ renderInline (Cite (MkId i)) = writeText "[@" >> writeText i >> writeText "]"
 renderInline (PlainLink Nothing uri) =
   writeText "<" >> writeText (T.pack $ show uri) >> writeText ">"
 renderInline (PlainLink (Just title) uri) = do
-  writeText "["
-  forM_ title renderInline
-  writeText "]["
-  count <- registerLink $ T.pack $ show uri
-  writeText $ T.pack $ show count
-  writeText "]"
+  let rtitle = renderInlines title
+  if T.unpack rtitle == show uri
+    then do
+      writeText "<"
+      writeText (T.pack $ show uri)
+      writeText ">"
+    else do
+      writeText "["
+      forM_ title renderInline
+      writeText "]["
+      count <- registerLink $ T.pack $ show uri
+      writeText $ T.pack $ show count
+      writeText "]"
 renderInline Space = flush
 renderInline Break = flush
 renderInline (DisplayMath mth) = surrounded "$$" $ writeText mth

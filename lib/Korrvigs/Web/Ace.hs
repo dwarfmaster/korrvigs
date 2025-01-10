@@ -99,20 +99,24 @@ setupAceJs =
     var editor = ace.edit(id)
     editor.setTheme("ace/theme/github_dark")
     editor.session.setMode("ace/mode/" + mode)
-    editor.setOptions({
+    const commonOptions = {
       maxLines: Infinity,
-      autoScrollEditorIntoView: true,
       printMarginColumn: 81,
-    })
+    }
+    const roOptions = {
+      readOnly: true,
+      highlightActiveLine: false,
+      highlightGutterLine: false
+    }
+    const rwOptions = {
+      autoScrollEditorIntoView: true,
+    }
     if(readOnly) {
-      editor.setOptions({
-        readOnly: true,
-        highlightActiveLine: false,
-        highlightGutterLine: false
-      })
+      editor.setOptions({ ...commonOptions, ...roOptions })
       editor.renderer.$cursorLayer.element.style.display = "none"
       editor.session.setUseWorker(false)
     } else {
+      editor.setOptions({ ...commonOptions, ...rwOptions })
       editor.setKeyboardHandler("ace/keyboard/vim")
     }
     return editor
@@ -147,14 +151,6 @@ preview code language = do
   ident <- newIdent
   jsEditor <- rawJS <$> newIdent
   pure $ do
-    toWidget
-      [cassius|
-      ##{ident}
-        width: 100%
-        position: absolute
-      .ace_text-input
-        position: absolute!important
-    |]
     toWidget
       [julius|
       var #{jsEditor} = setupAceEditor(#{ident}, #{languageMode language}, true)

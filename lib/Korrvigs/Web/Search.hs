@@ -250,16 +250,22 @@ sortForm q =
       ByTSRank _ -> [("disabled", "") | isNothing $ q ^. queryText] ++ [("class", "tsrank-order")]
       _ -> []
 
-maxResultsOptions :: [Option Int]
+maxResultsOptions :: [Option (Maybe Int)]
 maxResultsOptions = mkOption <$> opts
   where
-    opts = [10, 25, 50]
-    mkOption :: Int -> Option Int
-    mkOption n =
+    opts = [Just 10, Just 25, Just 50, Nothing]
+    mkOption :: Maybe Int -> Option (Maybe Int)
+    mkOption (Just n) =
       Option
         { optionDisplay = T.pack $ show n,
-          optionInternalValue = n,
+          optionInternalValue = Just n,
           optionExternalValue = T.pack $ show n
+        }
+    mkOption Nothing =
+      Option
+        { optionDisplay = "all",
+          optionInternalValue = Nothing,
+          optionExternalValue = "nothing"
         }
 
 maxResultsForm :: Maybe Int -> Handler Widget
@@ -268,7 +274,7 @@ maxResultsForm n =
     [whamlet|
       <select name=maxresults>
         $forall opt <- maxResultsOptions
-          <option value=#{optionExternalValue opt} *{sattr "selected" $ Just (optionInternalValue opt) == n}>
+          <option value=#{optionExternalValue opt} *{sattr "selected" $ optionInternalValue opt == n}>
             Max results:
             #{optionDisplay opt}
     |]
@@ -365,7 +371,7 @@ kindField = radioField $ pure $ mkOptionList $ mkOption <$> [minBound .. maxBoun
 optsField :: Field Handler (SortCriterion, SortOrder)
 optsField = selectField $ pure $ mkOptionList sortOptions
 
-maxResultsField :: Field Handler Int
+maxResultsField :: Field Handler (Maybe Int)
 maxResultsField = selectField $ pure $ mkOptionList maxResultsOptions
 
 displayResultsField :: Field Handler ResultDisplay
@@ -520,9 +526,10 @@ getSearchR = do
                 <*> (zip <$> ireq keysField "mtdtKey" <*> ireq valuesField "mtdtVal")
             )
         <*> (fromMaybe def <$> iopt optsField "sortopts")
-        <*> iopt maxResultsField "maxresults"
+        <*> (join <$> iopt maxResultsField "maxresults")
   display <- runInputGet $ fromMaybe DisplayList <$> iopt displayResultsField "display"
-  let q = fixMaxResults $ fixOrder q'
+  hasMaxResults <- isJust <$> lookupGetParam "maxresults"
+  let q = (if hasMaxResults then id else fixMaxResults) $ fixOrder q'
   r <- rSelect $ do
     entry <- compile q
     title <- optional $ limit 1 $ do

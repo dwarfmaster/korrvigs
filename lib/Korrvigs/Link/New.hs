@@ -5,6 +5,7 @@ module Korrvigs.Link.New (new, NewLink (..), nlOffline, nlDate, nlTitle, nlParen
 import Conduit (throwM)
 import Control.Lens hiding (noneOf)
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Aeson hiding (json)
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
@@ -18,6 +19,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time.Calendar
+import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.KindData
 import Korrvigs.Link.JSON
@@ -30,7 +32,7 @@ import Network.HTTP.Simple
 import Network.HTTP.Types.Status
 import Network.Mime
 import Network.URI
-import Text.Pandoc
+import Text.Pandoc hiding (getCurrentTimeZone)
 import Text.Parsec
 
 data NewLink = NewLink
@@ -92,11 +94,21 @@ new url options = case parseURI (T.unpack url) of
       if options ^. nlOffline
         then pure M.empty
         else catchIO $ downloadInformation link
-    let json = LinkJSON protocol link info parents
+    let title = mplus (options ^. nlTitle) (M.lookup "title" info >>= jsonAsText)
+    let mtdt =
+          M.empty
+            & at "title" .~ (toJSON <$> title)
+            & at "textContent" .~ M.lookup "textContent" info
+            & at "meta" ?~ toJSON (M.delete "textContent" info)
+    let json = LinkJSON protocol link mtdt parents
+    tz <- liftIO getCurrentTimeZone
     let idmk =
           imk "link"
-            & idTitle .~ (M.lookup "title" info >>= jsonAsText)
+            & idTitle .~ title
             & idParent .~ options ^. nlParent
+            & idDate .~ case options ^. nlDate of
+              Just day -> Just $ ZonedTime (LocalTime day $ TimeOfDay 0 0 0) tz
+              Nothing -> Nothing
     i <- newId idmk
     rt <- linkJSONPath
     let jsonTT = linkJSONTreeType

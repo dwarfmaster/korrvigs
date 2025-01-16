@@ -43,6 +43,12 @@ data Block
   | Table Table
   deriving (Show, Eq)
 
+data CheckBox
+  = CheckToDo
+  | CheckOngoing
+  | CheckDone
+  deriving (Show, Eq)
+
 data Inline
   = Plain Text
   | Styled Style [Inline]
@@ -55,6 +61,7 @@ data Inline
   | DisplayMath Text
   | InlineMath Text
   | Sidenote [Block] -- Foot/side-note
+  | Check CheckBox
   deriving (Show, Eq)
 
 data Style
@@ -94,5 +101,6 @@ makeLenses ''Attr
 makeLenses ''Header
 makeLenses ''Cell
 makeLenses ''Table
+makePrisms ''CheckBox
 makePrisms ''Block
 makePrisms ''Inline

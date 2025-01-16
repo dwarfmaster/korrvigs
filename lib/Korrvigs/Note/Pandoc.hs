@@ -151,7 +151,7 @@ parsePandoc :: Pandoc -> A.Document
 parsePandoc (Pandoc mtdt bks) = run act (M.map parseMetaValue $ unMeta mtdt) bks
   where
     act = do
-      title <- concatMapM parseInline $ docTitle mtdt
+      title <- parseInlines $ docTitle mtdt
       stack . bszTitle .= renderInlines title
       whileJust_ getBlock parseTopBlock
 
@@ -166,15 +166,15 @@ parseTopBlock :: Block -> ParseM ()
 parseTopBlock (Header lvl attr title) = do
   let parsed = parseAttr attr
   startHeader lvl parsed
-  rendered <- renderInlines <$> concatMapM parseInline title
+  rendered <- renderInlines <$> parseInlines title
   stack . bszTitle .= rendered
 parseTopBlock bk = mapM_ (pushBlock . noParent) =<< parseBlock bk
 
 -- Parse a block that is not a header
 parseBlock :: Block -> ParseM [A.Block]
-parseBlock (Plain inls) = pure . A.Para <$> concatMapM parseInline inls
-parseBlock (Para inls) = pure . A.Para <$> concatMapM parseInline inls
-parseBlock (LineBlock lns) = pure . A.LineBlock <$> mapM (concatMapM parseInline) lns
+parseBlock (Plain inls) = pure . A.Para <$> parseInlines inls
+parseBlock (Para inls) = pure . A.Para <$> parseInlines inls
+parseBlock (LineBlock lns) = pure . A.LineBlock <$> mapM parseInlines lns
 parseBlock (CodeBlock attr txt) = pure . pure $ A.CodeBlock (parseAttr attr) txt
 parseBlock (RawBlock (Format fmt) i)
   | CI.mk fmt == "Embed" =
@@ -187,7 +187,7 @@ parseBlock (BulletList bks) =
   pure . A.BulletList <$> mapM (concatMapM parseBlock) bks
 parseBlock (DefinitionList lst) =
   pure . A.DefinitionList
-    <$> mapM (bimapM (concatMapM parseInline) (mapM (concatMapM parseBlock))) lst
+    <$> mapM (bimapM parseInlines (mapM (concatMapM parseBlock))) lst
 parseBlock HorizontalRule = pure []
 parseBlock (Table attr (Caption _ caption) _ (TableHead _ headR) body (TableFoot _ footR)) = do
   let a = parseAttr attr
@@ -212,18 +212,26 @@ parseBlock (Figure attr (Caption _ caption) bks) = do
   pure . pure $ A.Figure a capt content
 parseBlock _ = pure []
 
+parseInlines :: [Inline] -> ParseM [A.Inline]
+parseInlines (Str "[x]" : xs) = (A.Check A.CheckDone :) <$> parseInlines xs
+parseInlines (Str "[-]" : xs) = (A.Check A.CheckOngoing :) <$> parseInlines xs
+parseInlines (Str "[" : Space : Str "]" : xs) =
+  (A.Check A.CheckToDo :) <$> parseInlines xs
+parseInlines (x : xs) = (++) <$> parseInline x <*> parseInlines xs
+parseInlines [] = pure []
+
 parseInline :: Inline -> ParseM [A.Inline]
 parseInline (Str txt) = pure . pure $ A.Plain txt
-parseInline (Emph inls) = pure . A.Styled A.Emph <$> concatMapM parseInline inls
-parseInline (Underline inls) = concatMapM parseInline inls
-parseInline (Strong inls) = pure . A.Styled A.Emph <$> concatMapM parseInline inls
-parseInline (Strikeout inls) = concatMapM parseInline inls
+parseInline (Emph inls) = pure . A.Styled A.Emph <$> parseInlines inls
+parseInline (Underline inls) = parseInlines inls
+parseInline (Strong inls) = pure . A.Styled A.Emph <$> parseInlines inls
+parseInline (Strikeout inls) = parseInlines inls
 parseInline (Subscript inls) =
-  pure . A.Styled A.SubScript <$> concatMapM parseInline inls
+  pure . A.Styled A.SubScript <$> parseInlines inls
 parseInline (Superscript inls) =
-  pure . A.Styled A.SuperScript <$> concatMapM parseInline inls
-parseInline (SmallCaps inls) = concatMapM parseInline inls
-parseInline (Quoted _ inls) = pure . A.Styled A.Quote <$> concatMapM parseInline inls
+  pure . A.Styled A.SuperScript <$> parseInlines inls
+parseInline (SmallCaps inls) = parseInlines inls
+parseInline (Quoted _ inls) = pure . A.Styled A.Quote <$> parseInlines inls
 parseInline (Cite cts _) = pure $ A.Cite . MkId . citationId <$> cts
 parseInline (Code attr cd) = pure . pure $ A.Code (parseAttr attr) cd
 parseInline Space = pure $ pure A.Space
@@ -233,7 +241,7 @@ parseInline (Math DisplayMath mth) = pure . pure $ A.DisplayMath mth
 parseInline (Math InlineMath mth) = pure . pure $ A.InlineMath mth
 parseInline (RawInline _ _) = pure []
 parseInline (Link attr txt (url, _)) = do
-  title <- concatMapM parseInline txt
+  title <- parseInlines txt
   if T.isInfixOf "://" url
     then do
       let mtitle = if null txt then Nothing else Just title
@@ -244,7 +252,7 @@ parseInline (Link attr txt (url, _)) = do
       pure . pure $ A.Link (parseAttr attr) title i
 parseInline (Image attr txt url) = parseInline $ Link attr txt url
 parseInline (Note bks) = pure . A.Sidenote <$> concatMapM parseBlock bks
-parseInline (Span _ inls) = concatMapM parseInline inls
+parseInline (Span _ inls) = parseInlines inls
 
 parseAttr :: Attr -> A.Attr
 parseAttr (i, cls, mtdt) = A.MkAttr i cls $ M.fromList mtdt

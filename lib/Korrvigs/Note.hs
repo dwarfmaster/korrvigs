@@ -15,6 +15,7 @@ module Korrvigs.Note
     hdParent,
     hdDocument,
     Block (..),
+    CheckBox (..),
     Inline (..),
     Style (..),
     Attr (..),

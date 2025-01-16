@@ -232,6 +232,9 @@ renderInline (InlineMath mth) = surrounded "$" $ writeText mth
 renderInline (Sidenote note) = do
   num <- registerNote note
   writeText . T.pack $ "[^" <> show num <> "]"
+renderInline (Check CheckToDo) = writeText "[ ]"
+renderInline (Check CheckOngoing) = writeText "[-]"
+renderInline (Check CheckDone) = writeText "[x]"
 
 renderAttr :: Attr -> RenderM ()
 renderAttr attr = listOnLine as (writeText "{") (writeText " ") (writeText "}")

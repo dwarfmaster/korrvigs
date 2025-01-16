@@ -40,7 +40,7 @@ overlay: {
         ;
       inherit (cfg) connectionSpec root;
       inherit (server) port;
-      staticDir = "${pkgs.korrvigs-static}";
+      staticDir = "${pkgs.korrvigs-static.override {inherit (cfg) theme;}}";
     }
     // (
       if builtins.isNull nginx.staticDomain

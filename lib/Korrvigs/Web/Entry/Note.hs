@@ -21,6 +21,7 @@ import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Yesod hiding (Attr, get, (.=))
+import Yesod.Static hiding (embed)
 
 data CompileState = CState
   { _noteCounter :: Int,
@@ -426,3 +427,10 @@ compileInline (InlineMath mth) = pure . toWidget . toHtml $ "\\(" <> mth <> "\\)
 compileInline (Sidenote side) = do
   note <- pushSide side
   pure [whamlet|<span .sidenote-ref>#{show note}|]
+compileInline (Check ck) =
+  pure [whamlet|<img src=@{checkImg ck} .checkBox>|]
+
+checkImg :: CheckBox -> Route WebData
+checkImg CheckToDo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []
+checkImg CheckOngoing = StaticR $ StaticRoute ["icons", "checkbox-ongoing.svg"] []
+checkImg CheckDone = StaticR $ StaticRoute ["icons", "checkbox-done.svg"] []

@@ -1,4 +1,4 @@
-module Korrvigs.File.New (new, NewFile (..), nfParent, nfDate, nfTitle) where
+module Korrvigs.File.New (new, NewFile (..), nfEntry) where
 
 import Conduit (throwM)
 import Control.Applicative ((<|>))
@@ -14,9 +14,9 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy.IO as TLIO
-import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
+import Korrvigs.Entry.New
 import Korrvigs.File.Mtdt
 import Korrvigs.File.Sync
 import Korrvigs.KindData
@@ -57,16 +57,14 @@ shouldAnnex path mime =
       pure $ size > 10 * 1024 * 1024
     else pure True
 
-data NewFile = NewFile
-  { _nfParent :: Maybe Id,
-    _nfDate :: Maybe Day,
-    _nfTitle :: Maybe Text
+newtype NewFile = NewFile
+  { _nfEntry :: NewEntry
   }
 
 makeLenses ''NewFile
 
 instance Default NewFile where
-  def = NewFile Nothing Nothing Nothing
+  def = NewFile def
 
 choosePrefix :: MimeType -> Text
 choosePrefix mime
@@ -77,10 +75,6 @@ choosePrefix mime
   | BS.isPrefixOf "text" mime = "file"
   | otherwise = "doc"
 
-zonedTimeFromDay :: TimeZone -> Day -> ZonedTime
-zonedTimeFromDay tz day =
-  ZonedTime (LocalTime day (TimeOfDay 0 0 0)) tz
-
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
 new path' options = do
   path <- liftIO $ resolveSymbolicLink path'
@@ -88,38 +82,32 @@ new path' options = do
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path
   mtdt' <- liftIO $ extractMetadata path mime
-  tz <- liftIO getCurrentTimeZone
-  let extrasFromNew =
-        def
-          & mtdtTitle .~ options ^. nfTitle
-          & mtdtDate .~ (zonedTimeFromDay tz <$> options ^. nfDate)
-          & mtdtParents .~ ((: []) <$> options ^. nfParent)
+  extrasFromNew <- newExtraMtdt $ options ^. nfEntry
   let mtdt'' = reifyMetadata extrasFromNew $ M.map (`MValue` True) mtdt'
   let mtdt = M.map (^. metaValue) mtdt''
   let extras = mtdtExtras mtdt
   annex <- liftIO $ shouldAnnex path mime
-  let idmk =
+  let idmk' =
         imk (choosePrefix mime)
           & idTitle
-            .~ ( (options ^. nfTitle)
-                   <|> (extras ^. mtdtTitle)
+            .~ ( (extras ^. mtdtTitle)
                    <|> Just (T.pack $ takeBaseName path)
                )
-          & idParent .~ options ^. nfParent
           & idDate .~ extras ^. mtdtDate
+  idmk <- applyNewEntry (options ^. nfEntry) idmk'
   i <- newId idmk
   let ext = T.pack $ takeExtension path
   let nm = unId i <> ext
   content <- liftIO $ BSL.readFile path
   dir <- filesDirectory
-  let day = (localDay . zonedTimeToLocalTime <$> extras ^. mtdtDate) <|> (options ^. nfDate)
+  let day = (localDay . zonedTimeToLocalTime <$> extras ^. mtdtDate) <|> (options ^. nfEntry . neDate)
   stored <- storeFile dir filesTreeType day nm content
   let metapath = metaPath stored
   let meta =
         FileMetadata
           { _savedMime = Enc.decodeUtf8 mime,
             _extracted = mtdt,
-            _annoted = M.empty
+            _annoted = M.fromList $ options ^. nfEntry . neMtdt
           }
   liftIO $ TLIO.writeFile metapath $ encodeToLazyText meta
   rt <- root

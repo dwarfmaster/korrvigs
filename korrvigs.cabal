@@ -41,6 +41,7 @@ library korrvigs-lib
     Korrvigs.Cli.Init
     Korrvigs.Cli.Link
     Korrvigs.Cli.Monad
+    Korrvigs.Cli.New
     Korrvigs.Cli.Note
     Korrvigs.Cli.Query
     Korrvigs.Cli.Server
@@ -50,6 +51,7 @@ library korrvigs-lib
     Korrvigs.Entry.Ident
     Korrvigs.Entry.Ident.English
     Korrvigs.Entry.Ident.French
+    Korrvigs.Entry.New
     Korrvigs.Entry.SQL
     Korrvigs.Event
     Korrvigs.Event.ICalendar

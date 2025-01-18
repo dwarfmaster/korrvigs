@@ -6,6 +6,7 @@ module Korrvigs.Entry.Ident
     idPrefix,
     idTitle,
     idParent,
+    idLanguage,
     idSeq,
     idDate,
     imk,

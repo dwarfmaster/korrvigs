@@ -5,9 +5,11 @@ import Control.Lens
 import Control.Monad
 import Data.Default
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry.Ident
+import Korrvigs.Entry.New
 import Korrvigs.Favourites
 import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
@@ -177,7 +179,8 @@ runNewFile parent nfile =
       let path = joinPath [dir, filename]
       fileMove (nfile ^. nfileContent) path
       let settings =
-            def
-              & NFile.nfTitle .~ nfile ^. nfileTitle
-              & NFile.nfParent .~ parent
+            NFile.NewFile $
+              def
+                & neTitle .~ nfile ^. nfileTitle
+                & neParents .~ maybeToList parent
       runIO $ NFile.new path settings

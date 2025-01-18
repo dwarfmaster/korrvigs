@@ -5,9 +5,9 @@ import Control.Monad
 import Control.Monad.IO.Class
 import qualified Data.Text as T
 import Korrvigs.Cli.Monad
+import Korrvigs.Cli.New
 import Korrvigs.Entry
 import Korrvigs.File
-import Korrvigs.Utils.DateParser
 import Options.Applicative
 import System.Directory (removeFile)
 
@@ -24,9 +24,7 @@ parser' =
           ( ( New
                 <$> argument str (metavar "PATH")
                 <*> ( NewFile
-                        <$> (fmap MkId <$> optional (option str $ metavar "ID" <> long "parent"))
-                        <*> optional (option dayParser $ metavar "DATE" <> long "date" <> help "Date for the file, in format year-month-day")
-                        <*> optional (option str $ metavar "TITLE" <> long "title")
+                        <$> newEntryOptions
                     )
                 <*> switch (long "delete" <> help "Delete original file after insertion")
             )

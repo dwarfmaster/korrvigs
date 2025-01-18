@@ -3,11 +3,13 @@ module Korrvigs.Cli.Note where
 import Control.Lens hiding (argument)
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Default
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
+import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NF
 import qualified Korrvigs.Link.New as NL
 import Korrvigs.Monad
@@ -164,9 +166,7 @@ run (Attach note isPath cmd) =
         forM_ files $ \file -> do
           let options =
                 NF.NewFile
-                  { NF._nfParent = Just i,
-                    NF._nfDate = Nothing,
-                    NF._nfTitle = Nothing
+                  { NF._nfEntry = def & neParents .~ [i]
                   }
           ni <- NF.new file options
           liftIO $ putStrLn $ unId ni

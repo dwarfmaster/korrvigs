@@ -8,6 +8,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import Korrvigs.Cli.Monad
+import Korrvigs.Cli.New
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NF
@@ -55,8 +56,8 @@ parser' =
           ( info
               ( ( New
                     <$> ( NewNote
-                            <$> argument str (metavar "TITLE")
-                            <*> pure Nothing
+                            <$> newEntryOptions
+                            <*> argument str (metavar "TITLE")
                         )
                 )
                   <**> helper
@@ -184,7 +185,7 @@ run (Attach note isPath cmd) =
           let options =
                 NewNote
                   { _nnTitle = nt,
-                    _nnParent = Just i
+                    _nnEntry = def & neParents .~ [i]
                   }
           ni <- new options
           liftIO $ putStrLn $ unId ni

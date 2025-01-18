@@ -157,7 +157,10 @@ runForm parent form handler = do
 
 runNewNote :: Maybe Id -> NewNote -> Handler Id
 runNewNote parent nnote =
-  let settings = NNote.NewNote (nnote ^. nnoteTitle) parent
+  let settings =
+        NNote.NewNote
+          (def & neParents .~ maybeToList parent)
+          (nnote ^. nnoteTitle)
    in NNote.new settings
 
 runNewLink :: Maybe Id -> NewLink -> Handler Id

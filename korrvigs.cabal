@@ -62,6 +62,7 @@ library korrvigs-lib
     Korrvigs.Event.SQL
     Korrvigs.Event.Sync
     Korrvigs.Event.VDirSyncer
+    Korrvigs.Favourites
     Korrvigs.File
     Korrvigs.File.Mtdt
     Korrvigs.File.Mtdt.ExifTool

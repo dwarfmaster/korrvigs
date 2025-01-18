@@ -2,10 +2,13 @@ module Korrvigs.Web.Home (getHomeR, postHomeR, newForms, runNewForms) where
 
 import Conduit
 import Control.Lens
+import Control.Monad
 import Data.Default
+import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry.Ident
+import Korrvigs.Favourites
 import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
 import qualified Korrvigs.Note.New as NNote
@@ -76,14 +79,66 @@ newForms postUrl prefix errMsgs = do
     ^{newFile}
   |]
 
+displayFavTree :: Int -> Text -> FavouriteTree -> Handler Widget
+displayFavTree lvl cat favs = do
+  let entries = favs ^. favEntries
+  subs <- forM (M.toList $ favs ^. favSubs) $ uncurry (displayFavTree $ lvl + 1)
+  let lvlClass = T.pack $ "level" <> show (lvl + 1)
+  let classes :: Text =
+        if lvl > 1
+          then lvlClass <> " collapsed"
+          else lvlClass
+  pure
+    [whamlet|
+    <section class=#{classes}>
+      ^{header lvl}
+      <div .section-content>
+        <ul>
+          $forall (i,title) <- entries
+            <li>
+              <a href=@{EntryR (WId i)}>
+                $maybe t <- title
+                  #{t}
+                $nothing
+                  @#{unId i}
+        $forall sub <- subs
+          ^{sub}
+  |]
+  where
+    header :: Int -> Widget
+    header 1 = [whamlet|<h2> ^{symb "★"} #{cat}|]
+    header 2 = [whamlet|<h3> ^{symb "★"} #{cat}|]
+    header 3 = [whamlet|<h4> ^{symb "★"} #{cat}|]
+    header 4 = [whamlet|<h5> ^{symb "★"} #{cat}|]
+    header _ = [whamlet|<h6> ^{symb "★"} #{cat}|]
+
+-- TODO fix duplication with Korrvigs.Web.Entry.Note
+symb :: Text -> Widget
+symb s = [whamlet|<span .section-symbol>#{s}|]
+
 displayHome :: [Text] -> Handler Html
 displayHome errMsgs = do
   nw <- newForms HomeR "Create" errMsgs
+  favs <- displayFavTree 1 "Favourites" =<< favTree
   defaultLayout $ do
+    Rcs.entryStyle
     Rcs.formsStyle
+    toWidget
+      [julius|
+        var syms = document.querySelectorAll('.section-symbol')
+        for(let sym = 0; sym < syms.length; sym++) {
+          syms[sym].addEventListener("click", function () {
+            syms[sym].parentElement.parentElement.classList.toggle("collapsed")
+          })
+        }
+      |]
     [whamlet|
     <h1>Welcome to Korrvigs
-    ^{nw}
+    <section .level2>
+      <h2> ^{symb "⊕"} Create entry
+      <div .section-content>
+        ^{nw}
+    ^{favs}
   |]
 
 getHomeR :: Handler Html

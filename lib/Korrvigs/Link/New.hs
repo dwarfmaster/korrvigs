@@ -3,13 +3,13 @@
 module Korrvigs.Link.New (new, NewLink (..), nlOffline, nlDate, nlTitle, nlParent) where
 
 import Conduit (throwM)
+import Control.Exception
 import Control.Lens hiding (noneOf)
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson hiding (json)
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.UTF8 as BS8
 import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.Map (Map)
@@ -64,24 +64,30 @@ contentTypeP = do
       _ -> decUtf8
   pure (Enc.encodeUtf8 $ T.pack mime, charset)
 
+isHttpException :: SomeException -> Bool
+isHttpException e = isJust (fromException e :: Maybe HttpException)
+
 downloadInformation :: Text -> IO (Map Text Value)
 downloadInformation uri = do
   req <- parseRequest $ T.unpack uri
-  response <- httpBS req
-  let status = getResponseStatus response
-  when (statusCode status /= 200) $
-    fail $
-      "Failed to download \"" <> T.unpack uri <> "\": " <> BS8.toString (statusMessage status)
-  let ct = getResponseHeader "Content-Type" response
-  let r = parse contentTypeP "" <$> ct
-  case r of
-    (Right ("text/html", decoder)) : _ -> case decoder (getResponseBody response) of
-      Just content ->
-        runIO (readHtml def content) >>= \case
-          Left _ -> pure M.empty
-          Right pd -> pure $ pdExtractMtdt pd
-      Nothing -> pure M.empty
-    _ -> pure M.empty
+  resp <- tryJust (guard . isHttpException) $ httpBS req
+  case resp of
+    Left _ -> pure M.empty
+    Right response -> do
+      let status = getResponseStatus response
+      if statusCode status /= 200
+        then pure M.empty
+        else do
+          let ct = getResponseHeader "Content-Type" response
+          let r = parse contentTypeP "" <$> ct
+          case r of
+            (Right ("text/html", decoder)) : _ -> case decoder (getResponseBody response) of
+              Just content ->
+                runIO (readHtml def content) >>= \case
+                  Left _ -> pure M.empty
+                  Right pd -> pure $ pdExtractMtdt pd
+              Nothing -> pure M.empty
+            _ -> pure M.empty
 
 new :: (MonadKorrvigs m) => Text -> NewLink -> m Id
 new url options = case parseURI (T.unpack url) of

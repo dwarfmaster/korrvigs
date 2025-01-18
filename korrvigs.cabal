@@ -141,6 +141,7 @@ library korrvigs-lib
     Korrvigs.Web.Utils
     Korrvigs.Web.Vis.Network
     Korrvigs.Web.Vis.Timeline
+    Korrvigs.Web.Widgets
 
   build-depends:
     , aeson                 ^>=2.1.2.1

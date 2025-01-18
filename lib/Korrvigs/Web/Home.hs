@@ -16,6 +16,7 @@ import Korrvigs.Utils (firstJustM)
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
+import qualified Korrvigs.Web.Widgets as Widgets
 import System.FilePath
 import System.IO.Temp
 import Yesod hiding (joinPath)
@@ -83,61 +84,40 @@ displayFavTree :: Int -> Text -> FavouriteTree -> Handler Widget
 displayFavTree lvl cat favs = do
   let entries = favs ^. favEntries
   subs <- forM (M.toList $ favs ^. favSubs) $ uncurry (displayFavTree $ lvl + 1)
-  let lvlClass = T.pack $ "level" <> show (lvl + 1)
-  let classes :: Text =
-        if lvl > 1
-          then lvlClass <> " collapsed"
-          else lvlClass
-  pure
-    [whamlet|
-    <section class=#{classes}>
-      ^{header lvl}
-      <div .section-content>
-        <ul>
-          $forall (i,title) <- entries
-            <li>
-              <a href=@{EntryR (WId i)}>
-                $maybe t <- title
-                  #{t}
-                $nothing
-                  @#{unId i}
-        $forall sub <- subs
-          ^{sub}
+  let content =
+        [whamlet|
+    <ul>
+      $forall (i,title) <- entries
+        <li>
+          <a href=@{EntryR (WId i)}>
+            $maybe t <- title
+              #{t}
+            $nothing
+              @#{unId i}
+    $forall sub <- subs
+      ^{sub}
   |]
+  pure $ Widgets.mkSection lvl [("class", "collapsed") | lvl > 1] [] (header lvl) content
   where
     header :: Int -> Widget
-    header 1 = [whamlet|<h2> ^{symb "★"} #{cat}|]
-    header 2 = [whamlet|<h3> ^{symb "★"} #{cat}|]
-    header 3 = [whamlet|<h4> ^{symb "★"} #{cat}|]
-    header 4 = [whamlet|<h5> ^{symb "★"} #{cat}|]
-    header _ = [whamlet|<h6> ^{symb "★"} #{cat}|]
-
--- TODO fix duplication with Korrvigs.Web.Entry.Note
-symb :: Text -> Widget
-symb s = [whamlet|<span .section-symbol>#{s}|]
+    header 1 = [whamlet|<h2> ^{Widgets.headerSymbol "★"} #{cat}|]
+    header 2 = [whamlet|<h3> ^{Widgets.headerSymbol "★"} #{cat}|]
+    header 3 = [whamlet|<h4> ^{Widgets.headerSymbol "★"} #{cat}|]
+    header 4 = [whamlet|<h5> ^{Widgets.headerSymbol "★"} #{cat}|]
+    header _ = [whamlet|<h6> ^{Widgets.headerSymbol "★"} #{cat}|]
 
 displayHome :: [Text] -> Handler Html
 displayHome errMsgs = do
   nw <- newForms HomeR "Create" errMsgs
+  let nwHd = [whamlet|<h2> ^{Widgets.headerSymbol "⊕"} Create entry|]
   favs <- displayFavTree 1 "Favourites" =<< favTree
   defaultLayout $ do
     Rcs.entryStyle
     Rcs.formsStyle
-    toWidget
-      [julius|
-        var syms = document.querySelectorAll('.section-symbol')
-        for(let sym = 0; sym < syms.length; sym++) {
-          syms[sym].addEventListener("click", function () {
-            syms[sym].parentElement.parentElement.classList.toggle("collapsed")
-          })
-        }
-      |]
+    Widgets.sectionLogic
     [whamlet|
     <h1>Welcome to Korrvigs
-    <section .level2>
-      <h2> ^{symb "⊕"} Create entry
-      <div .section-content>
-        ^{nw}
+    ^{Widgets.mkSection 1 [] [] nwHd nw}
     ^{favs}
   |]
 

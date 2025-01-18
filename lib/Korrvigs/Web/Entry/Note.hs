@@ -20,6 +20,7 @@ import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
+import qualified Korrvigs.Web.Widgets as Wdgs
 import Yesod hiding (Attr, get, (.=))
 import Yesod.Static hiding (embed)
 
@@ -115,16 +116,7 @@ embed lvl note = do
             ^{checksDisplay $ md ^. docChecks}
         |]
         markdown
-        unless isEmbedded $
-          toWidget
-            [julius|
-          var syms = document.querySelectorAll('.section-symbol')
-          for(let sym = 0; sym < syms.length; sym++) {
-            syms[sym].addEventListener("click", function () {
-              syms[sym].parentElement.parentElement.classList.toggle("collapsed")
-            })
-          }
-        |]
+        unless isEmbedded Wdgs.sectionLogic
 
 content :: Note -> Handler Widget
 content = embed 0
@@ -286,15 +278,8 @@ compileBlock' (Sub hd) = do
   hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent (hd ^. hdChecks) subL
   openedLoc <- use openedSub
   let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
-  let lvlClass = [T.pack $ "level" <> show (lvl + 1)]
-  let classes = collapsedClass ++ lvlClass
-  pure
-    [whamlet|
-    <section *{compileAttrWithClasses classes $ hd ^. hdAttr}>
-      ^{hdW}
-      <div .section-content ##{editIdent}>
-        ^{contentW}
-  |]
+  let classes = compileAttrWithClasses collapsedClass $ hd ^. hdAttr
+  pure $ Wdgs.mkSection lvl classes [("id", editIdent)] hdW contentW
 compileBlock' (Table tbl) = do
   tableW <- compileTable (tbl ^. tableHeader) (tbl ^. tableFooter) (tbl ^. tableCells)
   captionW <- compileBlocks $ tbl ^. tableCaption
@@ -316,31 +301,28 @@ compileAttrWithClasses cls attr =
 compileAttr :: Attr -> [(Text, Text)]
 compileAttr = compileAttrWithClasses []
 
-symb :: Text -> Widget
-symb s = [whamlet|<span .section-symbol>#{s}|]
-
 compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> (Int, Int, Int) -> SubLoc -> Handler Widget
 compileHead entry 0 hdId t edit checks subL = do
   btm <- editButton entry 0 hdId edit subL
-  pure [whamlet|<h1> ^{symb "●"} #{t} ^{checksDisplay checks} ^{btm}|]
+  pure [whamlet|<h1> ^{Wdgs.headerSymbol "●"} #{t} ^{checksDisplay checks} ^{btm}|]
 compileHead entry 1 hdId t edit checks subL = do
   btm <- editButton entry 1 hdId edit subL
-  pure [whamlet|<h2> ^{symb "◉"} #{t} ^{checksDisplay checks} ^{btm}|]
+  pure [whamlet|<h2> ^{Wdgs.headerSymbol "◉"} #{t} ^{checksDisplay checks} ^{btm}|]
 compileHead entry 2 hdId t edit checks subL = do
   btm <- editButton entry 2 hdId edit subL
-  pure [whamlet|<h3> ^{symb "✿"} #{t} ^{checksDisplay checks} ^{btm}|]
+  pure [whamlet|<h3> ^{Wdgs.headerSymbol "✿"} #{t} ^{checksDisplay checks} ^{btm}|]
 compileHead entry 3 hdId t edit checks subL = do
   btm <- editButton entry 3 hdId edit subL
-  pure [whamlet|<h4> ^{symb "✸"} #{t} ^{checksDisplay checks} ^{btm}|]
+  pure [whamlet|<h4> ^{Wdgs.headerSymbol "✸"} #{t} ^{checksDisplay checks} ^{btm}|]
 compileHead entry 4 hdId t edit checks subL = do
   btm <- editButton entry 4 hdId edit subL
-  pure [whamlet|<h5> ^{symb "○"} #{t} ^{checksDisplay checks} ^{btm}|]
+  pure [whamlet|<h5> ^{Wdgs.headerSymbol "○"} #{t} ^{checksDisplay checks} ^{btm}|]
 compileHead entry 5 hdId t edit checks subL = do
   btm <- editButton entry 5 hdId edit subL
-  pure [whamlet|<h6> ^{symb "◆"} #{t} ^{checksDisplay checks} ^{btm}|]
+  pure [whamlet|<h6> ^{Wdgs.headerSymbol "◆"} #{t} ^{checksDisplay checks} ^{btm}|]
 compileHead entry _ hdId t edit checks subL = do
   btm <- editButton entry 5 hdId edit subL
-  pure [whamlet|<h6> ^{symb "◇"} #{t} ^{checksDisplay checks} ^{btm}|]
+  pure [whamlet|<h6> ^{Wdgs.headerSymbol "◇"} #{t} ^{checksDisplay checks} ^{btm}|]
 
 aceRedirect :: Id -> Maybe Text -> SubLoc -> Handler Text
 aceRedirect i mhdId loc = do

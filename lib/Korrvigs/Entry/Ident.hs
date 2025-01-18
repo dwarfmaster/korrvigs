@@ -23,12 +23,14 @@ import Data.Char
 import Data.List (unfoldr)
 import Data.Maybe (fromJust, isNothing)
 import Data.Profunctor.Product.Default
+import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time
-import Korrvigs.Entry.Ident.Stopwords
+import qualified Korrvigs.Entry.Ident.English as En
+import qualified Korrvigs.Entry.Ident.French as Fr
 import Opaleye (DefaultFromField (..), Field, SqlText, ToFields, sqlStrictText)
 import Text.Printf
 
@@ -49,7 +51,8 @@ data IdMaker = IdMaker
     _idTitle :: Maybe Text,
     _idParent :: Maybe Id,
     _idSeq :: Maybe Int,
-    _idDate :: Maybe ZonedTime
+    _idDate :: Maybe ZonedTime,
+    _idLanguage :: Maybe Text
   }
   deriving (Show)
 
@@ -63,10 +66,10 @@ capitalize = T.pack . toCap . T.unpack
     toCap (l : ls) = toUpper l : fmap toLower ls
 
 imk :: Text -> IdMaker
-imk prefix = IdMaker prefix Nothing Nothing Nothing Nothing
+imk prefix = IdMaker prefix Nothing Nothing Nothing Nothing Nothing
 
-prepTitle :: Text -> Text
-prepTitle title = foldl (<>) "" content
+prepTitle :: Maybe Text -> Text -> Text
+prepTitle language title = foldl (<>) "" content
   where
     ascii :: Text
     ascii =
@@ -77,6 +80,10 @@ prepTitle title = foldl (<>) "" content
               Enc.encodeUtf8 title
     wds :: [Text]
     wds = T.map toLower <$> T.split (\c -> isPunctuation c || isSpace c) ascii
+    stopwords :: Set Text
+    stopwords = case language of
+      Just "fr" -> Fr.stopwords
+      _ -> En.stopwords
     toDrop :: Text -> Bool
     toDrop t = S.member t stopwords || T.length t <= 1
     content :: [Text]
@@ -106,7 +113,7 @@ prep mk =
     stub :: Text
     stub =
       case mk ^. idTitle of
-        Just title -> prepTitle title
+        Just title -> prepTitle (mk ^. idLanguage) title
         Nothing ->
           case mk ^. idParent of
             Just (MkId parent) ->

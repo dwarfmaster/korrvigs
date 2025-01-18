@@ -48,7 +48,8 @@ library korrvigs-lib
     Korrvigs.Entry
     Korrvigs.Entry.Def
     Korrvigs.Entry.Ident
-    Korrvigs.Entry.Ident.Stopwords
+    Korrvigs.Entry.Ident.English
+    Korrvigs.Entry.Ident.French
     Korrvigs.Entry.SQL
     Korrvigs.Event
     Korrvigs.Event.ICalendar

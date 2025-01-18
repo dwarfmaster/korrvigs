@@ -1,6 +1,6 @@
 -- Taken from https://github.com/stopwords-iso/stopwords-en
 
-module Korrvigs.Entry.Ident.Stopwords where
+module Korrvigs.Entry.Ident.English where
 
 import Data.Set
 import Data.Text

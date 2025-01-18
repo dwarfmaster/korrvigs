@@ -23,7 +23,7 @@ import Korrvigs.Note.Sync (dSyncOneImpl)
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import System.IO
-import Yesod
+import Yesod hiding (check)
 
 getNoteR :: WebId -> Handler LT.Text
 getNoteR (WId i) =
@@ -72,6 +72,12 @@ getNoteSubR (WId i) (WLoc loc) =
             LocSub lc -> case doc ^? sub lc of
               Nothing -> notFound
               Just hd -> pure $ LEnc.decodeUtf8 $ writeHeaderLazy hd
+            LocCheck lc -> case doc ^? check lc of
+              Nothing -> notFound
+              Just cb -> pure $ case cb of
+                CheckToDo -> "todo"
+                CheckOngoing -> "ongoing"
+                CheckDone -> "done"
       _ -> notFound
 
 postNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text
@@ -94,6 +100,13 @@ postNoteSubR (WId i) (WLoc loc) =
                   Left err -> throwM $ KMiscError err
                   Right Nothing -> throwM $ KMiscError "Partial markdown file is not a single header"
                   Right (Just hdv) -> pure $ setSub lc doc hdv
+              LocCheck lc -> do
+                cb <- case txt of
+                  "todo" -> pure CheckToDo
+                  "ongoing" -> pure CheckOngoing
+                  "done" -> pure CheckDone
+                  _ -> throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid checkbox state"
+                pure $ setCheck lc doc cb
             let path = note ^. notePath
             fd <- liftIO $ openFile path WriteMode
             writeNote fd ndoc >>= \case

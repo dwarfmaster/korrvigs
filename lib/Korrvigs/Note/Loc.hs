@@ -4,6 +4,9 @@ module Korrvigs.Note.Loc
     CodeLoc (..),
     codeSub,
     codeOffset,
+    CheckLoc (..),
+    checkSub,
+    checkOffset,
     AnyLoc (..),
     sub,
     getSub,
@@ -11,6 +14,9 @@ module Korrvigs.Note.Loc
     code,
     getCode,
     setCode,
+    check,
+    getCheck,
+    setCheck,
     renderSubLoc,
     renderCodeLoc,
     renderLoc,
@@ -48,9 +54,18 @@ data CodeLoc = CodeLoc
 
 makeLenses ''CodeLoc
 
+data CheckLoc = CheckLoc
+  { _checkSub :: SubLoc,
+    _checkOffset :: Int
+  }
+  deriving (Eq, Ord, Show, Read)
+
+makeLenses ''CheckLoc
+
 data AnyLoc
   = LocSub SubLoc
   | LocCode CodeLoc
+  | LocCheck CheckLoc
   deriving (Eq, Ord, Show, Read)
 
 subOff :: (Applicative f) => Int -> (Header -> f Header) -> [Block] -> f [Block]
@@ -65,6 +80,10 @@ sub (SubLoc []) = const pure
 sub (SubLoc [off]) = docContent . subOff off
 sub (SubLoc (off : offs)) = sub (SubLoc offs) . hdContent . subOff off
 
+subContents :: (Applicative f) => SubLoc -> ([Block] -> f [Block]) -> Document -> f Document
+subContents (SubLoc []) = docContent
+subContents sb = sub sb . hdContent
+
 getSub :: SubLoc -> Document -> Maybe Header
 getSub loc doc = doc ^? sub loc
 
@@ -72,13 +91,22 @@ setSub :: SubLoc -> Document -> Header -> Document
 setSub loc doc hd = doc & sub loc .~ hd
 
 code :: (Applicative f) => CodeLoc -> (Text -> f Text) -> Document -> f Document
-code (CodeLoc sb off) = sub sb . hdContent . elementOf (each . _CodeBlock . _2) off
+code (CodeLoc sb off) = subContents sb . elementOf (each . _CodeBlock . _2) off
 
 getCode :: CodeLoc -> Document -> Maybe Text
 getCode loc doc = doc ^? code loc
 
 setCode :: CodeLoc -> Document -> Text -> Document
 setCode loc doc cd = doc & code loc .~ cd
+
+check :: (Applicative f) => CheckLoc -> (CheckBox -> f CheckBox) -> Document -> f Document
+check (CheckLoc sb off) = subContents sb . elementOf (each . bkInlines . inlInlines . _Check) off
+
+getCheck :: CheckLoc -> Document -> Maybe CheckBox
+getCheck loc doc = doc ^? check loc
+
+setCheck :: CheckLoc -> Document -> CheckBox -> Document
+setCheck loc doc cb = doc & check loc .~ cb
 
 -- Rendering AST locations
 buildSubLoc :: [Int] -> Builder
@@ -102,9 +130,17 @@ buildCodeLoc loc =
 renderCodeLoc :: CodeLoc -> Text
 renderCodeLoc = doRender . buildCodeLoc
 
+buildCheckLoc :: CheckLoc -> Builder
+buildCheckLoc loc =
+  buildSubLoc (loc ^. checkSub . subOffsets) <> buildText ":x:" <> intDec (loc ^. checkOffset)
+
+renderCheckLoc :: CheckLoc -> Text
+renderCheckLoc = doRender . buildCheckLoc
+
 renderLoc :: AnyLoc -> Text
 renderLoc (LocSub loc) = renderSubLoc loc
 renderLoc (LocCode loc) = renderCodeLoc loc
+renderLoc (LocCheck loc) = renderCheckLoc loc
 
 -- Parse AST location
 subLocP :: (Stream s Identity Char) => Parsec s u SubLoc
@@ -116,6 +152,7 @@ locPrefixP prefix = void $ char prefix >> char ':'
 anyLocP :: (Stream s Identity Char) => SubLoc -> Parsec s u AnyLoc
 anyLocP sb =
   locPrefixP 'c' *> (LocCode . CodeLoc sb <$> decimal)
+    <|> locPrefixP 'x' *> (LocCheck . CheckLoc sb <$> decimal)
 
 locP :: (Stream s Identity Char) => Parsec s u AnyLoc
 locP = do

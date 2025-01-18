@@ -1,6 +1,6 @@
 module Korrvigs.Note.AST where
 
-import Control.Lens.TH (makeLenses, makePrisms)
+import Control.Lens
 import Data.Aeson (Value)
 import Data.Array
 import Data.Map (Map)
@@ -106,3 +106,41 @@ makeLenses ''Table
 makePrisms ''CheckBox
 makePrisms ''Block
 makePrisms ''Inline
+
+-- Traversal over all the inlines of a block, not recursing into subs
+bkInlines :: Traversal' Block Inline
+bkInlines f (Para inls) = Para <$> each f inls
+bkInlines f (LineBlock inls) = LineBlock <$> each (each f) inls
+bkInlines f (BlockQuote bks) = BlockQuote <$> each (bkInlines f) bks
+bkInlines f (OrderedList bks) = OrderedList <$> each (each $ bkInlines f) bks
+bkInlines f (BulletList bks) = BulletList <$> each (each $ bkInlines f) bks
+bkInlines f (DefinitionList lst) = DefinitionList <$> each (defInlines f) lst
+  where
+    defInlines :: Traversal' ([Inline], [[Block]]) Inline
+    defInlines g (df, content) =
+      (,) <$> each g df <*> each (each $ bkInlines g) content
+bkInlines f (Figure attr caption content) =
+  Figure attr <$> each (bkInlines f) caption <*> each (bkInlines f) content
+bkInlines f (Table (MkTable caption cells attr hd ft)) =
+  Table
+    <$> ( MkTable
+            <$> each (bkInlines f) caption
+            <*> each (cellInlines f) cells
+            <*> pure attr
+            <*> pure hd
+            <*> pure ft
+        )
+  where
+    cellInlines :: Traversal' Cell Inline
+    cellInlines g (Cell orig width height dat) =
+      Cell orig width height <$> each (bkInlines g) dat
+bkInlines _ b = pure b
+
+-- Traversal over the recursive inlines. It is a singleton on the non-recursive inlines.
+inlInlines :: Traversal' Inline Inline
+inlInlines f (Styled st inls) = Styled st <$> each f inls
+inlInlines f (Link attr txt i) = Link attr <$> each f txt <*> pure i
+inlInlines f (PlainLink (Just txt) uri) =
+  PlainLink <$> (Just <$> each f txt) <*> pure uri
+inlInlines f (Sidenote bks) = Sidenote <$> each (bkInlines $ inlInlines f) bks
+inlInlines f i = f i

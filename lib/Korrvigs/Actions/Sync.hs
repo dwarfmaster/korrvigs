@@ -18,7 +18,7 @@ import Korrvigs.File
 import Korrvigs.KindData
 import Korrvigs.Link
 import Korrvigs.Monad
-import Korrvigs.Note
+import Korrvigs.Note hiding (check)
 import Korrvigs.Utils.Cycle
 import Opaleye hiding (not, null)
 

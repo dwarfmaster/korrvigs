@@ -194,3 +194,18 @@ mjx-container
   color: var(--base0E)
 .done-count
   color: var(--base0B)
+
+#checkboxcontextmenu
+  position: fixed
+  background: var(--base00)
+  color: var(--base07)
+  cursor: pointer
+  border: 2px var(--base0F) solid
+  border-radius: 0.15em
+#checkboxcontextmenu > p
+  padding: 0 1rem
+  margin: 0
+#checkboxcontextmenu > p:hover
+  background: var(--base0F)
+  color: var(--base00)
+

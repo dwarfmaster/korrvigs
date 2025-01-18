@@ -60,6 +60,10 @@ mtdtCode :: WidgetFor site ()
 mtdtCode =
   toWidget $ mkJs $(embedFile $ js "mtdt.js")
 
+checkboxCode :: WidgetFor site ()
+checkboxCode =
+  toWidget $ mkJs $(embedFile $ js "checkbox.js")
+
 ace :: (Route Static -> Route site) -> WidgetFor site ()
 ace mkStatic =
   addScript $ mkStatic $ StaticRoute ["ace", "ace.js"] []

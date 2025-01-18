@@ -34,6 +34,7 @@ data CompileState = CState
     _subLoc :: SubLoc,
     _subCount :: Int,
     _codeCount :: Int,
+    _checkboxCount :: Int,
     _openedSub :: SubLoc,
     _currentHeaderId :: Maybe Text
   }
@@ -41,7 +42,7 @@ data CompileState = CState
 makeLenses ''CompileState
 
 initCState :: Id -> CompileState
-initCState i = CState 1 [] True 0 0 False i (SubLoc []) 0 0 (SubLoc []) Nothing
+initCState i = CState 1 [] True 0 0 False i (SubLoc []) 0 0 0 (SubLoc []) Nothing
 
 type CompileM = StateT CompileState Handler
 
@@ -108,6 +109,7 @@ embed lvl note = do
       pure $ do
         Ace.setup
         Rcs.mathjax StaticR
+        Rcs.checkboxCode
         [whamlet|
           <p .checks-top>
             ^{checksDisplay $ md ^. docChecks}
@@ -271,10 +273,13 @@ compileBlock' (Sub hd) = do
   subL <- use subLoc
   oldCodeCount <- use codeCount
   codeCount .= 0
+  oldCheckCount <- use checkboxCount
+  checkboxCount .= 0
   contentW <- withLevel lvl $ compileBlocks $ hd ^. hdContent
   subLoc . subOffsets %= tail
   subCount .= subC + 1
   codeCount .= oldCodeCount
+  checkboxCount .= oldCheckCount
   -- Render header
   editIdent <- newIdent
   entry <- use currentEntry
@@ -439,8 +444,19 @@ compileInline (InlineMath mth) = pure . toWidget . toHtml $ "\\(" <> mth <> "\\)
 compileInline (Sidenote side) = do
   note <- pushSide side
   pure [whamlet|<span .sidenote-ref>#{show note}|]
-compileInline (Check ck) =
-  pure [whamlet|<img src=@{checkImg ck} .checkBox>|]
+compileInline (Check ck) = do
+  render <- getUrlRender
+  loc <- CheckLoc <$> use subLoc <*> use checkboxCount
+  entry <- use currentEntry
+  let todoUrl = render $ checkImg CheckToDo
+  let ongoingUrl = render $ checkImg CheckOngoing
+  let doneUrl = render $ checkImg CheckDone
+  let postUrl = render $ NoteSubR (WId entry) $ WLoc $ LocCheck loc
+  checkboxCount += 1
+  cid <- newIdent
+  pure $ do
+    toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{ongoingUrl}, #{doneUrl}, #{cid});|]
+    [whamlet|<img ##{cid} src=@{checkImg ck} .checkBox>|]
 
 checkImg :: CheckBox -> Route WebData
 checkImg CheckToDo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []

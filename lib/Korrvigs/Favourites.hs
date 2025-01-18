@@ -48,7 +48,7 @@ listFavs = do
     prepJSON :: (Id, Maybe Text, Value) -> Maybe (Id, Maybe Text, [Text])
     prepJSON (i, title, val) = case fromJSON val of
       Success cats -> Just (i, title, cats)
-      Error _ -> Nothing
+      Error _ -> Just (i, title, [])
 
 favTree :: (MonadKorrvigs m) => m FavouriteTree
 favTree = buildTree <$> listFavs

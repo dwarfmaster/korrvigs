@@ -5,9 +5,9 @@ import Control.Monad.IO.Class
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Cli.Monad
+import Korrvigs.Cli.New
 import Korrvigs.Entry
 import Korrvigs.Link.New
-import Korrvigs.Utils.DateParser (dayParser)
 import Options.Applicative
 
 data Cmd = New {_newUrl :: Text, _newOptions :: NewLink}
@@ -23,10 +23,8 @@ parser' =
           ( ( New
                 <$> argument str (metavar "URL")
                 <*> ( NewLink
-                        <$> switch (long "offline" <> help "Do not download information about URL")
-                        <*> optional (option dayParser $ metavar "DATE" <> long "data")
-                        <*> optional (option str $ metavar "TITLE" <> long "title")
-                        <*> pure Nothing
+                        <$> newEntryOptions
+                        <*> switch (long "offline" <> help "Do not download information about URL")
                     )
             )
               <**> helper

@@ -163,12 +163,10 @@ runNewNote parent nnote =
 runNewLink :: Maybe Id -> NewLink -> Handler Id
 runNewLink parent nlink =
   let settings =
-        NLink.NewLink
-          { NLink._nlOffline = False,
-            NLink._nlDate = Nothing,
-            NLink._nlTitle = nlink ^. nlinkTitle,
-            NLink._nlParent = parent
-          }
+        def
+          & NLink.nlOffline .~ False
+          & NLink.nlEntry . neTitle .~ nlink ^. nlinkTitle
+          & NLink.nlEntry . neParents .~ maybeToList parent
    in NLink.new (nlink ^. nlinkUrl) settings
 
 runNewFile :: Maybe Id -> NewFile -> Handler Id

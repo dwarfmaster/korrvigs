@@ -1,12 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Korrvigs.Link.New (new, NewLink (..), nlOffline, nlDate, nlTitle, nlParent) where
+module Korrvigs.Link.New (new, NewLink (..), nlEntry, nlOffline) where
 
 import Conduit (throwM)
 import Control.Exception
 import Control.Lens hiding (noneOf)
 import Control.Monad
-import Control.Monad.IO.Class
 import Data.Aeson hiding (json)
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
@@ -18,9 +17,8 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
-import Data.Time.Calendar
-import Data.Time.LocalTime
 import Korrvigs.Entry
+import Korrvigs.Entry.New
 import Korrvigs.KindData
 import Korrvigs.Link.JSON
 import Korrvigs.Link.Sync
@@ -36,16 +34,14 @@ import Text.Pandoc hiding (getCurrentTimeZone)
 import Text.Parsec
 
 data NewLink = NewLink
-  { _nlOffline :: Bool,
-    _nlDate :: Maybe Day,
-    _nlTitle :: Maybe Text,
-    _nlParent :: Maybe Id
+  { _nlEntry :: NewEntry,
+    _nlOffline :: Bool
   }
 
 makeLenses ''NewLink
 
 instance Default NewLink where
-  def = NewLink False Nothing Nothing Nothing
+  def = NewLink def False
 
 rightToMaybe :: Either a b -> Maybe b
 rightToMaybe (Left _) = Nothing
@@ -95,26 +91,20 @@ new url options = case parseURI (T.unpack url) of
   Just uri -> do
     let protocol = T.pack $ uriScheme uri
     let link = T.pack $ uriToString id uri ""
-    let parents = maybeToList $ unId <$> options ^. nlParent
+    let parents = unId <$> options ^. nlEntry . neParents
     info <-
       if options ^. nlOffline
         then pure M.empty
         else catchIO $ downloadInformation link
-    let title = mplus (options ^. nlTitle) (M.lookup "title" info >>= jsonAsText)
+    let title = mplus (options ^. nlEntry . neTitle) (M.lookup "title" info >>= jsonAsText)
     let mtdt =
-          M.empty
+          M.fromList (options ^. nlEntry . neMtdt)
             & at "title" .~ (toJSON <$> title)
             & at "textContent" .~ M.lookup "textContent" info
             & at "meta" ?~ toJSON (M.delete "textContent" info)
     let json = LinkJSON protocol link mtdt parents
-    tz <- liftIO getCurrentTimeZone
-    let idmk =
-          imk "link"
-            & idTitle .~ title
-            & idParent .~ options ^. nlParent
-            & idDate .~ case options ^. nlDate of
-              Just day -> Just $ ZonedTime (LocalTime day $ TimeOfDay 0 0 0) tz
-              Nothing -> Nothing
+    idmk' <- applyNewEntry (options ^. nlEntry) (imk "link")
+    let idmk = idmk' & idTitle .~ title
     i <- newId idmk
     rt <- linkJSONPath
     let jsonTT = linkJSONTreeType

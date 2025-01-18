@@ -174,12 +174,9 @@ run (Attach note isPath cmd) =
       AttachLinks links offline ->
         forM_ links $ \link -> do
           let options =
-                NL.NewLink
-                  { NL._nlOffline = offline,
-                    NL._nlDate = Nothing,
-                    NL._nlTitle = Nothing,
-                    NL._nlParent = Just i
-                  }
+                def
+                  & NL.nlOffline .~ offline
+                  & NL.nlEntry . neParents .~ [i]
           ni <- NL.new link options
           liftIO $ putStrLn $ unId ni
       AttachNotes notes ->

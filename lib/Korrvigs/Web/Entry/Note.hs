@@ -108,6 +108,10 @@ embed lvl note = do
       pure $ do
         Ace.setup
         Rcs.mathjax StaticR
+        [whamlet|
+          <p .checks-top>
+            ^{checksDisplay $ md ^. docChecks}
+        |]
         markdown
         unless isEmbedded $
           toWidget
@@ -274,7 +278,7 @@ compileBlock' (Sub hd) = do
   -- Render header
   editIdent <- newIdent
   entry <- use currentEntry
-  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent subL
+  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent (hd ^. hdChecks) subL
   openedLoc <- use openedSub
   let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
   let lvlClass = [T.pack $ "level" <> show (lvl + 1)]
@@ -310,28 +314,28 @@ compileAttr = compileAttrWithClasses []
 symb :: Text -> Widget
 symb s = [whamlet|<span .section-symbol>#{s}|]
 
-compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> SubLoc -> Handler Widget
-compileHead entry 0 hdId t edit subL = do
+compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> (Int, Int, Int) -> SubLoc -> Handler Widget
+compileHead entry 0 hdId t edit checks subL = do
   btm <- editButton entry 0 hdId edit subL
-  pure [whamlet|<h1> ^{symb "●"} #{t} ^{btm}|]
-compileHead entry 1 hdId t edit subL = do
+  pure [whamlet|<h1> ^{symb "●"} #{t} ^{checksDisplay checks} ^{btm}|]
+compileHead entry 1 hdId t edit checks subL = do
   btm <- editButton entry 1 hdId edit subL
-  pure [whamlet|<h2> ^{symb "◉"} #{t} ^{btm}|]
-compileHead entry 2 hdId t edit subL = do
+  pure [whamlet|<h2> ^{symb "◉"} #{t} ^{checksDisplay checks} ^{btm}|]
+compileHead entry 2 hdId t edit checks subL = do
   btm <- editButton entry 2 hdId edit subL
-  pure [whamlet|<h3> ^{symb "✿"} #{t} ^{btm}|]
-compileHead entry 3 hdId t edit subL = do
+  pure [whamlet|<h3> ^{symb "✿"} #{t} ^{checksDisplay checks} ^{btm}|]
+compileHead entry 3 hdId t edit checks subL = do
   btm <- editButton entry 3 hdId edit subL
-  pure [whamlet|<h4> ^{symb "✸"} #{t} ^{btm}|]
-compileHead entry 4 hdId t edit subL = do
+  pure [whamlet|<h4> ^{symb "✸"} #{t} ^{checksDisplay checks} ^{btm}|]
+compileHead entry 4 hdId t edit checks subL = do
   btm <- editButton entry 4 hdId edit subL
-  pure [whamlet|<h5> ^{symb "○"} #{t} ^{btm}|]
-compileHead entry 5 hdId t edit subL = do
+  pure [whamlet|<h5> ^{symb "○"} #{t} ^{checksDisplay checks} ^{btm}|]
+compileHead entry 5 hdId t edit checks subL = do
   btm <- editButton entry 5 hdId edit subL
-  pure [whamlet|<h6> ^{symb "◆"} #{t} ^{btm}|]
-compileHead entry _ hdId t edit subL = do
+  pure [whamlet|<h6> ^{symb "◆"} #{t} ^{checksDisplay checks} ^{btm}|]
+compileHead entry _ hdId t edit checks subL = do
   btm <- editButton entry 5 hdId edit subL
-  pure [whamlet|<h6> ^{symb "◇"} #{t} ^{btm}|]
+  pure [whamlet|<h6> ^{symb "◇"} #{t} ^{checksDisplay checks} ^{btm}|]
 
 aceRedirect :: Id -> Maybe Text -> SubLoc -> Handler Text
 aceRedirect i mhdId loc = do
@@ -360,6 +364,14 @@ editButton entry i hdId edit subL = do
       if null (subL ^. subOffsets)
         then NoteR (WId entry)
         else NoteSubR (WId entry) $ WLoc $ LocSub subL
+
+checksDisplay :: (Int, Int, Int) -> Widget
+checksDisplay (0, 0, 0) = mempty
+checksDisplay (todo, ongoing, done) =
+  [whamlet|
+    <span .checks-count>
+      <span class=todo-count>#{show todo}</span>/<span class=ongoing-count>#{show ongoing}</span>/<span class=done-count>#{show done}</span>
+  |]
 
 compileTable :: Int -> Int -> Array (Int, Int) Cell -> CompileM Widget
 compileTable header footer cells = do

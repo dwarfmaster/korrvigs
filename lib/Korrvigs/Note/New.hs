@@ -40,6 +40,7 @@ new note = do
             _docContent = [],
             _docTitle = note ^. nnTitle,
             _docRefTo = S.empty,
+            _docChecks = (0, 0, 0),
             _docParents = maybe S.empty S.singleton $ note ^. nnParent
           }
   let bs = writeNoteLazy doc

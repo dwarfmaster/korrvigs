@@ -175,3 +175,22 @@ mjx-container
   height: 1.3em
   width: 1.3em
   vertical-align: -10%
+
+.checks-top
+  font-size: 1.5em
+  width: 100%
+  background-color: var(--base00)
+  border-radius: 0.2em
+.checks-count
+  font-variant: small-caps
+  color: var(--base06)
+  font-size: 0.8em
+  background-color: var(--base00)
+  border-radius: 0.15em
+  padding: 0.1em
+.todo-count
+  color: var(--base09)
+.ongoing-count
+  color: var(--base0E)
+.done-count
+  color: var(--base0B)

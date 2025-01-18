@@ -40,6 +40,7 @@ data BlockStackZipper = BSZ
     _bszAttr :: A.Attr,
     _bszTitle :: Text,
     _bszRefTo :: Set Id,
+    _bszChecks :: (Int, Int, Int),
     _bszLeft :: [WithParent A.Block],
     _bszParent :: Maybe BlockStackZipper
   }
@@ -62,7 +63,7 @@ pushBlock :: WithParent A.Block -> ParseM ()
 pushBlock blk = stack . bszLeft %= (blk :)
 
 pushHeader :: Int -> A.Attr -> ParseM ()
-pushHeader lvl attr = stack %= BSZ lvl attr "" S.empty [] . Just
+pushHeader lvl attr = stack %= BSZ lvl attr "" S.empty (0, 0, 0) [] . Just
 
 headerLvl :: ParseM Int
 headerLvl = use $ stack . bszLevel
@@ -74,6 +75,7 @@ bszToHeader bsz doc parent =
           { A._hdAttr = bsz ^. bszAttr,
             A._hdTitle = bsz ^. bszTitle,
             A._hdRefTo = bsz ^. bszRefTo,
+            A._hdChecks = bsz ^. bszChecks,
             A._hdLevel = bsz ^. bszLevel,
             A._hdContent = reverse $ (bsz ^. bszLeft) <&> \blk -> blk doc (Just hd),
             A._hdParent = parent,
@@ -100,6 +102,9 @@ popHeader = do
     Just parent -> do
       stack .= parent
       stack . bszRefTo %= S.union (bsz ^. bszRefTo)
+      stack . bszChecks . _1 %= (bsz ^. bszChecks . _1 +)
+      stack . bszChecks . _2 %= (bsz ^. bszChecks . _2 +)
+      stack . bszChecks . _3 %= (bsz ^. bszChecks . _3 +)
       pushBlock $ \doc hd -> A.Sub (bszToHeader bsz doc hd)
       pure True
     Nothing -> pure False
@@ -120,13 +125,14 @@ run act mtdt bks =
             A._docContent = reverse $ st ^. stack . bszLeft <&> \bk -> bk doc Nothing,
             A._docTitle = st ^. stack . bszTitle,
             A._docRefTo = st ^. stack . bszRefTo,
+            A._docChecks = st ^. stack . bszChecks,
             A._docParents = undefined
           }
    in doc
   where
     st =
       execState (act >> iterateWhile id popHeader) $
-        ParseState bks (BSZ 0 emptyAttr "" S.empty [] Nothing)
+        ParseState bks (BSZ 0 emptyAttr "" S.empty (0, 0, 0) [] Nothing)
 
 readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
 readNote pth = liftIO $ do
@@ -213,9 +219,14 @@ parseBlock (Figure attr (Caption _ caption) bks) = do
 parseBlock _ = pure []
 
 parseInlines :: [Inline] -> ParseM [A.Inline]
-parseInlines (Str "[x]" : xs) = (A.Check A.CheckDone :) <$> parseInlines xs
-parseInlines (Str "[-]" : xs) = (A.Check A.CheckOngoing :) <$> parseInlines xs
-parseInlines (Str "[" : Space : Str "]" : xs) =
+parseInlines (Str "[x]" : xs) = do
+  stack . bszChecks . _3 %= (+ 1)
+  (A.Check A.CheckDone :) <$> parseInlines xs
+parseInlines (Str "[-]" : xs) = do
+  stack . bszChecks . _2 %= (+ 1)
+  (A.Check A.CheckOngoing :) <$> parseInlines xs
+parseInlines (Str "[" : Space : Str "]" : xs) = do
+  stack . bszChecks . _1 %= (+ 1)
   (A.Check A.CheckToDo :) <$> parseInlines xs
 parseInlines (x : xs) = (++) <$> parseInline x <*> parseInlines xs
 parseInlines [] = pure []

@@ -56,5 +56,5 @@ in
     mkdir $out/icons
     ${sed} 's/stroke="#000000"/stroke="${theme.base09}"/' ${./ressources/icons/checkbox-todo.svg} > $out/icons/checkbox-todo.svg
     ${sed} 's/stroke="#000000"/stroke="${theme.base0E}"/' ${./ressources/icons/checkbox-ongoing.svg} > $out/icons/checkbox-ongoing.svg
-    ${sed} 's/stroke="#000000"/stroke="${theme.base0C}"/' ${./ressources/icons/checkbox-done.svg} > $out/icons/checkbox-done.svg
+    ${sed} 's/stroke="#000000"/stroke="${theme.base0B}"/' ${./ressources/icons/checkbox-done.svg} > $out/icons/checkbox-done.svg
   ''

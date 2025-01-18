@@ -14,6 +14,7 @@ data Document = Document
     _docContent :: [Block],
     _docTitle :: Text,
     _docRefTo :: Set Id,
+    _docChecks :: (Int, Int, Int),
     _docParents :: Set Id
   }
   deriving (Show, Eq)
@@ -22,6 +23,7 @@ data Header = Header
   { _hdAttr :: Attr,
     _hdTitle :: Text,
     _hdRefTo :: Set Id,
+    _hdChecks :: (Int, Int, Int),
     _hdLevel :: Int,
     _hdContent :: [Block],
     _hdParent :: Maybe Header,

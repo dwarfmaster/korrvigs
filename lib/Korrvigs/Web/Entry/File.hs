@@ -63,7 +63,17 @@ pdfWidget file =
 
 embed :: Int -> File -> Handler Widget
 embed _ file
-  | file ^. fileStatus == FileAbsent = pure [whamlet|<code>#{file ^. filePath}|]
+  | file ^. fileStatus == FileAbsent = pure $ do
+      cid <- newIdent
+      toWidget
+        [cassius|
+        ##{cid}
+          overflow-x: scroll
+      |]
+      [whamlet|
+        <div ##{cid}>
+          <code>#{file ^. filePath}
+      |]
 embed _ file = pure $ do
   let mime = file ^. fileMime
   fromMaybe mempty $

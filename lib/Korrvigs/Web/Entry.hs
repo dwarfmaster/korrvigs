@@ -41,6 +41,11 @@ titleWidget entry contentId = do
     where_ $ (mtdt ^. sqlEntry) .== sqlId (entry ^. name)
     where_ $ mtdt ^. sqlKey .== sqlStrictText "title"
     pure $ sqlJsonToText $ toNullable $ mtdt ^. sqlValue
+  favourite :: Maybe Value <- rSelectOne $ do
+    mtdt <- selectTable entriesMetadataTable
+    where_ $ (mtdt ^. sqlEntry) .== sqlId (entry ^. name)
+    where_ $ mtdt ^. sqlKey .== sqlStrictText "favourite"
+    pure $ mtdt ^. sqlValue
   medit <- editWidget
   pure
     [whamlet|
@@ -49,6 +54,8 @@ titleWidget entry contentId = do
       <a href=@{EntryDownloadR $ WId $ entry ^. name}>
         ⬇
     <h1>
+      $maybe _ <- favourite
+        ★
       $maybe t <- title
         #{t}
       <span .entry-name>

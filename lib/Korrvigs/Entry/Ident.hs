@@ -113,9 +113,9 @@ prep mk =
   T.intercalate ":" $ filter (not . T.null) [prefix, stub, date, sq]
   where
     (prefix, stub) =
-      case mk ^. idTitle of
-        Just title -> ("", prepTitle (mk ^. idLanguage) title)
-        Nothing ->
+      case prepTitle (mk ^. idLanguage) <$> mk ^. idTitle of
+        Just title | not (T.null title) -> ("", title)
+        _ ->
           case mk ^. idParent of
             Just (MkId parent) ->
               case find isStub $ T.split (== ':') parent of

@@ -74,11 +74,15 @@ prepTitle language title = foldl (<>) "" content
   where
     ascii :: Text
     ascii =
-      Enc.decodeASCII $
-        LBS.toStrict $
-          convertFuzzy Transliterate "utf-8" "ascii" $
-            LBS.fromStrict $
-              Enc.encodeUtf8 title
+      T.map sanitize $
+        Enc.decodeASCII $
+          LBS.toStrict $
+            convertFuzzy Transliterate "utf-8" "ascii" $
+              LBS.fromStrict $
+                Enc.encodeUtf8 title
+    sanitize :: Char -> Char
+    sanitize c | isAlphaNum c = c
+    sanitize _ = ' '
     wds :: [Text]
     wds = T.map toLower <$> T.split (\c -> isPunctuation c || isSpace c) ascii
     stopwords :: Set Text

@@ -91,7 +91,7 @@ new path' options = do
         imk (choosePrefix mime)
           & idTitle
             .~ ( (extras ^. mtdtTitle)
-                   <|> Just (T.pack $ takeBaseName path)
+                   <|> Just (T.pack $ takeBaseName path')
                )
           & idDate .~ extras ^. mtdtDate
   idmk <- applyNewEntry (options ^. nfEntry) idmk'

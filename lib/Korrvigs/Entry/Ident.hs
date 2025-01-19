@@ -21,7 +21,7 @@ import Control.Lens
 import Control.Monad.Extra (findM)
 import qualified Data.ByteString.Lazy as LBS
 import Data.Char
-import Data.List (unfoldr)
+import Data.List (find, unfoldr)
 import Data.Maybe (fromJust, isNothing)
 import Data.Profunctor.Product.Default
 import Data.Set (Set)
@@ -110,22 +110,20 @@ prepDate full dt =
 
 prep :: IdMaker -> Text
 prep mk =
-  T.intercalate ":" $ mayAddPrefix $ filter (not . T.null) [stub, date, sq]
+  T.intercalate ":" $ filter (not . T.null) [prefix, stub, date, sq]
   where
-    mayAddPrefix :: [Text] -> [Text]
-    mayAddPrefix [] = [mk ^. idPrefix]
-    mayAddPrefix l = l
-    stub :: Text
-    stub =
+    (prefix, stub) =
       case mk ^. idTitle of
-        Just title -> prepTitle (mk ^. idLanguage) title
+        Just title -> ("", prepTitle (mk ^. idLanguage) title)
         Nothing ->
           case mk ^. idParent of
             Just (MkId parent) ->
-              case T.split (== ':') parent of
-                _ : stb : _ -> stb
-                _ -> parent
-            Nothing -> ""
+              case find isStub $ T.split (== ':') parent of
+                Just stb -> (mk ^. idPrefix, stb)
+                _ -> (mk ^. idPrefix, "")
+            Nothing -> (mk ^. idPrefix, "")
+    isStub :: Text -> Bool
+    isStub txt = not (T.null txt) && isUpperCase (T.head txt)
     date :: Text
     date = maybe "" (prepDate (isNothing (mk ^. idTitle) && isNothing (mk ^. idParent))) $ mk ^. idDate
     sq :: Text

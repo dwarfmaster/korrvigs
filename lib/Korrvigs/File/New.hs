@@ -10,6 +10,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.Default
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -87,11 +88,12 @@ new path' options = do
   let mtdt = M.map (^. metaValue) mtdt''
   let extras = mtdtExtras mtdt
   annex <- liftIO $ shouldAnnex path mime
+  let baseName = listToMaybe [T.pack (takeBaseName path') | null (options ^. nfEntry . neParents)]
   let idmk' =
         imk (choosePrefix mime)
           & idTitle
             .~ ( (extras ^. mtdtTitle)
-                   <|> Just (T.pack $ takeBaseName path')
+                   <|> baseName
                )
           & idDate .~ extras ^. mtdtDate
   idmk <- applyNewEntry (options ^. nfEntry) idmk'

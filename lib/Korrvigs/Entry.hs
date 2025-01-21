@@ -86,6 +86,7 @@ module Korrvigs.Entry
     idParent,
     idSeq,
     idDate,
+    idLanguage,
     createId,
   )
 where

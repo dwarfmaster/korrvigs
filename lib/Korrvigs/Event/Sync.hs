@@ -111,7 +111,7 @@ register (calendar, ics) = do
         let summary = ievent ^. iceSummary
         let startSpec = ievent ^? iceStart . _Just
         let start = resolveICalTime ical <$> startSpec
-        i <- newId $ imk "ics" & idTitle .~ summary & idDate .~ start
+        i <- newId $ imk "ics" & idTitle .~ summary & idDate .~ start & idLanguage ?~ "fr"
         let nevent = ievent & iceContent . icValues . at "X-KORRVIGS-NAME" ?~ [ICValue M.empty (unId i)]
         let ncal = ical & icEvent ?~ nevent
         liftIO $ BSL.writeFile path $ renderICalFile ncal

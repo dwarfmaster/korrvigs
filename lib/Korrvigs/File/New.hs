@@ -25,6 +25,7 @@ import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils (resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (storeFile)
+import Korrvigs.Utils.Git.Annex
 import Network.Mime
 import System.Directory
 import System.FilePath
@@ -113,27 +114,7 @@ new path' options = do
           }
   liftIO $ TLIO.writeFile metapath $ encodeToLazyText meta
   rt <- root
-  when annex $ liftIO $ do
-    devNull <- openFile "/dev/null" WriteMode
-    let gannex =
-          (proc "git" ["annex", "add", stored])
-            { std_out = UseHandle devNull,
-              std_err = UseHandle devNull,
-              cwd = Just rt
-            }
-    (_, _, _, prc) <- createProcess gannex
-    void $ waitForProcess prc
-    hClose devNull
-    devNull' <- openFile "/dev/null" WriteMode
-    let gunstage =
-          (proc "git" ["restore", "--staged", stored])
-            { std_out = UseHandle devNull',
-              std_err = UseHandle devNull',
-              cwd = Just rt
-            }
-    (_, _, _, prcUnstage) <- createProcess gunstage
-    void $ waitForProcess prcUnstage
-    hClose devNull'
+  when annex $ annexAdd rt stored
   relData <- dSyncOneImpl stored
   atomicInsertRelData i relData
   pure i

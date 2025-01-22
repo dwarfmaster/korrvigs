@@ -6,6 +6,7 @@ import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import GHC.Int (Int64)
+import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
@@ -28,9 +29,12 @@ class IsKD a where
   dList :: (MonadKorrvigs m) => f a -> m (Set (KDIdentifier a))
   dGetId :: KDIdentifier a -> Id
 
+  -- Computation
+  dListCompute :: (MonadKorrvigs m) => KDIdentifier a -> m EntryComps
+
   -- Sync the content of the filesystem to the database and extract the relation data
-  dSync :: (MonadKorrvigs m) => f a -> m (Map Id RelData)
-  dSyncOne :: (MonadKorrvigs m) => KDIdentifier a -> m RelData
+  dSync :: (MonadKorrvigs m) => f a -> m (Map Id (RelData, EntryComps))
+  dSyncOne :: (MonadKorrvigs m) => KDIdentifier a -> m (RelData, EntryComps)
 
   -- Remove from the filesystem only, must be called in addtion to dRemoveDB
   dRemove :: (MonadKorrvigs m) => KDIdentifier a -> m ()

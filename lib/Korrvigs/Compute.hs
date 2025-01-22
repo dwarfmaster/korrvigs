@@ -94,9 +94,14 @@ makeLenses ''ComputationJSON
 makePrisms ''Action
 makePrisms ''CompType
 
+cacheDir :: (MonadKorrvigs m) => m FilePath
+cacheDir = do
+  rt <- root
+  pure $ joinPath [rt, "cache"]
+
 compsDir :: (MonadKorrvigs m) => Id -> m FilePath
 compsDir i = do
-  rt <- root
+  rt <- cacheDir
   let dir = fmap T.unpack $ preparePart =<< T.split (== ':') (unId i)
   pure $ joinPath $ rt : dir
   where
@@ -120,17 +125,12 @@ compFile cmp = do
       Picture -> ".jpg"
       VectorImage -> ".svg"
 
-entryStoredComputations :: (MonadKorrvigs m) => Id -> m EntryComps
-entryStoredComputations i = do
-  file <- compsFile i
-  ex <- liftIO $ doesFileExist file
-  if not ex
-    then pure M.empty
-    else do
-      parsed <- liftIO $ eitherDecode <$> LBS.readFile file
-      case parsed of
-        Left err -> throwM $ KMiscError $ "Can't parse computation file for " <> unId i <> " : " <> T.pack err
-        Right js -> pure $ M.mapWithKey cmpFromJSON js
+loadComputations :: Id -> FilePath -> IO (Either Text EntryComps)
+loadComputations i file = do
+  parsed <- eitherDecode <$> LBS.readFile file
+  case parsed of
+    Left err -> pure $ Left $ "Can't parse computation file " <> unId i <> " : " <> T.pack err
+    Right js -> pure $ Right $ M.mapWithKey cmpFromJSON js
   where
     cmpFromJSON :: Text -> ComputationJSON -> Computation
     cmpFromJSON key cmp =
@@ -140,6 +140,18 @@ entryStoredComputations i = do
           _cmpAction = cmp ^. cmpJsAction,
           _cmpType = cmp ^. cmpJsType
         }
+
+entryStoredComputations :: (MonadKorrvigs m) => Id -> m EntryComps
+entryStoredComputations i = do
+  file <- compsFile i
+  ex <- liftIO $ doesFileExist file
+  if not ex
+    then pure M.empty
+    else do
+      parsed <- liftIO $ loadComputations i file
+      case parsed of
+        Left err -> throwM $ KMiscError err
+        Right js -> pure js
 
 storeComputations :: (MonadKorrvigs m) => Id -> EntryComps -> m ()
 storeComputations i cmps = do
@@ -171,3 +183,54 @@ run cmp =
     shouldAnnex ScalarImage = True
     shouldAnnex Picture = True
     shouldAnnex VectorImage = True
+
+syncComputations :: (MonadKorrvigs m) => Id -> EntryComps -> m ()
+syncComputations i cmps = do
+  stored <- entryStoredComputations i
+  let toRm = M.difference stored cmps
+  forM_ (M.toList toRm) $ \(_, cmp) -> do
+    file <- compFile cmp
+    ex <- liftIO $ doesFileExist file
+    when ex $ liftIO $ removeFile file
+  storeComputations i cmps
+
+listComputations :: (MonadKorrvigs m) => m (Map Id EntryComps)
+listComputations = (liftIO . recurse []) =<< cacheDir
+  where
+    recurse :: [Text] -> FilePath -> IO (Map Id EntryComps)
+    recurse prts path = do
+      let file = joinPath [path, "computations.json"]
+      fileEx <- doesFileExist file
+      fileComp <-
+        if fileEx
+          then do
+            let i = idFromPath prts
+            parsed <- loadComputations i file
+            pure $ case parsed of
+              Left _ -> M.empty
+              Right js -> M.singleton i js
+          else pure M.empty
+      contents <- getDirectoryContents path
+      comps <- forM contents $ \part -> do
+        let partPath = joinPath [path, part]
+        partDir <- doesDirectoryExist partPath
+        if partDir
+          then recurse (T.pack part : prts) partPath
+          else pure M.empty
+      pure $ mconcat $ fileComp : comps
+    idFromPath :: [Text] -> Id
+    idFromPath = MkId . T.intercalate ":" . filterParts
+    filterParts :: [Text] -> [Text]
+    filterParts [] = []
+    filterParts (prefix : prt : prts)
+      | T.length prefix <= 2
+          && isUpperCase (T.head prefix)
+          && T.isPrefixOf prefix prt =
+          prt : filterParts prts
+    filterParts (prt : prts) = prt : filterParts prts
+
+rmComputations :: (MonadKorrvigs m) => Id -> m ()
+rmComputations i = do
+  dir <- compsDir i
+  ex <- liftIO $ doesFileExist dir
+  when ex $ liftIO $ removeDirectory dir

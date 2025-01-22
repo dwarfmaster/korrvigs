@@ -19,6 +19,7 @@ instance IsKD File where
   dRemoveDB _ = dRemoveDBImpl
   dList _ = S.map FileIdentifier <$> dListImpl
   dGetId (FileIdentifier path) = dGetIdImpl path
+  dListCompute (FileIdentifier path) = dListComputeImpl path
   dSync _ = dSyncImpl
   dSyncOne (FileIdentifier path) = dSyncOneImpl path
   dRemove (FileIdentifier path) = dRemoveImpl path

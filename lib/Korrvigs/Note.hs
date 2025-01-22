@@ -45,6 +45,7 @@ module Korrvigs.Note
 where
 
 import Control.Lens (view)
+import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -64,8 +65,9 @@ instance IsKD Note where
   dRemoveDB _ = dRemoveDBImpl
   dList _ = S.map NoteIdentifier <$> dListImpl
   dGetId (NoteIdentifier path) = dGetIdImpl path
-  dSync _ = dSyncImpl
-  dSyncOne (NoteIdentifier path) = dSyncOneImpl path
+  dListCompute _ = pure M.empty
+  dSync _ = fmap (,M.empty) <$> dSyncImpl
+  dSyncOne (NoteIdentifier path) = (,M.empty) <$> dSyncOneImpl path
   dRemove (NoteIdentifier path) = dRemoveImpl path
   dUpdateMetadata = dUpdateMetadataImpl
   dKind = const Note

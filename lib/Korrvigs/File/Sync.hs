@@ -17,6 +17,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import GHC.Int (Int64)
+import Korrvigs.Compute
+import Korrvigs.Compute.Builtin
 import Korrvigs.Entry
 import Korrvigs.FTS
 import Korrvigs.File.SQL
@@ -26,6 +28,7 @@ import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils (resolveSymbolicLink)
 import Korrvigs.Utils.DateTree
+import Network.Mime
 import Opaleye hiding (not)
 import System.Directory
 import System.FilePath
@@ -135,11 +138,30 @@ computeStatus path = do
       pure $ if ex then FilePresent else FileAbsent
     else pure FilePlain
 
-dSyncImpl :: (MonadKorrvigs m) => m (Map Id RelData)
+computeFromMime :: Id -> MimeType -> EntryComps
+computeFromMime i mime = cmp $ Enc.decodeASCII mime
+  where
+    cmp m
+      | S.member m scalars = miniature ScalarImage
+      | T.isPrefixOf "image/" m = miniature Picture
+      | T.isPrefixOf "video/" m = miniature Picture
+      | otherwise = M.empty
+    miniature = M.singleton "miniature" . Computation i "miniature" (Builtin Miniature)
+    scalars = S.fromList ["image/apng", "image/png", "image/bmp"]
+
+dListComputeImpl :: (MonadKorrvigs m) => FilePath -> m EntryComps
+dListComputeImpl path = do
+  let i = dGetIdImpl path
+  let meta = metaPath path
+  json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
+  let mime = Enc.encodeUtf8 $ json ^. savedMime
+  pure $ computeFromMime i mime
+
+dSyncImpl :: (MonadKorrvigs m) => m (Map Id (RelData, EntryComps))
 dSyncImpl =
   M.fromList <$> (allFiles >>= mapM (sequence . (dGetIdImpl &&& dSyncOneImpl)))
 
-dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
+dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m (RelData, EntryComps)
 dSyncOneImpl path = do
   let i = dGetIdImpl path
   prev <- load i
@@ -149,6 +171,7 @@ dSyncOneImpl path = do
   let mtdt = fileMetadataToMetadata json
   let extras = mtdtExtras $ (^. metaValue) <$> mtdt
   let mime = Enc.encodeUtf8 $ json ^. savedMime
+  let cmps = computeFromMime i mime
   status <- liftIO $ computeStatus path
   let geom = extras ^. mtdtGeometry
   let tm = extras ^. mtdtDate
@@ -194,11 +217,13 @@ dSyncOneImpl path = do
                 uWhere = \row -> row ^. sqlEntryName .== sqlId i,
                 uReturning = rCount
               }
-  pure $
-    RelData
-      { _relSubOf = fromMaybe [] $ extras ^. mtdtParents,
-        _relRefTo = []
-      }
+  pure
+    ( RelData
+        { _relSubOf = fromMaybe [] $ extras ^. mtdtParents,
+          _relRefTo = []
+        },
+      cmps
+    )
 
 dUpdateMetadataImpl :: (MonadKorrvigs m) => File -> Map Text Value -> [Text] -> m ()
 dUpdateMetadataImpl file upd rm = do

@@ -3,6 +3,7 @@
 module Korrvigs.Event where
 
 import Control.Lens
+import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -20,8 +21,9 @@ instance IsKD Event where
   dRemoveDB _ = dRemoveDBImpl
   dList _ = S.map (\(i, cal, ics) -> EventIdentifier i cal ics) <$> dListImpl
   dGetId (EventIdentifier i _ _) = i
-  dSync _ = dSyncImpl
-  dSyncOne (EventIdentifier _ cal ics) = dSyncOneImpl cal ics
+  dListCompute _ = pure M.empty
+  dSync _ = fmap (,M.empty) <$> dSyncImpl
+  dSyncOne (EventIdentifier _ cal ics) = (,M.empty) <$> dSyncOneImpl cal ics
   dRemove (EventIdentifier _ cal ics) = dRemoveImpl cal ics
   dUpdateMetadata = dUpdateMetadataImpl
   dKind = const Event

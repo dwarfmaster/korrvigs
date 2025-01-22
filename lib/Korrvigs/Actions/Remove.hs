@@ -4,6 +4,7 @@ import Control.Lens
 import Control.Monad (forM_, void)
 import GHC.Int (Int64)
 import Korrvigs.AllEntries ()
+import Korrvigs.Compute (rmComputations)
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.KindData
@@ -11,7 +12,8 @@ import Korrvigs.Monad hiding (dispatchRemove, dispatchRemoveDB, remove, removeDB
 import Opaleye
 
 dispatchRemove :: (MonadKorrvigs m) => Entry -> m ()
-dispatchRemove entry =
+dispatchRemove entry = do
+  rmComputations $ entry ^. name
   case entry ^. kindData of
     NoteD note -> dRemove (dIdentify note)
     LinkD link -> dRemove (dIdentify link)

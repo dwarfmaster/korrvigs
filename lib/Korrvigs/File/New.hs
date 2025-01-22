@@ -16,6 +16,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Time.LocalTime
+import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Mtdt
@@ -115,6 +116,8 @@ new path' options = do
   liftIO $ TLIO.writeFile metapath $ encodeToLazyText meta
   rt <- root
   when annex $ annexAdd rt stored
-  relData <- dSyncOneImpl stored
+  (relData, cmps) <- dSyncOneImpl stored
+  storeComputations i cmps
+  forM_ (view _2 <$> M.toList cmps) run
   atomicInsertRelData i relData
   pure i

@@ -34,6 +34,7 @@ library korrvigs-lib
     Korrvigs.Actions.Sync
     Korrvigs.AllEntries
     Korrvigs.Cli
+    Korrvigs.Cli.Compute
     Korrvigs.Cli.Config
     Korrvigs.Cli.Event
     Korrvigs.Cli.File

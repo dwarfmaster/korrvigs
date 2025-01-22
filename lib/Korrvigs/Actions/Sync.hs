@@ -12,6 +12,7 @@ import Data.Maybe (isJust)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Database.PostgreSQL.Simple as Simple
+import Korrvigs.Compute (syncComputations)
 import Korrvigs.Entry
 import Korrvigs.Event
 import Korrvigs.File
@@ -69,15 +70,16 @@ sync = do
         dSync (Nothing :: Maybe Event)
       ]
   let rels = foldl' M.union M.empty allrels
+  forM_ (M.toList rels) $ \(i, (_, cmps)) -> syncComputations i cmps
   let checkRD = checkRelData $ \i -> isJust $ M.lookup i ids
-  case foldr (firstJust . checkRD . view _2) Nothing (M.toList rels) of
+  case foldr (firstJust . checkRD . view (_2 . _1)) Nothing (M.toList rels) of
     Nothing -> pure ()
     Just i -> throwM $ KRelToUnknown i
-  case hasCycle (view relSubOf <$> rels) of
+  case hasCycle (view (_1 . relSubOf) <$> rels) of
     Nothing -> pure ()
     Just cle -> throwM $ KSubCycle cle
-  let subBindings = mkBindings $ view relSubOf <$> rels
-  let refBindings = mkBindings $ view relRefTo <$> rels
+  let subBindings = mkBindings $ view (_1 . relSubOf) <$> rels
+  let refBindings = mkBindings $ view (_1 . relRefTo) <$> rels
   atomicInsert $ insertSubOf subBindings <> insertRefTo refBindings
   where
     mkBindings :: Map a [a] -> [(a, a)]

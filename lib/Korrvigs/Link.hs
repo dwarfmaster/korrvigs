@@ -13,6 +13,7 @@ module Korrvigs.Link
 where
 
 import Control.Lens (view)
+import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -29,8 +30,9 @@ instance IsKD Link where
   dRemoveDB _ = dRemoveDBImpl
   dList _ = S.map LinkIdentifier <$> dListImpl
   dGetId (LinkIdentifier path) = dGetIdImpl path
-  dSync = dSyncImpl
-  dSyncOne (LinkIdentifier path) = dSyncOneImpl path
+  dListCompute _ = pure M.empty
+  dSync = (fmap (,M.empty) <$>) . dSyncImpl
+  dSyncOne (LinkIdentifier path) = (,M.empty) <$> dSyncOneImpl path
   dRemove (LinkIdentifier path) = dRemoveImpl path
   dUpdateMetadata = dUpdateMetadataImpl
   dKind = const Link

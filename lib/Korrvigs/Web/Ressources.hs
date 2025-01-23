@@ -56,6 +56,10 @@ mathjax mkStatic = do
       )
   addScriptAttrs (mkStatic $ StaticRoute ["mathjax", "es5", "tex-mml-chtml.js"] []) [("id", "Mathjax-Script"), ("async", "")]
 
+photoswipe :: (Route Static -> Route site) -> WidgetFor site ()
+photoswipe mkStatic =
+  addStylesheet $ mkStatic $ StaticRoute ["photoswipe", "photoswipe.css"] []
+
 mtdtCode :: WidgetFor site ()
 mtdtCode =
   toWidget $ mkJs $(embedFile $ js "mtdt.js")

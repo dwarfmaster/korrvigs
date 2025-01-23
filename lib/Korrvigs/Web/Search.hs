@@ -1,13 +1,15 @@
 module Korrvigs.Web.Search (getSearchR) where
 
 import Control.Lens
-import Control.Monad (join)
+import Control.Monad (forM, join, void)
 import Data.Default
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
+import Korrvigs.Compute (entryStoredComputations)
 import Korrvigs.Entry
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Geometry
@@ -18,6 +20,7 @@ import Korrvigs.Utils.JSON (sqlJsonToText)
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Leaflet
+import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
@@ -34,6 +37,7 @@ data ResultDisplay
   | DisplayMap
   | DisplayGraph
   | DisplayTimeline
+  | DisplayGallery
   deriving (Eq, Ord, Enum, Bounded)
 
 sattr :: Text -> Bool -> [(Text, Text)]
@@ -287,6 +291,7 @@ displayResultOptions = mkOption <$> [minBound .. maxBound]
     mkOption DisplayMap = Option "map" DisplayMap "2"
     mkOption DisplayGraph = Option "graph" DisplayGraph "3"
     mkOption DisplayTimeline = Option "timeline" DisplayTimeline "4"
+    mkOption DisplayGallery = Option "gallery" DisplayGallery "5"
 
 displayResultForm :: ResultDisplay -> Handler Widget
 displayResultForm display =
@@ -485,6 +490,24 @@ displayResults DisplayTimeline entries = do
                     Timeline._itemGroup = displayKind $ entry ^. sqlEntryKind,
                     Timeline._itemTarget = Just $ render $ EntryR $ WId $ entry ^. sqlEntryName
                   }
+displayResults DisplayGallery entries = do
+  items <- forM entries $ \(erow, _) -> do
+    let i = erow ^. sqlEntryName
+    comps <- entryStoredComputations i
+    pure $ do
+      void $ M.lookup "miniature" comps
+      pure $
+        PhotoSwipe.PhotoswipeEntry
+          { PhotoSwipe._swpUrl = EntryDownloadR (WId i),
+            PhotoSwipe._swpMiniature = EntryComputeR (WId i) "miniature",
+            PhotoSwipe._swpCaption = mempty,
+            PhotoSwipe._swpWidth = 1000, -- TODO find size
+            PhotoSwipe._swpHeight = 1000
+          }
+  gallery <- PhotoSwipe.photoswipe $ catMaybes items
+  pure $ do
+    PhotoSwipe.photoswipeHeader
+    gallery
 
 liftMaybe :: Bool -> (V2 (Maybe Double), Maybe Double) -> Maybe (V2 Double, Double)
 liftMaybe True (V2 (Just x) (Just y), Just d) = Just (V2 x y, d * 1000.0)

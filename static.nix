@@ -42,6 +42,12 @@
     rev = "da6219a75f73d63e2298c9b4c293793faf98e6d9";
     sha256 = "1pbfz7bqrpliwc2n0lzmssmpykh5qszvmfr6q149syvvdznklhd3";
   };
+  photoswipe = fetchFromGitHub {
+    owner = "dimsemenov";
+    repo = "PhotoSwipe";
+    rev = "d80c32a62b169e776ad1c983d1fcdc6eea8b48e0";
+    sha256 = "1a2rfvid8iqsnq582myjbbz3mjavwy7566lgfbds0badzf9l5srm";
+  };
   sed = "${gnused}/bin/sed";
 in
   runCommand "korrvigs-static" {} ''
@@ -52,6 +58,7 @@ in
     cp ${vis-network} $out/vis/vis-network.min.js
     cp ${vis-timeline} $out/vis/vis-timeline-graph2d.min.js
     cp -r ${ace}/src-min $out/ace
+    cp -r ${photoswipe}/dist $out/photoswipe
     cp ${./ressources/favicon.ico} $out/favicon.ico
     mkdir $out/icons
     ${sed} 's/stroke="#000000"/stroke="${theme.base09}"/' ${./ressources/icons/checkbox-todo.svg} > $out/icons/checkbox-todo.svg

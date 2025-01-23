@@ -44,6 +44,7 @@ data CompType
   = ScalarImage
   | Picture
   | VectorImage
+  | Json
   deriving (Eq, Show)
 
 instance FromJSON CompType where
@@ -51,12 +52,14 @@ instance FromJSON CompType where
     "scalar" -> pure ScalarImage
     "picture" -> pure Picture
     "vector" -> pure VectorImage
+    "json" -> pure Json
     str -> fail $ T.unpack $ "\"" <> str <> "\" is not a valid computation type name"
 
 instance ToJSON CompType where
   toJSON ScalarImage = "scalar"
   toJSON Picture = "picture"
   toJSON VectorImage = "vector"
+  toJSON Json = "json"
 
 data Computation = Computation
   { _cmpEntry :: Id,
@@ -124,6 +127,7 @@ compFile cmp = do
       ScalarImage -> ".png"
       Picture -> ".jpg"
       VectorImage -> ".svg"
+      Json -> ".json"
 
 loadComputations :: Id -> FilePath -> IO (Either Text EntryComps)
 loadComputations i file = do
@@ -152,6 +156,20 @@ entryStoredComputations i = do
       case parsed of
         Left err -> throwM $ KMiscError err
         Right js -> pure js
+
+getJsonComp :: (MonadKorrvigs m, FromJSON a) => Computation -> m (Maybe a)
+getJsonComp cmp = do
+  file <- compFile cmp
+  ex <- liftIO $ doesFileExist file
+  if ex
+    then do
+      parsed <- liftIO $ eitherDecode <$> LBS.readFile file
+      case parsed of
+        Left err -> throwM $ KMiscError $ "Can't parse JSON computation file " <> T.pack file <> " : " <> T.pack err
+        Right (x :: Value) -> pure $ case fromJSON x of
+          Error _ -> Nothing
+          Success v -> Just v
+    else pure Nothing
 
 storeComputations :: (MonadKorrvigs m) => Id -> EntryComps -> m ()
 storeComputations i cmps = do
@@ -185,6 +203,7 @@ run cmp =
     shouldAnnex ScalarImage = True
     shouldAnnex Picture = True
     shouldAnnex VectorImage = True
+    shouldAnnex Json = False
 
 syncComputations :: (MonadKorrvigs m) => Id -> EntryComps -> m ()
 syncComputations i cmps = do

@@ -28,3 +28,4 @@ serveCached :: FilePath -> CompType -> Handler TypedContent
 serveCached path ScalarImage = pure $ toTypedContent (typeJpeg, ContentFile path Nothing)
 serveCached path Picture = pure $ toTypedContent (typePng, ContentFile path Nothing)
 serveCached path VectorImage = pure $ toTypedContent (typeSvg, ContentFile path Nothing)
+serveCached path Json = pure $ toTypedContent (typeJson, ContentFile path Nothing)

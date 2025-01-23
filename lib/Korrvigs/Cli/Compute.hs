@@ -143,3 +143,4 @@ displayType :: CompType -> IO ()
 displayType ScalarImage = putStr "scalar"
 displayType Picture = putStr "picture"
 displayType VectorImage = putStr "vector"
+displayType Json = putStr "json"

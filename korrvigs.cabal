@@ -130,6 +130,7 @@ library korrvigs-lib
     Korrvigs.Web
     Korrvigs.Web.Ace
     Korrvigs.Web.Backend
+    Korrvigs.Web.Compute
     Korrvigs.Web.Download
     Korrvigs.Web.Entry
     Korrvigs.Web.Entry.Event

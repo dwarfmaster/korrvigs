@@ -3,6 +3,7 @@
 module Korrvigs.Web where
 
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Compute
 import Korrvigs.Web.Download
 import Korrvigs.Web.Entry
 import Korrvigs.Web.Git

@@ -537,6 +537,7 @@ getSearchR = do
       where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryName)
       where_ $ mtdt ^. sqlKey .== sqlStrictText "title"
       let titleText = sqlJsonToText $ toNullable $ mtdt ^. sqlValue
+      where_ $ fromNullable (sqlStrictText "") titleText ./= sqlStrictText ""
       pure titleText
     pure (entry, title)
   search <- searchForm q display

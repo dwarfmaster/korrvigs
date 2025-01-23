@@ -1,6 +1,6 @@
 module Korrvigs.Compute.Builtin where
 
-import Control.Lens
+import Control.Lens hiding ((.=))
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
@@ -10,20 +10,27 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Korrvigs.Entry
 import Korrvigs.Monad
+import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Process
 import Network.Mime (MimeType)
 import System.Process
+import Text.Parsec hiding (unexpected)
+import Text.Parsec.Number
 
-data Action = Miniature
+data Action
+  = Miniature
+  | Size
   deriving (Eq, Show)
 
 makePrisms ''Action
 
 instance ToJSON Action where
   toJSON Miniature = String "miniature"
+  toJSON Size = String "size"
 
 instance FromJSON Action where
   parseJSON (String "miniature") = pure Miniature
+  parseJSON (String "size") = pure Size
   parseJSON v = unexpected v
 
 isPrefix :: Text -> MimeType -> Bool
@@ -40,4 +47,18 @@ run Miniature entry tgt = case entry ^. kindData of
     | isPrefix "video/" (file ^. fileMime) ->
         let ffmpeg = proc "ffmpeg" ["-i", file ^. filePath, "-vframes", "1", "-f", "image2", "-vf", "scale=200:-2", tgt]
          in liftIO $ void $ runSilent ffmpeg
+  _ -> pure ()
+run Size entry tgt = case entry ^. kindData of
+  FileD file | file ^. fileStatus /= FilePresent -> pure ()
+  FileD file
+    | isPrefix "image/" (file ^. fileMime) -> do
+        let magick = proc "magick" ["identify", "-format", "%w %h", file ^. filePath]
+        (_, content) <- liftIO $ runStdout magick
+        let parser = (,) <$> decimal <*> (char ' ' *> decimal)
+        case runParser parser () "" content of
+          Right (width, height) ->
+            let w = width :: Int
+             in let h = height :: Int
+                 in writeJsonToFile tgt $ object ["width" .= toJSON w, "height" .= toJSON h]
+          Left _ -> pure ()
   _ -> pure ()

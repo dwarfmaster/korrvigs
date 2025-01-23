@@ -125,7 +125,9 @@ run (List i extract) = do
     putStrLn ""
 run (Extract sel) = do
   toRunOn <- selectEntries sel
-  forM_ toRunOn doExtract
+  forM_ toRunOn $ \i -> do
+    liftIO $ putStrLn $ "=== " <> unId i <> " ==="
+    doExtract i
 
 doExtract :: (MonadKorrvigs m) => Id -> m ()
 doExtract i = do
@@ -138,6 +140,7 @@ displayAction (Builtin blt) = putStr "[" >> displayBuiltin blt >> putStr "]"
 
 displayBuiltin :: Builtin.Action -> IO ()
 displayBuiltin Builtin.Miniature = putStr "miniature"
+displayBuiltin Builtin.Size = putStr "size"
 
 displayType :: CompType -> IO ()
 displayType ScalarImage = putStr "scalar"

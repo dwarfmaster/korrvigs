@@ -1,9 +1,18 @@
 module Korrvigs.Utils.JSON where
 
+import Control.Monad.IO.Class
 import Data.Aeson
+import Data.Aeson.Text (encodeToTextBuilder)
+import qualified Data.ByteString.Lazy as LBS
 import Data.Text (Text)
+import qualified Data.Text.Lazy.Builder as Bld
+import qualified Data.Text.Lazy.Encoding as LEnc
 import qualified Korrvigs.Utils.Opaleye as UOp
 import Opaleye
+
+writeJsonToFile :: (MonadIO m, ToJSON x) => FilePath -> x -> m ()
+writeJsonToFile path val =
+  liftIO $ LBS.writeFile path $ LEnc.encodeUtf8 $ Bld.toLazyText $ encodeToTextBuilder val
 
 jsonAsText :: Value -> Maybe Text
 jsonAsText (String txt) = Just txt

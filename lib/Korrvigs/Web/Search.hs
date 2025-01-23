@@ -3,13 +3,14 @@ module Korrvigs.Web.Search (getSearchR) where
 import Control.Lens
 import Control.Monad (forM, join, void)
 import Data.Default
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
-import Korrvigs.Compute (entryStoredComputations)
+import Korrvigs.Compute (entryStoredComputations, getJsonComp)
 import Korrvigs.Entry
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Geometry
@@ -494,15 +495,19 @@ displayResults DisplayGallery entries = do
   items <- forM entries $ \(erow, _) -> do
     let i = erow ^. sqlEntryName
     comps <- entryStoredComputations i
+    szM <- maybe (pure Nothing) getJsonComp $ M.lookup "size" comps
     pure $ do
       void $ M.lookup "miniature" comps
+      sz <- szM :: Maybe (Map Text Int)
+      width <- M.lookup "width" sz
+      height <- M.lookup "height" sz
       pure $
         PhotoSwipe.PhotoswipeEntry
           { PhotoSwipe._swpUrl = EntryDownloadR (WId i),
             PhotoSwipe._swpMiniature = EntryComputeR (WId i) "miniature",
             PhotoSwipe._swpCaption = mempty,
-            PhotoSwipe._swpWidth = 1000, -- TODO find size
-            PhotoSwipe._swpHeight = 1000
+            PhotoSwipe._swpWidth = width,
+            PhotoSwipe._swpHeight = height
           }
   gallery <- PhotoSwipe.photoswipe $ catMaybes items
   pure $ do

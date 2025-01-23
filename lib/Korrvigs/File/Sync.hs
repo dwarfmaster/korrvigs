@@ -143,7 +143,9 @@ computeFromMime i mime = cmp $ Enc.decodeASCII mime
   where
     cmp m
       | S.member m scalars = miniature ScalarImage
-      | T.isPrefixOf "image/" m = miniature Picture
+      | T.isPrefixOf "image/" m =
+          miniature Picture
+            <> M.singleton "size" (Computation i "size" (Builtin Size) Json)
       | T.isPrefixOf "video/" m = miniature Picture
       | otherwise = M.empty
     miniature = M.singleton "miniature" . Computation i "miniature" (Builtin Miniature)

@@ -1,6 +1,7 @@
 module Korrvigs.Utils.Process where
 
 import Control.Monad.IO.Class
+import qualified Data.ByteString.Lazy as LBS
 import Korrvigs.Monad
 import System.Exit
 import System.IO
@@ -21,3 +22,11 @@ runSilent prc = withDevNull $ \devNull -> do
 
 runSilentK :: (MonadKorrvigs m) => CreateProcess -> m ExitCode
 runSilentK = liftIO . runSilent
+
+runStdout :: CreateProcess -> IO (ExitCode, LBS.ByteString)
+runStdout prc = withDevNull $ \devNull -> do
+  let process = prc {std_out = CreatePipe, std_err = UseHandle devNull}
+  (_, Just out, _, p) <- createProcess process
+  content <- LBS.hGetContents out
+  r <- waitForProcess p
+  pure (r, content)

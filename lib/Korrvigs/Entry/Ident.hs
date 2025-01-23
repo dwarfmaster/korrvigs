@@ -81,7 +81,7 @@ prepTitle language title = foldl (<>) "" content
               LBS.fromStrict $
                 Enc.encodeUtf8 title
     sanitize :: Char -> Char
-    sanitize c | isAlphaNum c = c
+    sanitize c | isAlpha c = c
     sanitize _ = ' '
     wds :: [Text]
     wds = T.map toLower <$> T.split (\c -> isPunctuation c || isSpace c) ascii

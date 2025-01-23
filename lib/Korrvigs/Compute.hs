@@ -172,6 +172,8 @@ run cmp =
   load (cmp ^. cmpEntry) >>= \case
     Nothing -> pure ()
     Just entry -> do
+      dir <- compsDir $ entry ^. name
+      liftIO $ createDirectoryIfMissing True dir
       tgt <- compFile cmp
       case cmp ^. cmpAction of
         Builtin act -> Builtin.run act entry tgt

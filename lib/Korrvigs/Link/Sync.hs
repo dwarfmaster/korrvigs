@@ -36,7 +36,7 @@ syncLinkJSON i path json = do
   let dur = json ^. lkjsDuration
   let geom = json ^. lkjsGeo
   let erow = EntryRow i Link tm dur geom Nothing :: EntryRow
-  let mtdtrows = (\(key, val) -> MetadataRow i key val False) <$> M.toList mtdt :: [MetadataRow]
+  let mtdtrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
   let lrow = LinkRow i (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
   atomicSQL $ \conn -> do
     void $

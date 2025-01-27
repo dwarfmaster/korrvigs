@@ -122,7 +122,7 @@ syncEvent i calendar ics ifile ical = do
                in Just $ calendarTimeTime diff
         _ -> calendarTimeTime <$> ical ^. iceDuration
   let erow = EntryRow i Event tm dur geom Nothing :: EntryRow
-  let mrows = (\(key, val) -> MetadataRow i key val False) <$> M.toList mtdt :: [MetadataRow]
+  let mrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
   let evrow = EventRow i calendar (T.unpack ics) (ical ^. iceUid) :: EventRow
   let txt = T.intercalate " " $ catMaybes [ical ^. iceComment, ical ^. iceSummary, ical ^. iceDescription]
   atomicSQL $ \conn -> do

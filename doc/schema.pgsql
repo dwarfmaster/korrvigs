@@ -19,7 +19,6 @@ CREATE TABLE IF NOT EXISTS entries_metadata (
   name TEXT NOT NULL REFERENCES entries(name),
   key TEXT NOT NULL,
   value JSONB NOT NULL,
-  read_only BOOL NOT NULL,
   CONSTRAINT entries_metadata_ref
     UNIQUE(name,key)
 );

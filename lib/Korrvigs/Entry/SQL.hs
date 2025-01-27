@@ -71,22 +71,21 @@ mtdtFromJSON json = case fromJSON <$> json of
   _ -> M.empty
 
 -- Metadata table
-data MetadataRowImpl a b c d = MetadataRow
+data MetadataRowImpl a b c = MetadataRow
   { _sqlEntry :: a,
     _sqlKey :: b,
-    _sqlValue :: c,
-    _sqlReadOnly :: d
+    _sqlValue :: c
   }
 
 makeLenses ''MetadataRowImpl
 $(makeAdaptorAndInstanceInferrable "pMetadataRow" ''MetadataRowImpl)
 
-type MetadataRow = MetadataRowImpl Id Text Value Bool
+type MetadataRow = MetadataRowImpl Id Text Value
 
-type MetadataRowSQL = MetadataRowImpl (Field SqlText) (Field SqlText) (Field SqlJsonb) (Field SqlBool)
+type MetadataRowSQL = MetadataRowImpl (Field SqlText) (Field SqlText) (Field SqlJsonb)
 
 instance Default ToFields MetadataRow MetadataRowSQL where
-  def = pMetadataRow $ MetadataRow def def def def
+  def = pMetadataRow $ MetadataRow def def def
 
 entriesMetadataTable :: Table MetadataRowSQL MetadataRowSQL
 entriesMetadataTable =
@@ -96,7 +95,6 @@ entriesMetadataTable =
         (tableField "name")
         (tableField "key")
         (tableField "value")
-        (tableField "read_only")
 
 -- Relation tables
 data RelRowImpl a b = RelRow {_source :: a, _target :: b}

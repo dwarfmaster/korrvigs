@@ -183,7 +183,7 @@ dSyncOneImpl path = do
   let tm = json ^. exDate
   let dur = json ^. exDuration
   let erow = EntryRow i File tm dur geom Nothing :: EntryRow
-  let mtdtrows = (\(key, val) -> MetadataRow i key val False) <$> M.toList mtdt :: [MetadataRow]
+  let mtdtrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
   let frow = FileRow i path (metaPath path) status mime :: FileRow
   let txt = json ^. exText
   atomicSQL $ \conn -> do

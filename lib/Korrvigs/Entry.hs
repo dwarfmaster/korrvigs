@@ -56,7 +56,6 @@ module Korrvigs.Entry
     sqlEntry,
     sqlKey,
     sqlValue,
-    sqlReadOnly,
     MetadataRow,
     MetadataRowSQL,
     entriesMetadataTable,

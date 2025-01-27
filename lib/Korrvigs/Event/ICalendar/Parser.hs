@@ -3,6 +3,8 @@ module Korrvigs.Event.ICalendar.Parser where
 import Control.Arrow
 import Control.Lens
 import Control.Monad
+import Data.Aeson (Value)
+import Data.Aeson.Decoding (decode)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Default
 import Data.Either
@@ -11,12 +13,18 @@ import Data.Map
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
 import Data.Time.LocalTime
 import Data.Word
+import Korrvigs.Entry (Id (..))
 import Korrvigs.Event.ICalendar.Defs
 import Korrvigs.Event.ICalendar.Parser.Basic
 import Korrvigs.Event.ICalendar.Parser.Types
+import Korrvigs.Geometry
+import Korrvigs.Geometry.WKB (readGeometry)
+import Linear.V2
 import Text.Parsec
 
 parseICalFile :: FilePath -> IO (Either Text ICalFile)
@@ -68,14 +76,14 @@ crlfP = try (byteSeqP [0x0D, 0x0A]) <|> byteSeqP [0x0A]
 
 contentLineP ::
   (Monad m, Stream s m Word8) =>
-  Map Text (ParsecT s u m (Map Text [Text] -> a)) ->
+  (Text -> Maybe (ParsecT s u m (Map Text [Text] -> a))) ->
   ParsecT s u m (Text, Either (ICalValue Text) a)
 contentLineP parsers = do
   name <- nameP
   params <- many $ charP ';' >> paramP
   charP ':'
   let parmp = M.fromList params
-  val <- case M.lookup name parsers of
+  val <- case parsers name of
     Just parser -> parser <*> pure parmp <&> Right
     Nothing -> Left . ICValue parmp <$> valueP
   crlfP <|> eof
@@ -83,7 +91,7 @@ contentLineP parsers = do
 
 contentLineDefP :: (Monad m, Stream s m Word8) => ParsecT s u m (Text, ICalValue Text)
 contentLineDefP = do
-  (name, val) <- contentLineP M.empty
+  (name, val) <- contentLineP (const Nothing)
   pure (name, fromLeft (ICValue M.empty "") val)
 
 revAGroup :: ICalAbstractGroup -> ICalAbstractGroup
@@ -193,28 +201,29 @@ icalTZSpecRecP tzs = do
       "END" -> pure tzs
       _ -> icalTZSpecRecP $ tzs & ictzContent . icValues . at name %~ mlPush v
   where
-    lineSpec :: (Monad m, Stream s m Word8) => Map Text (ParsecT s u m (Map Text [Text] -> ICalTZSpec -> ICalTZSpec))
-    lineSpec =
-      M.fromList $
-        fmap
-          (second (const <$>))
-          [ ("DTSTART", (ictzStart .~) . snd <$> dateTimeP),
-            ("TZOFFSETTO", (ictzOffsetTo .~) <$> utcOffsetP),
-            ("TZOFFSETFROM", (ictzOffsetFrom .~) <$> utcOffsetP),
-            ("RDATE", (ictzRdate ?~) . snd <$> dateTimeP),
-            ("TZNAME", (ictzName ?~) <$> textP),
-            ("RRULE", (ictzRRule ?~) <$> rruleP)
-          ]
+    lineSpec :: (Monad m, Stream s m Word8) => Text -> Maybe (ParsecT s u m (Map Text [Text] -> ICalTZSpec -> ICalTZSpec))
+    lineSpec key =
+      M.lookup key $
+        M.fromList $
+          fmap
+            (second (const <$>))
+            [ ("DTSTART", (ictzStart .~) . snd <$> dateTimeP),
+              ("TZOFFSETTO", (ictzOffsetTo .~) <$> utcOffsetP),
+              ("TZOFFSETFROM", (ictzOffsetFrom .~) <$> utcOffsetP),
+              ("RDATE", (ictzRdate ?~) . snd <$> dateTimeP),
+              ("TZNAME", (ictzName ?~) <$> textP),
+              ("RRULE", (ictzRRule ?~) <$> rruleP)
+            ]
 
 -- Events
 icalEventP :: (Monad m, Stream s m Word8) => ParsecT s u m ICalEvent
-icalEventP = icalEventRecP $ ICEvent "" [] Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing False def
+icalEventP = icalEventRecP $ ICEvent "" [] Nothing Nothing Nothing Nothing Nothing Nothing Nothing False Nothing [] Nothing M.empty def
 
-icalEventRecP :: (Monad m, Stream s m Word8) => ICalEvent -> ParsecT s u m ICalEvent
+icalEventRecP :: forall s u m. (Monad m, Stream s m Word8) => ICalEvent -> ParsecT s u m ICalEvent
 icalEventRecP ev = do
-  (name, val) <- contentLineP lineSpec
+  (name, val) <- contentLineP spec
   case val of
-    Right spec -> icalEventRecP $ spec ev
+    Right spc -> icalEventRecP $ spc ev
     Left v -> case name of
       "BEGIN" -> do
         let gname = v ^. icValue
@@ -223,24 +232,42 @@ icalEventRecP ev = do
       "END" -> pure ev
       _ -> icalEventRecP $ ev & iceContent . icValues . at name %~ mlPush v
   where
-    lineSpec :: (Monad m, Stream s m Word8) => Map Text (ParsecT s u m (Map Text [Text] -> ICalEvent -> ICalEvent))
-    lineSpec =
-      M.fromList
-        [ ("UID", const . (iceUid .~) <$> valueP),
-          ("CATEGORIES", const . (iceCategories .~) <$> listOfP textP),
-          ("COMMENT", const . (iceComment ?~) <$> textP),
-          ("SUMMARY", const . (iceSummary ?~) <$> textP),
-          ("DESCRIPTION", const . (iceDescription ?~) <$> textP),
-          ("GEO", const . (iceGeo ?~) <$> geoP),
-          ("LOCATION", const . (iceLocation ?~) <$> textP),
-          ("DTSTART", mkTimeSpec (iceStart ?~) <$> dateMTimeP),
-          ("DTEND", mkTimeSpec (iceEnd ?~) <$> dateMTimeP),
-          ("DURATION", const . (iceDuration ?~) <$> durationP),
-          ("TRANSP", const . (iceTransparent .~) <$> transpP)
-        ]
+    spec :: Text -> Maybe (ParsecT s u m (Map Text [Text] -> ICalEvent -> ICalEvent))
+    spec key = mtdtSpec key >> lineSpec key
+    lineSpec :: Text -> Maybe (ParsecT s u m (Map Text [Text] -> ICalEvent -> ICalEvent))
+    lineSpec key =
+      M.lookup key $
+        M.fromList
+          [ ("UID", const . (iceUid .~) <$> valueP),
+            ("CATEGORIES", const . (iceCategories .~) <$> listOfP textP),
+            ("COMMENT", const . (iceComment ?~) <$> textP),
+            ("SUMMARY", const . (iceSummary ?~) <$> textP),
+            ("DESCRIPTION", const . (iceDescription ?~) <$> textP),
+            ("GEO", const . (iceGeometry ?~) <$> (GeoPoint . uncurry V2 <$> geoP)),
+            ("X-KORRVIGS-GEOM", const . (iceGeometry ?~) <$> korrGeomP),
+            ("X-KORRVIGS-PARENTS", const . (iceParents .~) <$> listOfP (MkId <$> textP)),
+            ("X-KORRVIGS-NAME", const . (iceId ?~) <$> (MkId <$> textP)),
+            ("LOCATION", const . (iceLocation ?~) <$> textP),
+            ("DTSTART", mkTimeSpec (iceStart ?~) <$> dateMTimeP),
+            ("DTEND", mkTimeSpec (iceEnd ?~) <$> dateMTimeP),
+            ("DURATION", const . (iceDuration ?~) <$> durationP),
+            ("TRANSP", const . (iceTransparent .~) <$> transpP)
+          ]
+    mtdtSpec :: Text -> Maybe (ParsecT s u m (Map Text [Text] -> ICalEvent -> ICalEvent))
+    mtdtSpec key = case T.stripPrefix "X-KORRMTDT-" key of
+      Nothing -> Nothing
+      Just nm -> Just $ do
+        js <- textP
+        let v :: Maybe Value = decode $ LEnc.encodeUtf8 $ LT.fromStrict js
+        case v of
+          Nothing -> fail $ "Failed to parse json for " <> T.unpack key
+          Just mtdt -> pure . const $ iceMtdt . at nm ?~ mtdt
 
 geoP :: (Monad m, Stream s m Word8) => ParsecT s u m (Double, Double)
 geoP = (,) <$> floatP <*> (charP ';' >> floatP)
+
+korrGeomP :: (Monad m, Stream s m Word8) => ParsecT s u m Geometry
+korrGeomP = readGeometry . LEnc.encodeUtf8 . LT.fromStrict <$> textP
 
 transpP :: (Monad m, Stream s m Word8) => ParsecT s u m Bool
 transpP = (stringP "TRANSPARENT" $> True) <|> (stringP "OPAQUE" $> False)

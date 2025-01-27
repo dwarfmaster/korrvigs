@@ -10,6 +10,7 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Korrvigs.Actions.Load (loadMetadata)
 import qualified Korrvigs.Cli.Info as Info
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
@@ -115,7 +116,8 @@ run cmd = do
             Just render -> liftIO $ TIO.putStrLn render
             Nothing -> pure ()
           else do
-            let mp = mconcat $ fmap (Info.buildInfoJSON entry) Info.entryInfoSpec
+            mtdt <- loadMetadata i
+            let mp = mconcat $ fmap (Info.buildInfoJSON entry mtdt) Info.entryInfoSpec
             let obj = JEnc.encodingToLazyByteString $ JEnc.value $ toJSON mp
             liftIO $ putStrLn $ BSL8.toString obj
   where

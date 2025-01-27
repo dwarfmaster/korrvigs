@@ -5,6 +5,8 @@ import Control.Applicative ((<|>))
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Aeson (toJSON)
+import Data.Aeson.Lens
 import Data.Aeson.Text (encodeToLazyText)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
@@ -22,11 +24,11 @@ import Korrvigs.Entry.New
 import Korrvigs.File.Mtdt
 import Korrvigs.File.Sync
 import Korrvigs.KindData
-import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils (resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (storeFile)
 import Korrvigs.Utils.Git.Annex
+import Korrvigs.Utils.Time (dayToZonedTime)
 import Network.Mime
 import System.Directory
 import System.FilePath
@@ -78,42 +80,49 @@ choosePrefix mime
   | BS.isPrefixOf "text" mime = "file"
   | otherwise = "doc"
 
+applyNewOptions :: (MonadIO m) => NewEntry -> m (FileMetadata -> FileMetadata)
+applyNewOptions ne = do
+  dt <- mkdate
+  pure $ foldr (.) id [parents, dt, title, lang, mtdt]
+  where
+    parents = exParents %~ (++ (ne ^. neParents))
+    mkdate = do
+      tz <- liftIO getCurrentTimeZone
+      let dt = dayToZonedTime tz <$> ne ^. neDate
+      pure $ maybe id (exDate ?~) dt
+    title = maybe id ((annoted . at "title" ?~) . toJSON) $ ne ^. neTitle
+    lang = maybe id ((annoted . at "title" ?~) . toJSON) $ ne ^. neLanguage
+    mtdt = annoted %~ M.union (M.fromList $ ne ^. neMtdt)
+
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
 new path' options = do
   path <- liftIO $ resolveSymbolicLink path'
   ex <- liftIO $ doesFileExist path
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path
-  mtdt' <- liftIO $ extractMetadata path mime
-  extrasFromNew <- newExtraMtdt $ options ^. nfEntry
-  let mtdt'' = reifyMetadata extrasFromNew $ M.map (`MValue` True) mtdt'
-  let mtdt = M.map (^. metaValue) mtdt''
-  let extras = mtdtExtras mtdt
+  let mimeTxt = Enc.decodeUtf8 mime
+  let mtdt' = FileMetadata mimeTxt M.empty Nothing Nothing Nothing Nothing []
+  mtdt'' <- liftIO $ ($ mtdt') <$> extractMetadata path mime
+  mtdt <- ($ mtdt'') <$> applyNewOptions (options ^. nfEntry)
   annex <- liftIO $ shouldAnnex path mime
   let baseName = listToMaybe [T.pack (takeBaseName path') | null (options ^. nfEntry . neParents)]
   let idmk' =
         imk (choosePrefix mime)
           & idTitle
-            .~ ( (extras ^. mtdtTitle)
+            .~ ( (mtdt ^? annoted . at "title" . _Just . _String)
                    <|> baseName
                )
-          & idDate .~ extras ^. mtdtDate
+          & idDate .~ mtdt ^. exDate
   idmk <- applyNewEntry (options ^. nfEntry) idmk'
   i <- newId idmk
   let ext = T.pack $ takeExtension path
   let nm = unId i <> ext
   content <- liftIO $ BSL.readFile path
   dir <- filesDirectory
-  let day = (localDay . zonedTimeToLocalTime <$> extras ^. mtdtDate) <|> (options ^. nfEntry . neDate)
+  let day = localDay . zonedTimeToLocalTime <$> mtdt ^. exDate
   stored <- storeFile dir filesTreeType day nm content
   let metapath = metaPath stored
-  let meta =
-        FileMetadata
-          { _savedMime = Enc.decodeUtf8 mime,
-            _extracted = mtdt,
-            _annoted = M.fromList $ options ^. nfEntry . neMtdt
-          }
-  liftIO $ TLIO.writeFile metapath $ encodeToLazyText meta
+  liftIO $ TLIO.writeFile metapath $ encodeToLazyText mtdt
   rt <- root
   when annex $ annexAdd rt stored
   (relData, cmps) <- dSyncOneImpl stored

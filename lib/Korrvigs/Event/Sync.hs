@@ -4,11 +4,9 @@ import Conduit (throwM)
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson (Result (Error, Success), Value (Array, Null, String), fromJSON)
-import Data.Aeson.Decoding (decode)
+import Data.Aeson (Result (Error, Success), Value, fromJSON)
 import Data.Aeson.Text (encodeToTextBuilder)
 import qualified Data.ByteString.Lazy as BSL
-import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -18,21 +16,16 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Builder as Bld
-import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.Clock
 import Data.Time.LocalTime
-import qualified Data.Vector as V
 import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
 import Korrvigs.FTS
-import Korrvigs.Geometry
 import Korrvigs.Kind
 import Korrvigs.KindData
-import Korrvigs.Metadata
 import Korrvigs.Monad
-import Linear.V2
 import Opaleye hiding (not)
 import System.Directory (doesFileExist, getDirectoryContents, removeFile)
 import System.FilePath (joinPath, takeExtension)
@@ -117,80 +110,21 @@ register (calendar, ics) = do
         liftIO $ BSL.writeFile path $ renderICalFile ncal
         pure (i, ncal, nevent, True)
 
-syncOne :: (MonadKorrvigs m) => Id -> Text -> Text -> ICalFile -> ICalEvent -> m RelData
-syncOne i calendar ics ifile ical = do
-  prev <- load i
-  case prev of
-    Nothing -> pure ()
-    Just prevEntry ->
-      case prevEntry ^. kindData of
-        EventD event
-          | Just (event ^. eventUid) == ical ^? iceUid ->
-              dispatchRemoveDB prevEntry
-        _ -> dispatchRemove prevEntry
-  mtdt <- syncEvent i calendar ics ifile ical
-  let extras = mtdtExtras mtdt
-  pure $
-    RelData
-      { _relSubOf = fromMaybe [] $ extras ^. mtdtParents,
-        _relRefTo = []
-      }
-
-eventMtdt :: ICalFile -> ICalEvent -> Metadata
-eventMtdt ical ievent = reifyMetadataRO True extras $ mconcat [flip MValue False <$> basic, categories]
-  where
-    prepBasic :: (Text, [ICalValue Text]) -> Maybe (Text, Value)
-    prepBasic (nm, vs) = case T.stripPrefix "X-KORRMTDT-" nm of
-      Nothing -> Nothing
-      Just nnm ->
-        let jsons :: Maybe [Value] = mapM (decode . LEnc.encodeUtf8 . LT.fromStrict . (^. icValue)) vs
-         in case jsons of
-              Nothing -> Nothing
-              Just [] -> Just (nnm, Null)
-              Just [x] -> Just (nnm, x)
-              Just xs -> Just (nnm, Array $ V.fromList xs)
-    basic :: Map Text Value
-    basic = ievent ^. iceContent . icValues . to M.toList . to (map prepBasic) . to catMaybes . to M.fromList
-    categories = M.singleton "categories" $ flip MValue False $ Array $ V.fromList $ String <$> ievent ^. iceCategories
-    extras :: MtdtExtras
-    extras =
-      def
-        & mtdtGeometry .~ geometry
-        & mtdtDate .~ dt
-        & mtdtDuration .~ dur
-        & mtdtText .~ textContent
-        & mtdtTitle .~ title
-    textContent :: Maybe Text
-    textContent =
-      let v = T.intercalate " " $ catMaybes [ievent ^. iceComment, ievent ^. iceSummary, ievent ^. iceDescription]
-       in if T.null v then Nothing else Just v
-    title :: Maybe Text
-    title = ievent ^. iceSummary
-    geometry :: Maybe Geometry
-    geometry = GeoPoint . uncurry V2 <$> ievent ^. iceGeo
-    dt :: Maybe ZonedTime
-    dt = resolveICalTime ical <$> ievent ^. iceStart
-    dur :: Maybe CalendarDiffTime
-    dur = case (ievent ^. iceStart, ievent ^. iceEnd) of
-      (Just st, Just nd) ->
-        let stTime = resolveICalTime ical st
-         in let ndTime = resolveICalTime ical nd
-             in let diff = diffUTCTime (zonedTimeToUTC ndTime) (zonedTimeToUTC stTime)
-                 in Just $ calendarTimeTime diff
-      _ -> calendarTimeTime <$> ievent ^. iceDuration
-
-syncEvent :: (MonadKorrvigs m) => Id -> Text -> Text -> ICalFile -> ICalEvent -> m (Map Text Value)
+syncEvent :: (MonadKorrvigs m) => Id -> Text -> Text -> ICalFile -> ICalEvent -> m ()
 syncEvent i calendar ics ifile ical = do
-  let mtdt' = eventMtdt ifile ical
-  let mtdt = view metaValue <$> mtdt'
-  let extras = mtdtExtras mtdt
-  let geom = extras ^. mtdtGeometry
-  let tm = extras ^. mtdtDate
-  let dur = extras ^. mtdtDuration
+  let mtdt = ical ^. iceMtdt
+  let geom = ical ^. iceGeometry
+  let tm = resolveICalTime ifile <$> ical ^. iceStart
+  let dur = case (tm, ical ^. iceEnd) of
+        (Just st, Just nd) ->
+          let ndTime = resolveICalTime ifile nd
+           in let diff = diffUTCTime (zonedTimeToUTC ndTime) (zonedTimeToUTC st)
+               in Just $ calendarTimeTime diff
+        _ -> calendarTimeTime <$> ical ^. iceDuration
   let erow = EntryRow i Event tm dur geom Nothing :: EntryRow
-  let mrows = (\(key, MValue val ro) -> MetadataRow i key val ro) <$> M.toList mtdt' :: [MetadataRow]
+  let mrows = (\(key, val) -> MetadataRow i key val False) <$> M.toList mtdt :: [MetadataRow]
   let evrow = EventRow i calendar (T.unpack ics) (ical ^. iceUid) :: EventRow
-  let txt = extras ^. mtdtText
+  let txt = T.intercalate " " $ catMaybes [ical ^. iceComment, ical ^. iceSummary, ical ^. iceDescription]
   atomicSQL $ \conn -> do
     void $
       runInsert conn $
@@ -216,28 +150,24 @@ syncEvent i calendar ics ifile ical = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-    case txt of
-      Nothing -> pure ()
-      Just t ->
-        void $
-          runUpdate conn $
-            Update
-              { uTable = entriesTable,
-                uUpdateWith = sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText t),
-                uWhere = \row -> row ^. sqlEntryName .== sqlId i,
-                uReturning = rCount
-              }
-  pure mtdt
+    unless (T.null txt) $
+      void $
+        runUpdate conn $
+          Update
+            { uTable = entriesTable,
+              uUpdateWith = sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText txt),
+              uWhere = \row -> row ^. sqlEntryName .== sqlId i,
+              uReturning = rCount
+            }
 
 syncOneEvent :: (MonadKorrvigs m) => Id -> Text -> Text -> ICalFile -> ICalEvent -> m RelData
 syncOneEvent i calendar ics ifile ievent = do
   prev <- load i
   forM_ prev dispatchRemoveDB
-  mtdt <- syncEvent i calendar ics ifile ievent
-  let extras = mtdtExtras mtdt
+  syncEvent i calendar ics ifile ievent
   pure $
     RelData
-      { _relSubOf = fromMaybe [] $ extras ^. mtdtParents,
+      { _relSubOf = ievent ^. iceParents,
         _relRefTo = []
       }
 

@@ -1,14 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Korrvigs.Link
-  ( LinkMaker (..),
-    lkId,
-    lkProtocol,
-    lkLink,
-    lkMtdt,
-    lmk,
-    newLink,
-    displayLinkId,
+  ( displayLinkId,
   )
 where
 

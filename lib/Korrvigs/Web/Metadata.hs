@@ -6,29 +6,21 @@ import Data.Aeson.Types
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
+import Korrvigs.Actions.Load (loadMetadata)
 import Korrvigs.Actions.Metadata
-import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import Yesod hiding (Update)
 
-mvalueToJson :: MetadataValue -> Value
-mvalueToJson mv = object ["value" .= (mv ^. metaValue), "readOnly" .= (mv ^. metaReadOnly)]
-
-mtdtToJson :: Metadata -> Value
-mtdtToJson mtdt = toJSON $ mvalueToJson <$> mtdt
-
 getEntryMtdtR :: WebId -> Handler Value
-getEntryMtdtR (WId i) =
-  load i >>= \case
-    Nothing -> notFound
-    Just entry ->
-      lookupGetParam "key" >>= \case
-        Nothing -> pure $ mtdtToJson $ entry ^. metadata
-        Just key -> case M.lookup key (entry ^. metadata) of
-          Nothing -> invalidArgs [key]
-          Just val -> pure $ mvalueToJson val
+getEntryMtdtR (WId i) = do
+  mtdt <- loadMetadata i
+  lookupGetParam "key" >>= \case
+    Nothing -> pure $ toJSON mtdt
+    Just key -> case M.lookup key mtdt of
+      Nothing -> invalidArgs [key]
+      Just val -> pure $ toJSON val
 
 data MtdtPost = MtdtPost
   { _mtdtAdd :: Map Text Value,
@@ -54,7 +46,5 @@ postEntryMtdtR (WId i) =
     Nothing -> notFound
     Just entry -> do
       mtdts <- requireCheckJsonBody :: Handler MtdtPost
-      r <- updateMetadata entry (mtdts ^. mtdtAdd) (mtdts ^. mtdtRm)
-      case r of
-        Left ros -> invalidArgs ros
-        Right _ -> redirect $ EntryMtdtR $ WId i
+      updateMetadata entry (mtdts ^. mtdtAdd) (mtdts ^. mtdtRm)
+      redirect $ EntryMtdtR $ WId i

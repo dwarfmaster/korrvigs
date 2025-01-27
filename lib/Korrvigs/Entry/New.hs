@@ -5,21 +5,24 @@ module Korrvigs.Entry.New
     neTitle,
     neLanguage,
     neMtdt,
-    newExtraMtdt,
+    useDate,
+    useMtdt,
     applyNewEntry,
   )
 where
 
 import Control.Lens
+import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Default
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import Data.Time.Calendar
 import Data.Time.LocalTime
+import Korrvigs.Entry
 import Korrvigs.Entry.Ident
-import Korrvigs.Metadata
 
 data NewEntry = NewEntry
   { _neParents :: [Id],
@@ -38,18 +41,13 @@ zonedTimeFromDay :: TimeZone -> Day -> ZonedTime
 zonedTimeFromDay tz day =
   ZonedTime (LocalTime day (TimeOfDay 0 0 0)) tz
 
-nullToNothing :: [a] -> Maybe [a]
-nullToNothing [] = Nothing
-nullToNothing l = Just l
-
-newExtraMtdt :: (MonadIO m) => NewEntry -> m MtdtExtras
-newExtraMtdt ne = do
+useDate :: (MonadIO m) => NewEntry -> Maybe ZonedTime -> m (Maybe ZonedTime)
+useDate ne dt = do
   tz <- liftIO getCurrentTimeZone
-  pure $
-    def
-      & mtdtTitle .~ ne ^. neTitle
-      & mtdtDate .~ (zonedTimeFromDay tz <$> ne ^. neDate)
-      & mtdtParents .~ ne ^. neParents . to nullToNothing
+  pure $ mplus (zonedTimeFromDay tz <$> ne ^. neDate) dt
+
+useMtdt :: NewEntry -> Metadata -> Metadata
+useMtdt ne = M.union $ M.fromList $ ne ^. neMtdt
 
 applyNewEntry :: (MonadIO m) => NewEntry -> IdMaker -> m IdMaker
 applyNewEntry ne idmk = do

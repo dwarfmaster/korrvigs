@@ -17,13 +17,14 @@ import qualified Data.Text.IO as TIO
 import Data.Text.Manipulate (mapHead)
 import Data.Time.Format.ISO8601 (iso8601Show)
 import qualified Data.Vector as V
+import Korrvigs.Actions.Load (loadMetadata)
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Utils.Lens
 import Options.Applicative hiding (value)
-import Text.Builder (string, text)
+import Text.Builder (decimal, string, text)
 import qualified Text.Builder as Bld
 import Prelude
 
@@ -51,56 +52,60 @@ run :: Cmd -> KorrM ()
 run (Cmd js i) =
   load i >>= \case
     Nothing -> throwM $ KIdNotFound i
-    Just entry ->
-      liftIO $ if js then displayEntryJSON entry else displayEntry entry
+    Just entry -> do
+      mtdt <- loadMetadata i
+      liftIO $ if js then displayEntryJSON entry mtdt else displayEntry entry mtdt
 
-entryInfoSpec :: (Contravariant f, Applicative f) => [(Text, (Bld.Builder -> f Bld.Builder) -> Entry -> f Entry)]
+entryInfoSpec :: (Contravariant f, Applicative f) => [(Text, (Bld.Builder -> f Bld.Builder) -> (Entry, Metadata) -> f (Entry, Metadata))]
 entryInfoSpec =
   [ -- Generic info
-    ("name", name . to unId . to text),
-    ("kind", kind . to displayKind . to text),
-    ("title", metadata . ix "title" . metaValue . _String . to text),
-    ("date", date . _Just . to iso8601Show . to string),
-    ("duration", duration . _Just . to iso8601Show . to string),
+    ("name", _1 . name . to unId . to text),
+    ("kind", _1 . kind . to displayKind . to text),
+    ("title", _2 . ix "title" . _String . to text),
+    ("date", _1 . date . _Just . to iso8601Show . to string),
+    ("duration", _1 . duration . _Just . to iso8601Show . to string),
+    ("pages", _2 . ix "pages" . _Integer . to decimal),
+    ("width", _2 . ix "width" . _Integer . to decimal),
+    ("height", _2 . ix "height" . _Integer . to decimal),
     -- Note info
-    ("path", _Note . notePath . to string),
+    ("path", _1 . _Note . notePath . to string),
     -- Link info
-    ("protocol", _Link . linkProtocol . to text),
-    ("ref", _Link . linkRef . to text),
-    ("path", _Link . linkPath . to string),
+    ("protocol", _1 . _Link . linkProtocol . to text),
+    ("ref", _1 . _Link . linkRef . to text),
+    ("path", _1 . _Link . linkPath . to string),
     -- File info
-    ("path", _File . filePath . to string),
-    ("status", _File . fileStatus . to displayFileStatus . to text),
-    ("mime", _File . fileMime . to Enc.decodeUtf8 . to text)
+    ("path", _1 . _File . filePath . to string),
+    ("status", _1 . _File . fileStatus . to displayFileStatus . to text),
+    ("mime", _1 . _File . fileMime . to Enc.decodeUtf8 . to text)
   ]
 
-buildInfoLine :: Entry -> (Text, (Bld.Builder -> Const [Bld.Builder] Bld.Builder) -> Entry -> Const [Bld.Builder] Entry) -> Bool -> Bld.Builder
-buildInfoLine entry (nm', getter) first = case lst of
+buildInfoLine :: Entry -> Metadata -> (Text, (Bld.Builder -> Const [Bld.Builder] Bld.Builder) -> (Entry, Metadata) -> Const [Bld.Builder] (Entry, Metadata)) -> Bool -> Bld.Builder
+buildInfoLine entry mtdt (nm', getter) first = case lst of
   [] -> mempty
   _ -> nm <> mconcat (intersperse " " lst)
   where
     nm = (if first then mempty else "\n") <> text (mapHead toUpper nm') <> ": "
-    lst = toMonoid (: []) getter entry
+    lst = toMonoid (: []) getter (entry, mtdt)
 
-displayEntry :: Entry -> IO ()
-displayEntry entry =
+displayEntry :: Entry -> Metadata -> IO ()
+displayEntry entry mtdt =
   TIO.putStrLn $
     Bld.run $
       mconcat $
-        fmap (uncurry $ buildInfoLine entry) $
+        fmap (uncurry $ buildInfoLine entry mtdt) $
           zip entryInfoSpec $
             True : repeat False
 
-buildInfoJSON :: Entry -> (Text, (Bld.Builder -> Const [Value] Bld.Builder) -> Entry -> Const [Value] Entry) -> Map Text Value
-buildInfoJSON entry (nm, getter) = case lst of
+buildInfoJSON :: Entry -> Metadata -> (Text, (Bld.Builder -> Const [Value] Bld.Builder) -> (Entry, Metadata) -> Const [Value] (Entry, Metadata)) -> Map Text Value
+buildInfoJSON entry mtdt (nm, getter) = case lst of
   [] -> M.empty
   [v] -> M.singleton nm v
   _ -> M.singleton nm $ Array $ V.fromList lst
   where
-    lst = toMonoid ((: []) . String . Bld.run) getter entry
+    lst = toMonoid ((: []) . String . Bld.run) getter (entry, mtdt)
 
-displayEntryJSON :: Entry -> IO ()
-displayEntryJSON entry = putStrLn $ BSL8.toString obj
+displayEntryJSON :: Entry -> Metadata -> IO ()
+displayEntryJSON entry mtdt = putStrLn $ BSL8.toString obj
   where
     obj = encodingToLazyByteString $ value $ toJSON mp
-    mp = mconcat $ fmap (buildInfoJSON entry) entryInfoSpec
+    mp = mconcat $ fmap (buildInfoJSON entry mtdt) entryInfoSpec

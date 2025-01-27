@@ -90,14 +90,6 @@ mtdtExtras mtdt =
   where
     (dt, dur) = extractDate mtdt
 
-insertWithRO :: Text -> Value -> Metadata -> Metadata
-insertWithRO key val mtdt = M.insert key (MValue val ro) mtdt
-  where
-    ro = maybe True (view metaReadOnly) $ M.lookup key mtdt
-
-insertWithFixed :: Bool -> Text -> Value -> Metadata -> Metadata
-insertWithFixed ro key val = M.insert key (MValue val ro)
-
 type Inserter = Text -> Value -> Metadata -> Metadata
 
 insertGeom :: Inserter -> Geometry -> Metadata -> Metadata
@@ -128,7 +120,7 @@ reifyMetadataImpl ins ex =
     . maybe id (insertTitle ins) (ex ^. mtdtTitle)
 
 reifyMetadata :: MtdtExtras -> Metadata -> Metadata
-reifyMetadata = reifyMetadataImpl insertWithRO
+reifyMetadata = reifyMetadataImpl M.insert
 
 reifyMetadataRO :: Bool -> MtdtExtras -> Metadata -> Metadata
-reifyMetadataRO = reifyMetadataImpl . insertWithFixed
+reifyMetadataRO = reifyMetadataImpl . const M.insert

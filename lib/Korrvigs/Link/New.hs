@@ -97,12 +97,16 @@ new url options = case parseURI (T.unpack url) of
         then pure M.empty
         else catchIO $ downloadInformation link
     let title = mplus (options ^. nlEntry . neTitle) (M.lookup "title" info >>= jsonAsText)
+    dt <- useDate (options ^. nlEntry) $ M.lookup "day" info >>= fromJsonM
+    let dur = M.lookup "duration" info >>= fromJsonM
+    let geom = M.lookup "geometry" info >>= fromJsonM
+    let txt = M.lookup "textContent" info >>= fromJsonM
     let mtdt =
-          M.fromList (options ^. nlEntry . neMtdt)
-            & at "title" .~ (toJSON <$> title)
-            & at "textContent" .~ M.lookup "textContent" info
-            & at "meta" ?~ toJSON (M.delete "textContent" info)
-    let json = LinkJSON protocol link mtdt parents
+          useMtdt (options ^. nlEntry) $
+            M.fromList (options ^. nlEntry . neMtdt)
+              & at "title" .~ (toJSON <$> title)
+              & at "meta" ?~ toJSON (foldr M.delete info ["day", "duration", "geometry", "textContent"])
+    let json = LinkJSON protocol link mtdt dt dur geom txt parents
     idmk' <- applyNewEntry (options ^. nlEntry) (imk "link")
     let idmk = idmk' & idTitle .~ title
     i <- newId idmk
@@ -113,3 +117,8 @@ new url options = case parseURI (T.unpack url) of
     relData <- dSyncOneImpl pth
     atomicInsertRelData i relData
     pure i
+  where
+    fromJsonM :: (FromJSON a) => Value -> Maybe a
+    fromJsonM v = case fromJSON v of
+      Success x -> Just x
+      _ -> Nothing

@@ -136,18 +136,16 @@ selectRecTargetsFor tbl i =
   Utils.transitiveClosure (selectTable tbl) (view source) (view target) (sqlId i)
 
 -- Helper
-entryFromRow :: (a -> KindData) -> EntryRow -> [(Text, Value, Bool)] -> (Entry -> a) -> a
-entryFromRow tkd row mtdt cstr = kd
+entryFromRow :: (a -> KindData) -> EntryRow -> (Entry -> a) -> a
+entryFromRow tkd row cstr = kd
   where
     kd = cstr entry
-    mtdtList = (view _1 &&& (uncurry MValue . (view _2 &&& view _3))) <$> mtdt
     entry =
       MkEntry
         { _name = row ^. sqlEntryName,
           _date = row ^. sqlEntryDate,
           _duration = row ^. sqlEntryDuration,
           _geo = row ^. sqlEntryGeo,
-          _metadata = M.fromList mtdtList,
           _kindData = tkd kd
         }
 

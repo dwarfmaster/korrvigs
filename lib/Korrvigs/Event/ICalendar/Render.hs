@@ -4,6 +4,8 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Writer
+import Data.Aeson
+import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as B64
 import Data.ByteString.Builder
@@ -15,10 +17,16 @@ import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.LocalTime
+import Korrvigs.Entry (Id, unId)
 import Korrvigs.Event.ICalendar.Defs
+import Korrvigs.Geometry
+import Korrvigs.Geometry.WKB (writeGeometry)
+import Linear.V2
 import Network.URI
 import Numeric (showEFloat)
 
@@ -279,12 +287,25 @@ bldTimeSpec lbl spec =
 bldGeo :: (Double, Double) -> RenderM ()
 bldGeo (lat, lon) = bldFloat lat >> bldChar ';' >> bldFloat lon
 
+bldGeometry :: Geometry -> RenderM ()
+bldGeometry = bldText . LT.toStrict . LEnc.decodeASCII . writeGeometry
+
 bldTransp :: Bool -> RenderM ()
 bldTransp True = bldText "TRANSPARENT"
 bldTransp False = bldText "OPAQUE"
 
 bldCategories :: [Text] -> RenderM ()
 bldCategories cats = bldSepBy (bldChar ',') $ bldTextValue <$> cats
+
+bldId :: Id -> RenderM ()
+bldId = bldTextValue . unId
+
+bldIds :: [Id] -> RenderM ()
+bldIds = bldSepBy (bldChar ',') . fmap bldId
+
+bldJson :: Value -> RenderM ()
+bldJson =
+  bldTextValue . LT.toStrict . LEnc.decodeUtf8 . encodingToLazyByteString . value
 
 bldEvent :: ICalEvent -> RenderM ()
 bldEvent ev = do
@@ -296,8 +317,15 @@ bldEvent ev = do
   forM_ (ev ^. iceComment) $ bldLine bldTextValue "COMMENT" . ic
   forM_ (ev ^. iceSummary) $ bldLine bldTextValue "SUMMARY" . ic
   forM_ (ev ^. iceDescription) $ bldLine bldTextValue "DESCRIPTION" . ic
-  forM_ (ev ^. iceGeo) $ bldLine bldGeo "GEO" . ic
   forM_ (ev ^. iceLocation) $ bldLine bldTextValue "LOCATION" . ic
+  forM_ (ev ^. iceGeometry) $ \case
+    GeoPoint (V2 x y) -> bldLine bldGeo "GEO" $ ic (x, y)
+    geom -> bldLine bldGeometry "X-KORRVIGS-GEOM" $ ic geom
+  forM_ (ev ^. iceId) $ bldLine bldId "X-KORRVIGS-NAME" . ic
+  let parents = ev ^. iceParents
+  unless (null parents) $ bldLine bldIds "X-KORRVIGS-PARENTS" $ ic parents
+  forM_ (M.toList $ ev ^. iceMtdt) $ \(key, val) ->
+    bldLine bldJson ("X-KORRMTDT-" <> key) $ ic val
   let cats = ev ^. iceCategories
   unless (null cats) $ bldLine bldCategories "CATEGORIES" $ ic cats
   bldLine bldTransp "TRANSP" $ ic $ ev ^. iceTransparent

@@ -1,15 +1,12 @@
 module Korrvigs.File.Mtdt.GPX where
 
-import Data.Aeson
+import Control.Lens
 import Data.Default
-import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
-import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.Lazy.Encoding as Enc
+import Korrvigs.File.Sync
 import Korrvigs.Geometry
-import Korrvigs.Geometry.WKB (writeGeometry)
 import Linear.V2
 import Network.Mime
 import System.FilePath
@@ -27,7 +24,7 @@ extractPt (XML.NodeElement elm) = maybeToList $ do
   pure $ V2 lonParsed latParsed
 extractPt _ = []
 
-extract :: FilePath -> MimeType -> IO (Map Text Value)
+extract :: FilePath -> MimeType -> IO (FileMetadata -> FileMetadata)
 extract path _
   | takeExtension path == ".gpx" = do
       xml <- XML.readFile def path
@@ -35,6 +32,6 @@ extract path _
       let pts = cursors >>= extractPt . node
       pure $
         if null pts
-          then M.empty
-          else M.singleton "geometry" $ toJSON $ Enc.decodeUtf8 $ writeGeometry $ GeoPath pts
-  | otherwise = pure M.empty
+          then id
+          else exGeo ?~ GeoPath pts
+  | otherwise = pure id

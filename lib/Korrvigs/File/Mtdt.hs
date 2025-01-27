@@ -1,26 +1,26 @@
 module Korrvigs.File.Mtdt (extractMetadata) where
 
 import Control.Concurrent.Async
-import Data.Aeson
-import Data.Map (Map)
-import Data.Text (Text)
 import qualified Korrvigs.File.Mtdt.ExifTool as ExifTool
 import qualified Korrvigs.File.Mtdt.GPX as GPX
 import qualified Korrvigs.File.Mtdt.Pandoc as Pandoc
 import qualified Korrvigs.File.Mtdt.PdfToText as PdfToText
+import Korrvigs.File.Sync
 import Network.Mime
 
-extractMetadata :: FilePath -> MimeType -> IO (Map Text Value)
+type Extractor = FileMetadata -> FileMetadata
+
+extractMetadata :: FilePath -> MimeType -> IO Extractor
 extractMetadata path mime = do
   mps <-
     mapConcurrently
       process
       [ ExifTool.extract,
         PdfToText.extract,
-        Pandoc.extract,
+        -- Pandoc.extract, -- TODO fix when metadata handling has been factorized
         GPX.extract
       ]
-  pure $ mconcat mps
+  pure $ foldr (.) id mps
   where
-    process :: (FilePath -> MimeType -> IO (Map Text Value)) -> IO (Map Text Value)
+    process :: (FilePath -> MimeType -> IO Extractor) -> IO Extractor
     process ext = ext path mime

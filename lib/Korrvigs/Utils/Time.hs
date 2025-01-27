@@ -1,8 +1,11 @@
-module Korrvigs.Utils.Time (addNominal, addCalendar) where
+module Korrvigs.Utils.Time (addNominal, addCalendar, dayToZonedTime) where
 
 import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.LocalTime
+
+dayToZonedTime :: TimeZone -> Day -> ZonedTime
+dayToZonedTime tz day = ZonedTime (LocalTime day (TimeOfDay 0 0 0)) tz
 
 addNominal :: NominalDiffTime -> ZonedTime -> ZonedTime
 addNominal diff zt = utcToZonedTime (zonedTimeZone zt) $ addUTCTime diff $ zonedTimeToUTC zt

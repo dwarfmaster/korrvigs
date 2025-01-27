@@ -1,19 +1,17 @@
 module Korrvigs.File.Mtdt.PdfToText (extract) where
 
+import Control.Lens
 import Control.Monad
-import Data.Aeson
 import Data.Char
-import Data.Map (Map)
-import qualified Data.Map as M
-import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TLIO
+import Korrvigs.File.Sync
 import Network.Mime
 import System.IO
 import System.IO.Temp
 import System.Process
 
-extract :: FilePath -> MimeType -> IO (Map Text Value)
+extract :: FilePath -> MimeType -> IO (FileMetadata -> FileMetadata)
 extract path "application/pdf" =
   withSystemTempFile "korrvigsExtract" $ \tmp handle -> do
     hClose handle
@@ -23,5 +21,6 @@ extract path "application/pdf" =
     void $ waitForProcess prc
     txt <- TLIO.readFile tmp
     let final = TL.filter (\c -> isAlphaNum c || isSpace c) txt
-    pure $ M.singleton "textContent" $ toJSON final
-extract _ _ = pure M.empty
+    let str = TL.toStrict final
+    pure $ exText %~ Just . maybe str (<> str)
+extract _ _ = pure id

@@ -1,12 +1,15 @@
 module Korrvigs.Event.ICalendar.Defs where
 
 import Control.Lens
+import Data.Aeson
 import Data.Default
 import Data.Map (Map)
 import Data.Text (Text)
 import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.LocalTime
+import Korrvigs.Entry
+import Korrvigs.Geometry
 
 data ICalValue a = ICValue
   { _icParams :: Map Text [Text],
@@ -96,12 +99,15 @@ data ICalEvent = ICEvent
     _iceComment :: Maybe Text, -- COMMENT
     _iceSummary :: Maybe Text, -- SUMMARY
     _iceDescription :: Maybe Text, -- DESCRIPTION
-    _iceGeo :: Maybe (Double, Double), -- GEO
     _iceLocation :: Maybe Text, -- LOCATION
     _iceStart :: Maybe ICalTimeSpec, -- DTSTART
     _iceEnd :: Maybe ICalTimeSpec, -- DTEND
     _iceDuration :: Maybe NominalDiffTime, -- DURATION
     _iceTransparent :: Bool, -- TRANSP
+    _iceId :: Maybe Id, -- X-KORRVIGS-NAME
+    _iceParents :: [Id], -- X-KORRVIGS-PARENTS
+    _iceGeometry :: Maybe Geometry, -- GEO if point or X-KORRVIGS-GEOM
+    _iceMtdt :: Map Text Value, -- X-KORRMTDT-*
     _iceContent :: ICalAbstractGroup
   }
   deriving (Eq, Show)

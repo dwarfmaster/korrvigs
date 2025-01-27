@@ -3,7 +3,6 @@ module Korrvigs.Format (Formatter, FormatSpec, run, parse, entrySpec) where
 import Control.Lens hiding (noneOf)
 import Control.Monad
 import Control.Monad.Reader
-import Data.Aeson.Lens
 import Data.Functor
 import Data.List (intersperse)
 import Data.Map (Map)
@@ -126,12 +125,12 @@ fileSpec =
       ("mime", fromLens $ fileMime . to Enc.decodeUtf8 . to Bld.text)
     ]
 
+-- TODO add specific metadata one the mecanism is here
 entrySpec :: FormatSpec Entry
 entrySpec =
   M.fromList
     [ ("name", fromLens $ name . to unId . to Bld.text),
-      ("kind", fromLens $ kind . to displayKind . to Bld.text),
-      ("title", fromLens $ metadata . ix "title" . metaValue . _String . to Bld.text)
+      ("kind", fromLens $ kind . to displayKind . to Bld.text)
     ]
     <~> liftSpec (date . _Just) dateSpec
     <~> liftSpec _Link linkSpec

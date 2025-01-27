@@ -10,21 +10,21 @@ import Data.ByteString.Lazy (readFile, writeFile)
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
+import Data.Time.LocalTime
 import GHC.Int (Int64)
 import Korrvigs.Compute
 import Korrvigs.Compute.Builtin
 import Korrvigs.Entry
 import Korrvigs.FTS
 import Korrvigs.File.SQL
+import Korrvigs.Geometry
 import Korrvigs.Kind
 import Korrvigs.KindData
-import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils (resolveSymbolicLink)
 import Korrvigs.Utils.DateTree
@@ -36,35 +36,40 @@ import Prelude hiding (readFile, writeFile)
 
 data FileMetadata = FileMetadata
   { _savedMime :: Text,
-    _extracted :: Map Text Value,
-    _annoted :: Map Text Value
+    _annoted :: Map Text Value,
+    _exDate :: Maybe ZonedTime,
+    _exDuration :: Maybe CalendarDiffTime,
+    _exGeo :: Maybe Geometry,
+    _exText :: Maybe Text,
+    _exParents :: [Id]
   }
 
 makeLenses ''FileMetadata
 
 instance FromJSON FileMetadata where
   parseJSON (Object v) =
-    FileMetadata <$> v .: "mime" <*> v .: "extracted" <*> v .: "metadata"
+    FileMetadata
+      <$> v .: "mime"
+      <*> v .: "metadata"
+      <*> v .:? "date"
+      <*> v .:? "duration"
+      <*> v .:? "geometry"
+      <*> v .:? "textContent"
+      <*> (fmap MkId <$> v .: "parents")
   parseJSON invalid =
     prependFailure "parsing file metadata failed, " $ typeMismatch "Object" invalid
 
 instance ToJSON FileMetadata where
   toJSON mtdt =
-    object
-      [ "extracted" .= (mtdt ^. extracted),
-        "metadata" .= (mtdt ^. annoted),
-        "mime" .= (mtdt ^. savedMime)
+    object $
+      [ "metadata" .= (mtdt ^. annoted),
+        "mime" .= (mtdt ^. savedMime),
+        "parents" .= (unId <$> mtdt ^. exParents)
       ]
-
-fileMetadataToMetadata :: FileMetadata -> Metadata
-fileMetadataToMetadata fmtdt =
-  mconcat
-    [ mv True <$> (fmtdt ^. extracted),
-      mv False <$> (fmtdt ^. annoted)
-    ]
-  where
-    mv :: Bool -> Value -> MetadataValue
-    mv = flip MValue
+        ++ maybe [] ((: []) . ("date" .=)) (mtdt ^. exDate)
+        ++ maybe [] ((: []) . ("duration" .=)) (mtdt ^. exDuration)
+        ++ maybe [] ((: []) . ("geometry" .=)) (mtdt ^. exGeo)
+        ++ maybe [] ((: []) . ("textContent" .=)) (mtdt ^. exText)
 
 metaPath :: FilePath -> FilePath
 metaPath = (<> ".meta")
@@ -170,18 +175,17 @@ dSyncOneImpl path = do
   forM_ prev dispatchRemoveDB
   let meta = metaPath path
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
-  let mtdt = fileMetadataToMetadata json
-  let extras = mtdtExtras $ (^. metaValue) <$> mtdt
+  let mtdt = json ^. annoted
   let mime = Enc.encodeUtf8 $ json ^. savedMime
   let cmps = computeFromMime i mime
   status <- liftIO $ computeStatus path
-  let geom = extras ^. mtdtGeometry
-  let tm = extras ^. mtdtDate
-  let dur = extras ^. mtdtDuration
+  let geom = json ^. exGeo
+  let tm = json ^. exDate
+  let dur = json ^. exDuration
   let erow = EntryRow i File tm dur geom Nothing :: EntryRow
-  let mtdtrows = (\(key, val) -> MetadataRow i key (val ^. metaValue) (val ^. metaReadOnly)) <$> M.toList mtdt :: [MetadataRow]
+  let mtdtrows = (\(key, val) -> MetadataRow i key val False) <$> M.toList mtdt :: [MetadataRow]
   let frow = FileRow i path (metaPath path) status mime :: FileRow
-  let txt = extras ^. mtdtText
+  let txt = json ^. exText
   atomicSQL $ \conn -> do
     void $
       runInsert conn $
@@ -221,7 +225,7 @@ dSyncOneImpl path = do
               }
   pure
     ( RelData
-        { _relSubOf = fromMaybe [] $ extras ^. mtdtParents,
+        { _relSubOf = json ^. exParents,
           _relRefTo = []
         },
       cmps

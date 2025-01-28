@@ -2,6 +2,7 @@ module Korrvigs.Event.ICalendar.Defs where
 
 import Control.Lens
 import Data.Aeson
+import Data.CaseInsensitive (CI)
 import Data.Default
 import Data.Map (Map)
 import Data.Text (Text)
@@ -107,7 +108,7 @@ data ICalEvent = ICEvent
     _iceId :: Maybe Id, -- X-KORRVIGS-NAME
     _iceParents :: [Id], -- X-KORRVIGS-PARENTS
     _iceGeometry :: Maybe Geometry, -- GEO if point or X-KORRVIGS-GEOM
-    _iceMtdt :: Map Text Value, -- X-KORRMTDT-*
+    _iceMtdt :: Map (CI Text) Value, -- X-KORRMTDT-*
     _iceContent :: ICalAbstractGroup
   }
   deriving (Eq, Show)

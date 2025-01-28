@@ -1,8 +1,10 @@
 module Korrvigs.Web.Metadata (getEntryMtdtR, postEntryMtdtR) where
 
+import Control.Arrow (first)
 import Control.Lens hiding ((.=))
 import Data.Aeson
 import Data.Aeson.Types
+import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -17,8 +19,8 @@ getEntryMtdtR :: WebId -> Handler Value
 getEntryMtdtR (WId i) = do
   mtdt <- loadMetadata i
   lookupGetParam "key" >>= \case
-    Nothing -> pure $ toJSON mtdt
-    Just key -> case M.lookup key mtdt of
+    Nothing -> pure $ toJSON $ M.fromList $ first CI.foldedCase <$> M.toList mtdt
+    Just key -> case M.lookup (CI.mk key) mtdt of
       Nothing -> invalidArgs [key]
       Just val -> pure $ toJSON val
 

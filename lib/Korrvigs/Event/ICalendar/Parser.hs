@@ -7,6 +7,7 @@ import Control.Monad
 import Data.Aeson (Value)
 import Data.Aeson.Decoding (decode)
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.Either
 import Data.Functor
@@ -262,7 +263,7 @@ icalEventRecP ev = do
         let v :: Maybe Value = decode $ LEnc.encodeUtf8 $ LT.fromStrict js
         case v of
           Nothing -> fail $ "Failed to parse json for " <> T.unpack key
-          Just mtdt -> pure . const $ iceMtdt . at nm ?~ mtdt
+          Just mtdt -> pure . const $ iceMtdt . at (CI.mk nm) ?~ mtdt
 
 geoP :: (Monad m, Stream s m Word8) => ParsecT s u m (Double, Double)
 geoP = (,) <$> floatP <*> (charP ';' >> floatP)

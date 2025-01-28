@@ -11,10 +11,12 @@ module Korrvigs.Entry.New
   )
 where
 
+import Control.Arrow (first)
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
+import qualified Data.CaseInsensitive as CI
 import Data.Default
 import qualified Data.Map as M
 import Data.Maybe
@@ -46,7 +48,7 @@ useDate ne dt = do
   pure $ mplus (zonedTimeFromDay tz <$> ne ^. neDate) dt
 
 useMtdt :: NewEntry -> Metadata -> Metadata
-useMtdt ne = M.union $ M.fromList $ ne ^. neMtdt
+useMtdt ne = M.union $ M.fromList $ first CI.mk <$> ne ^. neMtdt
 
 applyNewEntry :: (MonadIO m) => NewEntry -> IdMaker -> m IdMaker
 applyNewEntry ne idmk = do

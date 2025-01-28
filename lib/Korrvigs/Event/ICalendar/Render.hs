@@ -11,6 +11,7 @@ import qualified Data.ByteString.Base64 as B64
 import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.UTF8 as B8
+import qualified Data.CaseInsensitive as CI
 import Data.Fixed
 import Data.List (intersperse)
 import qualified Data.Map as M
@@ -325,7 +326,7 @@ bldEvent ev = do
   let parents = ev ^. iceParents
   unless (null parents) $ bldLine bldIds "X-KORRVIGS-PARENTS" $ ic parents
   forM_ (M.toList $ ev ^. iceMtdt) $ \(key, val) ->
-    bldLine bldJson ("X-KORRMTDT-" <> key) $ ic val
+    bldLine bldJson ("X-KORRMTDT-" <> T.toUpper (CI.foldedCase key)) $ ic val
   let cats = ev ^. iceCategories
   unless (null cats) $ bldLine bldCategories "CATEGORIES" $ ic cats
   bldLine bldTransp "TRANSP" $ ic $ ev ^. iceTransparent

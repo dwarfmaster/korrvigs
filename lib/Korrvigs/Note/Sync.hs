@@ -1,11 +1,12 @@
 module Korrvigs.Note.Sync where
 
-import Control.Arrow ((&&&))
+import Control.Arrow (first, (&&&))
 import Control.Lens
 import Control.Monad (forM_, void, when)
 import Control.Monad.IO.Class
 import Data.Aeson (Value)
 import Data.ByteString.Lazy (writeFile)
+import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -104,7 +105,7 @@ syncDocument i path doc = do
   let tm = extras ^. mtdtDate
   let dur = extras ^. mtdtDuration
   let erow = EntryRow i Note tm dur geom Nothing :: EntryRow
-  let mrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
+  let mrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let nrow = NoteRow i path :: NoteRow
   let txt = renderDocument doc
   atomicSQL $ \conn -> do

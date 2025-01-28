@@ -3,6 +3,7 @@ module Korrvigs.Web.Entry.Metadata where
 import Control.Lens
 import Data.Aeson
 import qualified Data.Aeson.Encoding as VEnc
+import qualified Data.CaseInsensitive as CI
 import qualified Data.Map as M
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as Enc
@@ -27,7 +28,7 @@ widget entry = do
         <th>Value
       $forall (key,val,ident) <- mtdts
         <tr ##{ident}>
-          <td .mtdt-key>#{key}
+          <td .mtdt-key>#{CI.foldedCase key}
           <td .mtdt-value>
             #{prepareMtdtValue val}
           <td .mtdt-button-case>

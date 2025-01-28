@@ -5,6 +5,7 @@ module Korrvigs.Entry.Def where
 import Control.Lens (Getter, Traversal', to)
 import Control.Lens.TH (makeLenses, makePrisms)
 import Data.Aeson (Value)
+import Data.CaseInsensitive (CI)
 import Data.Map (Map)
 import Data.Text (Text)
 import Data.Time (CalendarDiffTime, ZonedTime)
@@ -13,15 +14,7 @@ import Korrvigs.Geometry
 import Korrvigs.Kind
 import Network.Mime (MimeType)
 
-data MetadataValue = MValue
-  { _metaValue :: Value,
-    _metaReadOnly :: Bool
-  }
-  deriving (Show, Eq)
-
-makeLenses ''MetadataValue
-
-type Metadata = Map Text Value
+type Metadata = Map (CI Text) Value
 
 data Note = MkNote
   { _noteEntry :: Entry,

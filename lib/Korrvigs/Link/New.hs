@@ -3,6 +3,7 @@
 module Korrvigs.Link.New (new, NewLink (..), nlEntry, nlOffline) where
 
 import Conduit (throwM)
+import Control.Arrow (first)
 import Control.Exception
 import Control.Lens hiding (noneOf)
 import Control.Monad
@@ -103,10 +104,11 @@ new url options = case parseURI (T.unpack url) of
     let txt = M.lookup "textContent" info >>= fromJsonM
     let mtdt =
           useMtdt (options ^. nlEntry) $
-            M.fromList (options ^. nlEntry . neMtdt)
+            M.fromList (first CI.mk <$> options ^. nlEntry . neMtdt)
               & at "title" .~ (toJSON <$> title)
               & at "meta" ?~ toJSON (foldr M.delete info ["day", "duration", "geometry", "textContent"])
-    let json = LinkJSON protocol link mtdt dt dur geom txt parents
+    let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt
+    let json = LinkJSON protocol link mtdtJson dt dur geom txt parents
     idmk' <- applyNewEntry (options ^. nlEntry) (imk "link")
     let idmk = idmk' & idTitle .~ title
     i <- newId idmk

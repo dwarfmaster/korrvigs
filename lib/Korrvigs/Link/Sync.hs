@@ -1,11 +1,12 @@
 module Korrvigs.Link.Sync where
 
-import Control.Arrow ((&&&))
+import Control.Arrow (first, (&&&))
 import Control.Lens
 import Control.Monad (forM_, void, when)
 import Control.Monad.IO.Class
 import Data.Aeson (Value, eitherDecode, encode)
 import Data.ByteString.Lazy (readFile, writeFile)
+import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Set (Set)
@@ -36,7 +37,7 @@ syncLinkJSON i path json = do
   let dur = json ^. lkjsDuration
   let geom = json ^. lkjsGeo
   let erow = EntryRow i Link tm dur geom Nothing :: EntryRow
-  let mtdtrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
+  let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let lrow = LinkRow i (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
   atomicSQL $ \conn -> do
     void $

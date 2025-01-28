@@ -1,12 +1,13 @@
 module Korrvigs.File.Sync where
 
-import Control.Arrow ((&&&))
+import Control.Arrow (first, (&&&))
 import Control.Lens hiding ((.=))
 import Control.Monad (forM_, void, when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson hiding (json)
 import Data.Aeson.Types
 import Data.ByteString.Lazy (readFile, writeFile)
+import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -183,7 +184,7 @@ dSyncOneImpl path = do
   let tm = json ^. exDate
   let dur = json ^. exDuration
   let erow = EntryRow i File tm dur geom Nothing :: EntryRow
-  let mtdtrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
+  let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let frow = FileRow i path (metaPath path) status mime :: FileRow
   let txt = json ^. exText
   atomicSQL $ \conn -> do

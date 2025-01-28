@@ -1,11 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Korrvigs.Entry.SQL where
 
 import Control.Arrow ((&&&))
 import Control.Lens
 import Data.Aeson (Result (..), Value, fromJSON)
+import Data.CaseInsensitive (CI)
+import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Profunctor.Product (p2)
@@ -80,9 +83,15 @@ data MetadataRowImpl a b c = MetadataRow
 makeLenses ''MetadataRowImpl
 $(makeAdaptorAndInstanceInferrable "pMetadataRow" ''MetadataRowImpl)
 
-type MetadataRow = MetadataRowImpl Id Text Value
+type MetadataRow = MetadataRowImpl Id (CI Text) Value
 
 type MetadataRowSQL = MetadataRowImpl (Field SqlText) (Field SqlText) (Field SqlJsonb)
+
+instance Default ToFields (CI Text) (Field SqlText) where
+  def = lmap CI.foldedCase def
+
+instance DefaultFromField SqlText (CI Text) where
+  defaultFromField = CI.mk <$> defaultFromField
 
 instance Default ToFields MetadataRow MetadataRowSQL where
   def = pMetadataRow $ MetadataRow def def def

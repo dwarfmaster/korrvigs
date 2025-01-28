@@ -7,8 +7,6 @@ module Korrvigs.Metadata
     mtdtExtras,
     mtdtText,
     mtdtTitle,
-    reifyMetadata,
-    reifyMetadataRO,
   )
 where
 
@@ -118,9 +116,3 @@ reifyMetadataImpl ins ex =
     . maybe id (insertParents ins) (ex ^. mtdtParents)
     . maybe id (insertText ins) (ex ^. mtdtText)
     . maybe id (insertTitle ins) (ex ^. mtdtTitle)
-
-reifyMetadata :: MtdtExtras -> Metadata -> Metadata
-reifyMetadata = reifyMetadataImpl M.insert
-
-reifyMetadataRO :: Bool -> MtdtExtras -> Metadata -> Metadata
-reifyMetadataRO = reifyMetadataImpl . const M.insert

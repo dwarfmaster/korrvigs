@@ -6,6 +6,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson (Result (Error, Success), Value, fromJSON, toJSON)
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -195,11 +196,11 @@ dUpdateMetadataImpl event upd rm = do
   where
     rmMtdt :: Text -> ICalEvent -> ICalEvent
     rmMtdt "categories" ievent = ievent & iceCategories .~ []
-    rmMtdt key ievent = ievent & iceMtdt %~ M.delete key
+    rmMtdt key ievent = ievent & iceMtdt %~ M.delete (CI.mk key)
     updMtdt :: Text -> Value -> ICalEvent -> ICalEvent
     updMtdt "categories" val ievent = case fromJSON val of
       Success cats -> ievent & iceCategories .~ cats
       Error _ -> ievent
-    updMtdt key val ievent = ievent & iceMtdt . at key ?~ val
+    updMtdt key val ievent = ievent & iceMtdt . at (CI.mk key) ?~ val
     doMtdt :: ICalEvent -> ICalEvent
     doMtdt = foldr (.) id $ (uncurry updMtdt <$> M.toList upd) ++ (rmMtdt <$> rm)

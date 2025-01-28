@@ -17,6 +17,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import Korrvigs.Entry.Ident
+import Korrvigs.Metadata
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers (renderInlines)
 import Korrvigs.Note.Render.Monad
@@ -250,7 +251,7 @@ renderMetadata :: Text -> Map (CI Text) Value -> RenderM ()
 renderMetadata title mtdt = withoutBreak $ do
   writeText "---" >> flush >> newline
   writeText "title: " >> surrounded "'" (writeText title) >> flush >> newline
-  forM_ (M.toList $ M.delete "title" mtdt) $ \(key, val) -> do
+  forM_ (M.toList $ M.delete (mtdtName Title) mtdt) $ \(key, val) -> do
     writeText (CI.foldedCase key) >> writeText ": " >> flush
     withPrefix "  " $ renderToYAML True val
     flush >> newline

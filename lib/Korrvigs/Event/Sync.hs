@@ -23,6 +23,7 @@ import Korrvigs.Event.SQL
 import Korrvigs.FTS
 import Korrvigs.Kind
 import Korrvigs.KindData
+import Korrvigs.Metadata
 import Korrvigs.Monad
 import Opaleye hiding (not)
 import System.Directory (doesFileExist, getDirectoryContents, removeFile)
@@ -103,7 +104,7 @@ register (calendar, ics) = do
         let startSpec = ievent ^? iceStart . _Just
         let start = resolveICalTime ical <$> startSpec
         i <- newId $ imk "ics" & idTitle .~ summary & idDate .~ start & idLanguage ?~ "fr"
-        let nevent = ievent & iceId ?~ i & iceMtdt . at "title" ?~ toJSON summary
+        let nevent = ievent & iceId ?~ i & iceMtdt . at (mtdtName Title) ?~ toJSON summary
         let ncal = ical & icEvent ?~ nevent
         liftIO $ BSL.writeFile path $ renderICalFile ncal
         pure (i, ncal, nevent, True)

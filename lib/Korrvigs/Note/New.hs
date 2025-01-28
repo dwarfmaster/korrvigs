@@ -10,6 +10,7 @@ import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.KindData
+import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Note.Render
@@ -32,10 +33,10 @@ new note = do
   let mtdt =
         mconcat
           [ M.fromList (first CI.mk <$> note ^. nnEntry . neMtdt),
-            M.singleton (CI.mk "title") (toJSON $ note ^. nnTitle),
+            M.singleton (mtdtName Title) (toJSON $ note ^. nnTitle),
+            maybe M.empty (M.singleton (mtdtName Language) . toJSON) (note ^. nnEntry . neLanguage),
             if null parents then M.empty else M.singleton (CI.mk "parents") (toJSON $ unId <$> parents),
-            maybe M.empty (M.singleton (CI.mk "date") . toJSON) (note ^. nnEntry . neDate),
-            maybe M.empty (M.singleton (CI.mk "language") . toJSON) (note ^. nnEntry . neLanguage)
+            maybe M.empty (M.singleton (CI.mk "date") . toJSON) (note ^. nnEntry . neDate)
           ]
   let doc =
         Document

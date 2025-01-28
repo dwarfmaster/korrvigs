@@ -24,6 +24,7 @@ import Korrvigs.Entry.New
 import Korrvigs.File.Mtdt
 import Korrvigs.File.Sync
 import Korrvigs.KindData
+import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils (resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (storeFile)
@@ -90,8 +91,8 @@ applyNewOptions ne = do
       tz <- liftIO getCurrentTimeZone
       let dt = dayToZonedTime tz <$> ne ^. neDate
       pure $ maybe id (exDate ?~) dt
-    title = maybe id ((annoted . at "title" ?~) . toJSON) $ ne ^. neTitle
-    lang = maybe id ((annoted . at "title" ?~) . toJSON) $ ne ^. neLanguage
+    title = maybe id ((annoted . at (mtdtSqlName Title) ?~) . toJSON) $ ne ^. neTitle
+    lang = maybe id ((annoted . at (mtdtSqlName Language) ?~) . toJSON) $ ne ^. neLanguage
     mtdt = annoted %~ M.union (M.fromList $ ne ^. neMtdt)
 
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
@@ -109,7 +110,7 @@ new path' options = do
   let idmk' =
         imk (choosePrefix mime)
           & idTitle
-            .~ ( (mtdt ^? annoted . at "title" . _Just . _String)
+            .~ ( (mtdt ^? annoted . at (mtdtSqlName Title) . _Just . _String)
                    <|> baseName
                )
           & idDate .~ mtdt ^. exDate

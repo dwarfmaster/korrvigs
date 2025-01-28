@@ -1,118 +1,109 @@
-module Korrvigs.Metadata
-  ( MtdtExtras,
-    mtdtGeometry,
-    mtdtDate,
-    mtdtDuration,
-    mtdtParents,
-    mtdtExtras,
-    mtdtText,
-    mtdtTitle,
-  )
-where
+module Korrvigs.Metadata where
 
 import Control.Lens
+import Control.Monad (join)
 import Data.Aeson
-import Data.Aeson.Text (encodeToLazyText)
-import Data.Default
+import Data.CaseInsensitive (CI)
+import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
-import qualified Data.Text as T
-import Data.Text.Lazy.Encoding (decodeUtf8, encodeUtf8)
-import Data.Time (CalendarDiffTime, ZonedTime)
-import Data.Time.Format.ISO8601
-import qualified Data.Vector as V
 import Korrvigs.Entry
-import Korrvigs.Geometry
-import Korrvigs.Geometry.WKB (readGeometry, writeGeometry)
+import Korrvigs.Monad
+import Korrvigs.Utils.JSON (sqlJsonToText)
+import Opaleye
+import qualified Opaleye as O
 
-data MtdtExtras = MtdtExtras
-  { _mtdtGeometry :: Maybe Geometry,
-    _mtdtDate :: Maybe ZonedTime,
-    _mtdtDuration :: Maybe CalendarDiffTime,
-    _mtdtParents :: Maybe [Id],
-    _mtdtText :: Maybe Text,
-    _mtdtTitle :: Maybe Text
-  }
+-- Metadata functions
+class ExtraMetadata mtdt where
+  mtdtName :: mtdt -> CI Text
+  mtdtSqlName :: mtdt -> Text
+  mtdtSqlName = CI.foldedCase . mtdtName
 
-makeLenses ''MtdtExtras
+type family MtdtType mtdt
 
-instance Default MtdtExtras where
-  def = MtdtExtras Nothing Nothing Nothing Nothing Nothing Nothing
+extractMtdt ::
+  (ExtraMetadata mtdt, FromJSON (MtdtType mtdt)) =>
+  mtdt ->
+  Map (CI Text) Value ->
+  Maybe (MtdtType mtdt)
+extractMtdt mtdt mp = do
+  value <- M.lookup (mtdtName mtdt) mp
+  case fromJSON value of
+    Success v -> pure v
+    Error _ -> Nothing
 
-asText :: Value -> Maybe Text
-asText (String txt) = Just txt
-asText _ = Nothing
+insertMtdt ::
+  (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) =>
+  mtdt ->
+  MtdtType mtdt ->
+  Map (CI Text) Value ->
+  Map (CI Text) Value
+insertMtdt mtdt val = M.insert (mtdtName mtdt) $ toJSON val
 
-extractGeometry :: Map Text Value -> Maybe Geometry
-extractGeometry mtdt =
-  readGeometry . encodeUtf8 . encodeToLazyText . asText <$> M.lookup "geometry" mtdt
+baseSelectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlText -> Select (Field SqlJsonb)
+baseSelectMtdt mtdt i = do
+  m <- selectTable entriesMetadataTable
+  where_ $ (m ^. sqlEntry) .== i
+  where_ $ m ^. sqlKey .== sqlStrictText (mtdtSqlName mtdt)
+  pure $ m ^. sqlValue
 
-extractDate :: Map Text Value -> (Maybe ZonedTime, Maybe CalendarDiffTime)
-extractDate mtdt = mmaybe $ do
-  dtT <- M.lookup "date" mtdt >>= asText
-  dt <- formatParseM iso8601Format $ T.unpack dtT
-  let dur = M.lookup "duration" mtdt >>= asText >>= formatParseM durationTimeFormat . T.unpack
-  pure (dt, dur)
+rSelectMtdt ::
+  (ExtraMetadata mtdt, FromJSON (MtdtType mtdt), MonadKorrvigs m) =>
+  mtdt ->
+  Field SqlText ->
+  m (Maybe (MtdtType mtdt))
+rSelectMtdt mtdt i =
+  rSelectOne (baseSelectMtdt mtdt i) <&> \case
+    Nothing -> Nothing
+    Just js -> case fromJSON js of
+      Success v -> v
+      Error _ -> Nothing
+
+selectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlText -> Select (FieldNullable SqlJsonb)
+selectMtdt mtdt i =
+  fmap maybeFieldsToNullable $ optional $ limit 1 $ baseSelectMtdt mtdt i
+
+baseSelectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlText -> Select (FieldNullable SqlText)
+baseSelectTextMtdt mtdt i = do
+  m <- selectTable entriesMetadataTable
+  where_ $ (m ^. sqlEntry) .== i
+  where_ $ m ^. sqlKey .== sqlStrictText (CI.foldedCase $ mtdtName mtdt)
+  pure $ sqlJsonToText $ toNullable $ m ^. sqlValue
+
+rSelectTextMtdt ::
+  (ExtraMetadata mtdt, MtdtType mtdt ~ Text, MonadKorrvigs m) =>
+  mtdt ->
+  Field SqlText ->
+  m (Maybe Text)
+rSelectTextMtdt mtdt i = rSelectOne (baseSelectTextMtdt mtdt i) <&> join
+
+selectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlText -> Select (FieldNullable SqlText)
+selectTextMtdt mtdt i = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtdt mtdt i
   where
-    mmaybe :: Maybe (a, Maybe b) -> (Maybe a, Maybe b)
-    mmaybe Nothing = (Nothing, Nothing)
-    mmaybe (Just (a, b)) = (Just a, b)
+    joinMField :: MaybeFields (FieldNullable a) -> FieldNullable a
+    joinMField mfield = matchMaybe mfield $ \case
+      Just f -> f
+      Nothing -> O.null
 
-extractParents :: Map Text Value -> Maybe [Id]
-extractParents mtdt = do
-  pars <- M.lookup "parents" mtdt >>= asList
-  txts <- mapM asText pars
-  pure $ MkId <$> txts
-  where
-    asList :: Value -> Maybe [Value]
-    asList (Array v) = Just $ V.toList v
-    asList _ = Nothing
+-- Metadata list
+data Title = Title
 
-extractText :: Map Text Value -> Maybe Text
-extractText mtdt = M.lookup "textContent" mtdt >>= asText
+instance ExtraMetadata Title where
+  mtdtName = const "title"
 
-extractTitle :: Map Text Value -> Maybe Text
-extractTitle mtdt = M.lookup "title" mtdt >>= asText
+type instance MtdtType Title = Text
 
-mtdtExtras :: Map Text Value -> MtdtExtras
-mtdtExtras mtdt =
-  MtdtExtras
-    { _mtdtGeometry = extractGeometry mtdt,
-      _mtdtDate = dt,
-      _mtdtDuration = dur,
-      _mtdtParents = extractParents mtdt,
-      _mtdtText = extractText mtdt,
-      _mtdtTitle = extractTitle mtdt
-    }
-  where
-    (dt, dur) = extractDate mtdt
+data Language = Language
 
-type Inserter = Text -> Value -> Metadata -> Metadata
+instance ExtraMetadata Language where
+  mtdtName = const "language"
 
-insertGeom :: Inserter -> Geometry -> Metadata -> Metadata
-insertGeom ins geom = ins "geometry" $ toJSON $ decodeUtf8 $ writeGeometry geom
+type instance MtdtType Language = Text
 
-insertDate :: Inserter -> ZonedTime -> Metadata -> Metadata
-insertDate ins dt = ins "date" $ toJSON $ formatShow iso8601Format dt
+data Favourite = Favourite
 
-insertDuration :: Inserter -> CalendarDiffTime -> Metadata -> Metadata
-insertDuration ins dur = ins "duration" $ toJSON $ formatShow durationTimeFormat dur
+instance ExtraMetadata Favourite where
+  mtdtName = const "favourite"
 
-insertParents :: Inserter -> [Id] -> Metadata -> Metadata
-insertParents ins pars = ins "parents" $ toJSON $ unId <$> pars
-
-insertText :: Inserter -> Text -> Metadata -> Metadata
-insertText ins txt = ins "textContent" $ toJSON txt
-
-insertTitle :: Inserter -> Text -> Metadata -> Metadata
-insertTitle ins title = ins "title" $ toJSON title
-
-reifyMetadataImpl :: Inserter -> MtdtExtras -> Metadata -> Metadata
-reifyMetadataImpl ins ex =
-  maybe id (insertGeom ins) (ex ^. mtdtGeometry)
-    . maybe id (insertDate ins) (ex ^. mtdtDate)
-    . maybe id (insertDuration ins) (ex ^. mtdtDuration)
-    . maybe id (insertParents ins) (ex ^. mtdtParents)
-    . maybe id (insertText ins) (ex ^. mtdtText)
-    . maybe id (insertTitle ins) (ex ^. mtdtTitle)
+type instance MtdtType Favourite = [Text]

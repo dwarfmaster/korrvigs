@@ -23,6 +23,7 @@ import Korrvigs.Entry.New
 import Korrvigs.KindData
 import Korrvigs.Link.JSON
 import Korrvigs.Link.Sync
+import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils.DateTree
 import Korrvigs.Utils.JSON
@@ -97,7 +98,7 @@ new url options = case parseURI (T.unpack url) of
       if options ^. nlOffline
         then pure M.empty
         else catchIO $ downloadInformation link
-    let title = mplus (options ^. nlEntry . neTitle) (M.lookup "title" info >>= jsonAsText)
+    let title = mplus (options ^. nlEntry . neTitle) (M.lookup (mtdtSqlName Title) info >>= jsonAsText)
     dt <- useDate (options ^. nlEntry) $ M.lookup "day" info >>= fromJsonM
     let dur = M.lookup "duration" info >>= fromJsonM
     let geom = M.lookup "geometry" info >>= fromJsonM
@@ -105,7 +106,7 @@ new url options = case parseURI (T.unpack url) of
     let mtdt =
           useMtdt (options ^. nlEntry) $
             M.fromList (first CI.mk <$> options ^. nlEntry . neMtdt)
-              & at "title" .~ (toJSON <$> title)
+              & at (mtdtName Title) .~ (toJSON <$> title)
               & at "meta" ?~ toJSON (foldr M.delete info ["day", "duration", "geometry", "textContent"])
     let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt
     let json = LinkJSON protocol link mtdtJson dt dur geom txt parents

@@ -15,9 +15,9 @@ import Korrvigs.Entry
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
+import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Query
-import Korrvigs.Utils.JSON (sqlJsonToText)
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Leaflet
@@ -387,20 +387,20 @@ getOpt :: (Default a) => Bool -> a -> a
 getOpt False _ = def
 getOpt True x = x
 
-displayEntry :: (EntryRow, Maybe (Maybe Text)) -> Handler Html
+displayEntry :: (EntryRow, Maybe Text) -> Handler Html
 displayEntry (entry, title) = do
   kd <- htmlKind' $ entry ^. sqlEntryKind
   [hamlet|
     #{kd}
     <a href=@{EntryR $ WId $ entry ^. sqlEntryName}>
-      $maybe t <- join title
+      $maybe t <- title
         #{t}
       $nothing
         @#{unId $ entry ^. sqlEntryName}
   |]
     <$> getUrlRenderParams
 
-displayResults :: ResultDisplay -> [(EntryRow, Maybe (Maybe Text))] -> Handler Widget
+displayResults :: ResultDisplay -> [(EntryRow, Maybe Text)] -> Handler Widget
 displayResults DisplayList entries = do
   entriesH <- mapM displayEntry entries
   pure
@@ -414,7 +414,7 @@ displayResults DisplayMap entries = do
   items <- mapM mkItem entries
   pure $ leafletWidget "resultmap" $ catMaybes items
   where
-    mkItem :: (EntryRow, Maybe (Maybe Text)) -> Handler (Maybe MapItem)
+    mkItem :: (EntryRow, Maybe Text) -> Handler (Maybe MapItem)
     mkItem (entry, title) = case entry ^. sqlEntryGeo of
       Just geom -> do
         html <- displayEntry (entry, title)
@@ -447,12 +447,12 @@ displayResults DisplayGraph entries = do
   where
     candidates :: O.Field (SqlArray SqlText)
     candidates = sqlArray sqlId $ view (_1 . sqlEntryName) <$> entries
-    mkNode :: (EntryRow, Maybe (Maybe Text)) -> Handler (Text, Text, Network.NodeStyle)
+    mkNode :: (EntryRow, Maybe Text) -> Handler (Text, Text, Network.NodeStyle)
     mkNode (entry, title) = do
       style <- Network.defNodeStyle
       render <- getUrlRender
       base <- getBase
-      let caption = case join title of
+      let caption = case title of
             Just t -> t
             Nothing -> "@" <> unId (entry ^. sqlEntryName)
       let color = base $ colorKind $ entry ^. sqlEntryKind
@@ -471,10 +471,10 @@ displayResults DisplayTimeline entries = do
   timelineId <- newIdent
   Timeline.timeline timelineId $ catMaybes items
   where
-    mkItem :: (EntryRow, Maybe (Maybe Text)) -> Handler (Maybe Timeline.Item)
+    mkItem :: (EntryRow, Maybe Text) -> Handler (Maybe Timeline.Item)
     mkItem (entry, title) = do
       render <- getUrlRender
-      let caption = case join title of
+      let caption = case title of
             Just t -> t
             Nothing -> "@" <> unId (entry ^. sqlEntryName)
       pure $ case entry ^. sqlEntryDate of
@@ -560,14 +560,12 @@ getSearchR = do
   let q = (if hasMaxResults then id else fixMaxResults) $ fixOrder q'
   r <- rSelect $ do
     entry <- compile q
-    title <- optional $ limit 1 $ do
-      mtdt <- selectTable entriesMetadataTable
-      where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryName)
-      where_ $ mtdt ^. sqlKey .== sqlStrictText "title"
-      let titleText = sqlJsonToText $ toNullable $ mtdt ^. sqlValue
-      where_ $ fromNullable (sqlStrictText "") titleText ./= sqlStrictText ""
-      pure titleText
+    title <- selectTextMtdt Title $ entry ^. sqlEntryName
     pure (entry, title)
   search <- searchForm q display
-  results <- displayResults display r
+  results <- displayResults display $ r & each . _2 %~ nullToNothing
   defaultLayout $ search <> [whamlet|<div .search-results> ^{results}|]
+  where
+    nullToNothing :: Maybe Text -> Maybe Text
+    nullToNothing (Just "") = Nothing
+    nullToNothing x = x

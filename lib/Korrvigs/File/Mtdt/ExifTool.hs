@@ -17,6 +17,7 @@ import Data.Time.Format
 import Data.Time.LocalTime
 import Korrvigs.File.Sync
 import Korrvigs.Geometry
+import Korrvigs.Metadata
 import Linear.V2
 import Network.Mime
 import System.FilePath
@@ -68,7 +69,7 @@ seqLookup mp (key : keys) = M.lookup key mp <|> seqLookup mp keys
 
 getTitle :: Mapping -> Extractor
 getTitle mtdt = case seqLookup mtdt ["Title", "BookName", "UpdatedTitle"] of
-  Just ((_, title) :| _) -> annoted . at "title" ?~ toJSON title
+  Just ((_, title) :| _) -> annoted . at (mtdtSqlName Title) ?~ toJSON title
   Nothing -> id
 
 getPageCount :: Mapping -> Extractor

@@ -1,15 +1,14 @@
 module Korrvigs.Favourites (FavouriteTree (..), favEntries, favSubs, favTree) where
 
 import Control.Lens
-import Control.Monad
 import Data.Aeson
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import Korrvigs.Entry
+import Korrvigs.Metadata
 import Korrvigs.Monad
-import Korrvigs.Utils.JSON (sqlJsonToText)
 import Opaleye
 
 data FavouriteTree = FavTree
@@ -35,15 +34,10 @@ listFavs :: (MonadKorrvigs m) => m [(Id, Maybe Text, [Text])]
 listFavs = do
   favs <- rSelect $ do
     fav <- selectTable entriesMetadataTable
-    where_ $ fav ^. sqlKey .== sqlStrictText "favourite"
-    title <- optional $ limit 1 $ do
-      mtdt <- selectTable entriesMetadataTable
-      where_ $ (mtdt ^. sqlEntry) .== (fav ^. sqlEntry)
-      where_ $ mtdt ^. sqlKey .== sqlStrictText "title"
-      let titleText = sqlJsonToText $ toNullable $ mtdt ^. sqlValue
-      pure titleText
+    where_ $ fav ^. sqlKey .== sqlStrictText (mtdtSqlName Favourite)
+    title <- selectTextMtdt Title $ fav ^. sqlEntry
     pure (fav ^. sqlEntry, title, fav ^. sqlValue)
-  pure $ mapMaybe prepJSON $ favs & each . _2 %~ join
+  pure $ mapMaybe prepJSON favs
   where
     prepJSON :: (Id, Maybe Text, Value) -> Maybe (Id, Maybe Text, [Text])
     prepJSON (i, title, val) = case fromJSON val of

@@ -1,15 +1,14 @@
 module Korrvigs.Web.Entry (getEntryR, postEntryR) where
 
 import Control.Lens hiding (children)
-import Control.Monad
 import Data.List
 import Data.Text (Text)
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Korrvigs.Entry
+import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note.Loc (SubLoc (SubLoc))
 import Korrvigs.Utils.Base16
-import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
@@ -36,16 +35,8 @@ import Yesod
 -- Takes the ID of the div containing the content
 titleWidget :: Entry -> Text -> Handler Widget
 titleWidget entry contentId = do
-  title :: Maybe Text <- fmap join $ rSelectOne $ do
-    mtdt <- selectTable entriesMetadataTable
-    where_ $ (mtdt ^. sqlEntry) .== sqlId (entry ^. name)
-    where_ $ mtdt ^. sqlKey .== sqlStrictText "title"
-    pure $ sqlJsonToText $ toNullable $ mtdt ^. sqlValue
-  favourite :: Maybe Value <- rSelectOne $ do
-    mtdt <- selectTable entriesMetadataTable
-    where_ $ (mtdt ^. sqlEntry) .== sqlId (entry ^. name)
-    where_ $ mtdt ^. sqlKey .== sqlStrictText "favourite"
-    pure $ mtdt ^. sqlValue
+  title <- rSelectTextMtdt Title $ sqlId $ entry ^. name
+  favourite <- rSelectMtdt Favourite $ sqlId $ entry ^. name
   medit <- editWidget
   pure
     [whamlet|

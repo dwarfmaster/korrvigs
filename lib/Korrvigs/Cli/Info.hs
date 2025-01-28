@@ -21,6 +21,7 @@ import Korrvigs.Actions.Load (loadMetadata)
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils.Lens
 import Options.Applicative hiding (value)
@@ -61,7 +62,7 @@ entryInfoSpec =
   [ -- Generic info
     ("name", _1 . name . to unId . to text),
     ("kind", _1 . kind . to displayKind . to text),
-    ("title", _2 . ix "title" . _String . to text),
+    ("title", _2 . ix (mtdtName Title) . _String . to text),
     ("date", _1 . date . _Just . to iso8601Show . to string),
     ("duration", _1 . duration . _Just . to iso8601Show . to string),
     ("pages", _2 . ix "pages" . _Integer . to decimal),

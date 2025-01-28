@@ -1,5 +1,6 @@
 module Korrvigs.Event.ICalendar.Parser where
 
+import Control.Applicative (asum)
 import Control.Arrow
 import Control.Lens
 import Control.Monad
@@ -233,7 +234,7 @@ icalEventRecP ev = do
       _ -> icalEventRecP $ ev & iceContent . icValues . at name %~ mlPush v
   where
     spec :: Text -> Maybe (ParsecT s u m (Map Text [Text] -> ICalEvent -> ICalEvent))
-    spec key = mtdtSpec key >> lineSpec key
+    spec key = asum [mtdtSpec key, lineSpec key]
     lineSpec :: Text -> Maybe (ParsecT s u m (Map Text [Text] -> ICalEvent -> ICalEvent))
     lineSpec key =
       M.lookup key $

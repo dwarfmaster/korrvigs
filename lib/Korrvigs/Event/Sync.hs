@@ -4,8 +4,7 @@ import Conduit (throwM)
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson (Result (Error, Success), Value, fromJSON)
-import Data.Aeson.Text (encodeToTextBuilder)
+import Data.Aeson (Result (Error, Success), Value, fromJSON, toJSON)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -14,8 +13,6 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as LT
-import qualified Data.Text.Lazy.Builder as Bld
 import Data.Time.Clock
 import Data.Time.LocalTime
 import GHC.Int (Int64)
@@ -79,8 +76,8 @@ listOne (calendar, ics) = do
   parsed <- liftIO $ parseICalFile path
   case parsed of
     Left _ -> pure Nothing
-    Right ical -> case M.lookup "X-KORRVIGS-NAME" =<< (ical ^? icEvent . _Just . iceContent . icValues) of
-      Just [val] -> pure $ (MkId $ val ^. icValue,calendar,ics,ical,) <$> ical ^. icEvent
+    Right ical -> case ical ^? icEvent . _Just . iceId . _Just of
+      Just i -> pure $ (i,calendar,ics,ical,) <$> ical ^. icEvent
       _ -> pure Nothing
 
 dListImpl :: (MonadKorrvigs m) => m (Set (Id, Text, Text))
@@ -98,14 +95,14 @@ register (calendar, ics) = do
       >>= throwEither (\err -> KMiscError $ "Failed to read \"" <> T.pack path <> "\" : " <> err)
   case ical ^. icEvent of
     Nothing -> throwM $ KMiscError $ "ics file \"" <> T.pack path <> "\" has no event"
-    Just ievent -> case M.lookup "X-KORRVIGS-NAME" (ievent ^. iceContent . icValues) of
-      Just [val] -> pure (MkId $ val ^. icValue, ical, ievent, False)
+    Just ievent -> case ievent ^. iceId of
+      Just i -> pure (i, ical, ievent, False)
       _ -> do
         let summary = ievent ^. iceSummary
         let startSpec = ievent ^? iceStart . _Just
         let start = resolveICalTime ical <$> startSpec
         i <- newId $ imk "ics" & idTitle .~ summary & idDate .~ start & idLanguage ?~ "fr"
-        let nevent = ievent & iceContent . icValues . at "X-KORRVIGS-NAME" ?~ [ICValue M.empty (unId i)]
+        let nevent = ievent & iceId ?~ i & iceMtdt . at "title" ?~ toJSON summary
         let ncal = ical & icEvent ?~ nevent
         liftIO $ BSL.writeFile path $ renderICalFile ncal
         pure (i, ncal, nevent, True)
@@ -198,13 +195,11 @@ dUpdateMetadataImpl event upd rm = do
   where
     rmMtdt :: Text -> ICalEvent -> ICalEvent
     rmMtdt "categories" ievent = ievent & iceCategories .~ []
-    rmMtdt key ievent = ievent & iceContent . icValues %~ M.delete ("X-KORRMTDT-" <> key)
+    rmMtdt key ievent = ievent & iceMtdt %~ M.delete key
     updMtdt :: Text -> Value -> ICalEvent -> ICalEvent
     updMtdt "categories" val ievent = case fromJSON val of
       Success cats -> ievent & iceCategories .~ cats
       Error _ -> ievent
-    updMtdt key val ievent =
-      let ival = ICValue M.empty (LT.toStrict $ Bld.toLazyText $ encodeToTextBuilder val)
-       in ievent & iceContent . icValues . at ("X-KORRMTDT-" <> key) ?~ [ival]
+    updMtdt key val ievent = ievent & iceMtdt . at key ?~ val
     doMtdt :: ICalEvent -> ICalEvent
     doMtdt = foldr (.) id $ (uncurry updMtdt <$> M.toList upd) ++ (rmMtdt <$> rm)

@@ -37,12 +37,17 @@ embed _ event = do
               _ -> resolveICalTime ical <$> ievent ^. iceEnd
         let description = ievent ^. iceDescription
         let transp = ievent ^. iceTransparent
+        let summary = ievent ^. iceSummary
         pure
           [whamlet|
           <table>
             <tr>
               <td>Calendar
               <td>#{cal}
+            $maybe s <- summary
+              <tr>
+                <td>Summary
+                <td>#{s}
             $maybe loc <- location
               <tr>
                 <td>Location

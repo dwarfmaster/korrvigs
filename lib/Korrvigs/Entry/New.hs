@@ -22,7 +22,6 @@ import Data.Text (Text)
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
-import Korrvigs.Entry.Ident
 
 data NewEntry = NewEntry
   { _neParents :: [Id],

@@ -1,6 +1,6 @@
 module Korrvigs.Note.Pandoc (readNote, readNoteFromText, parsePandoc, parseHeader) where
 
-import Control.Arrow ((&&&))
+import Control.Arrow (first, (&&&))
 import Control.Exception (SomeException, try)
 import Control.Lens hiding ((<|))
 import Control.Monad
@@ -121,7 +121,7 @@ run :: ParseM () -> Map Text Value -> [Block] -> A.Document
 run act mtdt bks =
   let doc =
         A.Document
-          { A._docMtdt = mtdt,
+          { A._docMtdt = M.fromList $ first CI.mk <$> M.toList mtdt,
             A._docContent = reverse $ st ^. stack . bszLeft <&> \bk -> bk doc Nothing,
             A._docTitle = st ^. stack . bszTitle,
             A._docRefTo = st ^. stack . bszRefTo,

@@ -9,6 +9,8 @@ import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.KeyMap as KM
 import Data.ByteString.Lazy (hPutStr)
 import qualified Data.ByteString.Lazy as BSL
+import Data.CaseInsensitive (CI)
+import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -244,12 +246,12 @@ renderAttr attr = listOnLine as (writeText "{") (writeText " ") (writeText "}")
     attributes = [writeText key >> writeText "=\"" >> writeText value >> writeText "\"" | (key, value) <- M.toList (attr ^. attrMtdt)]
     as = i ++ cls ++ attributes
 
-renderMetadata :: Text -> Map Text Value -> RenderM ()
+renderMetadata :: Text -> Map (CI Text) Value -> RenderM ()
 renderMetadata title mtdt = withoutBreak $ do
   writeText "---" >> flush >> newline
   writeText "title: " >> surrounded "'" (writeText title) >> flush >> newline
   forM_ (M.toList $ M.delete "title" mtdt) $ \(key, val) -> do
-    writeText key >> writeText ": " >> flush
+    writeText (CI.foldedCase key) >> writeText ": " >> flush
     withPrefix "  " $ renderToYAML True val
     flush >> newline
   writeText "..." >> flush

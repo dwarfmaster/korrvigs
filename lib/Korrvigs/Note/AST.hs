@@ -3,6 +3,7 @@ module Korrvigs.Note.AST where
 import Control.Lens
 import Data.Aeson (Value)
 import Data.Array
+import Data.CaseInsensitive (CI)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
@@ -10,7 +11,7 @@ import Korrvigs.Entry
 import Network.URI
 
 data Document = Document
-  { _docMtdt :: Map Text Value,
+  { _docMtdt :: Map (CI Text) Value,
     _docContent :: [Block],
     _docTitle :: Text,
     _docRefTo :: Set Id,

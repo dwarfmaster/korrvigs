@@ -4,13 +4,12 @@ import Control.Arrow (first, (&&&))
 import Control.Lens
 import Control.Monad (forM_, void, when)
 import Control.Monad.IO.Class
-import Data.Aeson (Value)
+import Data.Aeson
 import Data.ByteString.Lazy (writeFile)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
@@ -20,7 +19,6 @@ import Korrvigs.Entry
 import Korrvigs.FTS
 import Korrvigs.Kind
 import Korrvigs.KindData
-import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers
@@ -83,6 +81,11 @@ dSyncImpl :: (MonadKorrvigs m) => m (Map Id RelData)
 dSyncImpl =
   M.fromList <$> (allNotes >>= mapM (sequence . (dGetIdImpl &&& dSyncOneImpl)))
 
+fromJSON' :: (FromJSON a) => Value -> Maybe a
+fromJSON' v = case fromJSON v of
+  Success x -> Just x
+  Error _ -> Nothing
+
 dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
 dSyncOneImpl path = do
   let i = dGetIdImpl path
@@ -90,22 +93,21 @@ dSyncOneImpl path = do
   forM_ prev dispatchRemoveDB
   doc <- readNote path >>= throwEither (KCantLoad i)
   syncDocument i path doc
-  let extras = mtdtExtras $ doc ^. docMtdt
+  let parents = fromJSON' =<< doc ^. docMtdt . at (CI.mk "parents")
   pure $
     RelData
-      { _relSubOf = fromMaybe [] $ extras ^. mtdtParents,
+      { _relSubOf = maybe [] (fmap MkId) parents,
         _relRefTo = S.toList $ doc ^. docRefTo
       }
 
 syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Document -> m ()
 syncDocument i path doc = do
   let mtdt = doc ^. docMtdt
-  let extras = mtdtExtras mtdt
-  let geom = extras ^. mtdtGeometry
-  let tm = extras ^. mtdtDate
-  let dur = extras ^. mtdtDuration
+  let geom = fromJSON' =<< mtdt ^. at "geometry"
+  let tm = fromJSON' =<< mtdt ^. at "date"
+  let dur = fromJSON' =<< mtdt ^. at "duration"
   let erow = EntryRow i Note tm dur geom Nothing :: EntryRow
-  let mrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
+  let mrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
   let nrow = NoteRow i path :: NoteRow
   let txt = renderDocument doc
   atomicSQL $ \conn -> do
@@ -148,5 +150,7 @@ dUpdateMetadataImpl note upd rm = do
   let path = note ^. notePath
   let i = note ^. noteEntry . name
   doc <- readNote path >>= throwEither (KCantLoad i)
-  let ndoc = doc & docMtdt %~ M.union upd . flip (foldr M.delete) rm
+  let updCi = M.fromList $ first CI.mk <$> M.toList upd
+  let rmCi = CI.mk <$> rm
+  let ndoc = doc & docMtdt %~ M.union updCi . flip (foldr M.delete) rmCi
   liftIO $ writeFile path $ writeNoteLazy ndoc

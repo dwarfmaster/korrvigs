@@ -65,9 +65,9 @@ entryInfoSpec =
     ("title", _2 . ix (mtdtName Title) . _String . to text),
     ("date", _1 . date . _Just . to iso8601Show . to string),
     ("duration", _1 . duration . _Just . to iso8601Show . to string),
-    ("pages", _2 . ix "pages" . _Integer . to decimal),
-    ("width", _2 . ix "width" . _Integer . to decimal),
-    ("height", _2 . ix "height" . _Integer . to decimal),
+    ("pages", _2 . ix (mtdtName Pages) . _Integer . to decimal),
+    ("width", _2 . ix (mtdtName Width) . _Integer . to decimal),
+    ("height", _2 . ix (mtdtName Height) . _Integer . to decimal),
     -- Note info
     ("path", _1 . _Note . notePath . to string),
     -- Link info

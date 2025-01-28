@@ -107,3 +107,24 @@ instance ExtraMetadata Favourite where
   mtdtName = const "favourite"
 
 type instance MtdtType Favourite = [Text]
+
+data Pages = Pages
+
+instance ExtraMetadata Pages where
+  mtdtName = const "pages"
+
+type instance MtdtType Pages = Int
+
+data Height = Height
+
+instance ExtraMetadata Height where
+  mtdtName = const "height"
+
+type instance MtdtType Height = Int
+
+data Width = Width
+
+instance ExtraMetadata Width where
+  mtdtName = const "width"
+
+type instance MtdtType Width = Int

@@ -75,7 +75,7 @@ getTitle mtdt = case seqLookup mtdt ["Title", "BookName", "UpdatedTitle"] of
 getPageCount :: Mapping -> Extractor
 getPageCount mtdt = case seqLookup mtdt ["PageCount"] of
   Just ((_, cnt) :| _) -> case readMaybe (T.unpack cnt) :: Maybe Int of
-    Just c -> annoted . at "pages" ?~ toJSON c
+    Just c -> annoted . at (mtdtSqlName Pages) ?~ toJSON c
     Nothing -> id
   Nothing -> id
 
@@ -92,13 +92,13 @@ getDimensions mtdt = case (M.lookup "ImageWidth" mtdt, M.lookup "ImageHeight" mt
   (Just ((_, width) :| _), Just ((_, height) :| _)) ->
     case (readMaybe (T.unpack width), readMaybe (T.unpack height)) :: (Maybe Int, Maybe Int) of
       (Just w, Just h) ->
-        (annoted . at "width" ?~ toJSON w) . (annoted . at "height" ?~ toJSON h)
+        (annoted . at (mtdtSqlName Width) ?~ toJSON w) . (annoted . at (mtdtSqlName Height) ?~ toJSON h)
       _ -> id
   _ -> case M.lookup "ImageSize" mtdt of
     Just ((_, size) :| _) -> case parse parseSize "" size of
       Left _ -> id
       Right (w, h) ->
-        (annoted . at "width" ?~ toJSON w) . (annoted . at "height" ?~ toJSON h)
+        (annoted . at (mtdtSqlName Width) ?~ toJSON w) . (annoted . at (mtdtSqlName Height) ?~ toJSON h)
     Nothing -> id
   where
     parseSize :: (Stream s Identity Char) => Parsec s u (Int, Int)

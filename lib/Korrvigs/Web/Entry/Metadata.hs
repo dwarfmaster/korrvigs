@@ -20,7 +20,7 @@ widget entry = do
   pure $ do
     Rcs.mtdtCode
     [whamlet|
-  <details>
+  <details .common-details>
     <summary>Metadata
     <table>
       <tr>

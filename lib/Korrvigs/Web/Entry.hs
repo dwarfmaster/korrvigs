@@ -80,7 +80,7 @@ geometryWidget entry = case entry ^. geo of
     detClass <- newIdent
     pure $ do
       [whamlet|
-        <details .#{detClass}>
+        <details .common-details .#{detClass}>
           <summary>Geometry
           ^{leafletWidget "map" [MapItem geometry Nothing Nothing]}
       |]
@@ -115,7 +115,7 @@ refsWidget entry = do
       detId <- newIdent
       pure $ do
         [whamlet|
-          <details ##{detId}>
+          <details .common-details ##{detId}>
             <summary>Network
             ^{network}
         |]
@@ -175,7 +175,7 @@ newFormWidget errMsgs entry = do
   nw <- Home.newForms (EntryR $ WId $ entry ^. name) "Attach" errMsgs
   pure
     [whamlet|
-    <details>
+    <details .common-details>
       <summary>Attach entry
       ^{nw}
   |]

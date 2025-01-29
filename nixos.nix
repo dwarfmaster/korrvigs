@@ -188,7 +188,12 @@ in {
       services.nginx.virtualHosts.${nginx.staticDomain} = {
         enableACME = true;
         forceSSL = true;
-        locations."/".root = pkgs.korrvigs-static;
+        locations."/" = {
+          root = pkgs.korrvigs-static;
+          extraConfig = ''
+            add_header Access-Control-Allow-Origin https://${nginx.domain};
+          '';
+        };
       };
     })
   ];

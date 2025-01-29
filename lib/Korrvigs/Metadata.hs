@@ -128,3 +128,10 @@ instance ExtraMetadata Width where
   mtdtName = const "width"
 
 type instance MtdtType Width = Int
+
+data Gallery = Gallery
+
+instance ExtraMetadata Gallery where
+  mtdtName = const "gallery"
+
+type instance MtdtType Gallery = Text

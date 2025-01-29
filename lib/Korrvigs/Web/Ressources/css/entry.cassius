@@ -51,6 +51,10 @@
   border-radius: 1em
   padding: 0.25em 0.5em 0.25em 0.5em
   margin-top: 0.1em
+#common-gallery
+  width: 100%
+  max-height: 35em
+  overflow-y: scroll
 
 h1
   color: var(--base0C)

@@ -1,8 +1,16 @@
 module Korrvigs.Web.PhotoSwipe where
 
 import Control.Lens
+import Control.Monad (void)
+import Data.Map (Map)
+import qualified Data.Map as M
+import Data.Text (Text)
+import Korrvigs.Compute
+import Korrvigs.Entry
+import Korrvigs.Monad
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
+import Korrvigs.Web.Routes
 import Yesod
 import Yesod.Static
 
@@ -15,6 +23,24 @@ data PhotoswipeEntry = PhotoswipeEntry
   }
 
 makeLenses ''PhotoswipeEntry
+
+miniatureEntry :: (MonadKorrvigs m) => Id -> m (Maybe PhotoswipeEntry)
+miniatureEntry i = do
+  comps <- entryStoredComputations i
+  szM <- maybe (pure Nothing) getJsonComp $ M.lookup "size" comps
+  pure $ do
+    void $ M.lookup "miniature" comps
+    sz <- szM :: Maybe (Map Text Int)
+    width <- M.lookup "width" sz
+    height <- M.lookup "height" sz
+    pure $
+      PhotoswipeEntry
+        { _swpUrl = EntryDownloadR (WId i),
+          _swpMiniature = EntryComputeR (WId i) "miniature",
+          _swpCaption = mempty,
+          _swpWidth = width,
+          _swpHeight = height
+        }
 
 photoswipeHeader :: Widget
 photoswipeHeader = do

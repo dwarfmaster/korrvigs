@@ -2,9 +2,11 @@ module Korrvigs.Web.Entry (getEntryR, postEntryR) where
 
 import Control.Lens hiding (children)
 import Data.List
+import Data.Maybe
 import Data.Text (Text)
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Korrvigs.Entry
+import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note.Loc (SubLoc (SubLoc))
@@ -17,6 +19,7 @@ import qualified Korrvigs.Web.Entry.Metadata as Mtdt
 import qualified Korrvigs.Web.Entry.Note as Note
 import qualified Korrvigs.Web.Home as Home
 import Korrvigs.Web.Leaflet
+import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
@@ -24,13 +27,6 @@ import qualified Korrvigs.Web.Vis.Network as Network
 import Opaleye hiding (groupBy, null)
 import Text.Julius (rawJS)
 import Yesod
-
--- An entry page is constitued of the following parts
--- The entry title (if any) + the entry name
--- A link to download the entry
--- The metadata in a foldable blocks, with edition
--- The backlinks,parents and subs
--- The entry content
 
 -- Takes the ID of the div containing the content
 titleWidget :: Entry -> Text -> Handler Widget
@@ -163,6 +159,28 @@ refsWidget entry = do
     mkEdge :: Network.EdgeStyle -> (EntryRow, EntryRow) -> (Text, Text, Network.EdgeStyle)
     mkEdge style (r1, r2) = (unId $ r1 ^. sqlEntryName, unId $ r2 ^. sqlEntryName, style)
 
+galleryWidget :: Entry -> Handler Widget
+galleryWidget entry =
+  rSelectMtdt Gallery (sqlId $ entry ^. name) >>= \case
+    Nothing -> pure mempty
+    Just gallery -> do
+      let select = if gallery == "recursive" then selectRecSourcesFor else selectSourcesFor
+      childs <- rSelect $ do
+        sub <- select entriesSubTable $ entry ^. name
+        subEntry <- selectTable entriesTable
+        where_ $ sub .== subEntry ^. sqlEntryName
+        where_ $ subEntry ^. sqlEntryKind .== sqlKind File
+        pure sub
+      entries <- mapM (PhotoSwipe.miniatureEntry . MkId) childs
+      photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
+      pure
+        [whamlet|
+      <details .common-details>
+        <summary>Gallery
+        <div #common-gallery>
+          ^{photoswipe}
+    |]
+
 contentWidget :: Entry -> Handler Widget
 contentWidget entry = case entry ^. kindData of
   LinkD link -> Link.content link
@@ -188,17 +206,20 @@ entryWidget errMsgs entry = do
   geom <- geometryWidget entry
   mtdt <- Mtdt.widget entry
   refs <- refsWidget entry
+  gallery <- galleryWidget entry
   content <- contentWidget entry
   nw <- newFormWidget errMsgs entry
   pure $ do
     Rcs.entryStyle
     Rcs.formsStyle
+    PhotoSwipe.photoswipeHeader
     title
     dt
     nw
     geom
     mtdt
     refs
+    gallery
     [whamlet|
       <div ##{contentId}>
         ^{content}

@@ -1,6 +1,7 @@
 module Korrvigs.Event.Sync where
 
 import Conduit (throwM)
+import Control.Applicative ((<|>))
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
@@ -88,6 +89,21 @@ dListImpl = do
   withIds <- mapM listOne evs
   pure $ S.fromList $ map (\(a, b, c, _, _) -> (a, b, c)) $ catMaybes withIds
 
+createIdFor :: (MonadKorrvigs m) => ICalFile -> ICalEvent -> m Id
+createIdFor ical ievent = do
+  let language = extractMtdt Language $ ievent ^. iceMtdt
+  let title = extractMtdt Title $ ievent ^. iceMtdt
+  let summary = ievent ^. iceSummary
+  let startSpec = ievent ^? iceStart . _Just
+  let start = resolveICalTime ical <$> startSpec
+  let parents = ievent ^. iceParents
+  newId $
+    imk "ics"
+      & idTitle .~ (title <|> summary)
+      & idDate .~ start
+      & idLanguage ?~ fromMaybe "fr" language
+      & idParent .~ listToMaybe parents
+
 register :: (MonadKorrvigs m) => (Text, Text) -> m (Id, ICalFile, ICalEvent, Bool)
 register (calendar, ics) = do
   rt <- eventsDirectory
@@ -101,10 +117,9 @@ register (calendar, ics) = do
       Just i -> pure (i, ical, ievent, False)
       _ -> do
         let summary = ievent ^. iceSummary
-        let startSpec = ievent ^? iceStart . _Just
-        let start = resolveICalTime ical <$> startSpec
-        i <- newId $ imk "ics" & idTitle .~ summary & idDate .~ start & idLanguage ?~ "fr"
-        let nevent = ievent & iceId ?~ i & iceMtdt . at (mtdtName Title) ?~ toJSON summary
+        let nevent' = ievent & iceMtdt . at (mtdtName Title) ?~ toJSON summary
+        i <- createIdFor ical nevent'
+        let nevent = nevent' & iceId ?~ i
         let ncal = ical & icEvent ?~ nevent
         liftIO $ BSL.writeFile path $ renderICalFile ncal
         pure (i, ncal, nevent, True)

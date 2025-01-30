@@ -39,20 +39,23 @@ buildICalFile = execWriter . flip evalStateT 0 . bldFile
 
 type RenderM = StateT Int (Writer Builder)
 
+crlf :: RenderM ()
+crlf = tell (word8 0x0D) >> tell (word8 0x0A)
+
 bldChar :: Char -> RenderM ()
 bldChar c = do
   pos <- get
   let utf8 = B8.fromChar c
   let l = BS.length utf8
   when (pos + l > 75) $ do
-    tell $ word8 0x0A
+    crlf
     tell $ word8 0x20
     put 1
   tell $ byteString utf8
   modify (+ l)
 
 bldNewline :: RenderM ()
-bldNewline = tell (word8 0x0A) >> put 0
+bldNewline = crlf >> put 0
 
 bldText :: Text -> RenderM ()
 bldText = mapM_ bldChar . T.unpack

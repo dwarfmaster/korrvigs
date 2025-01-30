@@ -8,7 +8,7 @@ import Control.Monad.Identity
 import Data.Fixed
 import Data.Functor (($>))
 import Data.Time.Calendar
-import Data.Time.Format
+import Data.Time.Format.ISO8601
 import Data.Time.LocalTime
 import Options.Applicative hiding (option, value)
 import Text.Parsec hiding ((<|>))
@@ -98,7 +98,7 @@ newtype DayParserResult a = DayParserResult {extractResult :: Either String a}
 instance MonadFail DayParserResult where
   fail = DayParserResult . Left
 
-dayParser :: (ParseTime t) => ReadM t
+dayParser :: (ISO8601 t) => ReadM t
 dayParser =
   eitherReader $
-    extractResult . parseTimeM True defaultTimeLocale "%F"
+    extractResult . iso8601ParseM

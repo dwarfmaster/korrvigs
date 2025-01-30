@@ -67,6 +67,7 @@ library korrvigs-lib
     Korrvigs.Event.ICalendar.Render
     Korrvigs.Event.ICalendar.RRule
     Korrvigs.Event.ICalendar.TimeZone
+    Korrvigs.Event.New
     Korrvigs.Event.SQL
     Korrvigs.Event.Sync
     Korrvigs.Event.VDirSyncer

@@ -35,6 +35,18 @@ import qualified Korrvigs.Entry.Ident.French as Fr
 import Opaleye (DefaultFromField (..), Field, SqlText, ToFields, sqlStrictText)
 import Text.Printf
 
+commonStopwords :: Set Text
+commonStopwords =
+  S.fromList
+    [ "file",
+      "img",
+      "dmisc",
+      "vid",
+      "video",
+      "dsc",
+      "pxl"
+    ]
+
 newtype Id = MkId {unId :: Text}
   deriving (Eq, Ord, Show, Read)
 
@@ -86,7 +98,7 @@ prepTitle language title = foldl (<>) "" content
     wds :: [Text]
     wds = T.map toLower <$> T.split (\c -> isPunctuation c || isSpace c) ascii
     stopwords :: Set Text
-    stopwords = case language of
+    stopwords = S.union commonStopwords $ case language of
       Just "fr" -> Fr.stopwords
       _ -> En.stopwords
     toDrop :: Text -> Bool

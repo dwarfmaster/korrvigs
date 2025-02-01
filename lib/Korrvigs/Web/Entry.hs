@@ -171,15 +171,18 @@ galleryWidget entry =
         where_ $ sub .== subEntry ^. sqlEntryName
         where_ $ subEntry ^. sqlEntryKind .== sqlKind File
         pure sub
-      entries <- mapM (PhotoSwipe.miniatureEntry . MkId) childs
-      photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
-      pure
-        [whamlet|
-      <details .common-details>
-        <summary>Gallery
-        <div #common-gallery>
-          ^{photoswipe}
-    |]
+      if null childs
+        then pure mempty
+        else do
+          entries <- mapM (PhotoSwipe.miniatureEntry . MkId) childs
+          photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
+          pure
+            [whamlet|
+          <details .common-details>
+            <summary>Gallery
+            <div #common-gallery>
+              ^{photoswipe}
+        |]
 
 contentWidget :: Entry -> Handler Widget
 contentWidget entry = case entry ^. kindData of

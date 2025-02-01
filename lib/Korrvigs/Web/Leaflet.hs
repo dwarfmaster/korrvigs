@@ -44,6 +44,7 @@ jsPolygon :: Polygon -> RawJavascript
 jsPolygon (Polygon poly hls) = rawJS $ jsList (jsList jsPoint) $ poly : hls
 
 computeCenter :: [Geometry] -> Point
+computeCenter [] = V2 2.359775 48.915611
 computeCenter geoms = sum pts / V2 npts npts
   where
     pts :: [V2 Double]

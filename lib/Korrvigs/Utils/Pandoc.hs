@@ -70,10 +70,8 @@ parseMetaValue (MetaInlines inls) =
 parseMetaValue (MetaBlocks bks) =
   String . toStrict . toLazyText $ pdBlocksToText bks
 
-pdExtractMtdt :: Pandoc -> Map Text Value
-pdExtractMtdt (Pandoc mtdt bks) =
-  M.insert "textContent" textContent $
-    M.map parseMetaValue (unMeta mtdt)
+pdExtractMtdt :: Pandoc -> (Text, Map Text Value)
+pdExtractMtdt (Pandoc mtdt bks) = (textContent, M.map parseMetaValue (unMeta mtdt))
   where
-    textContent :: Value
-    textContent = toJSON $ pdBlocksToRenderedText bks
+    textContent :: Text
+    textContent = pdBlocksToRenderedText bks

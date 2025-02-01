@@ -42,5 +42,5 @@ partitionM check (x : xs) = do
 joinNull :: (a -> Bool) -> Maybe a -> Maybe a
 joinNull f mx = do
   x <- mx
-  guard $ f x
+  guard $ not $ f x
   pure x

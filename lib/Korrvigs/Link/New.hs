@@ -7,6 +7,7 @@ import Control.Arrow (first)
 import Control.Exception
 import Control.Lens hiding (noneOf)
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Aeson hiding (json)
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
@@ -66,16 +67,16 @@ contentTypeP = do
 isHttpException :: SomeException -> Bool
 isHttpException e = isJust (fromException e :: Maybe HttpException)
 
-downloadInformation :: Text -> IO (Map Text Value)
+downloadInformation :: Text -> IO (Text, Map Text Value)
 downloadInformation uri = do
   req <- parseRequest $ T.unpack uri
   resp <- tryJust (guard . isHttpException) $ httpBS req
   case resp of
-    Left _ -> pure M.empty
+    Left _ -> pure ("", M.empty)
     Right response -> do
       let status = getResponseStatus response
       if statusCode status /= 200
-        then pure M.empty
+        then pure ("", M.empty)
         else do
           let ct = getResponseHeader "Content-Type" response
           let r = parse contentTypeP "" <$> ct
@@ -83,10 +84,10 @@ downloadInformation uri = do
             (Right ("text/html", decoder)) : _ -> case decoder (getResponseBody response) of
               Just content ->
                 runIO (readHtml def content) >>= \case
-                  Left _ -> pure M.empty
+                  Left _ -> pure ("", M.empty)
                   Right pd -> pure $ pdExtractMtdt pd
-              Nothing -> pure M.empty
-            _ -> pure M.empty
+              Nothing -> pure ("", M.empty)
+            _ -> pure ("", M.empty)
 
 new :: (MonadKorrvigs m) => Text -> NewLink -> m Id
 new url options = case parseURI (T.unpack url) of
@@ -95,22 +96,21 @@ new url options = case parseURI (T.unpack url) of
     let protocol = T.pack $ uriScheme uri
     let link = T.pack $ uriToString id uri ""
     let parents = unId <$> options ^. nlEntry . neParents
-    info <-
+    (textContent, info) <-
       if options ^. nlOffline
-        then pure M.empty
+        then pure ("", M.empty)
         else catchIO $ downloadInformation link
+    liftIO $ print $ options ^. nlEntry . neTitle
     let title = mplus (joinNull T.null $ options ^. nlEntry . neTitle) (M.lookup (mtdtSqlName Title) info >>= jsonAsText)
-    dt <- useDate (options ^. nlEntry) $ M.lookup "day" info >>= fromJsonM
-    let dur = M.lookup "duration" info >>= fromJsonM
-    let geom = M.lookup "geometry" info >>= fromJsonM
-    let txt = M.lookup "textContent" info >>= fromJsonM
+    dt <- useDate (options ^. nlEntry) Nothing
     let mtdt =
           useMtdt (options ^. nlEntry) $
             M.fromList (first CI.mk <$> options ^. nlEntry . neMtdt)
               & at (mtdtName Title) .~ (toJSON <$> title)
               & at "meta" ?~ toJSON (foldr M.delete info ["day", "duration", "geometry", "textContent"])
     let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt
-    let json = LinkJSON protocol link mtdtJson dt dur geom txt parents
+    let txt = if T.null textContent then Nothing else Just textContent
+    let json = LinkJSON protocol link mtdtJson dt Nothing Nothing txt parents
     idmk' <- applyNewEntry (options ^. nlEntry) (imk "link")
     let idmk = idmk' & idTitle .~ title
     i <- newId idmk
@@ -121,8 +121,3 @@ new url options = case parseURI (T.unpack url) of
     relData <- dSyncOneImpl pth
     atomicInsertRelData i relData
     pure i
-  where
-    fromJsonM :: (FromJSON a) => Value -> Maybe a
-    fromJsonM v = case fromJSON v of
-      Success x -> Just x
-      _ -> Nothing

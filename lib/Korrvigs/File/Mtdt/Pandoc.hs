@@ -20,7 +20,7 @@ extract path _ = case formatFromFilePaths [path] of
     runIO (readFromFormat path format) >>= \case
       Left _ -> pure M.empty
       Right pd ->
-        pure $ pdExtractMtdt pd
+        pure $ undefined -- pdExtractMtdt pd
 
 readFromFormat :: FilePath -> FlavoredFormat -> PandocIO Pandoc
 readFromFormat path format = case lookup name readers of

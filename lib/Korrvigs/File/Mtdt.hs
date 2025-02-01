@@ -17,7 +17,7 @@ extractMetadata path mime = do
       process
       [ ExifTool.extract,
         PdfToText.extract,
-        -- Pandoc.extract, -- TODO fix when metadata handling has been factorized
+        Pandoc.extract,
         GPX.extract
       ]
   pure $ foldr (.) id mps

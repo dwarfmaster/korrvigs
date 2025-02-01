@@ -11,6 +11,7 @@ import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note.Loc (SubLoc (SubLoc))
 import Korrvigs.Utils.Base16
+import Korrvigs.Utils.Opaleye (connectedComponentGraph)
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
@@ -26,7 +27,7 @@ import Korrvigs.Web.Utils
 import qualified Korrvigs.Web.Vis.Network as Network
 import Opaleye hiding (groupBy, null)
 import Text.Julius (rawJS)
-import Yesod
+import Yesod hiding (Field)
 
 -- Takes the ID of the div containing the content
 titleWidget :: Entry -> Text -> Handler Widget
@@ -90,20 +91,13 @@ geometryWidget entry = case entry ^. geo of
 
 refsWidget :: Entry -> Handler Widget
 refsWidget entry = do
-  subs :: [(EntryRow, EntryRow)] <- rSelect $ selectBidir entriesSubTable
-  refs :: [(EntryRow, EntryRow)] <- rSelect $ selectBidir entriesRefTable
-  let rows =
-        (view _1 <$> subs)
-          ++ (view _2 <$> subs)
-          ++ (view _1 <$> refs)
-          ++ (view _2 <$> refs)
+  graph <- rSelect notesCC
+  let rows = (view _1 <$> graph) ++ (view _2 <$> graph)
   let entries = map head $ groupBy (\r1 r2 -> cmp r1 r2 == EQ) $ sortBy cmp rows
   nodes <- mapM mkNode entries
   edgeStyle <- Network.defEdgeStyle
   base <- getBase
-  let subStyle = edgeStyle & Network.edgeColor .~ base edgeSubColor
-  let refStyle = edgeStyle & Network.edgeColor .~ base edgeRefColor
-  let edges = (mkEdge subStyle <$> subs) ++ (mkEdge refStyle <$> refs)
+  let edges = mkEdge edgeStyle base <$> graph
   if null entries
     then pure mempty
     else do
@@ -126,19 +120,37 @@ refsWidget entry = do
   where
     cmp :: EntryRow -> EntryRow -> Ordering
     cmp row1 row2 = compare (row1 ^. sqlEntryName) (row2 ^. sqlEntryName)
-    selectBidir :: Table a RelRowSQL -> Select (EntryRowSQL, EntryRowSQL)
-    selectBidir tbl = do
+    selectBidir :: Bool -> Table a RelRowSQL -> Select (Field SqlText, Field SqlText, Field SqlBool)
+    selectBidir isSub tbl = do
       sub <- selectTable tbl
       where_ $
         (sub ^. source)
           .== sqlId (entry ^. name)
           .|| (sub ^. target)
           .== sqlId (entry ^. name)
-      src <- selectTable entriesTable
-      where_ $ (sub ^. source) .== (src ^. sqlEntryName)
-      tgt <- selectTable entriesTable
-      where_ $ (sub ^. target) .== (tgt ^. sqlEntryName)
-      pure (src, tgt)
+      pure (sub ^. source, sub ^. target, sqlBool isSub)
+    relEntries :: Table a RelRowSQL -> Bool -> Select (Field SqlText, Field SqlText, Field SqlBool)
+    relEntries tbl isSub = do
+      subs <- selectTable tbl
+      pure (subs ^. source, subs ^. target, sqlBool isSub)
+    notesCC :: Select (EntryRowSQL, EntryRowSQL, Field SqlBool)
+    notesCC = do
+      cc <-
+        connectedComponentGraph
+          (unionAll (relEntries entriesSubTable True) (relEntries entriesRefTable False))
+          (view _1)
+          (view _2)
+          ( \eid -> do
+              e <- selectTable entriesTable
+              where_ $ e ^. sqlEntryName .== eid
+              pure $ e ^. sqlEntryKind .== sqlKind Note
+          )
+          (unionAll (selectBidir True entriesSubTable) (selectBidir False entriesRefTable))
+      e1 <- selectTable entriesTable
+      where_ $ (e1 ^. sqlEntryName) .== (cc ^. _1)
+      e2 <- selectTable entriesTable
+      where_ $ (e2 ^. sqlEntryName) .== (cc ^. _2)
+      pure (e1, e2, cc ^. _3)
     mkNode :: EntryRow -> Handler (Text, Text, Network.NodeStyle)
     mkNode e = do
       style <- Network.defNodeStyle
@@ -156,8 +168,13 @@ refsWidget entry = do
             & Network.nodeSelected .~ color
             & Network.nodeLink ?~ render (EntryR $ WId $ e ^. sqlEntryName)
         )
-    mkEdge :: Network.EdgeStyle -> (EntryRow, EntryRow) -> (Text, Text, Network.EdgeStyle)
-    mkEdge style (r1, r2) = (unId $ r1 ^. sqlEntryName, unId $ r2 ^. sqlEntryName, style)
+    subStyle edgeStyle base = edgeStyle & Network.edgeColor .~ base edgeSubColor
+    refStyle edgeStyle base = edgeStyle & Network.edgeColor .~ base edgeRefColor
+    mkEdge :: Network.EdgeStyle -> (Base16Index -> Text) -> (EntryRow, EntryRow, Bool) -> (Text, Text, Network.EdgeStyle)
+    mkEdge edgeStyle base (r1, r2, isSub) =
+      let mkStyle = if isSub then subStyle else refStyle
+       in let style = mkStyle edgeStyle base
+           in (unId $ r1 ^. sqlEntryName, unId $ r2 ^. sqlEntryName, style)
 
 galleryWidget :: Entry -> Handler Widget
 galleryWidget entry =

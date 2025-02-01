@@ -2,6 +2,7 @@ module Korrvigs.Utils.Opaleye where
 
 import Control.Arrow ((&&&))
 import Data.List (singleton)
+import Data.Profunctor.Product.Default (Default)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Opaleye hiding (FromField)
@@ -38,6 +39,23 @@ transitiveClosure ::
 transitiveClosure sel pi1 pi2 btm =
   withRecursiveDistinct (transitiveClosureStep sel pi1 pi2 btm) $
     transitiveClosureStep sel pi1 pi2
+
+connectedComponentGraph ::
+  (Default Binaryspec a a) =>
+  Select a ->
+  (a -> Field b) ->
+  (a -> Field b) ->
+  (Field b -> Select (Field SqlBool)) ->
+  Select a ->
+  Select a
+connectedComponentGraph sel pi1 pi2 check st =
+  withRecursiveDistinct st $ \r -> do
+    a <- sel
+    where_ $ pi1 a .== pi1 r .|| pi1 a .== pi2 r .|| pi2 a .== pi1 r .|| pi2 a .== pi2 r
+    ck1 <- check $ pi1 a
+    ck2 <- check $ pi2 a
+    where_ $ ck1 .&& ck2
+    pure a
 
 makeSqlMapper :: forall a b. (Bounded a, Enum a, Eq a) => Text -> (a -> String) -> EnumMapper b a
 makeSqlMapper sqlType toSql = enumMapper (T.unpack sqlType) fromSql toSql

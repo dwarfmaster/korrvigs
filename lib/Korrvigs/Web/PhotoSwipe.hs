@@ -75,6 +75,6 @@ photoswipe items = do
       <div ##{i} .pswp-gallery>
         $forall item <- items
           <a href=@{_swpUrl item} data-pswp-width=#{_swpWidth item} data-pswp-height=#{_swpHeight item} target="_blank">
-            <img src=@{_swpMiniature item} alt="">
+            <img loading=lazy src=@{_swpMiniature item} alt="">
             ^{_swpCaption item}
     |]

@@ -5,6 +5,7 @@ import Control.Monad (join)
 import Data.Aeson
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
+import Data.Kind (Type)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -16,11 +17,10 @@ import qualified Opaleye as O
 
 -- Metadata functions
 class ExtraMetadata mtdt where
+  type MtdtType mtdt :: Type
   mtdtName :: mtdt -> CI Text
   mtdtSqlName :: mtdt -> Text
   mtdtSqlName = CI.foldedCase . mtdtName
-
-type family MtdtType mtdt
 
 extractMtdt ::
   (ExtraMetadata mtdt, FromJSON (MtdtType mtdt)) =>
@@ -90,48 +90,41 @@ selectTextMtdt mtdt i = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtd
 data Title = Title
 
 instance ExtraMetadata Title where
+  type MtdtType Title = Text
   mtdtName = const "title"
-
-type instance MtdtType Title = Text
 
 data Language = Language
 
 instance ExtraMetadata Language where
+  type MtdtType Language = Text
   mtdtName = const "language"
-
-type instance MtdtType Language = Text
 
 data Favourite = Favourite
 
 instance ExtraMetadata Favourite where
+  type MtdtType Favourite = [Text]
   mtdtName = const "favourite"
-
-type instance MtdtType Favourite = [Text]
 
 data Pages = Pages
 
 instance ExtraMetadata Pages where
+  type MtdtType Pages = Int
   mtdtName = const "pages"
-
-type instance MtdtType Pages = Int
 
 data Height = Height
 
 instance ExtraMetadata Height where
+  type MtdtType Height = Int
   mtdtName = const "height"
-
-type instance MtdtType Height = Int
 
 data Width = Width
 
 instance ExtraMetadata Width where
+  type MtdtType Width = Int
   mtdtName = const "width"
-
-type instance MtdtType Width = Int
 
 data Gallery = Gallery
 
 instance ExtraMetadata Gallery where
+  type MtdtType Gallery = Text
   mtdtName = const "gallery"
-
-type instance MtdtType Gallery = Text

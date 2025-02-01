@@ -21,6 +21,7 @@ import Data.Default
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
@@ -50,13 +51,19 @@ useDate ne dt = do
 useMtdt :: NewEntry -> Metadata -> Metadata
 useMtdt ne = M.union $ M.fromList $ first CI.mk <$> ne ^. neMtdt
 
+maybeOrNull :: (b -> Bool) -> a -> (b -> a) -> Maybe b -> a
+maybeOrNull _ d _ Nothing = d
+maybeOrNull isNull d f (Just x)
+  | isNull x = d
+  | otherwise = f x
+
 applyNewEntry :: (MonadIO m) => NewEntry -> IdMaker -> m IdMaker
 applyNewEntry ne idmk = do
   tz <- liftIO getCurrentTimeZone
   let f = foldr (.) id [setTitle, setDate tz, setParent, setLanguage]
   pure $ f idmk
   where
-    setTitle = maybe id (idTitle ?~) $ ne ^. neTitle
+    setTitle = maybeOrNull T.null id (idTitle ?~) $ ne ^. neTitle
     setDate tz = maybe id ((idDate ?~) . zonedTimeFromDay tz) $ ne ^. neDate
     setParent = maybe id (idParent ?~) $ listToMaybe $ ne ^. neParents
-    setLanguage = maybe id (idLanguage ?~) $ ne ^. neLanguage
+    setLanguage = maybeOrNull T.null id (idLanguage ?~) $ ne ^. neLanguage

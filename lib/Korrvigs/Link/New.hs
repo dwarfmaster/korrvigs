@@ -25,6 +25,7 @@ import Korrvigs.Link.JSON
 import Korrvigs.Link.Sync
 import Korrvigs.Metadata
 import Korrvigs.Monad
+import Korrvigs.Utils (joinNull)
 import Korrvigs.Utils.DateTree
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Pandoc (pdExtractMtdt)
@@ -98,7 +99,7 @@ new url options = case parseURI (T.unpack url) of
       if options ^. nlOffline
         then pure M.empty
         else catchIO $ downloadInformation link
-    let title = mplus (options ^. nlEntry . neTitle) (M.lookup (mtdtSqlName Title) info >>= jsonAsText)
+    let title = mplus (joinNull T.null $ options ^. nlEntry . neTitle) (M.lookup (mtdtSqlName Title) info >>= jsonAsText)
     dt <- useDate (options ^. nlEntry) $ M.lookup "day" info >>= fromJsonM
     let dur = M.lookup "duration" info >>= fromJsonM
     let geom = M.lookup "geometry" info >>= fromJsonM

@@ -1,5 +1,6 @@
 module Korrvigs.Utils where
 
+import Control.Monad (guard)
 import Data.Foldable
 import System.Directory
 import System.FilePath
@@ -37,3 +38,9 @@ partitionM check (x : xs) = do
   c <- check x
   (checked, unchecked) <- partitionM check xs
   pure $ if c then (x : checked, unchecked) else (checked, x : unchecked)
+
+joinNull :: (a -> Bool) -> Maybe a -> Maybe a
+joinNull f mx = do
+  x <- mx
+  guard $ f x
+  pure x

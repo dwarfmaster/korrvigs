@@ -26,7 +26,7 @@ import Korrvigs.File.Sync
 import Korrvigs.KindData
 import Korrvigs.Metadata
 import Korrvigs.Monad
-import Korrvigs.Utils (resolveSymbolicLink)
+import Korrvigs.Utils (joinNull, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (storeFile)
 import Korrvigs.Utils.Git.Annex
 import Korrvigs.Utils.Time (dayToZonedTime)
@@ -91,7 +91,7 @@ applyNewOptions ne = do
       tz <- liftIO getCurrentTimeZone
       let dt = dayToZonedTime tz <$> ne ^. neDate
       pure $ maybe id (exDate ?~) dt
-    title = maybe id ((annoted . at (mtdtSqlName Title) ?~) . toJSON) $ ne ^. neTitle
+    title = maybe id ((annoted . at (mtdtSqlName Title) ?~) . toJSON) $ joinNull T.null $ ne ^. neTitle
     lang = maybe id ((annoted . at (mtdtSqlName Language) ?~) . toJSON) $ ne ^. neLanguage
     mtdt = annoted %~ M.union (M.fromList $ ne ^. neMtdt)
 

@@ -52,7 +52,7 @@ run Size entry tgt = case entry ^. kindData of
   FileD file | file ^. fileStatus /= FilePresent -> pure ()
   FileD file
     | isPrefix "image/" (file ^. fileMime) -> do
-        let magick = proc "magick" ["identify", "-format", "%w %h", file ^. filePath]
+        let magick = proc "magick" ["identify", "-auto-orient", "-format", "%w %h", file ^. filePath]
         (_, content) <- liftIO $ runStdout magick
         let parser = (,) <$> decimal <*> (char ' ' *> decimal)
         case runParser parser () "" content of

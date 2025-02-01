@@ -45,7 +45,7 @@ class IsKD a where
   dUpdateMetadata :: (MonadKorrvigs m) => a -> Map Text Value -> [Text] -> m ()
 
   -- Query basic information
-  dKind :: a -> Kind
+  dKind :: f a -> Kind
   dEntry :: a -> Entry
   dIdentify :: a -> KDIdentifier a
   dToData :: a -> KindData

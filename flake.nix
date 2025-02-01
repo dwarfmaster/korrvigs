@@ -55,6 +55,7 @@
             hpkgs.xdg-basedir
             hpkgs.password
             hpkgs.iconv
+            hpkgs.clock
           ]);
 
           pre-commit.hooks = {

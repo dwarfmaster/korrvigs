@@ -11,21 +11,42 @@ import qualified Data.Map as M
 import Data.Maybe (isJust)
 import qualified Data.Set as S
 import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
-import Korrvigs.Compute (syncComputations)
+import Korrvigs.Compute (EntryComps, syncComputations)
 import Korrvigs.Entry
 import Korrvigs.Event
 import Korrvigs.File
+import Korrvigs.Kind
 import Korrvigs.KindData
 import Korrvigs.Link
 import Korrvigs.Monad
 import Korrvigs.Note hiding (check)
 import Korrvigs.Utils.Cycle
 import Opaleye hiding (not, null)
+import System.Clock
+import Prelude hiding (putStrLn)
+
+measureTime :: (MonadIO m) => m a -> m (Text, a)
+measureTime act = do
+  tm1 <- liftIO $ getTime ProcessCPUTime
+  r <- act
+  tm2 <- liftIO $ getTime ProcessCPUTime
+  pure (printTime $ tm2 - tm1, r)
+  where
+    printTime :: TimeSpec -> Text
+    printTime (TimeSpec s ns) | s /= 0 || ns > 1000000 = T.pack (show $ s * 1000 + ns `div` 1000000) <> "ms"
+    printTime (TimeSpec _ ns) | ns > 1000 = T.pack (show $ ns `div` 1000) <> "μs"
+    printTime (TimeSpec _ ns) = T.pack (show ns) <> "ns"
+
+measureTime_ :: (MonadIO m) => m a -> m Text
+measureTime_ = fmap fst . measureTime
 
 loadIDsFor :: forall a m f. (IsKD a, MonadKorrvigs m) => f a -> (KDIdentifier a -> Text) -> m (Map Id [Text])
-loadIDsFor _ showId = do
-  st <- dList (Nothing :: Maybe a)
+loadIDsFor kd showId = do
+  (tm, st) <- measureTime $ dList (Nothing :: Maybe a)
+  liftIO $ putStrLn $ displayKind (dKind kd) <> ": listed " <> T.pack (show $ S.size st) <> " in " <> tm
   pure . M.fromListWith (<>) . S.toList $ S.map (dGetId &&& singleton . showId) st
 
 loadIDs :: (MonadKorrvigs m) => m (Map Id [Text])
@@ -52,6 +73,12 @@ processRelData i rd = do
   let refsTo = (i,) <$> rd ^. relRefTo
   atomicInsert $ insertSubOf subsOf <> insertRefTo refsTo
 
+runSync :: (IsKD a, MonadKorrvigs m) => f a -> m (Map Id (RelData, EntryComps))
+runSync kd = do
+  (tm, r) <- measureTime $ dSync kd
+  liftIO $ putStrLn $ displayKind (dKind kd) <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
+  pure r
+
 sync :: (MonadKorrvigs m) => m ()
 sync = do
   conn <- pgSQL
@@ -61,16 +88,18 @@ sync = do
   unless (null conflict) $ throwM $ KDuplicateId conflict
   sqls <- sqlIDs
   let toRemove = view _1 <$> M.toList (M.difference sqls ids)
-  forM_ toRemove remove
+  rmT <- measureTime_ $ forM_ toRemove remove
+  liftIO $ putStrLn $ "Removed " <> T.pack (show $ length toRemove) <> " entries in " <> rmT
   allrels <-
     sequence
-      [ dSync (Nothing :: Maybe Link),
-        dSync (Nothing :: Maybe Note),
-        dSync (Nothing :: Maybe File),
-        dSync (Nothing :: Maybe Event)
+      [ runSync (Nothing :: Maybe Link),
+        runSync (Nothing :: Maybe Note),
+        runSync (Nothing :: Maybe File),
+        runSync (Nothing :: Maybe Event)
       ]
   let rels = foldl' M.union M.empty allrels
-  forM_ (M.toList rels) $ \(i, (_, cmps)) -> syncComputations i cmps
+  cmpT <- measureTime_ $ forM_ (M.toList rels) $ \(i, (_, cmps)) -> syncComputations i cmps
+  liftIO $ putStrLn $ "Synced " <> T.pack (show $ M.size rels) <> " computations in " <> cmpT
   let checkRD = checkRelData $ \i -> isJust $ M.lookup i ids
   case foldr (firstJust . checkRD . view (_2 . _1)) Nothing (M.toList rels) of
     Nothing -> pure ()

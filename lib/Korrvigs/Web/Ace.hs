@@ -84,7 +84,11 @@ setupAceJs =
   }
   function aceQuit(editor) {
     const url = editor.korrvigs.redirectUrl
-    location.assign(url)
+    if(location.href == url) {
+      location.reload(true)
+    } else {
+      location.assign(url)
+    }
   }
   function setupAceVimMode() {
     ace.config.loadModule("ace/keyboard/vim", function(module) {

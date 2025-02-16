@@ -1,8 +1,10 @@
 module Korrvigs.Cli.Event where
 
+import Conduit
 import Control.Lens hiding (argument)
 import Control.Monad
-import Control.Monad.IO.Class
+import qualified Data.Map as M
+import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import Korrvigs.Actions (processRelData)
 import Korrvigs.Cli.Monad
@@ -12,13 +14,19 @@ import Korrvigs.Event.New
 import Korrvigs.Event.Sync
 import Korrvigs.Event.VDirSyncer
 import Korrvigs.Utils.DateParser (dayParser)
+import qualified Korrvigs.Utils.WebDAV as DAV
+import Network.HTTP.Client.TLS
+import Network.HTTP.Conduit
 import Options.Applicative
+import System.IO hiding (putStrLn, utf8)
+import Text.XML
 import Prelude hiding (putStrLn)
 
 data Cmd
   = Register {_regSilent :: Bool, _regJSON :: Bool}
   | Sync
   | New NewEvent
+  | Pull
 
 makeLenses ''Cmd
 
@@ -67,6 +75,14 @@ parser' =
                 <> header "korr event new -- Create event"
             )
         )
+      <> command
+        "pull"
+        ( info
+            (pure Pull)
+            ( progDesc "Pull from caldav server"
+                <> header "korr event pull -- Pull events"
+            )
+        )
 
 parser :: ParserInfo Cmd
 parser =
@@ -97,3 +113,31 @@ run Sync =
 run (New nevent) = do
   i <- new nevent
   liftIO $ putStrLn $ unId i
+run Pull = do
+  liftIO $ putStr "Password: "
+  liftIO $ hFlush stdout
+  pwd <- liftIO $ T.pack <$> withEcho False getLine
+  man <- liftIO $ newManager tlsManagerSettings
+  let filtr p2n =
+        Element
+          (p2n $ DAV.CalProp "comp-filter")
+          (M.singleton "name" "VCALENDAR")
+          [NodeElement $ Element (p2n $ DAV.CalProp "comp-filter") (M.singleton "name" "VEVENT") []]
+  -- xml <- DAV.propfind (DAV.DavData "luc" pwd man) "https://nextcloud.dwarfmaster.net/remote.php/dav/calendars/luc/dance" [DAV.DavProp "getctag"] DAV.Depth0
+  xml <- DAV.report (DAV.DavData "luc" pwd man) "https://nextcloud.dwarfmaster.net/remote.php/dav/calendars/luc/dance" [DAV.DavProp "getetag"] filtr DAV.Depth1
+  case xml of
+    Left err -> liftIO $ putStrLn $ T.pack $ show err
+    Right props ->
+      forM_ (M.toList props) $ \(endp, status) -> do
+        liftIO $ putStrLn $ endp <> ": " <> status ^. DAV.statStatus
+        forM_ (M.toList $ status ^. DAV.statProps) $ \(pname, pval) -> do
+          liftIO $ putStrLn $ "  " <> pname <> " -> \"" <> pval <> "\""
+
+-- Caldav
+withEcho :: Bool -> IO a -> IO a
+withEcho echo act = do
+  old <- hGetEcho stdin
+  hSetEcho stdin echo
+  r <- act
+  hSetEcho stdin old
+  pure r

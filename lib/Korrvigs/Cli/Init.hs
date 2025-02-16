@@ -9,7 +9,6 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import Data.FileEmbed
 import Data.Text (Text)
-import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.Types
@@ -19,12 +18,7 @@ import Options.Applicative hiding (value)
 import qualified Options.Applicative as Opt
 import System.Directory
 import System.FilePath
-import System.IO
 import System.Process
-
--- The database must exists with the following extension created:
---   CREATE EXTENSION postgis;
---   CREATE EXTENSION address_standardizer;
 
 data Cmd = Cmd
   { _rootPath :: FilePath,
@@ -55,28 +49,6 @@ parser =
     fullDesc
       <> progDesc "Init a korrvigs database"
       <> header "korr init -- Init database"
-
-withEcho :: Bool -> IO a -> IO a
-withEcho echo act = do
-  old <- hGetEcho stdin
-  hSetEcho stdin echo
-  r <- act
-  hSetEcho stdin old
-  pure r
-
-getPassword :: IO Text
-getPassword = do
-  putStr "Password: "
-  hFlush stdout
-  pass1 <- withEcho False getLine
-  putChar '\n'
-  putStr "Confirm password: "
-  hFlush stdout
-  pass2 <- withEcho False getLine
-  putChar '\n'
-  if pass1 == pass2
-    then pure $ T.pack pass1
-    else putStrLn "Passwords do not match" >> getPassword
 
 defaultTheme :: Base16Data
 defaultTheme = B16Data $ \case

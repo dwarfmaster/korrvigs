@@ -64,4 +64,6 @@ in
     ${sed} 's/stroke="#000000"/stroke="${theme.base09}"/' ${./ressources/icons/checkbox-todo.svg} > $out/icons/checkbox-todo.svg
     ${sed} 's/stroke="#000000"/stroke="${theme.base0E}"/' ${./ressources/icons/checkbox-ongoing.svg} > $out/icons/checkbox-ongoing.svg
     ${sed} 's/stroke="#000000"/stroke="${theme.base0B}"/' ${./ressources/icons/checkbox-done.svg} > $out/icons/checkbox-done.svg
+    ${sed} 's/fill="#0F0F0F"/fill="${theme.base01}"/' ${./ressources/icons/edit-save.svg} > $out/icons/edit-save.svg
+    ${sed} 's/fill="#0D0D0D"/fill="${theme.base01}"/' ${./ressources/icons/edit-quit.svg} > $out/icons/edit-quit.svg
   ''

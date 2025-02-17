@@ -13,8 +13,9 @@ import Korrvigs.Entry
 import Korrvigs.Event.New
 import Korrvigs.Event.Sync
 import Korrvigs.Event.VDirSyncer
+import qualified Korrvigs.Utils.DAV.Cal as DAV
+import qualified Korrvigs.Utils.DAV.Web as WD
 import Korrvigs.Utils.DateParser (dayParser)
-import qualified Korrvigs.Utils.WebDAV as DAV
 import Network.HTTP.Client.TLS
 import Network.HTTP.Conduit
 import Options.Applicative
@@ -118,20 +119,23 @@ run Pull = do
   liftIO $ hFlush stdout
   pwd <- liftIO $ T.pack <$> withEcho False getLine
   man <- liftIO $ newManager tlsManagerSettings
-  let filtr p2n =
-        Element
-          (p2n $ DAV.CalProp "comp-filter")
-          (M.singleton "name" "VCALENDAR")
-          [NodeElement $ Element (p2n $ DAV.CalProp "comp-filter") (M.singleton "name" "VEVENT") []]
+  -- let filtr p2n =
+  --       Element
+  --         (p2n $ DAV.CalProp "comp-filter")
+  --         (M.singleton "name" "VCALENDAR")
+  --         [NodeElement $ Element (p2n $ DAV.CalProp "comp-filter") (M.singleton "name" "VEVENT") []]
   -- xml <- DAV.propfind (DAV.DavData "luc" pwd man) "https://nextcloud.dwarfmaster.net/remote.php/dav/calendars/luc/dance" [DAV.DavProp "getctag"] DAV.Depth0
-  xml <- DAV.report (DAV.DavData "luc" pwd man) "https://nextcloud.dwarfmaster.net/remote.php/dav/calendars/luc/dance" [DAV.DavProp "getetag"] filtr DAV.Depth1
-  case xml of
-    Left err -> liftIO $ putStrLn $ T.pack $ show err
-    Right props ->
-      forM_ (M.toList props) $ \(endp, status) -> do
-        liftIO $ putStrLn $ endp <> ": " <> status ^. DAV.statStatus
-        forM_ (M.toList $ status ^. DAV.statProps) $ \(pname, pval) -> do
-          liftIO $ putStrLn $ "  " <> pname <> " -> \"" <> pval <> "\""
+  -- xml <- DAV.report (DAV.DavData "luc" pwd man) "https://nextcloud.dwarfmaster.net/remote.php/dav/calendars/luc/dance" [DAV.DavProp "getetag"] filtr DAV.Depth1
+  -- case xml of
+  --   Left err -> liftIO $ putStrLn $ T.pack $ show err
+  --   Right props ->
+  --     forM_ (M.toList props) $ \(endp, status) -> do
+  --       liftIO $ putStrLn $ endp <> ": " <> status ^. DAV.statStatus
+  --       forM_ (M.toList $ status ^. DAV.statProps) $ \(pname, pval) -> do
+  --         liftIO $ putStrLn $ "  " <> pname <> " -> \"" <> pval <> "\""
+  let cdav = DAV.CalDavData "luc" pwd man "https://nextcloud.dwarfmaster.net/remote.php/dav" "dance"
+  ctag <- DAV.getCTag cdav
+  liftIO $ print ctag
 
 -- Caldav
 withEcho :: Bool -> IO a -> IO a

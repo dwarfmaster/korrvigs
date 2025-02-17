@@ -1,4 +1,4 @@
-module Korrvigs.Utils.WebDAV (DavData (..), DavError (..), davStatusCode, davError, PropfindDepth (..), Property (..), propfind, report, PropStat (..), statStatus, statProps) where
+module Korrvigs.Utils.DAV.Web (DavData (..), DavError (..), davStatusCode, davError, PropfindDepth (..), Property (..), propfind, report, PropStat (..), statStatus, statProps) where
 
 import Conduit
 import Control.Applicative

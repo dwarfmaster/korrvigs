@@ -119,6 +119,9 @@ library korrvigs-lib
     Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateParser
     Korrvigs.Utils.DateTree
+    Korrvigs.Utils.DAV
+    Korrvigs.Utils.DAV.Cal
+    Korrvigs.Utils.DAV.Web
     Korrvigs.Utils.Git
     Korrvigs.Utils.Git.Annex
     Korrvigs.Utils.Git.Commit
@@ -129,7 +132,6 @@ library korrvigs-lib
     Korrvigs.Utils.Pandoc
     Korrvigs.Utils.Process
     Korrvigs.Utils.Time
-    Korrvigs.Utils.WebDAV
     Korrvigs.Utils.XML
     Korrvigs.Web
     Korrvigs.Web.Ace

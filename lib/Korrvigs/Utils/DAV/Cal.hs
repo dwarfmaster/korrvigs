@@ -7,12 +7,14 @@ module Korrvigs.Utils.DAV.Cal
     calCalendar,
     getCTag,
     getETags,
+    getCalData,
   )
 where
 
-import Control.Arrow (second)
 import Control.Lens
 import Control.Monad.IO.Class
+import Data.List (singleton)
+import Data.List.Split (chunksOf)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
@@ -38,8 +40,8 @@ makeLenses ''CalDavData
 toDavData :: CalDavData -> DavData
 toDavData cdd = DavData (cdd ^. calUser) (cdd ^. calPwd) (cdd ^. calManager)
 
-makeCalURL :: CalDavData -> Text
-makeCalURL cdd = T.pack $ joinPath [T.unpack (cdd ^. calServer), "calendars", T.unpack (cdd ^. calUser), T.unpack (cdd ^. calCalendar)]
+makeCalURL :: CalDavData -> Maybe Text -> Text
+makeCalURL cdd ics = T.pack $ joinPath $ [T.unpack (cdd ^. calServer), "calendars", T.unpack (cdd ^. calUser), T.unpack (cdd ^. calCalendar)] ++ maybe [] (singleton . T.unpack . (<> ".ics")) ics
 
 getCTag :: (MonadIO m) => CalDavData -> m (Either DavError Text)
 getCTag cdd =
@@ -50,24 +52,52 @@ getCTag cdd =
       Just ctag -> pure $ Right ctag
   where
     dav = toDavData cdd
-    url = makeCalURL cdd
+    url = makeCalURL cdd Nothing
     uri = maybe url ((<> "/") . T.pack . uriPath) $ parseURI (T.unpack url)
+
+processICS :: (PropStat -> Maybe Text) -> (Text, PropStat) -> Maybe (Text, Text)
+processICS ext (ics, metag) = (T.pack $ view basename $ T.unpack ics,) . T.dropAround (== '"') <$> ext metag
 
 getETags :: (MonadIO m) => CalDavData -> m (Either DavError (Map Text Text))
 getETags cdd =
-  report dav url [DavProp "getetag"] filtr Depth1 >>= \case
+  report dav url (CalProp "calendar-query") [DavProp "getetag"] filtr Depth1 >>= \case
     Left err -> pure $ Left err
-    Right props -> pure $ Right $ M.fromList $ mapMaybe (processICS . second fromStat) $ M.toList props
+    Right props -> pure $ Right $ M.fromList $ mapMaybe (processICS fromStat) $ M.toList props
   where
     dav = toDavData cdd
-    url = makeCalURL cdd
+    url = makeCalURL cdd Nothing
     filtr p2n =
-      Element
-        (p2n $ CalProp "comp-filter")
-        (M.singleton "name" "VCALENDAR")
-        [NodeElement $ Element (p2n $ CalProp "comp-filter") (M.singleton "name" "VEVENT") []]
+      singleton $
+        Element (p2n $ CalProp "filter") M.empty $
+          singleton $
+            NodeElement $
+              Element
+                (p2n $ CalProp "comp-filter")
+                (M.singleton "name" "VCALENDAR")
+                [NodeElement $ Element (p2n $ CalProp "comp-filter") (M.singleton "name" "VEVENT") []]
     fromStat :: PropStat -> Maybe Text
     fromStat stat = M.lookup "getetag" $ stat ^. statProps
-    processICS :: (Text, Maybe Text) -> Maybe (Text, Text)
-    processICS (_, Nothing) = Nothing
-    processICS (ics, Just etag) = Just (T.pack $ view basename $ T.unpack ics, etag)
+
+getCalData' :: (MonadIO m) => CalDavData -> [Text] -> m (Either DavError (Map Text Text))
+getCalData' cdd ids =
+  report dav url (CalProp "calendar-multiget") [CalProp "calendar-data"] filtr Depth1 >>= \case
+    Left err -> pure $ Left err
+    Right props -> pure $ Right $ M.fromList $ mapMaybe (processICS fromStat) $ M.toList props
+  where
+    dav = toDavData cdd
+    url = makeCalURL cdd Nothing
+    idURL i = case parseURI (T.unpack $ makeCalURL cdd $ Just i) of
+      Just uri -> T.pack $ uriPath uri
+      Nothing -> "/calendars/" <> cdd ^. calUser <> "/" <> cdd ^. calCalendar <> "/" <> i <> ".ics"
+    filtr p2n = flip map ids $ \i ->
+      Element (p2n $ DavProp "href") M.empty [NodeContent $ idURL i]
+    fromStat :: PropStat -> Maybe Text
+    fromStat stat = M.lookup "calendar-data" $ stat ^. statProps
+
+getCalData :: (MonadIO m) => CalDavData -> [Text] -> m (Either DavError (Map Text Text))
+getCalData cdd ids = do
+  rs <- mapM (getCalData' cdd) $ chunksOf 15 ids
+  let r = sequence rs
+  case r of
+    Left err -> pure $ Left err
+    Right mps -> pure $ Right $ foldr M.union M.empty mps

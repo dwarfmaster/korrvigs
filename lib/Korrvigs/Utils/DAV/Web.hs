@@ -183,8 +183,8 @@ propfind dav server properties depth =
           | prop <- properties
         ]
 
-report :: (MonadIO m) => DavData -> Text -> [Property] -> ((Property -> Name) -> Element) -> PropfindDepth -> m (Either DavError (Map Text PropStat))
-report dav server properties filtr depth =
+report :: (MonadIO m) => DavData -> Text -> Property -> [Property] -> ((Property -> Name) -> [Element]) -> PropfindDepth -> m (Either DavError (Map Text PropStat))
+report dav server query properties filtr depth =
   runDavM dav davAct >>= \case
     Left err -> pure $ Left err
     Right resp -> do
@@ -197,14 +197,11 @@ report dav server properties filtr depth =
     repXml = Document (Prologue [] Nothing []) xmlContent []
     xmlContent =
       Element
-        (propToName $ CalProp "calendar-query")
+        (propToName query)
         M.empty
-        [ NodeElement $ Element (propToName $ DavProp "prop") M.empty propXml,
-          NodeElement $
-            Element
-              (propToName $ CalProp "filter")
-              M.empty
-              [NodeElement $ filtr propToName]
-        ]
+        $ NodeElement
+          <$> ( Element (propToName $ DavProp "prop") M.empty propXml
+                  : filtr propToName
+              )
     propXml =
       [NodeElement $ Element (propToName prop) M.empty [] | prop <- properties]

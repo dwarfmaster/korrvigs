@@ -134,8 +134,9 @@ run Pull = do
   --       forM_ (M.toList $ status ^. DAV.statProps) $ \(pname, pval) -> do
   --         liftIO $ putStrLn $ "  " <> pname <> " -> \"" <> pval <> "\""
   let cdav = DAV.CalDavData "luc" pwd man "https://nextcloud.dwarfmaster.net/remote.php/dav" "dance"
-  ctag <- DAV.getCTag cdav
-  liftIO $ print ctag
+  metags <- DAV.getETags cdav
+  forM_ metags $ \etags ->
+    forM_ (M.toList etags) $ \(ics, etag) -> liftIO $ print $ ics <> " -> " <> etag
 
 -- Caldav
 withEcho :: Bool -> IO a -> IO a

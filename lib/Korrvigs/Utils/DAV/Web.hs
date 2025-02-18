@@ -1,4 +1,18 @@
-module Korrvigs.Utils.DAV.Web (DavData (..), DavError (..), davStatusCode, davError, PropfindDepth (..), Property (..), propfind, report, PropStat (..), statStatus, statProps) where
+module Korrvigs.Utils.DAV.Web
+  ( DavData (..),
+    DavError (..),
+    davStatusCode,
+    davError,
+    PropfindDepth (..),
+    Property (..),
+    propfind,
+    report,
+    put,
+    PropStat (..),
+    statStatus,
+    statProps,
+  )
+where
 
 import Conduit
 import Control.Applicative
@@ -6,6 +20,7 @@ import Control.Lens hiding (element)
 import Control.Monad.Except (throwError)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Reader
+import qualified Data.ByteString.Lazy as LBS
 import Data.Conduit.Text
 import Data.List (singleton)
 import Data.Map (Map)
@@ -205,3 +220,28 @@ report dav server query properties filtr depth =
               )
     propXml =
       [NodeElement $ Element (propToName prop) M.empty [] | prop <- properties]
+
+put :: (MonadIO m, MonadThrow m) => DavData -> Text -> Text -> LBS.ByteString -> m (Either DavError ())
+put dav server etag dat = do
+  initReq <- parseRequest $ T.unpack server
+  let user = dav ^. davUser
+  let pwd = dav ^. davPwd
+  let req =
+        applyBasicAuth (Enc.encodeUtf8 user) (Enc.encodeUtf8 pwd) $
+          initReq
+            { method = "PUT"
+            }
+  let hdContent = [("Content-type", "text/calendar; charset=utf-8")]
+  let matchETag = [("If-Match", Enc.encodeUtf8 etag)]
+  let reqWithBody =
+        req
+          { requestBody = RequestBodyLBS dat,
+            requestHeaders = hdContent ++ matchETag ++ requestHeaders req
+          }
+  let man = dav ^. davManager
+  liftIO $ runResourceT $ do
+    resp <- http reqWithBody man
+    let scode = statusCode (responseStatus resp)
+    if scode == 200 || scode == 207
+      then pure $ Right ()
+      else pure $ Left $ DavError scode $ "Failed with status code " <> T.pack (show scode)

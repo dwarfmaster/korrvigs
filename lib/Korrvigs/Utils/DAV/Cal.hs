@@ -8,11 +8,13 @@ module Korrvigs.Utils.DAV.Cal
     getCTag,
     getETags,
     getCalData,
+    putCalData,
   )
 where
 
 import Control.Lens
 import Control.Monad.IO.Class
+import qualified Data.ByteString.Lazy as LBS
 import Data.List (singleton)
 import Data.List.Split (chunksOf)
 import Data.Map (Map)
@@ -101,3 +103,15 @@ getCalData cdd ids = do
   case r of
     Left err -> pure $ Left err
     Right mps -> pure $ Right $ foldr M.union M.empty mps
+
+-- Returns the new ETag after upload
+putCalData :: (MonadIO m) => CalDavData -> Text -> Text -> LBS.ByteString -> m (Either DavError Text)
+putCalData cdd i etag content =
+  liftIO (put (toDavData cdd) (makeCalURL cdd $ Just i) etag content) >>= \case
+    Left err -> pure $ Left err
+    Right () ->
+      getETags cdd <&> \case
+        Left err -> Left err
+        Right etags -> case M.lookup i etags of
+          Nothing -> Left $ DavError 207 "Couldn't find new ETag"
+          Just etg -> Right etg

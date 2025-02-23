@@ -1,6 +1,7 @@
 module Korrvigs.Event.ICalendar
   ( module Korrvigs.Event.ICalendar.Defs,
     parseICalFile,
+    parseICal,
     renderICalFile,
     buildICalFile,
     executeRRule,

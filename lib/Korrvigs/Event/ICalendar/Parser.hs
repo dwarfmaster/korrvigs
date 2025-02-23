@@ -13,6 +13,7 @@ import Data.Either
 import Data.Functor
 import Data.Map
 import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
@@ -32,7 +33,11 @@ import Text.Parsec
 parseICalFile :: FilePath -> IO (Either Text ICalFile)
 parseICalFile path = do
   content <- BSL.readFile path
-  let r = runParserT parser () path $ BSL.unpack content
+  parseICal (Just path) content
+
+parseICal :: Maybe FilePath -> BSL.ByteString -> IO (Either Text ICalFile)
+parseICal path content = do
+  let r = runParserT parser () (fromMaybe "<ics>" path) $ BSL.unpack content
   case runIdentity r of
     Left err ->
       pure . Left . T.pack $ "\"" <> show err <> "\" at " <> show (errorPos err)

@@ -4,25 +4,26 @@ import Conduit
 import Control.Lens hiding (argument)
 import Control.Monad
 import qualified Data.Map as M
+import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
+import qualified Korrvigs.Calendar.DAV as DAV
 import Korrvigs.Cli.Monad
 import Korrvigs.Cli.New
 import Korrvigs.Entry
 import Korrvigs.Event.New
 import Korrvigs.Event.VDirSyncer
-import qualified Korrvigs.Utils.DAV.Cal as DAV
+import Korrvigs.Monad
 import Korrvigs.Utils.DateParser (dayParser)
-import Network.HTTP.Client.TLS
-import Network.HTTP.Conduit
 import Options.Applicative
+import System.FilePath
 import System.IO hiding (putStrLn, utf8)
 import Prelude hiding (putStrLn)
 
 data Cmd
   = Sync
   | New NewEvent
-  | Pull
+  | Pull Text
 
 makeLenses ''Cmd
 
@@ -61,7 +62,7 @@ parser' =
       <> command
         "pull"
         ( info
-            (pure Pull)
+            (Pull <$> argument str (metavar "CALENDAR"))
             ( progDesc "Pull from caldav server"
                 <> header "korr event pull -- Pull events"
             )
@@ -85,23 +86,18 @@ run Sync =
 run (New nevent) = do
   i <- new nevent
   liftIO $ putStrLn $ unId i
-run Pull = do
-  liftIO $ putStr "Password: "
-  liftIO $ hFlush stdout
-  pwd <- liftIO $ T.pack <$> withEcho False getLine
-  man <- liftIO $ newManager tlsManagerSettings
-  let cdav = DAV.CalDavData "luc" pwd man "https://nextcloud.dwarfmaster.net/remote.php/dav" "dance"
-  metags <- DAV.getETags cdav
-  forM_ metags $ \etags -> do
-    dat <- DAV.getCalData cdav $ M.keys etags
-    case dat of
-      Left err -> liftIO $ print err
-      _ -> pure ()
-    forM_ (M.toList etags) $ \(ics, etag) -> do
-      liftIO $ print $ ">>> " <> ics <> " -> " <> etag <> " <<<"
-      case M.lookup ics <$> dat of
-        Right (Just content) -> liftIO $ putStrLn content
-        _ -> pure ()
+run (Pull calId) = do
+  calE <- load (MkId calId) >>= throwMaybe (KMiscError $ "Couldn't find calendar \"" <> calId <> "\"")
+  case calE ^. kindData of
+    CalendarD cal -> do
+      liftIO $ putStr "Password: "
+      liftIO $ hFlush stdout
+      pwd <- liftIO $ T.pack <$> withEcho False getLine
+      changes <- DAV.checkChanges cal pwd Nothing M.empty
+      rt <- root
+      let worktreeRoot = joinPath [rt, "../../korrvigs-temp/calsync/korrvigs"]
+      DAV.doPull cal pwd worktreeRoot changes
+    _ -> throwM $ KMiscError $ "\"" <> calId <> "\" is not the ID of a calendar"
 
 -- Caldav
 withEcho :: Bool -> IO a -> IO a

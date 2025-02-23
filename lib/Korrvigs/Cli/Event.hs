@@ -8,6 +8,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import qualified Korrvigs.Calendar.DAV as DAV
+import qualified Korrvigs.Calendar.New as NC
 import Korrvigs.Cli.Monad
 import Korrvigs.Cli.New
 import Korrvigs.Entry
@@ -23,6 +24,7 @@ import Prelude hiding (putStrLn)
 data Cmd
   = Sync
   | New NewEvent
+  | NewCal NC.NewCalendar
   | Pull Text
 
 makeLenses ''Cmd
@@ -60,6 +62,23 @@ parser' =
             )
         )
       <> command
+        "newcal"
+        ( info
+            ( ( NewCal
+                  <$> ( NC.NewCalendar
+                          <$> newEntryOptions
+                          <*> argument str (metavar "SERVER" <> help "The server to connect")
+                          <*> argument str (metavar "USER" <> help "The user of the server")
+                          <*> argument str (metavar "CALENDAR" <> help "The name of the calendar in the server")
+                      )
+              )
+                <**> helper
+            )
+            ( progDesc "Create new calendar"
+                <> header "korr event newcal -- Create calendar"
+            )
+        )
+      <> command
         "pull"
         ( info
             (Pull <$> argument str (metavar "CALENDAR"))
@@ -85,6 +104,9 @@ run Sync =
     VDirError err -> liftIO $ putStrLn $ "Unexpected error: " <> err
 run (New nevent) = do
   i <- new nevent
+  liftIO $ putStrLn $ unId i
+run (NewCal ncal) = do
+  i <- NC.new ncal
   liftIO $ putStrLn $ unId i
 run (Pull calId) = do
   calE <- load (MkId calId) >>= throwMaybe (KMiscError $ "Couldn't find calendar \"" <> calId <> "\"")

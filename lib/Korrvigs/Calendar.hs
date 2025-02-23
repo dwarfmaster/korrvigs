@@ -26,7 +26,7 @@ instance IsKD Calendar where
   dUpdateMetadata = dUpdateMetadataImpl
   dKind = const Calendar
   dEntry = view calEntry
-  dIdentify = CalIdentifier . calBasename
+  dIdentify = CalIdentifier . calBasename . view (calEntry . name)
   dToData = CalendarD
 
 displayCalId :: KDIdentifier Calendar -> Text

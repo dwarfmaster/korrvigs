@@ -38,6 +38,7 @@ library korrvigs-lib
     Korrvigs.Calendar
     Korrvigs.Calendar.DAV
     Korrvigs.Calendar.JSON
+    Korrvigs.Calendar.New
     Korrvigs.Calendar.SQL
     Korrvigs.Calendar.Sync
     Korrvigs.Cli

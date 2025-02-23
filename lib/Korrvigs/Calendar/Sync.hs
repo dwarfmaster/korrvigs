@@ -29,13 +29,16 @@ import Prelude hiding (readFile, writeFile)
 calIdFromPath :: FilePath -> Id
 calIdFromPath = MkId . T.pack . takeBaseName
 
-calBasename :: Calendar -> FilePath
-calBasename cal = T.unpack $ cal ^. calEntry . name . to unId <> ".json"
+calBasename :: Id -> FilePath
+calBasename cal = T.unpack $ unId cal <> ".json"
 
-calendarPath :: (MonadKorrvigs m) => Calendar -> m FilePath
-calendarPath cal = do
+calendarPath' :: (MonadKorrvigs m) => Id -> m FilePath
+calendarPath' cal = do
   rt <- calJSONPath
   pure $ joinPath [rt, calBasename cal]
+
+calendarPath :: (MonadKorrvigs m) => Calendar -> m FilePath
+calendarPath = calendarPath' . view (calEntry . name)
 
 syncCalJSON :: (MonadKorrvigs m) => Id -> CalJSON -> m (EntryRow, CalRow)
 syncCalJSON i json = do

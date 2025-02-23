@@ -1,12 +1,9 @@
 module Korrvigs.Event.New where
 
-import Conduit (throwM)
 import Control.Arrow (first)
 import Control.Lens
-import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson (toJSON)
-import qualified Data.ByteString.Lazy as BSL
 import qualified Data.CaseInsensitive as CI
 import Data.Default
 import qualified Data.Map as M
@@ -23,12 +20,11 @@ import Korrvigs.Event.Sync
 import Korrvigs.KindData
 import Korrvigs.Metadata
 import Korrvigs.Monad
-import System.Directory
-import System.FilePath
+import Korrvigs.Utils.DateTree
 
 data NewEvent = NewEvent
   { _nevEntry :: NewEntry,
-    _nevCalendar :: Text,
+    _nevCalendar :: Id,
     _nevStart :: LocalTime,
     _nevEnd :: LocalTime,
     _nevSummary :: Text,
@@ -42,9 +38,6 @@ makeLenses ''NewEvent
 new :: (MonadKorrvigs m) => NewEvent -> m Id
 new opts = do
   rt <- eventsDirectory
-  let calPath = joinPath [rt, T.unpack (opts ^. nevCalendar)]
-  calEx <- liftIO $ doesDirectoryExist calPath
-  unless calEx $ throwM $ KMiscError $ "Calendar \"" <> opts ^. nevCalendar <> "\" does not exists"
   tz <- liftIO getCurrentTimeZone
   let tzname = if null (timeZoneName tz) then "KorrvigsTZ" else T.pack (timeZoneName tz)
   let ictz =
@@ -115,13 +108,12 @@ new opts = do
           }
   i <- createIdFor ical ievent
   let uid = T.map (\c -> if c == ':' then '-' else c) (unId i) <> "@korrvigs"
-  let file = uid <> ".ics"
   let ncal =
         ical
           & icEvent . _Just . iceUid .~ uid
           & icEvent . _Just . iceId ?~ i
-  let path = joinPath [calPath, T.unpack file]
-  liftIO $ BSL.writeFile path $ renderICalFile ncal
-  relData <- dSyncOneImpl (opts ^. nevCalendar) file
+  let filename = unId i <> "_" <> unId (opts ^. nevCalendar) <> ".ics"
+  path <- storeFile rt eventTreeType undefined filename $ renderICalFile ncal
+  relData <- dSyncOneImpl path
   atomicInsertRelData i relData
   pure i

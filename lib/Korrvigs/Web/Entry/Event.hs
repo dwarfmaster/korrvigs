@@ -3,7 +3,6 @@ module Korrvigs.Web.Entry.Event (content, embed) where
 import Control.Lens
 import Data.Time.Format
 import Korrvigs.Entry
-import Korrvigs.Event
 import Korrvigs.Event.ICalendar
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
@@ -11,7 +10,7 @@ import Yesod hiding (joinPath)
 
 embed :: Int -> Event -> Handler Widget
 embed _ event = do
-  path <- eventPath event
+  let path = event ^. eventFile
   parsed <- liftIO $ parseICalFile path
   case parsed of
     Left err ->
@@ -43,7 +42,7 @@ embed _ event = do
           <table>
             <tr>
               <td>Calendar
-              <td>#{cal}
+              <td>#{unId cal}
             $maybe s <- summary
               <tr>
                 <td>Summary

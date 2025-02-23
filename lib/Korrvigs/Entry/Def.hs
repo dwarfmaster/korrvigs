@@ -52,8 +52,8 @@ data File = MkFile
 
 data Event = MkEvent
   { _eventEntry :: Entry,
-    _eventCalendar :: Text,
-    _eventFile :: Text,
+    _eventCalendar :: Id,
+    _eventFile :: FilePath,
     _eventUid :: Text
   }
   deriving (Show)

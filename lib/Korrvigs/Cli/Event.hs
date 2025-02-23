@@ -6,12 +6,10 @@ import Control.Monad
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
-import Korrvigs.Actions (processRelData)
 import Korrvigs.Cli.Monad
 import Korrvigs.Cli.New
 import Korrvigs.Entry
 import Korrvigs.Event.New
-import Korrvigs.Event.Sync
 import Korrvigs.Event.VDirSyncer
 import qualified Korrvigs.Utils.DAV.Cal as DAV
 import Korrvigs.Utils.DateParser (dayParser)
@@ -22,8 +20,7 @@ import System.IO hiding (putStrLn, utf8)
 import Prelude hiding (putStrLn)
 
 data Cmd
-  = Register {_regSilent :: Bool, _regJSON :: Bool}
-  | Sync
+  = Sync
   | New NewEvent
   | Pull
 
@@ -33,33 +30,20 @@ parser' :: Parser Cmd
 parser' =
   subparser $
     command
-      "register"
+      "sync"
       ( info
-          ( ( Register
-                <$> switch (long "silent" <> help "Cancel informational output")
-                <*> switch (long "json" <> help "Display information as json")
-            )
-              <**> helper
-          )
-          ( progDesc "Register new events"
-              <> header "korr event register -- register events"
+          (pure Sync <**> helper)
+          ( progDesc "Sync events with nextcloud"
+              <> header "korr event sync -- sync events"
           )
       )
-      <> command
-        "sync"
-        ( info
-            (pure Sync <**> helper)
-            ( progDesc "Sync events with nextcloud"
-                <> header "korr event sync -- sync events"
-            )
-        )
       <> command
         "new"
         ( info
             ( ( New
                   <$> ( NewEvent
                           <$> newEntryOptions
-                          <*> argument str (metavar "CALENDAR" <> help "The calendar to create the event in")
+                          <*> (MkId <$> argument str (metavar "CALENDAR" <> help "The calendar to create the event in"))
                           <*> argument dayParser (metavar "START" <> help "The start date of the event, in ISO8601 format")
                           <*> argument dayParser (metavar "END" <> help "The end date of the event, in ISO8601 format")
                           <*> argument str (metavar "SUMMARY" <> help "The summary of the event")
@@ -91,17 +75,6 @@ parser =
       <> header "korr event -- interface for events"
 
 run :: Cmd -> KorrM ()
-run (Register silent json) = do
-  evs <- allEvents
-  forM_ evs $ \(cal, ics) -> do
-    (i, ical, ievent, nw) <- register (cal, ics)
-    when nw $ do
-      syncOneEvent i cal ics ical ievent >>= processRelData i
-      unless silent $
-        liftIO $
-          if json
-            then putStrLn $ "\"" <> unId i <> "\""
-            else putStrLn $ "Registered " <> cal <> "/" <> ics <> " as " <> unId i
 run Sync =
   vdirSync >>= \case
     VDirtyRepo -> liftIO $ putStrLn "Cannot sync, there are uncommited changed to the repo"

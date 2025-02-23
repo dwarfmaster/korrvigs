@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS files (
 CREATE TABLE IF NOT EXISTS events (
   name TEXT NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'event'),
-  calendar TEXT NOT NULL,
+  calendar TEXT NOT NULL REFERENCES calendars(name),
   file TEXT NOT NULL,
   uid TEXT NOT NULL,
   CONSTRAINT events_entries

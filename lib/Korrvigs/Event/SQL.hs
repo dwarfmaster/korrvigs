@@ -20,9 +20,9 @@ data EventRowImpl a b c d = EventRow
 makeLenses ''EventRowImpl
 $(makeAdaptorAndInstanceInferrable "pEventRow" ''EventRowImpl)
 
-type EventRow = EventRowImpl Id Text FilePath Text
+type EventRow = EventRowImpl Id Id FilePath Text
 
-mkEventRow :: Id -> Text -> FilePath -> Text -> EventRow
+mkEventRow :: Id -> Id -> FilePath -> Text -> EventRow
 mkEventRow = EventRow
 
 type EventRowSQL = EventRowImpl (Field SqlText) (Field SqlText) (Field SqlText) (Field SqlText)

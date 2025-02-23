@@ -101,9 +101,9 @@ vdirImpl = do
       where_ $ (erow ^. sqlEventCalendar) .== sqlStrictText cal .&& (erow ^. sqlEventFile) .== sqlStrictText ics
       pure $ erow ^. sqlEventName
     forM_ mi remove
-  forM_ addedFiles $ \(cal, ics) -> do
-    (i, ical, ievent, new) <- lift $ register (cal, ics)
-    when new $ lift $ syncOneEvent i cal ics ical ievent >>= processRelData i
+  -- forM_ addedFiles $ \(cal, ics) -> do
+  --   (i, ical, ievent, new) <- lift $ register (cal, ics)
+  --   when new $ lift $ syncOneEvent i cal ics ical ievent >>= processRelData i
   newReg <- lift St.gitStatusKorr
   unless (null newReg) $ do
     void $ runS (proc "git" ["add", joinPath [rt, "events"]]) {cwd = Just rt}

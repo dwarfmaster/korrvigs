@@ -117,7 +117,7 @@ run (Pull calId) = do
       pwd <- liftIO $ T.pack <$> withEcho False getLine
       changes <- DAV.checkChanges cal pwd Nothing M.empty
       rt <- root
-      let worktreeRoot = joinPath [rt, "../../korrvigs-temp/calsync/korrvigs"]
+      let worktreeRoot = joinPath [rt, "../../korrvigs-temp/calsync/korrvigs/events"]
       DAV.doPull cal pwd worktreeRoot changes
     _ -> throwM $ KMiscError $ "\"" <> calId <> "\" is not the ID of a calendar"
 

@@ -1,38 +1,33 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Korrvigs.Calendar where
+module Korrvigs.Calendar (displayCalId, calendarPath) where
 
 import Control.Lens
+import qualified Data.Map as M
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Korrvigs.Calendar.Sync
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.KindData
-import Korrvigs.Monad
-import System.FilePath (joinPath)
 
 instance IsKD Calendar where
   data KDIdentifier Calendar = CalIdentifier FilePath
     deriving (Ord, Eq)
-  dLoad = undefined
-  dRemoveDB _ = undefined
-  dList _ = undefined
-  dGetId _ = undefined
-  dListCompute _ = undefined
-  dSync _ = undefined
-  dSyncOne _ = undefined
-  dRemove _ = undefined
-  dUpdateMetadata = undefined
+  dLoad = dLoadImpl
+  dRemoveDB _ = dRemoveDBImpl
+  dList _ = S.map CalIdentifier <$> dListImpl
+  dGetId (CalIdentifier path) = dGetIdImpl path
+  dListCompute _ = pure M.empty
+  dSync _ = fmap (,M.empty) <$> dSyncImpl
+  dSyncOne (CalIdentifier path) = (,M.empty) <$> dSyncOneImpl path
+  dRemove (CalIdentifier path) = dRemoveImpl path
+  dUpdateMetadata = dUpdateMetadataImpl
   dKind = const Calendar
   dEntry = view calEntry
-  dIdentify cal = CalIdentifier $ T.unpack $ cal ^. calEntry . name . to unId <> ".json"
+  dIdentify = CalIdentifier . calBasename
   dToData = CalendarD
 
 displayCalId :: KDIdentifier Calendar -> Text
 displayCalId (CalIdentifier path) = "calendar:" <> T.pack path
-
-calendarPath :: (MonadKorrvigs m) => Calendar -> m FilePath
-calendarPath cal = do
-  rt <- root
-  let basename = T.unpack $ cal ^. calEntry . name . to unId <> ".json"
-  pure $ joinPath [rt, "calendars", basename]

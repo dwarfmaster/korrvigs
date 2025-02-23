@@ -72,6 +72,16 @@ CREATE TABLE IF NOT EXISTS files (
     FOREIGN KEY (name,kind) references entries(name,kind)
 );
 
+CREATE TABLE IF NOT EXISTS calendars (
+  name TEXT NOT NULL PRIMARY KEY,
+  kind KIND NOT NULL CHECK(kind = 'calendar'),
+  server TEXT NOT NULL,
+  usr TEXT NOT NULL,
+  calname TEXT NOT NULL,
+  CONSTRAINT calendars_entries
+    FOREIGN KEY (name,kind) references entries(name,kind)
+);
+
 CREATE TABLE IF NOT EXISTS events (
   name TEXT NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'event'),
@@ -80,16 +90,4 @@ CREATE TABLE IF NOT EXISTS events (
   uid TEXT NOT NULL,
   CONSTRAINT events_entries
     FOREIGN KEY (name,kind) references entries(name,kind)
-);
-
-CREATE TABLE IF NOT EXISTS calendars (
-  name TEXT NOT NULL PRIMARY KEY,
-  kind KIND NOT NULL CHECK(kind = 'calendar'),
-  server TEXT NOT NULL,
-  user TEXT NOT NULL,
-  calname TEXT NOT NULL,
-  CONSTRAINT calendars_entries
-    FOREIGN KEY (name,kind) references entries(name,kind)
-);
-  
 );

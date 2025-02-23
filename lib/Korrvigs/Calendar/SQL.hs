@@ -37,5 +37,5 @@ calendarsTable =
       CalRow
         (nameKindField Calendar)
         (tableField "server")
-        (tableField "user")
+        (tableField "usr")
         (tableField "calname")

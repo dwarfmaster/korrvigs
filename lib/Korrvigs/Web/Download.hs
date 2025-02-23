@@ -1,6 +1,7 @@
 module Korrvigs.Web.Download (getEntryDownloadR) where
 
 import Control.Lens
+import Korrvigs.Calendar (calendarPath)
 import Korrvigs.Entry
 import Korrvigs.Event (eventPath)
 import Korrvigs.Monad
@@ -20,6 +21,9 @@ downloadEntry (NoteD note) =
 downloadEntry (EventD event) = do
   path <- eventPath event
   pure $ toTypedContent ("text/calendar" :: ContentType, ContentFile path Nothing)
+downloadEntry (CalendarD cal) = do
+  path <- calendarPath cal
+  pure $ toTypedContent (typeJson, ContentFile path Nothing)
 
 getEntryDownloadR :: WebId -> Handler TypedContent
 getEntryDownloadR (WId i) =

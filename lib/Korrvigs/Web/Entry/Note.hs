@@ -236,6 +236,7 @@ compileBlock' (Embed i) =
               LinkD link -> Link.embed lvl link
               FileD file -> File.embed lvl file
               EventD event -> Event.embed lvl event
+              CalendarD cal -> undefined
               NoteD note -> embed lvl note
             pure
               [whamlet|

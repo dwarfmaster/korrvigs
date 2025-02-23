@@ -26,6 +26,7 @@ load i = do
         Link -> dLoad i $ mkEntry (Nothing :: Maybe Link) row
         File -> dLoad i $ mkEntry (Nothing :: Maybe File) row
         Event -> dLoad i $ mkEntry (Nothing :: Maybe Event) row
+        Calendar -> dLoad i $ mkEntry (Nothing :: Maybe Calendar) row
 
 loadMetadata :: (MonadKorrvigs m) => Id -> m Metadata
 loadMetadata i = do

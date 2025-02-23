@@ -9,6 +9,7 @@ data Kind
   | Link
   | File
   | Event
+  | Calendar
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- Singletons
@@ -19,5 +20,7 @@ data LinkK = LinkK
 data FileK = FileK
 
 data EventK = EventK
+
+data CalendarK = CalendarK
 
 makeLenses ''Kind

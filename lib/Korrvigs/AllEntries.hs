@@ -1,5 +1,6 @@
 module Korrvigs.AllEntries where
 
+import Korrvigs.Calendar ()
 import Korrvigs.Entry
 import Korrvigs.Event ()
 import Korrvigs.File ()
@@ -12,3 +13,4 @@ data AnyIdentifier
   | NoteID (KDIdentifier Note)
   | FileID (KDIdentifier File)
   | EventID (KDIdentifier Event)
+  | CalendarID (KDIdentifier Calendar)

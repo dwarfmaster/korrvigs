@@ -22,6 +22,7 @@ updateMetadata entry upd rm = do
     FileD file -> dUpdateMetadata file upd rm
     NoteD note -> dUpdateMetadata note upd rm
     EventD event -> dUpdateMetadata event upd rm
+    CalendarD cal -> dUpdateMetadata cal upd rm
   let rows = mkRow i <$> M.toList upd
   atomicSQL $ \conn -> do
     void $

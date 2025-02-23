@@ -29,12 +29,14 @@ colorKind Note = Base08
 colorKind File = Base09
 colorKind Link = Base0A
 colorKind Event = Base0B
+colorKind Calendar = Base0C
 
 htmlKind' :: Kind -> Handler Html
 htmlKind' Note = mkHtmlKind "Note" $ colorKind Note
 htmlKind' File = mkHtmlKind "File" $ colorKind File
 htmlKind' Link = mkHtmlKind "Link" $ colorKind Link
 htmlKind' Event = mkHtmlKind "Event" $ colorKind Event
+htmlKind' Calendar = mkHtmlKind "Calendar" $ colorKind Calendar
 
 htmlKind :: Kind -> Widget
 htmlKind kd = do

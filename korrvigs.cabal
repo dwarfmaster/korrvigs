@@ -35,6 +35,8 @@ library korrvigs-lib
     Korrvigs.Actions.Remove
     Korrvigs.Actions.Sync
     Korrvigs.AllEntries
+    Korrvigs.Calendar
+    Korrvigs.Calendar.SQL
     Korrvigs.Cli
     Korrvigs.Cli.Compute
     Korrvigs.Cli.Config

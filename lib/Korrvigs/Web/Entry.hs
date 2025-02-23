@@ -57,6 +57,7 @@ titleWidget entry contentId = do
       LinkD _ -> pure Nothing
       FileD _ -> pure Nothing
       EventD _ -> pure Nothing
+      CalendarD _ -> pure Nothing
       NoteD _ -> Just <$> Note.editButton (entry ^. name) 0 Nothing contentId (SubLoc [])
 
 -- TODO make link to day viewer
@@ -207,6 +208,7 @@ contentWidget entry = case entry ^. kindData of
   NoteD note -> Note.content note
   FileD file -> File.content file
   EventD event -> Event.content event
+  CalendarD cal -> undefined
 
 newFormWidget :: [Text] -> Entry -> Handler Widget
 newFormWidget errMsgs entry = do

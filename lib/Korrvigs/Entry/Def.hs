@@ -58,11 +58,20 @@ data Event = MkEvent
   }
   deriving (Show)
 
+data Calendar = MkCalendar
+  { _calEntry :: Entry,
+    _calServer :: Text,
+    _calUser :: Text,
+    _calName :: Text
+  }
+  deriving (Show)
+
 data KindData
   = LinkD Link
   | NoteD Note
   | FileD File
   | EventD Event
+  | CalendarD Calendar
   deriving (Show)
 
 kindDataKind :: KindData -> Kind
@@ -70,6 +79,7 @@ kindDataKind (LinkD _) = Link
 kindDataKind (NoteD _) = Note
 kindDataKind (FileD _) = File
 kindDataKind (EventD _) = Event
+kindDataKind (CalendarD _) = Calendar
 
 data Entry = MkEntry
   { _name :: Id,
@@ -80,6 +90,7 @@ data Entry = MkEntry
   }
   deriving (Show)
 
+makeLenses ''Calendar
 makeLenses ''Event
 makeLenses ''Note
 makeLenses ''Link

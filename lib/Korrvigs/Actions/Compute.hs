@@ -1,6 +1,7 @@
 module Korrvigs.Actions.Compute where
 
 import Control.Lens
+import Korrvigs.Calendar ()
 import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Event ()
@@ -16,3 +17,4 @@ listCompute entry = case entry ^. kindData of
   FileD file -> dListCompute $ dIdentify file
   NoteD note -> dListCompute $ dIdentify note
   EventD event -> dListCompute $ dIdentify event
+  CalendarD cal -> dListCompute $ dIdentify cal

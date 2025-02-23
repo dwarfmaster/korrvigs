@@ -19,6 +19,7 @@ dispatchRemove entry = do
     LinkD link -> dRemove (dIdentify link)
     FileD file -> dRemove (dIdentify file)
     EventD event -> dRemove (dIdentify event)
+    CalendarD cal -> dRemove (dIdentify cal)
 
 remove :: (MonadKorrvigs m) => Id -> m ()
 remove i = do
@@ -51,6 +52,7 @@ dispatchRemoveDB entry =
     Link -> genRemoveDB i $ dRemoveDB (Nothing :: Maybe Link) i
     File -> genRemoveDB i $ dRemoveDB (Nothing :: Maybe File) i
     Event -> genRemoveDB i $ dRemoveDB (Nothing :: Maybe Event) i
+    Calendar -> genRemoveDB i $ dRemoveDB (Nothing :: Maybe Calendar) i
   where
     i = entry ^. name
 

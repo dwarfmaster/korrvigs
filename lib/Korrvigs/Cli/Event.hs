@@ -3,7 +3,6 @@ module Korrvigs.Cli.Event where
 import Conduit
 import Control.Lens hiding (argument)
 import Control.Monad
-import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
@@ -17,7 +16,6 @@ import Korrvigs.Event.VDirSyncer
 import Korrvigs.Monad
 import Korrvigs.Utils.DateParser (dayParser)
 import Options.Applicative
-import System.FilePath
 import System.IO hiding (putStrLn, utf8)
 import Prelude hiding (putStrLn)
 
@@ -115,10 +113,7 @@ run (Pull calId) = do
       liftIO $ putStr "Password: "
       liftIO $ hFlush stdout
       pwd <- liftIO $ T.pack <$> withEcho False getLine
-      changes <- DAV.checkChanges cal pwd Nothing M.empty
-      rt <- root
-      let worktreeRoot = joinPath [rt, "../../korrvigs-temp/calsync/korrvigs/events"]
-      DAV.doPull cal pwd worktreeRoot changes
+      DAV.pull cal pwd
     _ -> throwM $ KMiscError $ "\"" <> calId <> "\" is not the ID of a calendar"
 
 -- Caldav

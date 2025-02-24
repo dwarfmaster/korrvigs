@@ -5,7 +5,6 @@ import Control.Lens hiding ((.=))
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
-import Data.Aeson.Text (encodeToTextBuilder)
 import Data.Aeson.Types
 import qualified Data.ByteString.Lazy as LBS
 import Data.Char
@@ -13,12 +12,11 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.Lazy.Builder as Bld
-import qualified Data.Text.Lazy.Encoding as LEnc
 import qualified Korrvigs.Compute.Builtin as Builtin
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Utils.Git.Annex
+import Korrvigs.Utils.JSON (writeJsonToFile)
 import System.Directory
 import System.FilePath
 
@@ -146,8 +144,10 @@ loadComputations i file = do
         }
 
 entryStoredComputations :: (MonadKorrvigs m) => Id -> m EntryComps
-entryStoredComputations i = do
-  file <- compsFile i
+entryStoredComputations i = entryStoredComputations' i =<< compsFile i
+
+entryStoredComputations' :: (MonadKorrvigs m) => Id -> FilePath -> m EntryComps
+entryStoredComputations' i file = do
   ex <- liftIO $ doesFileExist file
   if not ex
     then pure M.empty
@@ -158,8 +158,10 @@ entryStoredComputations i = do
         Right js -> pure js
 
 getJsonComp :: (MonadKorrvigs m, FromJSON a) => Computation -> m (Maybe a)
-getJsonComp cmp = do
-  file <- compFile cmp
+getJsonComp cmp = getJsonComp' =<< compFile cmp
+
+getJsonComp' :: (MonadKorrvigs m, FromJSON a) => FilePath -> m (Maybe a)
+getJsonComp' file = do
   ex <- liftIO $ doesFileExist file
   if ex
     then do
@@ -172,18 +174,20 @@ getJsonComp cmp = do
     else pure Nothing
 
 storeComputations :: (MonadKorrvigs m) => Id -> EntryComps -> m ()
-storeComputations i cmps = do
-  dir <- compsDir i
+storeComputations i cmps = storeComputations' cmps =<< compsFile i
+
+storeComputations' :: (MonadKorrvigs m) => EntryComps -> FilePath -> m ()
+storeComputations' cmps file = do
+  let dir = takeDirectory file
   liftIO $ createDirectoryIfMissing True dir
-  file <- compsFile i
-  liftIO $ LBS.writeFile file $ LEnc.encodeUtf8 $ Bld.toLazyText $ encodeToTextBuilder $ cmpToJSON <$> cmps
-  where
-    cmpToJSON :: Computation -> ComputationJSON
-    cmpToJSON cmp =
-      CompJSON
-        { _cmpJsAction = cmp ^. cmpAction,
-          _cmpJsType = cmp ^. cmpType
-        }
+  writeJsonToFile file $ cmpToJSON <$> cmps
+
+cmpToJSON :: Computation -> ComputationJSON
+cmpToJSON cmp =
+  CompJSON
+    { _cmpJsAction = cmp ^. cmpAction,
+      _cmpJsType = cmp ^. cmpType
+    }
 
 run :: (MonadKorrvigs m) => Computation -> m ()
 run cmp =

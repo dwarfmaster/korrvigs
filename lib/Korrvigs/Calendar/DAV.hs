@@ -1,4 +1,4 @@
-module Korrvigs.Calendar.DAV where
+module Korrvigs.Calendar.DAV (pull, sync) where
 
 import Conduit (throwM)
 import Control.Lens hiding ((.=))
@@ -6,6 +6,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BSL
+import Data.Char (isSpace)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -20,15 +21,20 @@ import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
 import Korrvigs.Event.Sync (eventsDirectory)
 import qualified Korrvigs.Event.Sync as Ev
-import Korrvigs.Monad
+import Korrvigs.Monad hiding (sync)
+import Korrvigs.Utils (partitionM)
 import qualified Korrvigs.Utils.DAV.Cal as DAV
 import Korrvigs.Utils.DateTree
+import qualified Korrvigs.Utils.Git.Status as St
 import Korrvigs.Utils.JSON (writeJsonToFile)
+import Korrvigs.Utils.Process
 import Network.HTTP.Client.TLS
 import Network.HTTP.Conduit
-import Opaleye
+import Opaleye hiding (null)
 import System.Directory
+import System.Exit
 import System.FilePath
+import System.Process
 
 data CalChanges = CalChanges
   { _calCTag :: Text,
@@ -149,3 +155,43 @@ pull cal pwd = do
   let etags = changes ^. calOnServer <> fmap (view _1) (changes ^. calDiff)
   let ncached = CachedData (Just $ changes ^. calCTag) etags
   writeJsonToFile compPath ncached
+
+syncMsg :: [Text] -> Text
+syncMsg cals = "Pulled calendars " <> T.intercalate ", " cals
+
+sync :: (MonadKorrvigs m) => Bool -> [Calendar] -> Text -> m ()
+sync restore cals pwd = do
+  -- Pull from caldav
+  forM_ cals $ \cal -> pull cal pwd
+
+  -- We save the starting commit
+  rt <- root
+  mainCiRaw <- liftIO $ readCreateProcess ((proc "git" ["rev-parse", "main"]) {cwd = Just rt}) ""
+  let mainCi = reverse $ dropWhile isSpace $ reverse mainCiRaw
+  gitRoot <- liftIO $ readCreateProcess ((proc "git" ["rev-parse", "--show-toplevel"]) {cwd = Just rt}) ""
+
+  -- Commit and merge
+  wkrt <- root >>= reroot
+  gstatus <- liftIO (St.gitStatus wkrt) >>= throwEither (\err -> KMiscError $ "git status failed: " <> err)
+  unless (null gstatus) $ do
+    void $ runSilentK (proc "git" ["add", joinPath [wkrt, "events"]]) {cwd = Just wkrt}
+    void $ runSilentK (proc "git" ["add", joinPath [wkrt, "cache"]]) {cwd = Just wkrt}
+    let msg = syncMsg $ view (calEntry . name . to unId) <$> cals
+    void $ runSilentK (proc "git" ["commit", "-m", T.unpack msg]) {cwd = Just wkrt}
+
+    -- We merge on main if there were changes
+    gmerge <- runSilentK (proc "git" ["merge", "calsync"]) {cwd = Just rt}
+    unless (gmerge == ExitSuccess) $ do
+      when restore $ void $ runSilentK (proc "git" ["merge", "--abort"]) {cwd = Just rt}
+      throwM $ KMiscError "Failed to merge calsync"
+
+  -- TODO We sync the new events
+  -- changedFilesRaw <- liftIO $ readCreateProcess ((proc "git" ["diff", "--name-only", "main", mainCi]) {cwd = Just rt}) ""
+  -- let changedFiles = (\f -> joinPath [gitRoot, f]) <$> lines changedFilesRaw
+  -- (addedFiles, removedFiles) <-
+  --   partitionM (liftIO . doesFileExist) changedFiles
+  -- use syncOneEvent because we only deal with events
+
+  -- We push the events and reset the calsync branch to main
+  -- TODO we push the events
+  void $ runSilentK (proc "git" ["reset", "--hard", "main"]) {cwd = Just wkrt}

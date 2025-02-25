@@ -14,6 +14,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
+import Korrvigs.Calendar
 import Korrvigs.Compute (EntryComps, syncComputations)
 import Korrvigs.Entry
 import Korrvigs.Event
@@ -22,7 +23,7 @@ import Korrvigs.Kind
 import Korrvigs.KindData
 import Korrvigs.Link
 import Korrvigs.Monad
-import Korrvigs.Note hiding (check)
+import Korrvigs.Note hiding (Link, check)
 import Korrvigs.Utils.Cycle
 import Korrvigs.Utils.Time (measureTime, measureTime_)
 import Opaleye hiding (not, null)
@@ -34,15 +35,16 @@ loadIDsFor kd showId = do
   liftIO $ putStrLn $ displayKind (dKind kd) <> ": listed " <> T.pack (show $ S.size st) <> " in " <> tm
   pure . M.fromListWith (<>) . S.toList $ S.map (dGetId &&& singleton . showId) st
 
+loadIDsOn :: (MonadKorrvigs m) => Kind -> m (Map Id [Text])
+loadIDsOn Link = loadIDsFor (Nothing :: Maybe Link) displayLinkId
+loadIDsOn Note = loadIDsFor (Nothing :: Maybe Note) displayNoteId
+loadIDsOn File = loadIDsFor (Nothing :: Maybe File) displayFileId
+loadIDsOn Event = loadIDsFor (Nothing :: Maybe Event) displayEventId
+loadIDsOn Calendar = loadIDsFor (Nothing :: Maybe Calendar) displayCalId
+
 loadIDs :: (MonadKorrvigs m) => m (Map Id [Text])
 loadIDs = do
-  allIDs <-
-    sequence
-      [ loadIDsFor (Nothing :: Maybe Link) displayLinkId,
-        loadIDsFor (Nothing :: Maybe Note) displayNoteId,
-        loadIDsFor (Nothing :: Maybe File) displayFileId,
-        loadIDsFor (Nothing :: Maybe Event) displayEventId
-      ]
+  allIDs <- mapM loadIDsOn [minBound .. maxBound]
   pure $ M.unionsWith (<>) allIDs
 
 sqlIDs :: (MonadKorrvigs m) => m (Map Id [Text])
@@ -64,6 +66,13 @@ runSync kd = do
   liftIO $ putStrLn $ displayKind (dKind kd) <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
   pure r
 
+runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id (RelData, EntryComps))
+runSyncOn Link = runSync (Nothing :: Maybe Link)
+runSyncOn Note = runSync (Nothing :: Maybe Note)
+runSyncOn File = runSync (Nothing :: Maybe File)
+runSyncOn Event = runSync (Nothing :: Maybe Event)
+runSyncOn Calendar = runSync (Nothing :: Maybe Calendar)
+
 sync :: (MonadKorrvigs m) => m ()
 sync = do
   conn <- pgSQL
@@ -75,13 +84,7 @@ sync = do
   let toRemove = view _1 <$> M.toList (M.difference sqls ids)
   rmT <- measureTime_ $ forM_ toRemove remove
   liftIO $ putStrLn $ "Removed " <> T.pack (show $ length toRemove) <> " entries in " <> rmT
-  allrels <-
-    sequence
-      [ runSync (Nothing :: Maybe Link),
-        runSync (Nothing :: Maybe Note),
-        runSync (Nothing :: Maybe File),
-        runSync (Nothing :: Maybe Event)
-      ]
+  allrels <- mapM runSyncOn [minBound .. maxBound]
   let rels = foldl' M.union M.empty allrels
   cmpT <- measureTime_ $ forM_ (M.toList rels) $ \(i, (_, cmps)) -> syncComputations i cmps
   liftIO $ putStrLn $ "Synced " <> T.pack (show $ M.size rels) <> " computations in " <> cmpT

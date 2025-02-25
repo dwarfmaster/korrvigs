@@ -19,7 +19,7 @@ import qualified Korrvigs.Compute.Builtin as Blt
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
-import Korrvigs.Event.Sync (eventsDirectory)
+import Korrvigs.Event.Sync (dSyncOneImpl, eventsDirectory)
 import qualified Korrvigs.Event.Sync as Ev
 import Korrvigs.Monad hiding (sync)
 import Korrvigs.Utils (partitionM)
@@ -58,7 +58,7 @@ setupCDD cal pwd = do
         DAV._calCalendar = cal ^. calName
       }
 
-checkChanges :: (MonadKorrvigs m) => Calendar -> Text -> Maybe Text -> Map Text Text -> m CalChanges
+checkChanges :: (MonadKorrvigs m) => Calendar -> Text -> Maybe Text -> Map Text (Text, FilePath) -> m CalChanges
 checkChanges cal pwd ctag etags = do
   cdd <- setupCDD cal pwd
   nctag <- DAV.getCTag cdd >>= throwEither (\err -> KMiscError $ "Failed to get ctag for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
@@ -66,51 +66,49 @@ checkChanges cal pwd ctag etags = do
     then pure $ CalChanges nctag M.empty M.empty M.empty
     else do
       netags <- DAV.getETags cdd >>= throwEither (\err -> KMiscError $ "Failed to get etags for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
-      localUids :: Map Text FilePath <- fmap M.fromList $ rSelect $ do
-        ev <- selectTable eventsTable
-        where_ $ ev ^. sqlEventCalendar .== sqlId (cal ^. calEntry . name)
-        pure (ev ^. sqlEventUID, ev ^. sqlEventFile)
-      let onServer = M.differenceWith (const $ const Nothing) netags localUids
-      let local = M.differenceWith (const $ const Nothing) localUids netags
-      let candidates = M.differenceWith (\oldtag ntag -> if ntag /= oldtag then Just ntag else Nothing) netags etags
-      let update = M.intersectionWith (,) candidates localUids
+      let onServer = M.difference netags etags
+      let local = view _2 <$> M.difference etags netags
+      let candidates = M.differenceWith (\oldtag (ntag, _) -> if ntag /= oldtag then Just ntag else Nothing) netags etags
+      let update = M.intersectionWith (const id) candidates etags
       pure $ CalChanges nctag onServer update local
 
-downloadAndWrite :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> Map Text (Maybe FilePath) -> m [FilePath]
+downloadAndWrite :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> Map Text (Maybe FilePath) -> m (Map Text FilePath)
 downloadAndWrite cal pwd rt toinsert = do
   cdd <- setupCDD cal pwd
   let insertUids = M.keys toinsert
   dat <- DAV.getCalData cdd insertUids >>= throwEither (\err -> KMiscError $ "Failed to download content for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
-  forM (M.elems dat) $ \ics -> do
+  forM dat $ \ics -> do
     ical <- liftIO (parseICal Nothing $ LEnc.encodeUtf8 $ LT.fromStrict ics) >>= throwEither (\err -> KMiscError $ "Failed to parse received ics: " <> err)
     (i, nical, ievent, _) <- Ev.register ical
     let pth = join $ M.lookup (ievent ^. iceUid) toinsert
     case pth of
       Just icspath -> do
-        liftIO $ BSL.writeFile icspath $ renderICalFile nical
+        liftIO $ BSL.writeFile (rt </> icspath) $ renderICalFile nical
         pure icspath
       Nothing -> do
         let basename = unId i <> "_" <> unId (cal ^. calEntry . name) <> ".ics"
         let start = resolveICalTime ical <$> ievent ^. iceStart
         let day = localDay . zonedTimeToLocalTime <$> start
-        storeFile rt Ev.eventTreeType day basename $ renderICalFile nical
+        stored <- storeFile rt Ev.eventTreeType day basename $ renderICalFile nical
+        pure $ makeRelative rt stored
 
-doPull :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> CalChanges -> m ()
+doPull :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> CalChanges -> m (Map Text FilePath)
 doPull cal pwd rt changes = do
   let onServer = M.fromList $ (,Nothing) <$> M.keys (changes ^. calOnServer)
   evRt <- Ev.eventsDirectory
   let prepPath = joinPath . (\f -> [rt, f]) . makeRelative evRt
   let diff = M.map (Just . prepPath . view _2) $ changes ^. calDiff
   let toinsert = M.union onServer diff
-  void $ downloadAndWrite cal pwd rt toinsert
+  inserted <- downloadAndWrite cal pwd rt toinsert
   forM_ (changes ^. calLocal) $ \evpath -> do
     let rerooted = prepPath evpath
     exists <- liftIO $ doesFileExist rerooted
     when exists $ liftIO $ removeFile rerooted
+  pure inserted
 
 data CachedData = CachedData
   { _cachedCtag :: Maybe Text,
-    _cachedEtags :: Map Text Text
+    _cachedEtags :: Map Text (Text, FilePath)
   }
 
 makeLenses ''CachedData
@@ -146,14 +144,15 @@ pull cal pwd = do
   changes <- checkChanges cal pwd (cdata ^. cachedCtag) (cdata ^. cachedEtags)
   events <- eventsDirectory
   worktreeRoot <- reroot events
-  doPull cal pwd worktreeRoot changes
+  insertedPaths <- doPull cal pwd worktreeRoot changes
   -- Cache tags
   let cmp = Computation i "dav" (Builtin Blt.CalDav) Json
   let ncomps = M.insert "dav" cmp comps
   storeComputations' ncomps file
   compPath <- compFile cmp >>= reroot
   let etags = changes ^. calOnServer <> fmap (view _1) (changes ^. calDiff)
-  let ncached = CachedData (Just $ changes ^. calCTag) etags
+  let etagsWithPath = M.intersectionWith (,) etags insertedPaths
+  let ncached = CachedData (Just $ changes ^. calCTag) etagsWithPath
   writeJsonToFile compPath ncached
 
 syncMsg :: [Text] -> Text
@@ -185,12 +184,21 @@ sync restore cals pwd = do
       when restore $ void $ runSilentK (proc "git" ["merge", "--abort"]) {cwd = Just rt}
       throwM $ KMiscError "Failed to merge calsync"
 
-  -- TODO We sync the new events
-  -- changedFilesRaw <- liftIO $ readCreateProcess ((proc "git" ["diff", "--name-only", "main", mainCi]) {cwd = Just rt}) ""
-  -- let changedFiles = (\f -> joinPath [gitRoot, f]) <$> lines changedFilesRaw
-  -- (addedFiles, removedFiles) <-
-  --   partitionM (liftIO . doesFileExist) changedFiles
-  -- use syncOneEvent because we only deal with events
+  -- We sync only the changed or added files, and remove from the database the
+  -- removed files
+  changedFilesRaw <- liftIO $ readCreateProcess ((proc "git" ["diff", "--name-only", "main", mainCi]) {cwd = Just rt}) ""
+  let changedFiles = (\f -> joinPath [gitRoot, f]) <$> lines changedFilesRaw
+  evDir <- eventsDirectory
+  let eventsFiles = filter (isRelative . makeRelative evDir) changedFiles
+  (addedFiles, removedFiles) <-
+    partitionM (liftIO . doesFileExist) eventsFiles
+  forM_ removedFiles $ \rmPath -> do
+    rmId <- rSelectOne $ do
+      erow <- selectTable eventsTable
+      where_ $ erow ^. sqlEventFile .== sqlString rmPath
+      pure $ erow ^. sqlEventName
+    forM_ rmId remove
+  forM_ addedFiles dSyncOneImpl
 
   -- We push the events and reset the calsync branch to main
   -- TODO we push the events

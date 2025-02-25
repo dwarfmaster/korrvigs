@@ -24,24 +24,9 @@ import Korrvigs.Link
 import Korrvigs.Monad
 import Korrvigs.Note hiding (check)
 import Korrvigs.Utils.Cycle
+import Korrvigs.Utils.Time (measureTime, measureTime_)
 import Opaleye hiding (not, null)
-import System.Clock
 import Prelude hiding (putStrLn)
-
-measureTime :: (MonadIO m) => m a -> m (Text, a)
-measureTime act = do
-  tm1 <- liftIO $ getTime ProcessCPUTime
-  r <- act
-  tm2 <- liftIO $ getTime ProcessCPUTime
-  pure (printTime $ tm2 - tm1, r)
-  where
-    printTime :: TimeSpec -> Text
-    printTime (TimeSpec s ns) | s /= 0 || ns > 1000000 = T.pack (show $ s * 1000 + ns `div` 1000000) <> "ms"
-    printTime (TimeSpec _ ns) | ns > 1000 = T.pack (show $ ns `div` 1000) <> "μs"
-    printTime (TimeSpec _ ns) = T.pack (show ns) <> "ns"
-
-measureTime_ :: (MonadIO m) => m a -> m Text
-measureTime_ = fmap fst . measureTime
 
 loadIDsFor :: forall a m f. (IsKD a, MonadKorrvigs m) => f a -> (KDIdentifier a -> Text) -> m (Map Id [Text])
 loadIDsFor kd showId = do

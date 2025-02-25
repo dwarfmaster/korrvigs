@@ -3,18 +3,21 @@ module Korrvigs.Cli.Event where
 import Conduit
 import Control.Lens hiding (argument)
 import Control.Monad
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import qualified Korrvigs.Calendar.DAV as DAV
 import qualified Korrvigs.Calendar.New as NC
+import Korrvigs.Calendar.SQL
 import Korrvigs.Cli.Monad
 import Korrvigs.Cli.New
 import Korrvigs.Entry
 import Korrvigs.Event.New
-import Korrvigs.Event.VDirSyncer
 import Korrvigs.Monad
 import Korrvigs.Utils.DateParser (dayParser)
+import Korrvigs.Utils.Time (measureTime_)
+import Opaleye (selectTable)
 import Options.Applicative
 import System.IO hiding (putStrLn, utf8)
 import Prelude hiding (putStrLn)
@@ -23,7 +26,7 @@ data Cmd
   = Sync
   | New NewEvent
   | NewCal NC.NewCalendar
-  | Pull Text
+  | Pull
 
 makeLenses ''Cmd
 
@@ -79,7 +82,7 @@ parser' =
       <> command
         "pull"
         ( info
-            (Pull <$> argument str (metavar "CALENDAR"))
+            (pure Pull)
             ( progDesc "Pull from caldav server"
                 <> header "korr event pull -- Pull events"
             )
@@ -92,29 +95,40 @@ parser =
       <> progDesc "Deal with event entries in Korrvigs"
       <> header "korr event -- interface for events"
 
+listCalendars :: KorrM [Calendar]
+listCalendars = do
+  calIds <- rSelect $ view sqlCalName <$> selectTable calendarsTable
+  calEntries <- mapM load calIds
+  let toCal entry = case entry ^. kindData of
+        CalendarD cal -> Just cal
+        _ -> Nothing
+  pure $ mapMaybe (>>= toCal) calEntries
+
+getPwd :: KorrM Text
+getPwd = do
+  liftIO $ putStr "Password: "
+  liftIO $ hFlush stdout
+  pwd <- liftIO $ T.pack <$> withEcho False getLine
+  liftIO $ putStrLn ""
+  pure pwd
+
 run :: Cmd -> KorrM ()
-run Sync =
-  vdirSync >>= \case
-    VDirtyRepo -> liftIO $ putStrLn "Cannot sync, there are uncommited changed to the repo"
-    VDirNothingToDo -> liftIO $ putStrLn "Already up to date"
-    VDirMergeFailed -> liftIO $ putStrLn "Merge failed"
-    VDirMerged -> liftIO $ putStrLn "Successfully synced"
-    VDirError err -> liftIO $ putStrLn $ "Unexpected error: " <> err
+run Sync = do
+  cals <- listCalendars
+  pwd <- getPwd
+  DAV.sync False cals pwd
 run (New nevent) = do
   i <- new nevent
   liftIO $ putStrLn $ unId i
 run (NewCal ncal) = do
   i <- NC.new ncal
   liftIO $ putStrLn $ unId i
-run (Pull calId) = do
-  calE <- load (MkId calId) >>= throwMaybe (KMiscError $ "Couldn't find calendar \"" <> calId <> "\"")
-  case calE ^. kindData of
-    CalendarD cal -> do
-      liftIO $ putStr "Password: "
-      liftIO $ hFlush stdout
-      pwd <- liftIO $ T.pack <$> withEcho False getLine
-      DAV.pull cal pwd
-    _ -> throwM $ KMiscError $ "\"" <> calId <> "\" is not the ID of a calendar"
+run Pull = do
+  cals <- listCalendars
+  pwd <- getPwd
+  forM_ cals $ \cal -> do
+    txt <- measureTime_ $ DAV.pull cal pwd
+    liftIO $ putStrLn $ "Pulled from calendar " <> unId (cal ^. calEntry . name) <> " in " <> txt
 
 -- Caldav
 withEcho :: Bool -> IO a -> IO a

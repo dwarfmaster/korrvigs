@@ -41,6 +41,7 @@ data CalChanges = CalChanges
   { _calCTag :: Text,
     _calOnServer :: Map Text Text, -- ics only on server
     _calDiff :: Map Text (Text, FilePath), -- ics on both that have changed
+    _calSame :: Map Text (Text, FilePath), -- ics on both that are the same
     _calLocal :: Map Text FilePath -- ics only present locally
   }
   deriving (Eq, Show)
@@ -64,14 +65,15 @@ checkChanges cal pwd ctag etags = do
   cdd <- setupCDD cal pwd
   nctag <- DAV.getCTag cdd >>= throwEither (\err -> KMiscError $ "Failed to get ctag for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
   if ctag == Just nctag
-    then pure $ CalChanges nctag M.empty M.empty M.empty
+    then pure $ CalChanges nctag M.empty M.empty etags M.empty
     else do
       netags <- DAV.getETags cdd >>= throwEither (\err -> KMiscError $ "Failed to get etags for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
       let onServer = M.difference netags etags
       let local = view _2 <$> M.difference etags netags
       let candidates = M.differenceWith (\oldtag (ntag, _) -> if ntag /= oldtag then Just ntag else Nothing) netags etags
       let update = M.intersectionWith (const id) candidates etags
-      pure $ CalChanges nctag onServer update local
+      let same = M.map snd $ M.filter (\(netg, (etg, _)) -> netg == etg) $ M.intersectionWith (,) netags etags
+      pure $ CalChanges nctag onServer update same local
 
 downloadAndWrite :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> Map Text (Maybe FilePath) -> m (Map Text FilePath)
 downloadAndWrite cal pwd rt toinsert = do
@@ -152,14 +154,17 @@ pull cal pwd = do
   storeComputations' ncomps file
   compPath <- compFile cmp >>= reroot
   let etags = changes ^. calOnServer <> fmap (view _1) (changes ^. calDiff)
-  let etagsWithPath = M.intersectionWith (,) etags insertedPaths
+  let etagsWithPath = M.union (changes ^. calSame) $ M.intersectionWith (,) etags insertedPaths
   let ncached = CachedData (Just $ changes ^. calCTag) etagsWithPath
   writeJsonToFile compPath ncached
 
 syncMsg :: [Text] -> Text
 syncMsg cals = "Pulled calendars " <> T.intercalate ", " cals
 
-push :: (MonadKorrvigs m) => Calendar -> Text -> [FilePath] -> [FilePath] -> m ()
+pushMsg :: [Text] -> Text
+pushMsg cals = "Pushed calendars " <> T.intercalate ", " cals
+
+push :: (MonadKorrvigs m) => Calendar -> Text -> [FilePath] -> [FilePath] -> m FilePath
 push cal pwd add rm = do
   let i = cal ^. calEntry . name
   -- Extract cached etags
@@ -197,6 +202,7 @@ push cal pwd add rm = do
   let cmp = Computation i "dav" (Builtin Blt.CalDav) Json
   compPath <- compFile cmp
   writeJsonToFile compPath ncData
+  pure compPath
 
 sync :: (MonadKorrvigs m) => Bool -> [Calendar] -> Text -> m ()
 sync restore cals pwd = do
@@ -242,19 +248,23 @@ sync restore cals pwd = do
     forM_ addedFiles dSyncOneImpl
 
   -- We push the events and reset the calsync branch to main
-  do
+  comps <- do
     toPushRaw <- liftIO $ readCreateProcess ((proc "git" ["diff", "--name-only", "main", "calsync", "--", evDir]) {cwd = Just rt}) ""
     let toPush = (gitRoot </>) <$> lines toPushRaw
     (addedFiles, removedFiles) <-
       partitionM (liftIO . doesFileExist) toPush
-    forM_ cals $ \cal -> do
+    forM cals $ \cal -> do
       let isCalEv pth = Ev.eventIdFromPath pth ^. _2 == cal ^. calEntry . name
       let calFilesAdd = filter isCalEv addedFiles
       let calFilesRm = filter isCalEv removedFiles
       push cal pwd calFilesAdd calFilesRm
 
   -- We commit the changed computation data, if any
-  -- TODO
+  void $ runSilentK (proc "git" $ "add" : comps) {cwd = Just rt}
+  hasStaged <- runSilentK (proc "git" ["diff", "--cached", "--quiet"]) {cwd = Just rt}
+  unless (hasStaged == ExitSuccess) $ do
+    let msg = pushMsg $ view (calEntry . name . to unId) <$> cals
+    void $ runSilentK (proc "git" ["commit", "-m", T.unpack msg]) {cwd = Just rt}
 
   -- We reset the calsync branch to the main branch
   void $ runSilentK (proc "git" ["reset", "--hard", "main"]) {cwd = Just wkrt}

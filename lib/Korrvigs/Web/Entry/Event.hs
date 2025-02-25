@@ -1,9 +1,11 @@
 module Korrvigs.Web.Entry.Event (content, embed) where
 
+import Conduit (throwM)
 import Control.Lens
 import Data.Time.Format
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
+import Korrvigs.Monad
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
 import Yesod hiding (joinPath)
@@ -22,7 +24,9 @@ embed _ event = do
             #{err}
       |]
     Right ical -> case ical ^. icEvent of
-      Nothing -> undefined
+      Nothing ->
+        let i = event ^. eventEntry . name
+         in throwM $ KMiscError $ "Event entry " <> unId i <> " is not an event"
       Just ievent -> do
         let cal = event ^. eventCalendar
         let location = ievent ^. iceLocation

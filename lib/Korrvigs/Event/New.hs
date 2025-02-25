@@ -113,7 +113,8 @@ new opts = do
           & icEvent . _Just . iceUid .~ uid
           & icEvent . _Just . iceId ?~ i
   let filename = unId i <> "_" <> unId (opts ^. nevCalendar) <> ".ics"
-  path <- storeFile rt eventTreeType undefined filename $ renderICalFile ncal
+  let day = localDay . zonedTimeToLocalTime . resolveICalTime ncal <$> ncal ^? icEvent . _Just . iceStart . _Just
+  path <- storeFile rt eventTreeType day filename $ renderICalFile ncal
   relData <- dSyncOneImpl path
   atomicInsertRelData i relData
   pure i

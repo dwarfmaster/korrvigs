@@ -126,7 +126,7 @@ run act mtdt bks =
             A._docTitle = st ^. stack . bszTitle,
             A._docRefTo = st ^. stack . bszRefTo,
             A._docChecks = st ^. stack . bszChecks,
-            A._docParents = undefined
+            A._docParents = S.empty
           }
    in doc
   where

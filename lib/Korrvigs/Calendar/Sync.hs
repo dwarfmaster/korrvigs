@@ -155,7 +155,7 @@ dLoadImpl i cstr = do
 
 dUpdateMetadataImpl :: (MonadKorrvigs m) => Calendar -> Map Text Value -> [Text] -> m ()
 dUpdateMetadataImpl cal upd rm = do
-  let path = undefined
+  path <- calendarPath cal
   let i = cal ^. calEntry . name
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   let njson = json & cljsMetadata %~ M.union upd . flip (foldr M.delete) rm

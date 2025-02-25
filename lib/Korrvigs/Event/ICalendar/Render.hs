@@ -325,7 +325,6 @@ bldEvent ev = do
   forM_ (ev ^. iceGeometry) $ \case
     GeoPoint (V2 x y) -> bldLine bldGeo "GEO" $ ic (x, y)
     geom -> bldLine bldGeometry "X-KORRVIGS-GEOM" $ ic geom
-  forM_ (ev ^. iceId) $ bldLine bldId "X-KORRVIGS-NAME" . ic
   let parents = ev ^. iceParents
   unless (null parents) $ bldLine bldIds "X-KORRVIGS-PARENTS" $ ic parents
   forM_ (M.toList $ ev ^. iceMtdt) $ \(key, val) ->

@@ -94,19 +94,14 @@ createIdFor ical ievent = do
       & idLanguage ?~ fromMaybe "fr" language
       & idParent .~ listToMaybe parents
 
-register :: (MonadKorrvigs m) => ICalFile -> m (Id, ICalFile, ICalEvent, Bool)
+register :: (MonadKorrvigs m) => ICalFile -> m Id
 register ical =
   case ical ^. icEvent of
     Nothing -> throwM $ KMiscError "ics has no event"
-    Just ievent -> case ievent ^. iceId of
-      Just i -> pure (i, ical, ievent, False)
-      _ -> do
-        let summary = ievent ^. iceSummary
-        let nevent' = ievent & iceMtdt . at (mtdtName Title) ?~ toJSON summary
-        i <- createIdFor ical nevent'
-        let nevent = nevent' & iceId ?~ i
-        let ncal = ical & icEvent ?~ nevent
-        pure (i, ncal, nevent, True)
+    Just ievent -> do
+      let summary = ievent ^. iceSummary
+      let nevent' = ievent & iceMtdt . at (mtdtName Title) ?~ toJSON summary
+      createIdFor ical nevent'
 
 syncEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m ()
 syncEvent i calendar ics ifile ical = do

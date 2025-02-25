@@ -82,17 +82,18 @@ downloadAndWrite cal pwd rt toinsert = do
   dat <- DAV.getCalData cdd insertUids >>= throwEither (\err -> KMiscError $ "Failed to download content for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
   forM dat $ \ics -> do
     ical <- liftIO (parseICal Nothing $ LEnc.encodeUtf8 $ LT.fromStrict ics) >>= throwEither (\err -> KMiscError $ "Failed to parse received ics: " <> err)
-    (i, nical, ievent, _) <- Ev.register ical
+    ievent <- throwMaybe (KMiscError "Received ics has no VEVENT") $ ical ^. icEvent
     let pth = join $ M.lookup (ievent ^. iceUid) toinsert
     case pth of
       Just icspath -> do
-        liftIO $ BSL.writeFile (rt </> icspath) $ renderICalFile nical
+        liftIO $ BSL.writeFile (rt </> icspath) $ renderICalFile ical
         pure icspath
       Nothing -> do
+        i <- Ev.register ical
         let basename = unId i <> "_" <> unId (cal ^. calEntry . name) <> ".ics"
         let start = resolveICalTime ical <$> ievent ^. iceStart
         let day = localDay . zonedTimeToLocalTime <$> start
-        stored <- storeFile rt Ev.eventTreeType day basename $ renderICalFile nical
+        stored <- storeFile rt Ev.eventTreeType day basename $ renderICalFile ical
         pure $ makeRelative rt stored
 
 doPull :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> CalChanges -> m (Map Text FilePath)
@@ -225,7 +226,7 @@ sync restore cals pwd = do
     void $ runSilentK (proc "git" ["commit", "-m", T.unpack msg]) {cwd = Just wkrt}
 
     -- We merge on main if there were changes
-    gmerge <- runSilentK (proc "git" ["merge", "calsync"]) {cwd = Just rt}
+    gmerge <- runSilentK (proc "git" ["merge", "calsync", "-sresolve"]) {cwd = Just rt}
     unless (gmerge == ExitSuccess) $ do
       when restore $ void $ runSilentK (proc "git" ["merge", "--abort"]) {cwd = Just rt}
       throwM $ KMiscError "Failed to merge calsync"

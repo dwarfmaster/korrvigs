@@ -105,7 +105,6 @@ data ICalEvent = ICEvent
     _iceEnd :: Maybe ICalTimeSpec, -- DTEND
     _iceDuration :: Maybe NominalDiffTime, -- DURATION
     _iceTransparent :: Bool, -- TRANSP
-    _iceId :: Maybe Id, -- X-KORRVIGS-NAME
     _iceParents :: [Id], -- X-KORRVIGS-PARENTS
     _iceGeometry :: Maybe Geometry, -- GEO if point or X-KORRVIGS-GEOM
     _iceMtdt :: Map (CI Text) Value, -- X-KORRMTDT-*

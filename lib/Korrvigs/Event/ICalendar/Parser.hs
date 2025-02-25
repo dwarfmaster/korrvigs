@@ -224,7 +224,7 @@ icalTZSpecRecP tzs = do
 
 -- Events
 icalEventP :: (Monad m, Stream s m Word8) => ParsecT s u m ICalEvent
-icalEventP = icalEventRecP $ ICEvent "" [] Nothing Nothing Nothing Nothing Nothing Nothing Nothing False Nothing [] Nothing M.empty def
+icalEventP = icalEventRecP $ ICEvent "" [] Nothing Nothing Nothing Nothing Nothing Nothing Nothing False [] Nothing M.empty def
 
 icalEventRecP :: forall s u m. (Monad m, Stream s m Word8) => ICalEvent -> ParsecT s u m ICalEvent
 icalEventRecP ev = do
@@ -253,7 +253,8 @@ icalEventRecP ev = do
             ("GEO", const . (iceGeometry ?~) <$> (GeoPoint . uncurry V2 <$> geoP)),
             ("X-KORRVIGS-GEOM", const . (iceGeometry ?~) <$> korrGeomP),
             ("X-KORRVIGS-PARENTS", const . (iceParents .~) <$> listOfP (MkId <$> textP)),
-            ("X-KORRVIGS-NAME", const . (iceId ?~) <$> (MkId <$> textP)),
+            -- Kept so that it is removed from leftover ics
+            ("X-KORRVIGS-NAME", textP >> pure (const id)),
             ("LOCATION", const . (iceLocation ?~) <$> textP),
             ("DTSTART", mkTimeSpec (iceStart ?~) <$> dateMTimeP),
             ("DTEND", mkTimeSpec (iceEnd ?~) <$> dateMTimeP),

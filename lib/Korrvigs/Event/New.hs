@@ -78,7 +78,6 @@ new opts = do
                   },
             _iceDuration = Nothing,
             _iceTransparent = not $ opts ^. nevOpaque,
-            _iceId = Nothing,
             _iceParents = opts ^. nevEntry . neParents,
             _iceGeometry = Nothing,
             _iceMtdt =
@@ -108,10 +107,7 @@ new opts = do
           }
   i <- createIdFor ical ievent
   let uid = T.map (\c -> if c == ':' then '-' else c) (unId i) <> "@korrvigs"
-  let ncal =
-        ical
-          & icEvent . _Just . iceUid .~ uid
-          & icEvent . _Just . iceId ?~ i
+  let ncal = ical & icEvent . _Just . iceUid .~ uid
   let filename = unId i <> "_" <> unId (opts ^. nevCalendar) <> ".ics"
   let day = localDay . zonedTimeToLocalTime . resolveICalTime ncal <$> ncal ^? icEvent . _Just . iceStart . _Just
   path <- storeFile rt eventTreeType day filename $ renderICalFile ncal

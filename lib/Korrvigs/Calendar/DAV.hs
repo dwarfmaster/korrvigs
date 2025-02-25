@@ -159,8 +159,8 @@ pull cal pwd = do
 syncMsg :: [Text] -> Text
 syncMsg cals = "Pulled calendars " <> T.intercalate ", " cals
 
-push :: (MonadKorrvigs m) => Calendar -> Text -> [FilePath] -> m ()
-push cal pwd evs = do
+push :: (MonadKorrvigs m) => Calendar -> Text -> [FilePath] -> [FilePath] -> m ()
+push cal pwd add rm = do
   let i = cal ^. calEntry . name
   -- Extract cached etags
   comps <- entryStoredComputations i
@@ -173,7 +173,7 @@ push cal pwd evs = do
         Just js -> pure js
   -- Push each file one by one
   cdd <- setupCDD cal pwd
-  r <- forM evs $ \evPath -> do
+  r <- forM add $ \evPath -> do
     mevUID <- rSelectOne $ do
       ev <- selectTable eventsTable
       where_ $ ev ^. sqlEventFile .== sqlString evPath
@@ -184,6 +184,14 @@ push cal pwd evs = do
     case r of
       Left err -> throwM $ KMiscError $ "Failed to upload event \"" <> T.pack evPath <> "\": " <> T.pack (show err)
       Right netag -> pure (evUID, netag)
+  -- Remove
+  let pathToUID = M.fromList $ (\(uid, (etg, pth)) -> (pth, (etg, uid))) <$> M.toList (cdata ^. cachedEtags)
+  forM_ rm $ \evPath -> case M.lookup evPath pathToUID of
+    Nothing -> pure ()
+    Just (etg, uid) ->
+      DAV.deleteCalData cdd uid etg >>= \case
+        Left err -> throwM $ KMiscError $ "Failed to delete event \"" <> uid <> "\" from calendar \"" <> unId i <> "\": " <> T.pack (show err)
+        Right () -> pure ()
   -- Store new etags
   let ncData = foldr (\(uid, etg) -> cachedEtags . at uid . _Just . _1 .~ etg) cdata r
   let cmp = Computation i "dav" (Builtin Blt.CalDav) Json
@@ -240,10 +248,10 @@ sync restore cals pwd = do
     (addedFiles, removedFiles) <-
       partitionM (liftIO . doesFileExist) toPush
     forM_ cals $ \cal -> do
-      let i = cal ^. calEntry . name
-      let calFiles = filter (\pth -> Ev.eventIdFromPath pth ^. _2 == i) addedFiles
-      push cal pwd calFiles
-  -- TODO we push the events
+      let isCalEv pth = Ev.eventIdFromPath pth ^. _2 == cal ^. calEntry . name
+      let calFilesAdd = filter isCalEv addedFiles
+      let calFilesRm = filter isCalEv removedFiles
+      push cal pwd calFilesAdd calFilesRm
 
   -- We commit the changed computation data, if any
   -- TODO

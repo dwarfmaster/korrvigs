@@ -9,6 +9,7 @@ module Korrvigs.Utils.DAV.Cal
     getETags,
     getCalData,
     putCalData,
+    deleteCalData,
   )
 where
 
@@ -115,3 +116,8 @@ putCalData cdd i etag content =
         Right etags -> case M.lookup i etags of
           Nothing -> Left $ DavError 207 "Couldn't find new ETag"
           Just etg -> Right etg
+
+-- Delete an entry
+deleteCalData :: (MonadIO m) => CalDavData -> Text -> Text -> m (Either DavError ())
+deleteCalData cdd i etag =
+  let url = makeCalURL cdd $ Just i in liftIO $ delete (toDavData cdd) url etag

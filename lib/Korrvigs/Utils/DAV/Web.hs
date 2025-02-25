@@ -8,6 +8,7 @@ module Korrvigs.Utils.DAV.Web
     propfind,
     report,
     put,
+    delete,
     PropStat (..),
     statStatus,
     statProps,
@@ -245,5 +246,26 @@ put dav server etag dat = do
     resp <- http reqWithBody man
     let scode = statusCode (responseStatus resp)
     if scode == 200 || scode == 207
+      then pure $ Right ()
+      else pure $ Left $ DavError scode $ "Failed with status code " <> T.pack (show scode)
+
+delete :: (MonadIO m, MonadThrow m) => DavData -> Text -> Text -> m (Either DavError ())
+delete dav server etag = do
+  initReq <- parseRequest $ T.unpack server
+  let user = dav ^. davUser
+  let pwd = dav ^. davPwd
+  let req =
+        applyBasicAuth (Enc.encodeUtf8 user) (Enc.encodeUtf8 pwd) $
+          initReq
+            { method = "DELETE"
+            }
+  let hdContent = [("Content-type", "text/calendar; charset=utf-8")]
+  let matchETag = [("If-Match", Enc.encodeUtf8 etag)]
+  let reqWithHds = req {requestHeaders = hdContent ++ matchETag ++ requestHeaders req}
+  let man = dav ^. davManager
+  liftIO $ runResourceT $ do
+    resp <- http reqWithHds man
+    let scode = statusCode (responseStatus resp)
+    if scode == 200 || scode == 202 || scode == 204
       then pure $ Right ()
       else pure $ Left $ DavError scode $ "Failed with status code " <> T.pack (show scode)

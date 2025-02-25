@@ -128,7 +128,7 @@ reroot :: (MonadKorrvigs m) => FilePath -> m FilePath
 reroot pth = do
   rt <- root
   let rel = makeRelative rt pth
-  pure $ joinPath [rt, "../../korrvigs-temp/calsync", rel]
+  pure $ joinPath [rt, "../../korrvigs-temp/calsync/korrvigs", rel]
 
 pull :: (MonadKorrvigs m) => Calendar -> Text -> m ()
 pull cal pwd = do

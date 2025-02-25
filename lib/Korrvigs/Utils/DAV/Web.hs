@@ -221,7 +221,7 @@ report dav server query properties filtr depth =
     propXml =
       [NodeElement $ Element (propToName prop) M.empty [] | prop <- properties]
 
-put :: (MonadIO m, MonadThrow m) => DavData -> Text -> Text -> LBS.ByteString -> m (Either DavError ())
+put :: (MonadIO m, MonadThrow m) => DavData -> Text -> Maybe Text -> LBS.ByteString -> m (Either DavError ())
 put dav server etag dat = do
   initReq <- parseRequest $ T.unpack server
   let user = dav ^. davUser
@@ -232,7 +232,9 @@ put dav server etag dat = do
             { method = "PUT"
             }
   let hdContent = [("Content-type", "text/calendar; charset=utf-8")]
-  let matchETag = [("If-Match", Enc.encodeUtf8 etag)]
+  let matchETag = case etag of
+        Just e -> [("If-Match", Enc.encodeUtf8 e)]
+        Nothing -> []
   let reqWithBody =
         req
           { requestBody = RequestBodyLBS dat,

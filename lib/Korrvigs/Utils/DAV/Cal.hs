@@ -105,7 +105,7 @@ getCalData cdd ids = do
     Right mps -> pure $ Right $ foldr M.union M.empty mps
 
 -- Returns the new ETag after upload
-putCalData :: (MonadIO m) => CalDavData -> Text -> Text -> LBS.ByteString -> m (Either DavError Text)
+putCalData :: (MonadIO m) => CalDavData -> Text -> Maybe Text -> LBS.ByteString -> m (Either DavError Text)
 putCalData cdd i etag content =
   liftIO (put (toDavData cdd) (makeCalURL cdd $ Just i) etag content) >>= \case
     Left err -> pure $ Left err

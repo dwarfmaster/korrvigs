@@ -1,4 +1,4 @@
-module Korrvigs.Calendar.DAV (pull, sync) where
+module Korrvigs.Calendar.DAV (pull, push, sync) where
 
 import Conduit (throwM)
 import Control.Lens hiding ((.=))
@@ -6,6 +6,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy as LBS
 import Data.Char (isSpace)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -158,6 +159,37 @@ pull cal pwd = do
 syncMsg :: [Text] -> Text
 syncMsg cals = "Pulled calendars " <> T.intercalate ", " cals
 
+push :: (MonadKorrvigs m) => Calendar -> Text -> [FilePath] -> m ()
+push cal pwd evs = do
+  let i = cal ^. calEntry . name
+  -- Extract cached etags
+  comps <- entryStoredComputations i
+  cdata <- case M.lookup "dav" comps of
+    Nothing -> throwM $ KMiscError "No dav computation for calendar"
+    Just cached | cached ^. cmpAction /= Builtin Blt.CalDav -> throwM $ KMiscError "dav computation of calendar is already used"
+    Just cached ->
+      compFile cached >>= reroot >>= getJsonComp' >>= \case
+        Nothing -> throwM $ KMiscError "Failed to load cached tags for calendar DAV"
+        Just js -> pure js
+  -- Push each file one by one
+  cdd <- setupCDD cal pwd
+  r <- forM evs $ \evPath -> do
+    mevUID <- rSelectOne $ do
+      ev <- selectTable eventsTable
+      where_ $ ev ^. sqlEventFile .== sqlString evPath
+      pure $ ev ^. sqlEventUID
+    evUID <- throwMaybe (KMiscError $ "Event \"" <> T.pack evPath <> "\" is not in database") mevUID
+    let etag = view _1 <$> M.lookup evUID (cdata ^. cachedEtags)
+    r <- DAV.putCalData cdd evUID etag =<< liftIO (LBS.readFile evPath)
+    case r of
+      Left err -> throwM $ KMiscError $ "Failed to upload event \"" <> T.pack evPath <> "\": " <> T.pack (show err)
+      Right netag -> pure (evUID, netag)
+  -- Store new etags
+  let ncData = foldr (\(uid, etg) -> cachedEtags . at uid . _Just . _1 .~ etg) cdata r
+  let cmp = Computation i "dav" (Builtin Blt.CalDav) Json
+  compPath <- compFile cmp
+  writeJsonToFile compPath ncData
+
 sync :: (MonadKorrvigs m) => Bool -> [Calendar] -> Text -> m ()
 sync restore cals pwd = do
   -- Pull from caldav
@@ -186,20 +218,35 @@ sync restore cals pwd = do
 
   -- We sync only the changed or added files, and remove from the database the
   -- removed files
-  changedFilesRaw <- liftIO $ readCreateProcess ((proc "git" ["diff", "--name-only", "main", mainCi]) {cwd = Just rt}) ""
-  let changedFiles = (\f -> joinPath [gitRoot, f]) <$> lines changedFilesRaw
   evDir <- eventsDirectory
-  let eventsFiles = filter (isRelative . makeRelative evDir) changedFiles
-  (addedFiles, removedFiles) <-
-    partitionM (liftIO . doesFileExist) eventsFiles
-  forM_ removedFiles $ \rmPath -> do
-    rmId <- rSelectOne $ do
-      erow <- selectTable eventsTable
-      where_ $ erow ^. sqlEventFile .== sqlString rmPath
-      pure $ erow ^. sqlEventName
-    forM_ rmId remove
-  forM_ addedFiles dSyncOneImpl
+  do
+    changedFilesRaw <- liftIO $ readCreateProcess ((proc "git" ["diff", "--name-only", "main", mainCi]) {cwd = Just rt}) ""
+    let changedFiles = (gitRoot </>) <$> lines changedFilesRaw
+    let eventsFiles = filter (isRelative . makeRelative evDir) changedFiles
+    (addedFiles, removedFiles) <-
+      partitionM (liftIO . doesFileExist) eventsFiles
+    forM_ removedFiles $ \rmPath -> do
+      rmId <- rSelectOne $ do
+        erow <- selectTable eventsTable
+        where_ $ erow ^. sqlEventFile .== sqlString rmPath
+        pure $ erow ^. sqlEventName
+      forM_ rmId remove
+    forM_ addedFiles dSyncOneImpl
 
   -- We push the events and reset the calsync branch to main
+  do
+    toPushRaw <- liftIO $ readCreateProcess ((proc "git" ["diff", "--name-only", "main", "calsync", "--", evDir]) {cwd = Just rt}) ""
+    let toPush = (gitRoot </>) <$> lines toPushRaw
+    (addedFiles, removedFiles) <-
+      partitionM (liftIO . doesFileExist) toPush
+    forM_ cals $ \cal -> do
+      let i = cal ^. calEntry . name
+      let calFiles = filter (\pth -> Ev.eventIdFromPath pth ^. _2 == i) addedFiles
+      push cal pwd calFiles
   -- TODO we push the events
+
+  -- We commit the changed computation data, if any
+  -- TODO
+
+  -- We reset the calsync branch to the main branch
   void $ runSilentK (proc "git" ["reset", "--hard", "main"]) {cwd = Just wkrt}

@@ -8,6 +8,7 @@ import qualified Data.CaseInsensitive as CI
 import Data.Default
 import qualified Data.Map as M
 import Data.Maybe
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
@@ -105,7 +106,7 @@ new opts = do
                   },
             _icEvent = Just ievent
           }
-  i <- createIdFor ical ievent
+  i <- createIdFor ical ievent S.empty
   let uid = T.map (\c -> if c == ':' then '-' else c) (unId i) <> "@korrvigs"
   let ncal = ical & icEvent . _Just . iceUid .~ uid
   let filename = unId i <> "_" <> unId (opts ^. nevCalendar) <> ".ics"

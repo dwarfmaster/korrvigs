@@ -4,12 +4,15 @@ import Conduit (throwM)
 import Control.Lens hiding ((.=))
 import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.State.Lazy
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy as LBS
 import Data.Char (isSpace)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Set (Set)
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
@@ -75,35 +78,46 @@ checkChanges cal pwd ctag etags = do
       let same = M.map snd $ M.filter (\(netg, (etg, _)) -> netg == etg) $ M.intersectionWith (,) netags etags
       pure $ CalChanges nctag onServer update same local
 
-downloadAndWrite :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> Map Text (Maybe FilePath) -> m (Map Text FilePath)
-downloadAndWrite cal pwd rt toinsert = do
+downloadAndWrite ::
+  (MonadKorrvigs m) =>
+  Calendar ->
+  Text ->
+  FilePath ->
+  Map Text (Maybe FilePath) ->
+  Set Id ->
+  m (Map Text FilePath, Set Id)
+downloadAndWrite cal pwd rt toinsert forbidden = do
   cdd <- setupCDD cal pwd
   let insertUids = M.keys toinsert
   dat <- DAV.getCalData cdd insertUids >>= throwEither (\err -> KMiscError $ "Failed to download content for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
-  forM dat $ \ics -> do
-    ical <- liftIO (parseICal Nothing $ LEnc.encodeUtf8 $ LT.fromStrict ics) >>= throwEither (\err -> KMiscError $ "Failed to parse received ics: " <> err)
-    ievent <- throwMaybe (KMiscError "Received ics has no VEVENT") $ ical ^. icEvent
+  flip runStateT forbidden $ forM dat $ \ics -> do
+    ical <- lift $ liftIO (parseICal Nothing $ LEnc.encodeUtf8 $ LT.fromStrict ics) >>= throwEither (\err -> KMiscError $ "Failed to parse received ics: " <> err)
+    ievent <- lift $ throwMaybe (KMiscError "Received ics has no VEVENT") $ ical ^. icEvent
     let pth = join $ M.lookup (ievent ^. iceUid) toinsert
     case pth of
       Just icspath -> do
         liftIO $ BSL.writeFile (rt </> icspath) $ renderICalFile ical
+        let (i, _) = Ev.eventIdFromPath icspath
+        modify $ S.insert i
         pure icspath
       Nothing -> do
-        i <- Ev.register ical
+        forbid <- get
+        i <- lift $ Ev.register ical forbid
+        put $ S.insert i forbid
         let basename = unId i <> "_" <> unId (cal ^. calEntry . name) <> ".ics"
         let start = resolveICalTime ical <$> ievent ^. iceStart
         let day = localDay . zonedTimeToLocalTime <$> start
-        stored <- storeFile rt Ev.eventTreeType day basename $ renderICalFile ical
+        stored <- lift $ storeFile rt Ev.eventTreeType day basename $ renderICalFile ical
         pure $ makeRelative rt stored
 
-doPull :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> CalChanges -> m (Map Text FilePath)
-doPull cal pwd rt changes = do
+doPull :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> CalChanges -> Set Id -> m (Map Text FilePath, Set Id)
+doPull cal pwd rt changes forbidden = do
   let onServer = M.fromList $ (,Nothing) <$> M.keys (changes ^. calOnServer)
   evRt <- Ev.eventsDirectory
   let prepPath = joinPath . (\f -> [rt, f]) . makeRelative evRt
   let diff = M.map (Just . prepPath . view _2) $ changes ^. calDiff
   let toinsert = M.union onServer diff
-  inserted <- downloadAndWrite cal pwd rt toinsert
+  inserted <- downloadAndWrite cal pwd rt toinsert forbidden
   forM_ (changes ^. calLocal) $ \evpath -> do
     let rerooted = prepPath evpath
     exists <- liftIO $ doesFileExist rerooted
@@ -131,8 +145,8 @@ reroot pth = do
   let rel = makeRelative rt pth
   pure $ joinPath [rt, "../../korrvigs-temp/calsync/korrvigs", rel]
 
-pull :: (MonadKorrvigs m) => Calendar -> Text -> m ()
-pull cal pwd = do
+pull :: (MonadKorrvigs m) => Calendar -> Text -> Set Id -> m (Set Id)
+pull cal pwd forbidden = do
   let i = cal ^. calEntry . name
   -- Extract cached tags
   file <- compsFile i >>= reroot
@@ -148,7 +162,7 @@ pull cal pwd = do
   changes <- checkChanges cal pwd (cdata ^. cachedCtag) (cdata ^. cachedEtags)
   events <- eventsDirectory
   worktreeRoot <- reroot events
-  insertedPaths <- doPull cal pwd worktreeRoot changes
+  (insertedPaths, nforbidden) <- doPull cal pwd worktreeRoot changes forbidden
   -- Cache tags
   let cmp = Computation i "dav" (Builtin Blt.CalDav) Json
   let ncomps = M.insert "dav" cmp comps
@@ -158,6 +172,7 @@ pull cal pwd = do
   let etagsWithPath = M.union (changes ^. calSame) $ M.intersectionWith (,) etags insertedPaths
   let ncached = CachedData (Just $ changes ^. calCTag) etagsWithPath
   writeJsonToFile compPath ncached
+  pure nforbidden
 
 syncMsg :: [Text] -> Text
 syncMsg cals = "Pulled calendars " <> T.intercalate ", " cals
@@ -208,7 +223,7 @@ push cal pwd add rm = do
 sync :: (MonadKorrvigs m) => Bool -> [Calendar] -> Text -> m ()
 sync restore cals pwd = do
   -- Pull from caldav
-  forM_ cals $ \cal -> pull cal pwd
+  foldM_ (\forbidden cal -> pull cal pwd forbidden) S.empty cals
 
   -- We save the starting commit
   rt <- root

@@ -79,29 +79,29 @@ allEvents = do
 dListImpl :: (MonadKorrvigs m) => m (Set FilePath)
 dListImpl = S.fromList <$> allEvents
 
-createIdFor :: (MonadKorrvigs m) => ICalFile -> ICalEvent -> m Id
-createIdFor ical ievent = do
+createIdFor :: (MonadKorrvigs m) => ICalFile -> ICalEvent -> Set Id -> m Id
+createIdFor ical ievent forbidden = do
   let language = extractMtdt Language $ ievent ^. iceMtdt
   let title = extractMtdt Title $ ievent ^. iceMtdt
   let summary = ievent ^. iceSummary
   let startSpec = ievent ^? iceStart . _Just
   let start = resolveICalTime ical <$> startSpec
   let parents = ievent ^. iceParents
-  newId $
+  newId' forbidden $
     imk "ics"
       & idTitle .~ (title <|> summary)
       & idDate .~ start
       & idLanguage ?~ fromMaybe "fr" language
       & idParent .~ listToMaybe parents
 
-register :: (MonadKorrvigs m) => ICalFile -> m Id
-register ical =
+register :: (MonadKorrvigs m) => ICalFile -> Set Id -> m Id
+register ical forbidden =
   case ical ^. icEvent of
     Nothing -> throwM $ KMiscError "ics has no event"
     Just ievent -> do
       let summary = ievent ^. iceSummary
       let nevent' = ievent & iceMtdt . at (mtdtName Title) ?~ toJSON summary
-      createIdFor ical nevent'
+      createIdFor ical nevent' forbidden
 
 syncEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m ()
 syncEvent i calendar ics ifile ical = do

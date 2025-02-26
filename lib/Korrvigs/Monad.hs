@@ -4,9 +4,12 @@ module Korrvigs.Monad where
 
 import Conduit (MonadThrow, throwM)
 import Control.Exception
+import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Profunctor.Product.Default
+import Data.Set (Set)
+import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Typeable (Typeable)
 import Database.PostgreSQL.Simple (Connection, withTransaction)
@@ -67,17 +70,17 @@ addEntry entry =
     pure $ cnt == 1
 
 newId :: (MonadKorrvigs m) => IdMaker -> m Id
-newId =
-  fmap MkId
-    . createId
-      ( \candidate -> do
-          conn <- pgSQL
-          r <- liftIO $ runSelect conn $ limit 1 $ do
-            EntryRow i _ _ _ _ _ <- selectTable entriesTable
-            where_ $ i .== sqlStrictText candidate
-            pure ()
-          pure $ null r
-      )
+newId = newId' S.empty
+
+newId' :: (MonadKorrvigs m) => Set Id -> IdMaker -> m Id
+newId' forbidden idmk = do
+  nid <- flip createId idmk $ \candidate ->
+    if S.member (MkId candidate) forbidden
+      then pure False
+      else fmap null $ rSelectOne $ do
+        e <- selectTable entriesTable
+        where_ $ e ^. sqlEntryName .== sqlStrictText candidate
+  pure $ MkId nid
 
 throwMaybe :: (MonadKorrvigs m) => KorrvigsError -> Maybe a -> m a
 throwMaybe err = maybe (throwM err) pure

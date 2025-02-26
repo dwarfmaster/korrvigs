@@ -4,6 +4,7 @@ import Conduit
 import Control.Lens hiding (argument)
 import Control.Monad
 import Data.Maybe
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
@@ -16,7 +17,7 @@ import Korrvigs.Entry
 import Korrvigs.Event.New
 import Korrvigs.Monad
 import Korrvigs.Utils.DateParser (dayParser)
-import Korrvigs.Utils.Time (measureTime_)
+import Korrvigs.Utils.Time (measureTime)
 import Opaleye (selectTable)
 import Options.Applicative
 import System.IO hiding (putStrLn, utf8)
@@ -126,9 +127,14 @@ run (NewCal ncal) = do
 run Pull = do
   cals <- listCalendars
   pwd <- getPwd
-  forM_ cals $ \cal -> do
-    txt <- measureTime_ $ DAV.pull cal pwd
-    liftIO $ putStrLn $ "Pulled from calendar " <> unId (cal ^. calEntry . name) <> " in " <> txt
+  foldM_
+    ( \forbidden cal -> do
+        (txt, nforbidden) <- measureTime $ DAV.pull cal pwd forbidden
+        liftIO $ putStrLn $ "Pulled from calendar " <> unId (cal ^. calEntry . name) <> " in " <> txt
+        pure nforbidden
+    )
+    S.empty
+    cals
 
 -- Caldav
 withEcho :: Bool -> IO a -> IO a

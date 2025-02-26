@@ -224,26 +224,22 @@ compileBlock' (Figure attr caption fig) = do
     <figcaption>^{captionW}
   |]
 compileBlock' (Embed i) =
-  use embedded >>= \isEmbedded ->
-    if isEmbedded
-      then pure lnk
-      else
-        lift (load i) >>= \case
-          Nothing -> pure lnk
-          Just entry -> do
-            lvl <- use currentLevel
-            widget <- lift $ case entry ^. kindData of
-              LinkD link -> Link.embed lvl link
-              FileD file -> File.embed lvl file
-              EventD event -> Event.embed lvl event
-              CalendarD cal -> undefined
-              NoteD note -> embed lvl note
-            pure
-              [whamlet|
-        <div .embedded>
-          ^{lnk}
-          ^{widget}
-      |]
+  lift (load i) >>= \case
+    Nothing -> pure lnk
+    Just entry -> do
+      lvl <- use currentLevel
+      widget <- lift $ case entry ^. kindData of
+        LinkD link -> Link.embed lvl link
+        FileD file -> File.embed lvl file
+        EventD event -> Event.embed lvl event
+        CalendarD cal -> undefined
+        NoteD note -> embed lvl note
+      pure
+        [whamlet|
+  <div .embedded>
+    ^{lnk}
+    ^{widget}
+|]
   where
     lnk =
       [whamlet|

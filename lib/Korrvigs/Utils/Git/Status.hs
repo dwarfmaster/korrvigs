@@ -7,14 +7,18 @@ import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString.Lazy
 import qualified Data.ByteString.Lazy as LBS
+import Data.Char
 import Data.Maybe
-import Data.Text
+import Data.Text hiding (isAscii)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LEnc
+import Data.Word (Word8)
 import Korrvigs.Monad
 import System.IO
 import System.Process
 import Text.Parsec
-import Text.Parsec.Number (decimal)
+import Text.Parsec.Number (decimal, numberValue)
 
 data Short
   = Unchanged
@@ -169,4 +173,17 @@ movedP = do
   FileMoved indexStatus treeStatus headObj treeObj score source <$> pathP
 
 pathP :: Parser FilePath
-pathP = many1 $ noneOf "\n\t\r\0"
+pathP =
+  between (char '"') (char '"') (dec <$> pathUtf8P)
+    <|> many1 (noneOf "\n\t\r\0")
+  where
+    dec :: ByteString -> FilePath
+    dec = LT.unpack . LEnc.decodeUtf8
+
+pathUtf8P :: Parser ByteString
+pathUtf8P = LBS.pack <$> many ((char '\\' >> parseCharCode) <|> asciiChar)
+  where
+    asciiChar :: Parser Word8
+    asciiChar = fromInteger . toInteger . ord <$> satisfy (\c -> c /= '"' && isAscii c)
+    parseCharCode :: Parser Word8
+    parseCharCode = numberValue 8 <$> replicateM 3 digit

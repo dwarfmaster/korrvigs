@@ -1,7 +1,10 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Korrvigs.Utils.Git.Status where
 
+import Control.DeepSeq (NFData, deepseq)
 import Control.Lens hiding (noneOf)
 import Control.Monad
 import Control.Monad.IO.Class (liftIO)
@@ -14,6 +17,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Word (Word8)
+import GHC.Generics (Generic)
 import Korrvigs.Monad
 import System.IO
 import System.Process
@@ -28,12 +32,12 @@ data Short
   | Deleted
   | Renamed
   | Copied
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, NFData)
 
 data Score
   = CopiedScore Int
   | MovedScore Int
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, NFData)
 
 data FileChanged = FileChanged
   { _changeIndex :: Short,
@@ -42,7 +46,7 @@ data FileChanged = FileChanged
     _changeIndexObject :: Text,
     _changePath :: FilePath
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, NFData)
 
 data FileMoved = FileMoved
   { _moveIndex :: Short,
@@ -53,14 +57,14 @@ data FileMoved = FileMoved
     _moveSource :: FilePath,
     _moveTarget :: FilePath
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, NFData)
 
 data FileStatus
   = StatusChanged FileChanged
   | StatusMoved FileMoved
   | StatusUnknown FilePath
   | StatusIgnored FilePath
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, NFData)
 
 makeLenses ''FileChanged
 makeLenses ''FileMoved
@@ -79,7 +83,7 @@ gitStatus repo = do
   let r = case runParser allStatusP () "git status" contents of
         Left err -> Left $ T.pack $ show err
         Right v -> Right v
-  seq r $ void $ waitForProcess prc
+  deepseq r $ void $ waitForProcess prc
   hClose devNull
   pure r
 

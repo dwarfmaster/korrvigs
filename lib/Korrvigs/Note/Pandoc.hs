@@ -185,9 +185,12 @@ parseBlock (Para inls) = pure . A.Para <$> parseInlines inls
 parseBlock (LineBlock lns) = pure . A.LineBlock <$> mapM parseInlines lns
 parseBlock (CodeBlock attr txt) = pure . pure $ A.CodeBlock (parseAttr attr) txt
 parseBlock (RawBlock (Format fmt) i)
-  | CI.mk fmt == "Embed" = do
+  | CI.mk fmt == "embed" = do
       refTo $ MkId i
       pure . pure . A.Embed . MkId $ i
+  | CI.mk fmt == "embedhd" = do
+      refTo $ MkId i
+      pure . pure . A.EmbedHeader . MkId $ i
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks
 parseBlock (OrderedList _ bks) =

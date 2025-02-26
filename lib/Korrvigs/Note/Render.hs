@@ -175,6 +175,10 @@ renderBlock (Embed (MkId i)) = do
   writeText "```{=embed}" >> flush >> newline
   writeText i >> flush >> newline
   writeText "```"
+renderBlock (EmbedHeader (MkId i)) = do
+  writeText "```{=embedhd}" >> flush >> newline
+  writeText i >> flush >> newline
+  writeText "```"
 renderBlock (Sub header) = do
   writeText $ mconcat $ replicate (header ^. hdLevel) "#"
   writeText " "

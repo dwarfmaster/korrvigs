@@ -51,6 +51,7 @@ data Block
   | DefinitionList [([Inline], [[Block]])]
   | Figure Attr [Block] [Block] -- The first block set is the caption
   | Embed Id -- Embed a document
+  | EmbedHeader Id -- Embed a document as a sub header
   | Sub Header
   | Table Table
   deriving (Show, Eq)

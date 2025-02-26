@@ -11,6 +11,7 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
+import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note hiding (code)
 import qualified Korrvigs.Web.Ace as Ace
@@ -223,30 +224,23 @@ compileBlock' (Figure attr caption fig) = do
     ^{figW}
     <figcaption>^{captionW}
   |]
-compileBlock' (Embed i) =
-  lift (load i) >>= \case
-    Nothing -> pure lnk
-    Just entry -> do
-      lvl <- use currentLevel
-      widget <- lift $ case entry ^. kindData of
-        LinkD link -> Link.embed lvl link
-        FileD file -> File.embed lvl file
-        EventD event -> Event.embed lvl event
-        CalendarD cal -> undefined
-        NoteD note -> embed lvl note
-      pure
-        [whamlet|
+compileBlock' (Embed i) = do
+  let lnk = embedLnk i
+  lvl <- use currentLevel
+  widget <- lift $ embedBody i lvl
+  pure
+    [whamlet|
   <div .embedded>
     ^{lnk}
     ^{widget}
 |]
-  where
-    lnk =
-      [whamlet|
-    <a href=@{EntryR $ WId i}>
-      <code>
-        @#{unId i}
-  |]
+compileBlock' (EmbedHeader i) = do
+  let lnk = embedLnk i
+  lvl <- use currentLevel
+  widget <- lift $ embedBody i $ lvl + 1
+  titleText <- lift $ rSelectMtdt Title $ sqlId i
+  title <- lift $ compileHeader (lvl + 1) [whamlet|#{fromMaybe "" titleText} ^{lnk}|]
+  pure $ Wdgs.mkSection (lvl + 1) [] [] title widget
 compileBlock' (Sub hd) = do
   -- Compute level shift
   rtLvl <- use hdRootLevel
@@ -289,6 +283,26 @@ compileBlock' (Table tbl) = do
       ^{captionW}
   |]
 
+embedLnk :: Id -> Widget
+embedLnk i =
+  [whamlet|
+  <a href=@{EntryR $ WId i}>
+    <code>
+      @#{unId i}
+|]
+
+embedBody :: Id -> Int -> Handler Widget
+embedBody i lvl =
+  load i >>= \case
+    Nothing -> pure mempty
+    Just entry -> do
+      case entry ^. kindData of
+        LinkD link -> Link.embed lvl link
+        FileD file -> File.embed lvl file
+        EventD event -> Event.embed lvl event
+        CalendarD cal -> undefined
+        NoteD note -> embed lvl note
+
 compileAttrWithClasses :: [Text] -> Attr -> [(Text, Text)]
 compileAttrWithClasses cls attr =
   [("id", attr ^. attrId) | not (T.null $ attr ^. attrId)]
@@ -299,27 +313,25 @@ compileAttr :: Attr -> [(Text, Text)]
 compileAttr = compileAttrWithClasses []
 
 compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Checks -> SubLoc -> Handler Widget
-compileHead entry 0 hdId t edit checks subL = do
-  btm <- editButton entry 0 hdId edit subL
-  pure [whamlet|<h1> ^{Wdgs.headerSymbol "●"} #{t} ^{checksDisplay checks} ^{btm}|]
-compileHead entry 1 hdId t edit checks subL = do
-  btm <- editButton entry 1 hdId edit subL
-  pure [whamlet|<h2> ^{Wdgs.headerSymbol "◉"} #{t} ^{checksDisplay checks} ^{btm}|]
-compileHead entry 2 hdId t edit checks subL = do
-  btm <- editButton entry 2 hdId edit subL
-  pure [whamlet|<h3> ^{Wdgs.headerSymbol "✿"} #{t} ^{checksDisplay checks} ^{btm}|]
-compileHead entry 3 hdId t edit checks subL = do
-  btm <- editButton entry 3 hdId edit subL
-  pure [whamlet|<h4> ^{Wdgs.headerSymbol "✸"} #{t} ^{checksDisplay checks} ^{btm}|]
-compileHead entry 4 hdId t edit checks subL = do
-  btm <- editButton entry 4 hdId edit subL
-  pure [whamlet|<h5> ^{Wdgs.headerSymbol "○"} #{t} ^{checksDisplay checks} ^{btm}|]
-compileHead entry 5 hdId t edit checks subL = do
-  btm <- editButton entry 5 hdId edit subL
-  pure [whamlet|<h6> ^{Wdgs.headerSymbol "◆"} #{t} ^{checksDisplay checks} ^{btm}|]
-compileHead entry _ hdId t edit checks subL = do
-  btm <- editButton entry 5 hdId edit subL
-  pure [whamlet|<h6> ^{Wdgs.headerSymbol "◇"} #{t} ^{checksDisplay checks} ^{btm}|]
+compileHead entry n hdId t edit checks subL = do
+  btm <- editButton entry (min n 5) hdId edit subL
+  compileHeader n [whamlet|#{t} ^{checksDisplay checks} ^{btm}|]
+
+compileHeader :: Int -> Widget -> Handler Widget
+compileHeader 0 tit =
+  pure [whamlet|<h1> ^{Wdgs.headerSymbol "●"} ^{tit}|]
+compileHeader 1 tit =
+  pure [whamlet|<h2> ^{Wdgs.headerSymbol "◉"} ^{tit}|]
+compileHeader 2 tit =
+  pure [whamlet|<h3> ^{Wdgs.headerSymbol "✿"} ^{tit}|]
+compileHeader 3 tit =
+  pure [whamlet|<h4> ^{Wdgs.headerSymbol "✸"} ^{tit}|]
+compileHeader 4 tit =
+  pure [whamlet|<h5> ^{Wdgs.headerSymbol "○"} ^{tit}|]
+compileHeader 5 tit =
+  pure [whamlet|<h6> ^{Wdgs.headerSymbol "◆"} ^{tit}|]
+compileHeader _ tit =
+  pure [whamlet|<h6> ^{Wdgs.headerSymbol "◇"} ^{tit}|]
 
 aceRedirect :: Id -> Maybe Text -> SubLoc -> Handler Text
 aceRedirect i mhdId loc = do

@@ -56,6 +56,23 @@ sqlIDs = do
 
 processRelData :: (MonadKorrvigs m) => Id -> RelData -> m ()
 processRelData i rd = do
+  atomicSQL $ \conn -> do
+    void $
+      liftIO $
+        runDelete conn $
+          Delete
+            { dTable = entriesSubTable,
+              dWhere = \sb -> sb ^. source .== sqlId i,
+              dReturning = rCount
+            }
+    void $
+      liftIO $
+        runDelete conn $
+          Delete
+            { dTable = entriesRefTable,
+              dWhere = \sb -> sb ^. source .== sqlId i,
+              dReturning = rCount
+            }
   let subsOf = (i,) <$> rd ^. relSubOf
   let refsTo = (i,) <$> rd ^. relRefTo
   atomicInsert $ insertSubOf subsOf <> insertRefTo refsTo

@@ -4,6 +4,7 @@
 
 module Korrvigs.Utils.Git.Status where
 
+import Conduit (throwM)
 import Control.DeepSeq (NFData, deepseq)
 import Control.Lens hiding (noneOf)
 import Control.Monad
@@ -19,6 +20,7 @@ import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Word (Word8)
 import GHC.Generics (Generic)
 import Korrvigs.Monad
+import System.Exit
 import System.IO
 import System.Process
 import Text.Parsec
@@ -83,7 +85,8 @@ gitStatus repo = do
   let r = case runParser allStatusP () "git status" contents of
         Left err -> Left $ T.pack $ show err
         Right v -> Right v
-  deepseq r $ void $ waitForProcess prc
+  exStatus <- deepseq r $ waitForProcess prc
+  unless (exStatus == ExitSuccess) $ throwM $ KMiscError $ "git status failed with code " <> T.pack (show exStatus)
   hClose devNull
   pure r
 

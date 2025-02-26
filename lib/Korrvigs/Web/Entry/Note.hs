@@ -16,6 +16,7 @@ import Korrvigs.Monad
 import Korrvigs.Note hiding (code)
 import qualified Korrvigs.Web.Ace as Ace
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Entry.Calendar as Cal
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
@@ -300,7 +301,7 @@ embedBody i lvl =
         LinkD link -> Link.embed lvl link
         FileD file -> File.embed lvl file
         EventD event -> Event.embed lvl event
-        CalendarD cal -> undefined
+        CalendarD cal -> Cal.embed lvl cal
         NoteD note -> embed lvl note
 
 compileAttrWithClasses :: [Text] -> Attr -> [(Text, Text)]

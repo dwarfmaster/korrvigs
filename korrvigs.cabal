@@ -144,6 +144,7 @@ library korrvigs-lib
     Korrvigs.Web.Compute
     Korrvigs.Web.Download
     Korrvigs.Web.Entry
+    Korrvigs.Web.Entry.Calendar
     Korrvigs.Web.Entry.Event
     Korrvigs.Web.Entry.File
     Korrvigs.Web.Entry.Link

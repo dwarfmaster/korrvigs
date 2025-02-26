@@ -13,6 +13,7 @@ import Korrvigs.Note.Loc (SubLoc (SubLoc))
 import Korrvigs.Utils.Base16
 import Korrvigs.Utils.Opaleye (connectedComponentGraph)
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Entry.Calendar as Cal
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
@@ -208,7 +209,7 @@ contentWidget entry = case entry ^. kindData of
   NoteD note -> Note.content note
   FileD file -> File.content file
   EventD event -> Event.content event
-  CalendarD cal -> undefined
+  CalendarD cal -> Cal.content cal
 
 newFormWidget :: [Text] -> Entry -> Handler Widget
 newFormWidget errMsgs entry = do

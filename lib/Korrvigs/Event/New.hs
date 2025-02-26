@@ -1,7 +1,9 @@
 module Korrvigs.Event.New where
 
+import Conduit (throwM)
 import Control.Arrow (first)
 import Control.Lens
+import Control.Monad (unless)
 import Control.Monad.IO.Class
 import Data.Aeson (toJSON)
 import qualified Data.CaseInsensitive as CI
@@ -14,6 +16,7 @@ import qualified Data.Text as T
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
 import Data.Time.Format
 import Data.Time.LocalTime
+import Korrvigs.Calendar.SQL
 import Korrvigs.Entry.Ident
 import Korrvigs.Entry.New
 import Korrvigs.Event.ICalendar
@@ -22,6 +25,7 @@ import Korrvigs.KindData
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils.DateTree
+import Opaleye hiding (not, null)
 
 data NewEvent = NewEvent
   { _nevEntry :: NewEntry,
@@ -38,6 +42,10 @@ makeLenses ''NewEvent
 
 new :: (MonadKorrvigs m) => NewEvent -> m Id
 new opts = do
+  calExists <- fmap (not . null) $ rSelectOne $ do
+    cal <- selectTable calendarsTable
+    where_ $ cal ^. sqlCalName .== sqlId (opts ^. nevCalendar)
+  unless calExists $ throwM $ KMiscError $ "Calendar \"" <> unId (opts ^. nevCalendar) <> "\" does not exists"
   rt <- eventsDirectory
   tz <- liftIO getCurrentTimeZone
   let tzname = if null (timeZoneName tz) then "KorrvigsTZ" else T.pack (timeZoneName tz)

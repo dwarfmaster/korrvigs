@@ -26,7 +26,9 @@ inlineToText (InlineMath txt) = "$" <> fromText txt <> "$"
 inlineToText (Sidenote note) = "[" <> blocksToText note <> "]"
 inlineToText (Check CheckToDo) = "[ ]"
 inlineToText (Check CheckOngoing) = "[-]"
+inlineToText (Check CheckBlocked) = "[*]"
 inlineToText (Check CheckDone) = "[x]"
+inlineToText (Check CheckDont) = "[X]"
 
 inlinesToText :: [Inline] -> Builder
 inlinesToText = mconcat . fmap inlineToText

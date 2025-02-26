@@ -302,7 +302,7 @@ compileAttrWithClasses cls attr =
 compileAttr :: Attr -> [(Text, Text)]
 compileAttr = compileAttrWithClasses []
 
-compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> (Int, Int, Int) -> SubLoc -> Handler Widget
+compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Checks -> SubLoc -> Handler Widget
 compileHead entry 0 hdId t edit checks subL = do
   btm <- editButton entry 0 hdId edit subL
   pure [whamlet|<h1> ^{Wdgs.headerSymbol "●"} #{t} ^{checksDisplay checks} ^{btm}|]
@@ -353,12 +353,12 @@ editButton entry i hdId edit subL = do
         then NoteR (WId entry)
         else NoteSubR (WId entry) $ WLoc $ LocSub subL
 
-checksDisplay :: (Int, Int, Int) -> Widget
-checksDisplay (0, 0, 0) = mempty
-checksDisplay (todo, ongoing, done) =
+checksDisplay :: Checks -> Widget
+checksDisplay (Checks 0 0 0 0 0) = mempty
+checksDisplay (Checks todo ongoing blocked done dont) =
   [whamlet|
     <span .checks-count>
-      <span class=todo-count>#{show todo}</span>/<span class=ongoing-count>#{show ongoing}</span>/<span class=done-count>#{show done}</span>
+      <span class=todo-count>#{show todo}</span>/<span class=ongoing-count>#{show ongoing}</span>/<span class=blocked-count>#{show blocked}</span>/<span class=done-count>#{show done}</span>/<span class=dont-count>#{show dont}</span>
   |]
 
 compileTable :: Int -> Int -> Array (Int, Int) Cell -> CompileM Widget
@@ -433,15 +433,19 @@ compileInline (Check ck) = do
   entry <- use currentEntry
   let todoUrl = render $ checkImg CheckToDo
   let ongoingUrl = render $ checkImg CheckOngoing
+  let blockedUrl = render $ checkImg CheckBlocked
   let doneUrl = render $ checkImg CheckDone
+  let dontUrl = render $ checkImg CheckDont
   let postUrl = render $ NoteSubR (WId entry) $ WLoc $ LocCheck loc
   checkboxCount += 1
   cid <- newIdent
   pure $ do
-    toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{ongoingUrl}, #{doneUrl}, #{cid});|]
+    toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{ongoingUrl}, #{blockedUrl}, #{doneUrl}, #{dontUrl}, #{cid});|]
     [whamlet|<img ##{cid} src=@{checkImg ck} .checkBox>|]
 
 checkImg :: CheckBox -> Route WebData
 checkImg CheckToDo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []
 checkImg CheckOngoing = StaticR $ StaticRoute ["icons", "checkbox-ongoing.svg"] []
+checkImg CheckBlocked = StaticR $ StaticRoute ["icons", "checkbox-blocked.svg"] []
 checkImg CheckDone = StaticR $ StaticRoute ["icons", "checkbox-done.svg"] []
+checkImg CheckDont = StaticR $ StaticRoute ["icons", "checkbox-dont.svg"] []

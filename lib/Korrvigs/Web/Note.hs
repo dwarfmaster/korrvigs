@@ -77,7 +77,9 @@ getNoteSubR (WId i) (WLoc loc) =
               Just cb -> pure $ case cb of
                 CheckToDo -> "todo"
                 CheckOngoing -> "ongoing"
+                CheckBlocked -> "blocked"
                 CheckDone -> "done"
+                CheckDont -> "dont"
       _ -> notFound
 
 postNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text
@@ -104,7 +106,9 @@ postNoteSubR (WId i) (WLoc loc) =
                 cb <- case txt of
                   "todo" -> pure CheckToDo
                   "ongoing" -> pure CheckOngoing
+                  "blocked" -> pure CheckBlocked
                   "done" -> pure CheckDone
+                  "dont" -> pure CheckDont
                   _ -> throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid checkbox state"
                 pure $ setCheck lc doc cb
             let path = note ^. notePath

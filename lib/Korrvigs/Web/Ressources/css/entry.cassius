@@ -212,8 +212,12 @@ mjx-container
   color: var(--base09)
 .ongoing-count
   color: var(--base0E)
+.blocked-count
+  color: var(--base0D)
 .done-count
   color: var(--base0B)
+.dont-count
+  color: var(--base08)
 
 #checkboxcontextmenu
   position: fixed

@@ -10,12 +10,21 @@ import Data.Text (Text)
 import Korrvigs.Entry
 import Network.URI
 
+data Checks = Checks
+  { _ckTodo :: Int,
+    _ckOngoing :: Int,
+    _ckBlocked :: Int,
+    _ckDone :: Int,
+    _ckDont :: Int
+  }
+  deriving (Show, Eq)
+
 data Document = Document
   { _docMtdt :: Map (CI Text) Value,
     _docContent :: [Block],
     _docTitle :: Text,
     _docRefTo :: Set Id,
-    _docChecks :: (Int, Int, Int),
+    _docChecks :: Checks,
     _docParents :: Set Id
   }
   deriving (Show, Eq)
@@ -24,7 +33,7 @@ data Header = Header
   { _hdAttr :: Attr,
     _hdTitle :: Text,
     _hdRefTo :: Set Id,
-    _hdChecks :: (Int, Int, Int),
+    _hdChecks :: Checks,
     _hdLevel :: Int,
     _hdContent :: [Block],
     _hdParent :: Maybe Header,
@@ -49,7 +58,9 @@ data Block
 data CheckBox
   = CheckToDo
   | CheckOngoing
+  | CheckBlocked
   | CheckDone
+  | CheckDont
   deriving (Show, Eq)
 
 data Inline
@@ -99,6 +110,7 @@ data Table = MkTable
   }
   deriving (Eq, Show)
 
+makeLenses ''Checks
 makeLenses ''Document
 makeLenses ''Attr
 makeLenses ''Header

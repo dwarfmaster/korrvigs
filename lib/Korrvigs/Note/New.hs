@@ -44,7 +44,7 @@ new note = do
             _docContent = [],
             _docTitle = note ^. nnTitle,
             _docRefTo = S.empty,
-            _docChecks = (0, 0, 0),
+            _docChecks = Checks 0 0 0 0 0,
             _docParents = S.fromList $ note ^. nnEntry . neParents
           }
   let bs = writeNoteLazy doc

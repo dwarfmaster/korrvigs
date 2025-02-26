@@ -40,7 +40,7 @@ data BlockStackZipper = BSZ
     _bszAttr :: A.Attr,
     _bszTitle :: Text,
     _bszRefTo :: Set Id,
-    _bszChecks :: (Int, Int, Int),
+    _bszChecks :: A.Checks,
     _bszLeft :: [WithParent A.Block],
     _bszParent :: Maybe BlockStackZipper
   }
@@ -63,7 +63,7 @@ pushBlock :: WithParent A.Block -> ParseM ()
 pushBlock blk = stack . bszLeft %= (blk :)
 
 pushHeader :: Int -> A.Attr -> ParseM ()
-pushHeader lvl attr = stack %= BSZ lvl attr "" S.empty (0, 0, 0) [] . Just
+pushHeader lvl attr = stack %= BSZ lvl attr "" S.empty (A.Checks 0 0 0 0 0) [] . Just
 
 headerLvl :: ParseM Int
 headerLvl = use $ stack . bszLevel
@@ -102,9 +102,11 @@ popHeader = do
     Just parent -> do
       stack .= parent
       stack . bszRefTo %= S.union (bsz ^. bszRefTo)
-      stack . bszChecks . _1 %= (bsz ^. bszChecks . _1 +)
-      stack . bszChecks . _2 %= (bsz ^. bszChecks . _2 +)
-      stack . bszChecks . _3 %= (bsz ^. bszChecks . _3 +)
+      stack . bszChecks . A.ckTodo %= (bsz ^. bszChecks . A.ckTodo +)
+      stack . bszChecks . A.ckOngoing %= (bsz ^. bszChecks . A.ckOngoing +)
+      stack . bszChecks . A.ckBlocked %= (bsz ^. bszChecks . A.ckBlocked +)
+      stack . bszChecks . A.ckDone %= (bsz ^. bszChecks . A.ckDone +)
+      stack . bszChecks . A.ckDont %= (bsz ^. bszChecks . A.ckDont +)
       pushBlock $ \doc hd -> A.Sub (bszToHeader bsz doc hd)
       pure True
     Nothing -> pure False
@@ -132,7 +134,7 @@ run act mtdt bks =
   where
     st =
       execState (act >> iterateWhile id popHeader) $
-        ParseState bks (BSZ 0 emptyAttr "" S.empty (0, 0, 0) [] Nothing)
+        ParseState bks (BSZ 0 emptyAttr "" S.empty (A.Checks 0 0 0 0 0) [] Nothing)
 
 readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
 readNote pth = liftIO $ do
@@ -220,13 +222,19 @@ parseBlock _ = pure []
 
 parseInlines :: [Inline] -> ParseM [A.Inline]
 parseInlines (Str "[x]" : xs) = do
-  stack . bszChecks . _3 %= (+ 1)
+  stack . bszChecks . A.ckDone %= (+ 1)
   (A.Check A.CheckDone :) <$> parseInlines xs
 parseInlines (Str "[-]" : xs) = do
-  stack . bszChecks . _2 %= (+ 1)
+  stack . bszChecks . A.ckOngoing %= (+ 1)
   (A.Check A.CheckOngoing :) <$> parseInlines xs
+parseInlines (Str "[*]" : xs) = do
+  stack . bszChecks . A.ckBlocked %= (+ 1)
+  (A.Check A.CheckBlocked :) <$> parseInlines xs
+parseInlines (Str "[X]" : xs) = do
+  stack . bszChecks . A.ckDont %= (+ 1)
+  (A.Check A.CheckDont :) <$> parseInlines xs
 parseInlines (Str "[" : Space : Str "]" : xs) = do
-  stack . bszChecks . _1 %= (+ 1)
+  stack . bszChecks . A.ckTodo %= (+ 1)
   (A.Check A.CheckToDo :) <$> parseInlines xs
 parseInlines (x : xs) = (++) <$> parseInline x <*> parseInlines xs
 parseInlines [] = pure []

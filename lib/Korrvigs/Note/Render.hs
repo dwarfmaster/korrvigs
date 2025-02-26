@@ -237,7 +237,9 @@ renderInline (Sidenote note) = do
   writeText . T.pack $ "[^" <> show num <> "]"
 renderInline (Check CheckToDo) = writeText "[ ]"
 renderInline (Check CheckOngoing) = writeText "[-]"
+renderInline (Check CheckBlocked) = writeText "[*]"
 renderInline (Check CheckDone) = writeText "[x]"
+renderInline (Check CheckDont) = writeText "[X]"
 
 renderAttr :: Attr -> RenderM ()
 renderAttr attr = listOnLine as (writeText "{") (writeText " ") (writeText "}")

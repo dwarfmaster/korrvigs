@@ -43,6 +43,7 @@ class IsKD a where
   -- The first argument are metadata keys to be updated/inserted, and the second one metadata keys
   -- to be removed. It is assumed the removal happen first.
   dUpdateMetadata :: (MonadKorrvigs m) => a -> Map Text Value -> [Text] -> m ()
+  dUpdateParents :: (MonadKorrvigs m) => a -> [Id] -> [Id] -> m ()
 
   -- Query basic information
   dKind :: f a -> Kind

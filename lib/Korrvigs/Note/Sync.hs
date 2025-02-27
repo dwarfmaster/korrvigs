@@ -145,12 +145,23 @@ syncDocument i path doc = do
           }
   pure ()
 
-dUpdateMetadataImpl :: (MonadKorrvigs m) => Note -> Map Text Value -> [Text] -> m ()
-dUpdateMetadataImpl note upd rm = do
+dUpdateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
+dUpdateImpl note f = do
   let path = note ^. notePath
   let i = note ^. noteEntry . name
   doc <- readNote path >>= throwEither (KCantLoad i)
-  let updCi = M.fromList $ first CI.mk <$> M.toList upd
-  let rmCi = CI.mk <$> rm
-  let ndoc = doc & docMtdt %~ M.union updCi . flip (foldr M.delete) rmCi
+  ndoc <- f doc
   liftIO $ writeFile path $ writeNoteLazy ndoc
+
+dUpdateMetadataImpl :: (MonadKorrvigs m) => Note -> Map Text Value -> [Text] -> m ()
+dUpdateMetadataImpl note upd rm = dUpdateImpl note $ pure . ndoc
+  where
+    updCi = M.fromList $ first CI.mk <$> M.toList upd
+    rmCi = CI.mk <$> rm
+    ndoc = docMtdt %~ M.union updCi . flip (foldr M.delete) rmCi
+
+dUpdateParentsImpl :: (MonadKorrvigs m) => Note -> [Id] -> [Id] -> m ()
+dUpdateParentsImpl note toAdd toRm = dUpdateImpl note $ pure . upd
+  where
+    updParents = foldr (.) id $ fmap S.insert toAdd ++ fmap S.delete toRm
+    upd = docParents %~ updParents

@@ -1,4 +1,4 @@
-module Korrvigs.Actions.Metadata (updateMetadata) where
+module Korrvigs.Actions.Metadata (updateMetadata, updateParents) where
 
 import Control.Lens
 import Control.Monad
@@ -44,3 +44,33 @@ updateMetadata entry upd rm = do
   where
     mkRow :: Id -> (Text, Value) -> MetadataRowSQL
     mkRow i (key, val) = MetadataRow (sqlId i) (sqlStrictText key) (sqlValueJSONB val)
+
+updateParents :: (MonadKorrvigs m) => Entry -> [Id] -> [Id] -> m ()
+updateParents entry toAdd toRm = do
+  let i = entry ^. name
+  case entry ^. kindData of
+    LinkD link -> dUpdateParents link toAdd toRm
+    FileD file -> dUpdateParents file toAdd toRm
+    NoteD note -> dUpdateParents note toAdd toRm
+    EventD event -> dUpdateParents event toAdd toRm
+    CalendarD cal -> dUpdateParents cal toAdd toRm
+  let rows = RelRow i <$> toAdd
+  atomicSQL $ \conn -> do
+    unless (null toRm) $
+      void $
+        runDelete conn $
+          Delete
+            { dTable = entriesSubTable,
+              dWhere = \sub -> sub ^. source .== sqlId i .&& sqlElem (sub ^. target) (sqlArray sqlId toRm),
+              dReturning = rCount
+            }
+    unless (null toAdd) $
+      void $
+        runInsert conn $
+          Insert
+            { iTable = entriesSubTable,
+              iRows = toFields <$> rows,
+              iReturning = rCount,
+              iOnConflict = Just doNothing
+            }
+  pure undefined

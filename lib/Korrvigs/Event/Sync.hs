@@ -181,14 +181,18 @@ dSyncImpl = do
     (i,) <$> dSyncOneImpl path
   pure $ M.fromList rdata
 
-dUpdateMetadataImpl :: (MonadKorrvigs m) => Event -> Map Text Value -> [Text] -> m ()
-dUpdateMetadataImpl event upd rm = do
+dUpdateImpl :: (MonadKorrvigs m) => Event -> (ICalFile -> m ICalFile) -> m ()
+dUpdateImpl event f = do
   let path = event ^. eventFile
   ical <-
     liftIO (parseICalFile path)
       >>= throwEither (\err -> KMiscError $ "Failed to read \"" <> T.pack path <> "\" : " <> err)
-  let ncal = ical & icEvent . _Just %~ doMtdt
+  ncal <- f ical
   liftIO $ BSL.writeFile path $ renderICalFile ncal
+
+dUpdateMetadataImpl :: (MonadKorrvigs m) => Event -> Map Text Value -> [Text] -> m ()
+dUpdateMetadataImpl event upd rm =
+  dUpdateImpl event $ pure . (icEvent . _Just %~ doMtdt)
   where
     rmMtdt :: Text -> ICalEvent -> ICalEvent
     rmMtdt "categories" ievent = ievent & iceCategories .~ []
@@ -200,3 +204,9 @@ dUpdateMetadataImpl event upd rm = do
     updMtdt key val ievent = ievent & iceMtdt . at (CI.mk key) ?~ val
     doMtdt :: ICalEvent -> ICalEvent
     doMtdt = foldr (.) id $ (uncurry updMtdt <$> M.toList upd) ++ (rmMtdt <$> rm)
+
+dUpdateParentsImpl :: (MonadKorrvigs m) => Event -> [Id] -> [Id] -> m ()
+dUpdateParentsImpl event toAdd toRm =
+  dUpdateImpl event $ pure . (icEvent . _Just . iceParents %~ updParents)
+  where
+    updParents = (toAdd ++) . filter (not . flip elem toRm)

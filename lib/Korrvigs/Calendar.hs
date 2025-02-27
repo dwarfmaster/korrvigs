@@ -24,6 +24,7 @@ instance IsKD Calendar where
   dSyncOne (CalIdentifier path) = (,M.empty) <$> dSyncOneImpl path
   dRemove (CalIdentifier path) = dRemoveImpl path
   dUpdateMetadata = dUpdateMetadataImpl
+  dUpdateParents = dUpdateParentsImpl
   dKind = const Calendar
   dEntry = view calEntry
   dIdentify = CalIdentifier . calBasename . view (calEntry . name)

@@ -24,6 +24,7 @@ instance IsKD Event where
   dSyncOne (EventIdentifier path) = (,M.empty) <$> dSyncOneImpl path
   dRemove (EventIdentifier path) = dRemoveImpl path
   dUpdateMetadata = dUpdateMetadataImpl
+  dUpdateParents = dUpdateParentsImpl
   dKind = const Event
   dEntry = view eventEntry
   dIdentify ev = EventIdentifier $ ev ^. eventFile

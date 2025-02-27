@@ -22,7 +22,7 @@ import Korrvigs.Link.JSON
 import Korrvigs.Link.SQL
 import Korrvigs.Monad
 import Korrvigs.Utils.DateTree (listFiles)
-import Opaleye
+import Opaleye hiding (not)
 import System.Directory (doesFileExist, removeFile)
 import System.FilePath (takeBaseName)
 import Prelude hiding (readFile, writeFile)
@@ -145,10 +145,22 @@ dLoadImpl i cstr = do
     Just lrow -> do
       pure $ Just $ cstr $ linkFromRow lrow
 
-dUpdateMetadataImpl :: (MonadKorrvigs m) => Link -> Map Text Value -> [Text] -> m ()
-dUpdateMetadataImpl link upd rm = do
+dUpdateImpl :: (MonadKorrvigs m) => Link -> (LinkJSON -> m LinkJSON) -> m ()
+dUpdateImpl link f = do
   let path = link ^. linkPath
   let i = link ^. linkEntry . name
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
-  let njson = json & lkjsMetadata %~ M.union upd . flip (foldr M.delete) rm
+  njson <- f json
   liftIO $ writeFile path $ encode njson
+
+dUpdateMetadataImpl :: (MonadKorrvigs m) => Link -> Map Text Value -> [Text] -> m ()
+dUpdateMetadataImpl link upd rm = dUpdateImpl link $ pure . updMtdt
+  where
+    updMtdt = lkjsMetadata %~ M.union upd . flip (foldr M.delete) rm
+
+dUpdateParentsImpl :: (MonadKorrvigs m) => Link -> [Id] -> [Id] -> m ()
+dUpdateParentsImpl link toAdd toRm = dUpdateImpl link $ pure . updParents
+  where
+    rmTxt = unId <$> toRm
+    addTxt = unId <$> toAdd
+    updParents = lkjsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)

@@ -232,10 +232,20 @@ dSyncOneImpl path = do
       cmps
     )
 
-dUpdateMetadataImpl :: (MonadKorrvigs m) => File -> Map Text Value -> [Text] -> m ()
-dUpdateMetadataImpl file upd rm = do
+dUpdateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()
+dUpdateImpl file f = do
   let i = file ^. fileEntry . name
   let meta = file ^. fileMeta
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
-  let njson = json & annoted %~ M.union upd . flip (foldr M.delete) rm
+  njson <- f json
   liftIO $ writeFile meta $ encode njson
+
+dUpdateMetadataImpl :: (MonadKorrvigs m) => File -> Map Text Value -> [Text] -> m ()
+dUpdateMetadataImpl file upd rm = do
+  dUpdateImpl file $ pure . (annoted %~ M.union upd . flip (foldr M.delete) rm)
+
+dUpdateParentsImpl :: (MonadKorrvigs m) => File -> [Id] -> [Id] -> m ()
+dUpdateParentsImpl file toAdd toRm =
+  dUpdateImpl file $ pure . (exParents %~ updParents)
+  where
+    updParents = (toAdd ++) . filter (not . flip elem toRm)

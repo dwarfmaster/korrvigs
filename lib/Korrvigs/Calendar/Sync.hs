@@ -21,7 +21,7 @@ import Korrvigs.FTS
 import Korrvigs.Kind
 import Korrvigs.KindData (RelData (..))
 import Korrvigs.Monad
-import Opaleye
+import Opaleye hiding (not)
 import System.Directory
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
@@ -153,10 +153,21 @@ dLoadImpl i cstr = do
     Nothing -> pure Nothing
     Just crow -> pure $ Just $ cstr $ calFromRow crow
 
-dUpdateMetadataImpl :: (MonadKorrvigs m) => Calendar -> Map Text Value -> [Text] -> m ()
-dUpdateMetadataImpl cal upd rm = do
+dUpdateImpl :: (MonadKorrvigs m) => Calendar -> (CalJSON -> m CalJSON) -> m ()
+dUpdateImpl cal f = do
   path <- calendarPath cal
   let i = cal ^. calEntry . name
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
-  let njson = json & cljsMetadata %~ M.union upd . flip (foldr M.delete) rm
+  njson <- f json
   liftIO $ writeFile path $ encode njson
+
+dUpdateMetadataImpl :: (MonadKorrvigs m) => Calendar -> Map Text Value -> [Text] -> m ()
+dUpdateMetadataImpl cal upd rm =
+  dUpdateImpl cal $ pure . (cljsMetadata %~ M.union upd . flip (foldr M.delete) rm)
+
+dUpdateParentsImpl :: (MonadKorrvigs m) => Calendar -> [Id] -> [Id] -> m ()
+dUpdateParentsImpl cal toAdd toRm = dUpdateImpl cal $ pure . updParents
+  where
+    rmTxt = unId <$> toRm
+    addTxt = unId <$> toAdd
+    updParents = cljsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)

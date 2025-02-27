@@ -128,7 +128,12 @@ in {
     (mkIf cfg.enable {
       home-manager.users.${cfg.user} = {
         xdg.configFile."korrvigs/config.json".text = builtins.toJSON configContent;
-        home.packages = [cfg.package];
+        home.packages = [
+          cfg.package
+          pkgs.exiftool
+          pkgs.poppler_utils
+          pkgs.pandoc
+        ];
       };
     })
 

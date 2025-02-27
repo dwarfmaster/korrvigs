@@ -133,6 +133,8 @@ in {
           pkgs.exiftool
           pkgs.poppler_utils
           pkgs.pandoc
+          pkgs.imagemagick
+          pkgs.ffmpeg
         ];
       };
     })

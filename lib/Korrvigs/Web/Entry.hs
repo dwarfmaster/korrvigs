@@ -100,25 +100,56 @@ refsWidget entry = do
   edgeStyle <- Network.defEdgeStyle
   base <- getBase
   let edges = mkEdge edgeStyle base <$> graph
-  if null entries
-    then pure mempty
-    else do
-      network <- Network.network "network" nodes edges
-      detId <- newIdent
-      pure $ do
-        [whamlet|
-          <details .common-details ##{detId}>
-            <summary>Network
-            ^{network}
-        |]
-        toWidget
-          [julius|
-          document.getElementById(#{detId}).addEventListener("toggle", function(e) {
-            if (e.newState == "open") {
-              network.fit()
-            }
-          })
-        |]
+  network <- if null entries then pure mempty else Network.network "network" nodes edges
+  detId <- newIdent
+  parInputId <- newIdent
+  parConfirmId <- newIdent
+  parRmId <- newIdent
+  pure $ do
+    [whamlet|
+      <details .common-details ##{detId}>
+        <summary>Network
+        ^{network}
+        <table>
+          <tr>
+            <td .mtdt-key>
+              <input ##{parInputId} .mtdt-input type=text>
+            <td .mtdt-button-case>
+              <button ##{parConfirmId} .mtdt-button .mtdt-confirm-button>✎
+            <td .mtdt-button-case>
+              <button ##{parRmId} .mtdt-button .mtdt-rm-button>❌
+    |]
+    let i = entry ^. name
+    toWidget
+      [julius|
+      document.getElementById(#{detId}).addEventListener("toggle", function(e) {
+        if (e.newState == "open") {
+          network.fit()
+        }
+      })
+      document.getElementById(#{parConfirmId}).addEventListener("click", function() {
+        const parInput = document.getElementById(#{parInputId})
+        fetch("@{EntryParentsR $ WId i}", {
+          method: "POST",
+          body: JSON.stringify({ add: [parInput.value], remove: [] }),
+          headers: {
+            "Content-Type": "application/json; charset=utf-8"
+          }
+        })
+        parInput.value = ""
+      })
+      document.getElementById(#{parRmId}).addEventListener("click", function() {
+        const parInput = document.getElementById(#{parInputId})
+        fetch("@{EntryParentsR $ WId i}", {
+          method: "POST",
+          body: JSON.stringify({ add: [], remove: [parInput.value] }),
+          headers: {
+            "Content-Type": "application/json; charset=utf-8"
+          }
+        })
+        parInput.value = ""
+      })
+    |]
   where
     cmp :: EntryRow -> EntryRow -> Ordering
     cmp row1 row2 = compare (row1 ^. sqlEntryName) (row2 ^. sqlEntryName)

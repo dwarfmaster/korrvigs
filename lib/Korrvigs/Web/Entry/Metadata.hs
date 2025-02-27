@@ -22,7 +22,7 @@ widget entry = do
     [whamlet|
   <details .common-details>
     <summary>Metadata
-    <table>
+    <table .metadata-table>
       <tr>
         <th>Key
         <th>Value

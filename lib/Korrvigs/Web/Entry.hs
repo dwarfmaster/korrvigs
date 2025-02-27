@@ -26,7 +26,8 @@ import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
 import qualified Korrvigs.Web.Vis.Network as Network
-import Opaleye hiding (groupBy, null)
+import Opaleye hiding (groupBy, not, null)
+import qualified Opaleye as O
 import Text.Julius (rawJS)
 import Yesod hiding (Field)
 
@@ -93,7 +94,7 @@ geometryWidget entry = case entry ^. geo of
 
 refsWidget :: Entry -> Handler Widget
 refsWidget entry = do
-  graph <- rSelect notesCC
+  graph <- filter (\(e1, e2, b) -> b && e1 ^. sqlEntryName /= e2 ^. sqlEntryName) <$> rSelect notesCC
   let rows = (view _1 <$> graph) ++ (view _2 <$> graph)
   let entries = map head $ groupBy (\r1 r2 -> cmp r1 r2 == EQ) $ sortBy cmp rows
   nodes <- mapM mkNode entries
@@ -119,7 +120,6 @@ refsWidget entry = do
             <td .mtdt-button-case>
               <button ##{parRmId} .mtdt-button .mtdt-rm-button>❌
     |]
-    let i = entry ^. name
     toWidget
       [julius|
       document.getElementById(#{detId}).addEventListener("toggle", function(e) {
@@ -153,19 +153,11 @@ refsWidget entry = do
   where
     cmp :: EntryRow -> EntryRow -> Ordering
     cmp row1 row2 = compare (row1 ^. sqlEntryName) (row2 ^. sqlEntryName)
-    selectBidir :: Bool -> Table a RelRowSQL -> Select (Field SqlText, Field SqlText, Field SqlBool)
-    selectBidir isSub tbl = do
-      sub <- selectTable tbl
-      where_ $
-        (sub ^. source)
-          .== sqlId (entry ^. name)
-          .|| (sub ^. target)
-          .== sqlId (entry ^. name)
-      pure (sub ^. source, sub ^. target, sqlBool isSub)
     relEntries :: Table a RelRowSQL -> Bool -> Select (Field SqlText, Field SqlText, Field SqlBool)
     relEntries tbl isSub = do
       subs <- selectTable tbl
       pure (subs ^. source, subs ^. target, sqlBool isSub)
+    i = entry ^. name
     notesCC :: Select (EntryRowSQL, EntryRowSQL, Field SqlBool)
     notesCC = do
       cc <-
@@ -173,17 +165,31 @@ refsWidget entry = do
           (unionAll (relEntries entriesSubTable True) (relEntries entriesRefTable False))
           (view _1)
           (view _2)
-          ( \eid -> do
-              e <- selectTable entriesTable
-              where_ $ e ^. sqlEntryName .== eid
-              pure $ e ^. sqlEntryKind .== sqlKind Note
+          ( \(eid1, eid2, isSub) -> do
+              e1 <- selectTable entriesTable
+              where_ $ e1 ^. sqlEntryName .== eid1
+              e2 <- selectTable entriesTable
+              where_ $ e2 ^. sqlEntryName .== eid2
+              pure $
+                O.not isSub
+                  .|| eid1
+                  .== sqlId i
+                  .|| O.not (isPair e1 e2 [(Event, Calendar), (File, Event)])
           )
-          (unionAll (selectBidir True entriesSubTable) (selectBidir False entriesRefTable))
+          (pure (sqlId i, sqlId i, sqlBool True))
       e1 <- selectTable entriesTable
       where_ $ (e1 ^. sqlEntryName) .== (cc ^. _1)
       e2 <- selectTable entriesTable
       where_ $ (e2 ^. sqlEntryName) .== (cc ^. _2)
       pure (e1, e2, cc ^. _3)
+    isPair :: EntryRowSQL -> EntryRowSQL -> [(Kind, Kind)] -> Field SqlBool
+    isPair e1 e2 = foldr (\kds b -> b .|| checkPair e1 e2 kds) (sqlBool False)
+    checkPair :: EntryRowSQL -> EntryRowSQL -> (Kind, Kind) -> Field SqlBool
+    checkPair e1 e2 (kd1, kd2) =
+      (e1 ^. sqlEntryKind)
+        .== sqlKind kd1
+        .&& (e2 ^. sqlEntryKind)
+        .== sqlKind kd2
     mkNode :: EntryRow -> Handler (Text, Text, Network.NodeStyle)
     mkNode e = do
       style <- Network.defNodeStyle

@@ -184,6 +184,9 @@ in {
             basicAuthFile = pkgs.writeText "korrvigs-htpasswd" ''
               ${cfg.user}:${nginx.passwordHash}
             '';
+            extraConfig = ''
+              client_max_body_size 0;
+            '';
           };
         };
       };

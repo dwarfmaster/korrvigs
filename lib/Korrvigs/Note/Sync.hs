@@ -93,10 +93,9 @@ dSyncOneImpl path = do
   forM_ prev dispatchRemoveDB
   doc <- readNote path >>= throwEither (KCantLoad i)
   syncDocument i path doc
-  let parents = fromJSON' =<< doc ^. docMtdt . at (CI.mk "parents")
   pure $
     RelData
-      { _relSubOf = maybe [] (fmap MkId) parents,
+      { _relSubOf = S.toList $ doc ^. docParents,
         _relRefTo = S.toList $ doc ^. docRefTo
       }
 

@@ -4,7 +4,7 @@ import Control.Exception (SomeException, try)
 import Control.Lens
 import Control.Monad
 import Control.Monad.RWS
-import Data.Aeson (Value (..))
+import Data.Aeson (Value (..), toJSON)
 import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.KeyMap as KM
 import Data.ByteString.Lazy (hPutStr)
@@ -13,6 +13,8 @@ import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Set (Set)
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -77,7 +79,7 @@ writeHeaderLazy hd = runRenderM 80 $ renderBlock $ Sub hd
 
 render :: Document -> RenderM ()
 render doc = do
-  renderMetadata (doc ^. docTitle) $ doc ^. docMtdt
+  renderMetadata (doc ^. docTitle) (doc ^. docParents) $ doc ^. docMtdt
   withoutBreak flush
   replicateM_ 2 newline
   renderTopLevel True $ doc ^. docContent
@@ -253,10 +255,14 @@ renderAttr attr = listOnLine as (writeText "{") (writeText " ") (writeText "}")
     attributes = [writeText key >> writeText "=\"" >> writeText value >> writeText "\"" | (key, value) <- M.toList (attr ^. attrMtdt)]
     as = i ++ cls ++ attributes
 
-renderMetadata :: Text -> Map (CI Text) Value -> RenderM ()
-renderMetadata title mtdt = withoutBreak $ do
+renderMetadata :: Text -> Set Id -> Map (CI Text) Value -> RenderM ()
+renderMetadata title parents mtdt = withoutBreak $ do
   writeText "---" >> flush >> newline
   writeText "title: " >> surrounded "'" (writeText title) >> flush >> newline
+  unless (S.null parents) $ do
+    writeText "parents: " >> flush
+    withPrefix "  " $ renderToYAML True $ toJSON $ unId <$> S.toList parents
+    flush >> newline
   forM_ (M.toList $ M.delete (mtdtName Title) mtdt) $ \(key, val) -> do
     writeText (CI.foldedCase key) >> writeText ": " >> flush
     withPrefix "  " $ renderToYAML True val

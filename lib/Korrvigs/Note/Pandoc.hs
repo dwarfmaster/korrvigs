@@ -13,6 +13,7 @@ import Data.Array.Base hiding (array)
 import qualified Data.Array.ST as SAr
 import Data.Bitraversable (bimapM)
 import qualified Data.CaseInsensitive as CI
+import Data.Foldable (toList)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -123,15 +124,16 @@ run :: ParseM () -> Map Text Value -> [Block] -> A.Document
 run act mtdt bks =
   let doc =
         A.Document
-          { A._docMtdt = M.fromList $ first CI.mk <$> M.toList mtdt,
+          { A._docMtdt = M.delete (CI.mk "parents") cimtdt,
             A._docContent = reverse $ st ^. stack . bszLeft <&> \bk -> bk doc Nothing,
             A._docTitle = st ^. stack . bszTitle,
             A._docRefTo = st ^. stack . bszRefTo,
             A._docChecks = st ^. stack . bszChecks,
-            A._docParents = S.empty
+            A._docParents = S.fromList $ fmap MkId $ join $ toList $ maybe (Success []) fromJSON $ M.lookup (CI.mk "parents") cimtdt
           }
    in doc
   where
+    cimtdt = M.fromList $ first CI.mk <$> M.toList mtdt
     st =
       execState (act >> iterateWhile id popHeader) $
         ParseState bks (BSZ 0 emptyAttr "" S.empty (A.Checks 0 0 0 0 0) [] Nothing)

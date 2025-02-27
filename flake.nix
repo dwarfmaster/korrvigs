@@ -69,10 +69,7 @@
 
           packages =
             [
-              pkgs.xdot
-              pkgs.broot
-              pkgs.haskellPackages.yesod-bin
-              pkgs.nodejs_20
+              pkgs.haskellPackages.weeder
             ]
             ++ deps;
 

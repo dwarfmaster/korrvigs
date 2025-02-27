@@ -22,10 +22,10 @@ executable korrvigs-cli
   hs-source-dirs:     cli
   default-extensions: NoImplicitPrelude
   build-depends:      korrvigs-lib
-  ghc-options:        -threaded
+  ghc-options:        -threaded -fwrite-ide-info
 
 library korrvigs-lib
-  ghc-options:        -Wall -Werror=incomplete-patterns
+  ghc-options:        -Wall -Werror=incomplete-patterns -fwrite-ide-info
   exposed-modules:
     Korrvigs
     Korrvigs.Actions

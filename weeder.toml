@@ -1,0 +1,2 @@
+roots = ["^Main.main$", "^Korrvigs.Cli.main$"]
+type-class-roots = false

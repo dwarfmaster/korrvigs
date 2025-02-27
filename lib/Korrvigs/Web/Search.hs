@@ -489,7 +489,10 @@ displayResults DisplayTimeline entries = do
                     Timeline._itemTarget = Just $ render $ EntryR $ WId $ entry ^. sqlEntryName
                   }
 displayResults DisplayGallery entries = do
-  items <- forM entries $ PhotoSwipe.miniatureEntry . view (_1 . sqlEntryName)
+  items <- forM entries $ \e ->
+    PhotoSwipe.miniatureEntry
+      (e ^? _1 . sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
+      (e ^. _1 . sqlEntryName)
   gallery <- PhotoSwipe.photoswipe $ catMaybes items
   pure $ do
     PhotoSwipe.photoswipeHeader
@@ -507,6 +510,10 @@ fixOrder q@(Query _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
   Just fts -> q & querySort . _1 .~ ByTSRank fts
   Nothing -> q & querySort .~ def
 fixOrder q = q
+
+displayFixQuery :: ResultDisplay -> Query -> Query
+displayFixQuery DisplayGallery = querySort .~ (ByDate, SortAsc)
+displayFixQuery _ = id
 
 fixMaxResults :: Query -> Query
 fixMaxResults = queryMaxResults %~ maybe (Just 10) Just
@@ -538,7 +545,7 @@ getSearchR = do
         <*> (join <$> iopt maxResultsField "maxresults")
   display <- runInputGet $ fromMaybe DisplayList <$> iopt displayResultsField "display"
   hasMaxResults <- isJust <$> lookupGetParam "maxresults"
-  let q = (if hasMaxResults then id else fixMaxResults) $ fixOrder q'
+  let q = displayFixQuery display $ (if hasMaxResults then id else fixMaxResults) $ fixOrder q'
   r <- rSelect $ do
     entry <- compile q
     title <- selectTextMtdt Title $ entry ^. sqlEntryName

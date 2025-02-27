@@ -5,6 +5,7 @@ import Data.List
 import Data.Maybe
 import Data.Text (Text)
 import Data.Time.Format.ISO8601 (iso8601Show)
+import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
@@ -221,16 +222,16 @@ galleryWidget entry =
     Nothing -> pure mempty
     Just gallery -> do
       let select = if gallery == "recursive" then selectRecSourcesFor else selectSourcesFor
-      childs <- rSelect $ do
+      childs <- rSelect $ orderBy (ascNullsFirst (^. sqlEntryDate)) $ do
         sub <- select entriesSubTable $ entry ^. name
         subEntry <- selectTable entriesTable
         where_ $ sub .== subEntry ^. sqlEntryName
         where_ $ subEntry ^. sqlEntryKind .== sqlKind File
-        pure sub
+        pure subEntry
       if null childs
         then pure mempty
         else do
-          entries <- mapM (PhotoSwipe.miniatureEntry . MkId) childs
+          entries <- mapM mkEntry childs
           photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
           pure
             [whamlet|
@@ -239,6 +240,12 @@ galleryWidget entry =
             <div #common-gallery>
               ^{photoswipe}
         |]
+  where
+    mkEntry :: EntryRow -> Handler (Maybe PhotoSwipe.PhotoswipeEntry)
+    mkEntry e =
+      PhotoSwipe.miniatureEntry
+        (e ^? sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
+        (e ^. sqlEntryName)
 
 contentWidget :: Entry -> Handler Widget
 contentWidget entry = case entry ^. kindData of

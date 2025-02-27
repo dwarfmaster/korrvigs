@@ -2,9 +2,13 @@ module Korrvigs.Web.PhotoSwipe where
 
 import Control.Lens
 import Control.Monad (void)
+import Data.List.NonEmpty (NonEmpty (..), groupBy)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Time.Calendar
+import Data.Time.Format
 import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Monad
@@ -20,13 +24,14 @@ data PhotoswipeEntry = PhotoswipeEntry
     _swpRedirect :: Route WebData,
     _swpCaption :: Widget,
     _swpWidth :: Int,
-    _swpHeight :: Int
+    _swpHeight :: Int,
+    _swpDate :: Maybe Day
   }
 
 makeLenses ''PhotoswipeEntry
 
-miniatureEntry :: (MonadKorrvigs m) => Id -> m (Maybe PhotoswipeEntry)
-miniatureEntry i = do
+miniatureEntry :: (MonadKorrvigs m) => Maybe Day -> Id -> m (Maybe PhotoswipeEntry)
+miniatureEntry day i = do
   comps <- entryStoredComputations i
   szM <- maybe (pure Nothing) getJsonComp $ M.lookup "size" comps
   pure $ do
@@ -41,7 +46,8 @@ miniatureEntry i = do
           _swpRedirect = EntryR (WId i),
           _swpCaption = mempty,
           _swpWidth = width,
-          _swpHeight = height
+          _swpHeight = height,
+          _swpDate = day
         }
 
 photoswipeHeader :: Widget
@@ -85,20 +91,39 @@ photoswipeHeader = do
     }
   |]
 
+groupEntries :: [PhotoswipeEntry] -> [NonEmpty PhotoswipeEntry]
+groupEntries = groupBy (\e1 e2 -> e1 ^. swpDate == e2 ^. swpDate)
+
+displayDate :: Maybe Day -> Text
+displayDate Nothing = "No Date"
+displayDate (Just d) = T.pack $ formatTime defaultTimeLocale "%e %B %0Y - %A" d
+
+displayDateOfGroup :: NonEmpty PhotoswipeEntry -> Text
+displayDateOfGroup (e :| _) = displayDate $ view swpDate e
+
 photoswipe :: [PhotoswipeEntry] -> Handler Widget
 photoswipe items = do
   i <- newIdent
+  let grouped = groupEntries items
   pure $ do
     toWidget [julius|setupPhotoswipeFor(#{i})|]
     toWidget
       [cassius|
       ##{i}
         width: 100%
+        summary
+          width: 100%
+          background-color: var(--base0F)
+          color: var(--base00)
     |]
     [whamlet|
       <div ##{i} .pswp-gallery>
-        $forall item <- items
-          <a href=@{_swpUrl item} data-pswp-width=#{_swpWidth item} data-pswp-height=#{_swpHeight item} data-korrvigs-target=@{_swpRedirect item} target="_blank">
-            <img loading=lazy src=@{_swpMiniature item} alt="">
-            ^{_swpCaption item}
+        $forall group <- grouped
+          <details>
+            <summary>
+              #{displayDateOfGroup group}
+            $forall item <- group 
+              <a href=@{_swpUrl item} data-pswp-width=#{_swpWidth item} data-pswp-height=#{_swpHeight item} data-korrvigs-target=@{_swpRedirect item} target="_blank">
+                <img loading=lazy src=@{_swpMiniature item} alt="">
+                ^{_swpCaption item}
     |]

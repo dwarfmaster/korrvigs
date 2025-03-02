@@ -440,11 +440,11 @@ compileInline (Check ck) = do
   render <- getUrlRender
   loc <- CheckLoc <$> use subLoc <*> use checkboxCount
   entry <- use currentEntry
-  let todoUrl = render $ checkImg CheckToDo
-  let ongoingUrl = render $ checkImg CheckOngoing
-  let blockedUrl = render $ checkImg CheckBlocked
-  let doneUrl = render $ checkImg CheckDone
-  let dontUrl = render $ checkImg CheckDont
+  let todoUrl = render $ checkImg TaskTodo
+  let ongoingUrl = render $ checkImg TaskOngoing
+  let blockedUrl = render $ checkImg TaskBlocked
+  let doneUrl = render $ checkImg TaskDone
+  let dontUrl = render $ checkImg TaskDont
   let postUrl = render $ NoteSubR (WId entry) $ WLoc $ LocCheck loc
   checkboxCount += 1
   cid <- newIdent
@@ -452,9 +452,9 @@ compileInline (Check ck) = do
     toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{ongoingUrl}, #{blockedUrl}, #{doneUrl}, #{dontUrl}, #{cid});|]
     [whamlet|<img ##{cid} src=@{checkImg ck} .checkBox>|]
 
-checkImg :: CheckBox -> Route WebData
-checkImg CheckToDo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []
-checkImg CheckOngoing = StaticR $ StaticRoute ["icons", "checkbox-ongoing.svg"] []
-checkImg CheckBlocked = StaticR $ StaticRoute ["icons", "checkbox-blocked.svg"] []
-checkImg CheckDone = StaticR $ StaticRoute ["icons", "checkbox-done.svg"] []
-checkImg CheckDont = StaticR $ StaticRoute ["icons", "checkbox-dont.svg"] []
+checkImg :: TaskStatus -> Route WebData
+checkImg TaskTodo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []
+checkImg TaskOngoing = StaticR $ StaticRoute ["icons", "checkbox-ongoing.svg"] []
+checkImg TaskBlocked = StaticR $ StaticRoute ["icons", "checkbox-blocked.svg"] []
+checkImg TaskDone = StaticR $ StaticRoute ["icons", "checkbox-done.svg"] []
+checkImg TaskDont = StaticR $ StaticRoute ["icons", "checkbox-dont.svg"] []

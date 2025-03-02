@@ -99,13 +99,13 @@ getCode loc doc = doc ^? code loc
 setCode :: CodeLoc -> Document -> Text -> Document
 setCode loc doc cd = doc & code loc .~ cd
 
-check :: (Applicative f) => CheckLoc -> (CheckBox -> f CheckBox) -> Document -> f Document
+check :: (Applicative f) => CheckLoc -> (TaskStatus -> f TaskStatus) -> Document -> f Document
 check (CheckLoc sb off) = subContents sb . elementOf (each . bkInlines . inlInlines . _Check) off
 
-getCheck :: CheckLoc -> Document -> Maybe CheckBox
+getCheck :: CheckLoc -> Document -> Maybe TaskStatus
 getCheck loc doc = doc ^? check loc
 
-setCheck :: CheckLoc -> Document -> CheckBox -> Document
+setCheck :: CheckLoc -> Document -> TaskStatus -> Document
 setCheck loc doc cb = doc & check loc .~ cb
 
 -- Rendering AST locations

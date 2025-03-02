@@ -184,6 +184,10 @@ renderBlock (EmbedHeader (MkId i)) = do
 renderBlock (Sub header) = do
   writeText $ mconcat $ replicate (header ^. hdLevel) "#"
   writeText " "
+  forM_ (header ^. hdTask) $ \task -> do
+    writeText "["
+    writeText $ task ^. tskStatusName
+    writeText "] "
   writeText $ header ^. hdTitle
   writeText " "
   renderAttr $ header ^. hdAttr
@@ -241,11 +245,11 @@ renderInline (InlineMath mth) = surrounded "$" $ writeText mth
 renderInline (Sidenote note) = do
   num <- registerNote note
   writeText . T.pack $ "[^" <> show num <> "]"
-renderInline (Check CheckToDo) = writeText "[ ]"
-renderInline (Check CheckOngoing) = writeText "[-]"
-renderInline (Check CheckBlocked) = writeText "[*]"
-renderInline (Check CheckDone) = writeText "[x]"
-renderInline (Check CheckDont) = writeText "[X]"
+renderInline (Check TaskTodo) = writeText "[ ]"
+renderInline (Check TaskOngoing) = writeText "[-]"
+renderInline (Check TaskBlocked) = writeText "[*]"
+renderInline (Check TaskDone) = writeText "[x]"
+renderInline (Check TaskDont) = writeText "[X]"
 
 renderAttr :: Attr -> RenderM ()
 renderAttr attr = listOnLine as (writeText "{") (writeText " ") (writeText "}")

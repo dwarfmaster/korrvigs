@@ -23,9 +23,11 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (readFile)
+import Data.Time.Format.ISO8601 (iso8601ParseM)
 import Korrvigs.Entry.Ident
 import qualified Korrvigs.Note.AST as A
 import Korrvigs.Note.Helpers
+import Korrvigs.Utils.JSON (jsonAsText)
 import Korrvigs.Utils.Pandoc
 import Network.URI
 import Text.Pandoc hiding (Reader)
@@ -40,9 +42,11 @@ data BlockStackZipper = BSZ
   { _bszLevel :: Int,
     _bszAttr :: A.Attr,
     _bszTitle :: Text,
+    _bszTask :: Maybe A.Task,
     _bszRefTo :: Set Id,
     _bszChecks :: A.Checks,
     _bszLeft :: [WithParent A.Block],
+    _bszTasks :: [A.Task],
     _bszParent :: Maybe BlockStackZipper
   }
 
@@ -64,7 +68,7 @@ pushBlock :: WithParent A.Block -> ParseM ()
 pushBlock blk = stack . bszLeft %= (blk :)
 
 pushHeader :: Int -> A.Attr -> ParseM ()
-pushHeader lvl attr = stack %= BSZ lvl attr "" S.empty (A.Checks 0 0 0 0 0) [] . Just
+pushHeader lvl attr = stack %= BSZ lvl attr "" Nothing S.empty (A.Checks 0 0 0 0 0) [] [] . Just
 
 headerLvl :: ParseM Int
 headerLvl = use $ stack . bszLevel
@@ -76,6 +80,8 @@ bszToHeader bsz doc parent =
           { A._hdAttr = bsz ^. bszAttr,
             A._hdTitle = bsz ^. bszTitle,
             A._hdRefTo = bsz ^. bszRefTo,
+            A._hdTask = bsz ^. bszTask & _Just . A.tskChecks .~ bsz ^. bszChecks,
+            A._hdTasks = bsz ^. bszTasks,
             A._hdChecks = bsz ^. bszChecks,
             A._hdLevel = bsz ^. bszLevel,
             A._hdContent = reverse $ (bsz ^. bszLeft) <&> \blk -> blk doc (Just hd),
@@ -96,6 +102,22 @@ data BuildingCell = BCell
 
 makeLenses ''BuildingCell
 
+propagateChecks :: BlockStackZipper -> ParseM ()
+propagateChecks bsz = case bsz ^. bszTask of
+  Just task -> do
+    let st = task ^. A.tskStatus
+    when (st == A.TaskTodo) $ stack . bszChecks . A.ckTodo %= (+ 1)
+    when (st == A.TaskOngoing) $ stack . bszChecks . A.ckOngoing %= (+ 1)
+    when (st == A.TaskBlocked) $ stack . bszChecks . A.ckBlocked %= (+ 1)
+    when (st == A.TaskDone) $ stack . bszChecks . A.ckDone %= (+ 1)
+    when (st == A.TaskDont) $ stack . bszChecks . A.ckDont %= (+ 1)
+  Nothing -> do
+    stack . bszChecks . A.ckTodo %= (bsz ^. bszChecks . A.ckTodo +)
+    stack . bszChecks . A.ckOngoing %= (bsz ^. bszChecks . A.ckOngoing +)
+    stack . bszChecks . A.ckBlocked %= (bsz ^. bszChecks . A.ckBlocked +)
+    stack . bszChecks . A.ckDone %= (bsz ^. bszChecks . A.ckDone +)
+    stack . bszChecks . A.ckDont %= (bsz ^. bszChecks . A.ckDont +)
+
 popHeader :: ParseM Bool
 popHeader = do
   bsz <- use stack
@@ -103,11 +125,8 @@ popHeader = do
     Just parent -> do
       stack .= parent
       stack . bszRefTo %= S.union (bsz ^. bszRefTo)
-      stack . bszChecks . A.ckTodo %= (bsz ^. bszChecks . A.ckTodo +)
-      stack . bszChecks . A.ckOngoing %= (bsz ^. bszChecks . A.ckOngoing +)
-      stack . bszChecks . A.ckBlocked %= (bsz ^. bszChecks . A.ckBlocked +)
-      stack . bszChecks . A.ckDone %= (bsz ^. bszChecks . A.ckDone +)
-      stack . bszChecks . A.ckDont %= (bsz ^. bszChecks . A.ckDont +)
+      stack . bszTasks %= (++ (toList (bsz ^. bszTask) ++ bsz ^. bszTasks))
+      propagateChecks bsz
       pushBlock $ \doc hd -> A.Sub (bszToHeader bsz doc hd)
       pure True
     Nothing -> pure False
@@ -128,6 +147,8 @@ run act mtdt bks =
             A._docContent = reverse $ st ^. stack . bszLeft <&> \bk -> bk doc Nothing,
             A._docTitle = st ^. stack . bszTitle,
             A._docRefTo = st ^. stack . bszRefTo,
+            A._docTask = st ^. stack . bszTask & _Just . A.tskChecks .~ (st ^. stack . bszChecks),
+            A._docTasks = st ^. stack . bszTasks,
             A._docChecks = st ^. stack . bszChecks,
             A._docParents = S.fromList $ fmap MkId $ join $ toList $ maybe (Success []) fromJSON $ M.lookup (CI.mk "parents") cimtdt
           }
@@ -136,7 +157,7 @@ run act mtdt bks =
     cimtdt = M.fromList $ first CI.mk <$> M.toList mtdt
     st =
       execState (act >> iterateWhile id popHeader) $
-        ParseState bks (BSZ 0 emptyAttr "" S.empty (A.Checks 0 0 0 0 0) [] Nothing)
+        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty (A.Checks 0 0 0 0 0) [] [] Nothing)
 
 readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
 readNote pth = liftIO $ do
@@ -158,11 +179,17 @@ readNoteFromText reader txt =
         }
 
 parsePandoc :: Pandoc -> A.Document
-parsePandoc (Pandoc mtdt bks) = run act (M.map parseMetaValue $ unMeta mtdt) bks
+parsePandoc (Pandoc mtdt bks) = run act meta bks
   where
+    meta = M.map parseMetaValue $ unMeta mtdt
     act = do
       title <- parseInlines $ docTitle mtdt
-      stack . bszTitle .= renderInlines title
+      let rendered = renderInlines title
+      stack . bszTitle .= rendered
+      forM_ (M.lookup "task" meta >>= jsonAsText) $ \stname -> do
+        let st = matchStatusName stname
+        let tsk = mkTask st stname & A.tskLabel .~ rendered
+        stack . bszTask ?= parseTaskAttrs (flip M.lookup meta >=> jsonAsText) tsk
       whileJust_ getBlock parseTopBlock
 
 parseHeader :: Int -> Pandoc -> Maybe A.Header
@@ -176,8 +203,12 @@ parseTopBlock :: Block -> ParseM ()
 parseTopBlock (Header lvl attr title) = do
   let parsed = parseAttr attr
   startHeader lvl parsed
-  rendered <- renderInlines <$> parseInlines title
+  rendered <- renderInlines <$> parseTitleInlines title
   stack . bszTitle .= rendered
+  isTask <- isJust <$> use (stack . bszTask)
+  when isTask $ do
+    stack . bszTask . _Just . A.tskLabel .= rendered
+    stack . bszTask . _Just %= parseTaskAttrs (flip M.lookup $ parsed ^. A.attrMtdt)
 parseTopBlock bk = mapM_ (pushBlock . noParent) =<< parseBlock bk
 
 -- Parse a block that is not a header
@@ -226,22 +257,56 @@ parseBlock (Figure attr (Caption _ caption) bks) = do
   pure . pure $ A.Figure a capt content
 parseBlock _ = pure []
 
+mkTask :: A.TaskStatus -> Text -> A.Task
+mkTask st stname = A.Task st stname "" (A.Checks 0 0 0 0 0) Nothing Nothing Nothing Nothing
+
+matchStatusName :: Text -> A.TaskStatus
+matchStatusName "todo" = A.TaskTodo
+matchStatusName "started" = A.TaskOngoing
+matchStatusName "waiting" = A.TaskBlocked
+matchStatusName "done" = A.TaskDone
+matchStatusName "stopped" = A.TaskDont
+matchStatusName _ = A.TaskTodo
+
+matchStatus :: Text -> Maybe A.TaskStatus
+matchStatus txt
+  | not (T.null txt) && T.head txt == '[' && T.last txt == ']' =
+      Just $ matchStatusName $ T.init $ T.tail txt
+matchStatus _ = Nothing
+
+parseTitleInlines :: [Inline] -> ParseM [A.Inline]
+parseTitleInlines (Str stname : xs) = case matchStatus stname of
+  Just st -> do
+    stack . bszTask ?= mkTask st (T.init $ T.tail stname)
+    parseTitleInlines xs
+  Nothing -> concatMapM parseInline $ Str stname : xs
+parseTitleInlines xs = concatMapM parseInline xs
+
+parseTaskAttrs :: (Text -> Maybe Text) -> A.Task -> A.Task
+parseTaskAttrs attrs =
+  extractAttr "deadline" A.tskDeadline
+    . extractAttr "scheduled" A.tskScheduled
+    . extractAttr "started" A.tskStarted
+    . extractAttr "finished" A.tskFinished
+  where
+    extractAttr attr setter = setter .~ (attrs attr >>= iso8601ParseM . T.unpack)
+
 parseInlines :: [Inline] -> ParseM [A.Inline]
 parseInlines (Str "[x]" : xs) = do
   stack . bszChecks . A.ckDone %= (+ 1)
-  (A.Check A.CheckDone :) <$> parseInlines xs
+  (A.Check A.TaskDone :) <$> parseInlines xs
 parseInlines (Str "[-]" : xs) = do
   stack . bszChecks . A.ckOngoing %= (+ 1)
-  (A.Check A.CheckOngoing :) <$> parseInlines xs
+  (A.Check A.TaskOngoing :) <$> parseInlines xs
 parseInlines (Str "[*]" : xs) = do
   stack . bszChecks . A.ckBlocked %= (+ 1)
-  (A.Check A.CheckBlocked :) <$> parseInlines xs
+  (A.Check A.TaskBlocked :) <$> parseInlines xs
 parseInlines (Str "[X]" : xs) = do
   stack . bszChecks . A.ckDont %= (+ 1)
-  (A.Check A.CheckDont :) <$> parseInlines xs
+  (A.Check A.TaskDont :) <$> parseInlines xs
 parseInlines (Str "[" : Space : Str "]" : xs) = do
   stack . bszChecks . A.ckTodo %= (+ 1)
-  (A.Check A.CheckToDo :) <$> parseInlines xs
+  (A.Check A.TaskTodo :) <$> parseInlines xs
 parseInlines (x : xs) = (++) <$> parseInline x <*> parseInlines xs
 parseInlines [] = pure []
 

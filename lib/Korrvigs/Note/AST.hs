@@ -7,8 +7,17 @@ import Data.CaseInsensitive (CI)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
+import Data.Time.LocalTime
 import Korrvigs.Entry
 import Network.URI
+
+data TaskStatus
+  = TaskTodo
+  | TaskOngoing
+  | TaskBlocked
+  | TaskDone
+  | TaskDont
+  deriving (Eq, Show, Bounded, Enum, Ord, Ix)
 
 data Checks = Checks
   { _ckTodo :: Int,
@@ -19,27 +28,43 @@ data Checks = Checks
   }
   deriving (Show, Eq)
 
+data Task = Task
+  { _tskStatus :: TaskStatus,
+    _tskStatusName :: Text,
+    _tskLabel :: Text,
+    _tskChecks :: Checks,
+    _tskDeadline :: Maybe ZonedTime,
+    _tskScheduled :: Maybe ZonedTime,
+    _tskStarted :: Maybe ZonedTime,
+    _tskFinished :: Maybe ZonedTime
+  }
+  deriving (Show)
+
 data Document = Document
   { _docMtdt :: Map (CI Text) Value,
     _docContent :: [Block],
     _docTitle :: Text,
     _docRefTo :: Set Id,
+    _docTask :: Maybe Task,
+    _docTasks :: [Task],
     _docChecks :: Checks,
     _docParents :: Set Id
   }
-  deriving (Show, Eq)
+  deriving (Show)
 
 data Header = Header
   { _hdAttr :: Attr,
     _hdTitle :: Text,
     _hdRefTo :: Set Id,
+    _hdTask :: Maybe Task,
+    _hdTasks :: [Task],
     _hdChecks :: Checks,
     _hdLevel :: Int,
     _hdContent :: [Block],
     _hdParent :: Maybe Header,
     _hdDocument :: Document
   }
-  deriving (Show, Eq)
+  deriving (Show)
 
 data Block
   = Para [Inline]
@@ -54,15 +79,7 @@ data Block
   | EmbedHeader Id -- Embed a document as a sub header
   | Sub Header
   | Table Table
-  deriving (Show, Eq)
-
-data CheckBox
-  = CheckToDo
-  | CheckOngoing
-  | CheckBlocked
-  | CheckDone
-  | CheckDont
-  deriving (Show, Eq)
+  deriving (Show)
 
 data Inline
   = Plain Text
@@ -76,8 +93,8 @@ data Inline
   | DisplayMath Text
   | InlineMath Text
   | Sidenote [Block] -- Foot/side-note
-  | Check CheckBox
-  deriving (Show, Eq)
+  | Check TaskStatus
+  deriving (Show)
 
 data Style
   = Emph
@@ -100,7 +117,7 @@ data Cell = Cell
     _cellHeight :: Int,
     _cellData :: [Block]
   }
-  deriving (Eq, Show)
+  deriving (Show)
 
 data Table = MkTable
   { _tableCaption :: [Block],
@@ -109,15 +126,16 @@ data Table = MkTable
     _tableHeader :: Int,
     _tableFooter :: Int
   }
-  deriving (Eq, Show)
+  deriving (Show)
 
+makePrisms ''TaskStatus
 makeLenses ''Checks
+makeLenses ''Task
 makeLenses ''Document
 makeLenses ''Attr
 makeLenses ''Header
 makeLenses ''Cell
 makeLenses ''Table
-makePrisms ''CheckBox
 makePrisms ''Block
 makePrisms ''Inline
 

@@ -24,11 +24,11 @@ inlineToText Break = "\n"
 inlineToText (DisplayMath txt) = "$" <> fromText txt <> "$"
 inlineToText (InlineMath txt) = "$" <> fromText txt <> "$"
 inlineToText (Sidenote note) = "[" <> blocksToText note <> "]"
-inlineToText (Check CheckToDo) = "[ ]"
-inlineToText (Check CheckOngoing) = "[-]"
-inlineToText (Check CheckBlocked) = "[*]"
-inlineToText (Check CheckDone) = "[x]"
-inlineToText (Check CheckDont) = "[X]"
+inlineToText (Check TaskTodo) = "[ ]"
+inlineToText (Check TaskOngoing) = "[-]"
+inlineToText (Check TaskBlocked) = "[*]"
+inlineToText (Check TaskDone) = "[x]"
+inlineToText (Check TaskDont) = "[X]"
 
 inlinesToText :: [Inline] -> Builder
 inlinesToText = mconcat . fmap inlineToText

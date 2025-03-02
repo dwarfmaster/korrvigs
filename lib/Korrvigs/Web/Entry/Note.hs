@@ -270,7 +270,8 @@ compileBlock' (Sub hd) = do
   hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent (hd ^. hdChecks) subL
   openedLoc <- use openedSub
   let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
-  let classes = compileAttrWithClasses collapsedClass $ hd ^. hdAttr
+  let taskClass :: [Text] = ["task-section" | isJust (hd ^. hdTask)]
+  let classes = compileAttrWithClasses (collapsedClass ++ taskClass) $ hd ^. hdAttr
   pure $ Wdgs.mkSection lvl classes [("id", editIdent)] hdW contentW
 compileBlock' (Table tbl) = do
   tableW <- compileTable (tbl ^. tableHeader) (tbl ^. tableFooter) (tbl ^. tableCells)

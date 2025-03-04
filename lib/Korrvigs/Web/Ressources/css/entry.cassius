@@ -1,3 +1,10 @@
+:root
+  --base-todo: var(--base09)
+  --base-ongoing: var(--base0E)
+  --base-blocked: var(--base0D)
+  --base-done: var(--base0B)
+  --base-dont: var(--base08)
+
 .edit-button
   cursor: pointer
   float: right
@@ -209,15 +216,32 @@ mjx-container
   border-radius: 0.15em
   padding: 0.1em
 .todo-count
-  color: var(--base09)
+  color: var(--base-todo)
 .ongoing-count
-  color: var(--base0E)
+  color: var(--base-ongoing)
 .blocked-count
-  color: var(--base0D)
+  color: var(--base-blocked)
 .done-count
-  color: var(--base0B)
+  color: var(--base-done)
 .dont-count
-  color: var(--base08)
+  color: var(--base-dont)
+
+.task-span
+  border-radius:0.15em
+  font-size: 0.8em
+  font-variant: small-caps
+  color: var(--base00)
+  padding: 0.1em
+.task-todo
+  background-color: var(--base-todo)
+.task-ongoing
+  background-color: var(--base-ongoing)
+.task-blocked
+  background-color: var(--base-blocked)
+.task-done
+  background-color: var(--base-done)
+.task-dont
+  background-color: var(--base-dont)
 
 #checkboxcontextmenu
   position: fixed

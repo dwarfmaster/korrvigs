@@ -267,7 +267,7 @@ compileBlock' (Sub hd) = do
   -- Render header
   editIdent <- newIdent
   entry <- use currentEntry
-  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent (hd ^. hdChecks) subL
+  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent (hd ^. hdTask) (hd ^. hdChecks) subL
   openedLoc <- use openedSub
   let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
   let taskClass :: [Text] = ["task-section" | isJust (hd ^. hdTask)]
@@ -314,10 +314,27 @@ compileAttrWithClasses cls attr =
 compileAttr :: Attr -> [(Text, Text)]
 compileAttr = compileAttrWithClasses []
 
-compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Checks -> SubLoc -> Handler Widget
-compileHead entry n hdId t edit checks subL = do
+compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Maybe Task -> Checks -> SubLoc -> Handler Widget
+compileHead entry n hdId t edit task checks subL = do
   btm <- editButton entry (min n 5) hdId edit subL
-  compileHeader n [whamlet|#{t} ^{checksDisplay checks} ^{btm}|]
+  compileHeader n [whamlet|^{taskWidget task} #{t} ^{checksDisplay checks} ^{btm}|]
+
+taskWidget :: Maybe Task -> Widget
+taskWidget Nothing = mempty
+taskWidget (Just task) =
+  [whamlet|
+  <span .task-span .#{status}>
+    ^{label}
+|]
+  where
+    label = task ^. tskStatusName
+    status :: Text
+    status = case task ^. tskStatus of
+      TaskTodo -> "task-todo"
+      TaskOngoing -> "task-ongoing"
+      TaskBlocked -> "task-blocked"
+      TaskDone -> "task-done"
+      TaskDont -> "task-dont"
 
 compileHeader :: Int -> Widget -> Handler Widget
 compileHeader 0 tit =

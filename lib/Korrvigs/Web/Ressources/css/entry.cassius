@@ -232,6 +232,7 @@ mjx-container
   font-variant: small-caps
   color: var(--base00)
   padding: 0.1em
+  cursor: pointer
 .task-todo
   background-color: var(--base-todo)
 .task-ongoing

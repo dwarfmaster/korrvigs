@@ -321,9 +321,14 @@ compileHead entry n hdId t edit task checks subL = do
 
 taskWidget :: Maybe Task -> Widget
 taskWidget Nothing = mempty
-taskWidget (Just task) =
+taskWidget (Just task) = do
+  i <- newIdent
+  toWidget
+    [julius|
+    setupTask("", #{i})
+  |]
   [whamlet|
-  <span .task-span .#{status}>
+  <span ##{i} .task-span .#{status}>
     ^{label}
 |]
   where

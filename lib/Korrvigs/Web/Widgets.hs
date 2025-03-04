@@ -11,12 +11,13 @@ headerSymbol :: Text -> Widget
 headerSymbol s = [whamlet|<span .section-symbol>#{s}|]
 
 mkSection :: Int -> [(Text, Text)] -> [(Text, Text)] -> Widget -> Widget -> Widget
-mkSection lvl secAttrs divAttrs header content =
+mkSection lvl secAttrs divAttrs header content = do
   let lvlClass = T.pack $ "level" <> show (lvl + 1)
-   in let secAttrsFinal = updClasses [lvlClass] secAttrs
-       in let divAttrsFinal = updClasses ["section-content"] divAttrs
-           in [whamlet|
-    <section *{secAttrsFinal}>
+  let secAttrsFinal = updClasses [lvlClass] secAttrs
+  let divAttrsFinal = updClasses ["section-content"] divAttrs
+  i <- newIdent
+  [whamlet|
+    <section ##{i} *{secAttrsFinal}>
       ^{header}
       <div *{divAttrsFinal}>
         ^{content}

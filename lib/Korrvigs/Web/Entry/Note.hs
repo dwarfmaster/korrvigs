@@ -13,7 +13,7 @@ import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Monad
-import Korrvigs.Note hiding (code)
+import Korrvigs.Note hiding (code, task)
 import qualified Korrvigs.Web.Ace as Ace
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Calendar as Cal
@@ -317,18 +317,19 @@ compileAttr = compileAttrWithClasses []
 compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Maybe Task -> Checks -> SubLoc -> Handler Widget
 compileHead entry n hdId t edit task checks subL = do
   btm <- editButton entry (min n 5) hdId edit subL
-  compileHeader n [whamlet|^{taskWidget task} #{t} ^{checksDisplay checks} ^{btm}|]
+  compileHeader n [whamlet|^{taskWidget entry subL task} #{t} ^{checksDisplay checks} ^{btm}|]
 
-taskWidget :: Maybe Task -> Widget
-taskWidget Nothing = mempty
-taskWidget (Just task) = do
-  i <- newIdent
+taskWidget :: Id -> SubLoc -> Maybe Task -> Widget
+taskWidget _ _ Nothing = mempty
+taskWidget i subL (Just task) = do
+  spanId <- newIdent
+  let loc = LocTask $ TaskLoc subL
   toWidget
     [julius|
-    setupTask("", #{i})
+    setupTask("@{NoteSubR (WId i) (WLoc loc)}", #{spanId})
   |]
   [whamlet|
-  <span ##{i} .task-span .#{status}>
+  <span ##{spanId} .task-span .#{status}>
     ^{label}
 |]
   where

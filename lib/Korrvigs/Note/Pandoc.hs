@@ -263,9 +263,9 @@ mkTask st stname = A.Task st stname "" (A.Checks 0 0 0 0 0) Nothing Nothing Noth
 matchStatusName :: Text -> A.TaskStatus
 matchStatusName "todo" = A.TaskTodo
 matchStatusName "started" = A.TaskOngoing
-matchStatusName "waiting" = A.TaskBlocked
+matchStatusName "blocked" = A.TaskBlocked
 matchStatusName "done" = A.TaskDone
-matchStatusName "stopped" = A.TaskDont
+matchStatusName "dont" = A.TaskDont
 matchStatusName _ = A.TaskTodo
 
 matchStatus :: Text -> Maybe A.TaskStatus

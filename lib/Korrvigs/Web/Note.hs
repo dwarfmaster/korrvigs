@@ -74,13 +74,18 @@ getNoteSubR (WId i) (WLoc loc) =
               Just hd -> pure $ LEnc.decodeUtf8 $ writeHeaderLazy hd
             LocCheck lc -> case doc ^? check lc of
               Nothing -> notFound
-              Just cb -> pure $ case cb of
-                TaskTodo -> "todo"
-                TaskOngoing -> "ongoing"
-                TaskBlocked -> "blocked"
-                TaskDone -> "done"
-                TaskDont -> "dont"
+              Just cb -> pure $ renderTaskStatus cb
+            LocTask lc -> case doc ^? task lc . tskStatus of
+              Nothing -> notFound
+              Just tk -> pure $ renderTaskStatus tk
       _ -> notFound
+  where
+    renderTaskStatus :: TaskStatus -> LT.Text
+    renderTaskStatus TaskTodo = "todo"
+    renderTaskStatus TaskOngoing = "ongoing"
+    renderTaskStatus TaskBlocked = "blocked"
+    renderTaskStatus TaskDone = "done"
+    renderTaskStatus TaskDont = "dont"
 
 postNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text
 postNoteSubR (WId i) (WLoc loc) =
@@ -103,14 +108,14 @@ postNoteSubR (WId i) (WLoc loc) =
                   Right Nothing -> throwM $ KMiscError "Partial markdown file is not a single header"
                   Right (Just hdv) -> pure $ setSub lc doc hdv
               LocCheck lc -> do
-                cb <- case txt of
-                  "todo" -> pure TaskTodo
-                  "ongoing" -> pure TaskOngoing
-                  "blocked" -> pure TaskBlocked
-                  "done" -> pure TaskDone
-                  "dont" -> pure TaskDont
-                  _ -> throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid checkbox state"
+                cb <- parseTaskStatus txt
                 pure $ setCheck lc doc cb
+              LocTask lc -> do
+                tk <- parseTaskStatus txt
+                pure $
+                  doc
+                    & task lc . tskStatus .~ tk
+                    & task lc . tskStatusName .~ txt
             let path = note ^. notePath
             fd <- liftIO $ openFile path WriteMode
             writeNote fd ndoc >>= \case
@@ -122,3 +127,10 @@ postNoteSubR (WId i) (WLoc loc) =
             dSyncOneImpl path >>= processRelData i
             redirect $ NoteSubR (WId i) (WLoc loc)
       _ -> notFound
+  where
+    parseTaskStatus "todo" = pure TaskTodo
+    parseTaskStatus "started" = pure TaskOngoing
+    parseTaskStatus "blocked" = pure TaskBlocked
+    parseTaskStatus "done" = pure TaskDone
+    parseTaskStatus "dont" = pure TaskDont
+    parseTaskStatus txt = throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid task state"

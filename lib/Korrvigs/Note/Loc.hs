@@ -7,6 +7,8 @@ module Korrvigs.Note.Loc
     CheckLoc (..),
     checkSub,
     checkOffset,
+    TaskLoc (..),
+    taskSub,
     AnyLoc (..),
     sub,
     getSub,
@@ -17,6 +19,9 @@ module Korrvigs.Note.Loc
     check,
     getCheck,
     setCheck,
+    task,
+    getTask,
+    setTask,
     renderSubLoc,
     renderCodeLoc,
     renderLoc,
@@ -62,10 +67,18 @@ data CheckLoc = CheckLoc
 
 makeLenses ''CheckLoc
 
+newtype TaskLoc = TaskLoc
+  { _taskSub :: SubLoc
+  }
+  deriving (Eq, Ord, Show, Read)
+
+makeLenses ''TaskLoc
+
 data AnyLoc
   = LocSub SubLoc
   | LocCode CodeLoc
   | LocCheck CheckLoc
+  | LocTask TaskLoc
   deriving (Eq, Ord, Show, Read)
 
 subOff :: (Applicative f) => Int -> (Header -> f Header) -> [Block] -> f [Block]
@@ -108,6 +121,15 @@ getCheck loc doc = doc ^? check loc
 setCheck :: CheckLoc -> Document -> TaskStatus -> Document
 setCheck loc doc cb = doc & check loc .~ cb
 
+task :: (Applicative f) => TaskLoc -> (Task -> f Task) -> Document -> f Document
+task loc = sub (loc ^. taskSub) . hdTask . _Just
+
+getTask :: TaskLoc -> Document -> Maybe Task
+getTask loc doc = doc ^? task loc
+
+setTask :: TaskLoc -> Document -> Task -> Document
+setTask loc doc tsk = doc & task loc .~ tsk
+
 -- Rendering AST locations
 buildSubLoc :: [Int] -> Builder
 buildSubLoc [] = mempty
@@ -137,10 +159,18 @@ buildCheckLoc loc =
 renderCheckLoc :: CheckLoc -> Text
 renderCheckLoc = doRender . buildCheckLoc
 
+buildTaskLoc :: TaskLoc -> Builder
+buildTaskLoc loc =
+  buildSubLoc (loc ^. taskSub . subOffsets) <> buildText ":t:"
+
+renderTaskLoc :: TaskLoc -> Text
+renderTaskLoc = doRender . buildTaskLoc
+
 renderLoc :: AnyLoc -> Text
 renderLoc (LocSub loc) = renderSubLoc loc
 renderLoc (LocCode loc) = renderCodeLoc loc
 renderLoc (LocCheck loc) = renderCheckLoc loc
+renderLoc (LocTask loc) = renderTaskLoc loc
 
 -- Parse AST location
 subLocP :: (Stream s Identity Char) => Parsec s u SubLoc
@@ -153,6 +183,7 @@ anyLocP :: (Stream s Identity Char) => SubLoc -> Parsec s u AnyLoc
 anyLocP sb =
   locPrefixP 'c' *> (LocCode . CodeLoc sb <$> decimal)
     <|> locPrefixP 'x' *> (LocCheck . CheckLoc sb <$> decimal)
+    <|> (locPrefixP 't' $> (LocTask . TaskLoc) sb)
 
 locP :: (Stream s Identity Char) => Parsec s u AnyLoc
 locP = do

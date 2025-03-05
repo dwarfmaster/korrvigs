@@ -25,6 +25,7 @@ import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
 import Korrvigs.Event.Sync (dSyncOneImpl, eventsDirectory)
 import qualified Korrvigs.Event.Sync as Ev
+import Korrvigs.Metadata
 import Korrvigs.Monad hiding (sync)
 import Korrvigs.Utils (partitionM)
 import qualified Korrvigs.Utils.DAV.Cal as DAV
@@ -92,7 +93,8 @@ downloadAndWrite cal pwd rt toinsert forbidden = do
   dat <- DAV.getCalData cdd insertUids >>= throwEither (\err -> KMiscError $ "Failed to download content for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
   flip runStateT forbidden $ forM dat $ \ics -> do
     ical <- lift $ liftIO (parseICal Nothing $ LEnc.encodeUtf8 $ LT.fromStrict ics) >>= throwEither (\err -> KMiscError $ "Failed to parse received ics: " <> err)
-    ievent <- lift $ throwMaybe (KMiscError "Received ics has no VEVENT") $ ical ^. icEvent
+    ievent' <- lift $ throwMaybe (KMiscError "Received ics has no VEVENT") $ ical ^. icEvent
+    let ievent = ievent' & iceMtdt . at (mtdtName Title) %~ maybe (toJSON <$> ievent' ^. iceSummary) Just
     let pth = join $ M.lookup (ievent ^. iceUid) toinsert
     case pth of
       Just icspath -> do

@@ -171,6 +171,11 @@ th
 td
   background-color: var(--base01)
   border-radius: 0.25em
+code
+  font-family: monospace
+  font-size: 1rem
+  background-color: var(--base00)
+  border-radius: 0.15em
 
 mjx-container
   display: inline-grid

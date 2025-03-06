@@ -85,14 +85,20 @@ render doc = do
   renderTopLevel True $ doc ^. docContent
   replicateM_ 2 newline
 
+isSub :: Block -> Bool
+isSub (Sub _) = True
+isSub _ = False
+
 renderTopLevel :: Bool -> [Block] -> RenderM ()
-renderTopLevel nts bks =
+renderTopLevel nts bks = do
   separatedRenders 2 $ for bks $ \bk -> do
-    renderBlock bk >> flush
     hasL <- hasLinks
-    when (nts && hasL) $ replicateM_ 2 newline >> flushLinks >> flush
+    when (isSub bk && nts && hasL) $ flushLinks >> replicateM_ 2 newline >> flush
+    renderBlock bk >> flush
     hasN <- hasNotes
     when (nts && hasN) $ replicateM_ 2 newline >> flushNotes >> flush
+  hasL <- hasLinks
+  when (nts && hasL) $ replicateM_ 2 newline >> flushLinks >> flush
 
 renderRawText :: Text -> RenderM ()
 renderRawText txt =

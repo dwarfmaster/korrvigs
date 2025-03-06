@@ -110,7 +110,7 @@ h3
   padding-left: 0.25em
 h4
   color: var(--base0A)
-  font-size: 0.83em
+  font-size: 1em
   margin-top: 0.5em
   margin-bottom: 0.5em
 .edit-header-4
@@ -120,7 +120,7 @@ h4
   padding-left: 0.25em
 h5
   color: var(--base0B)
-  font-size: 0.67em
+  font-size: 1em
   margin-top: 0.5em
   margin-bottom: 0.5em
 .edit-header-5
@@ -130,7 +130,7 @@ h5
   padding-left: 0.25em
 h6
   color: var(--base0D)
-  font-size: 0.67em
+  font-size: 1em
   margin-top: 0.5em
   margin-bottom: 0.5em
 .edit-header-6

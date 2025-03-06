@@ -241,7 +241,7 @@ compileBlock' (EmbedHeader i) = do
   widget <- lift $ embedBody i $ lvl + 1
   titleText <- lift $ rSelectMtdt Title $ sqlId i
   title <- lift $ compileHeader (lvl + 1) [whamlet|#{fromMaybe "" titleText} ^{lnk}|]
-  pure $ Wdgs.mkSection (lvl + 1) [] [] title widget
+  pure $ Wdgs.mkSection (lvl + 1) [("class", "collapsed")] [] title widget
 compileBlock' (Sub hd) = do
   -- Compute level shift
   rtLvl <- use hdRootLevel

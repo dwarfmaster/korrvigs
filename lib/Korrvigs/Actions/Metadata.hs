@@ -40,7 +40,6 @@ updateMetadata entry upd rm = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  pure ()
   where
     mkRow :: Id -> (Text, Value) -> MetadataRowSQL
     mkRow i (key, val) = MetadataRow (sqlId i) (sqlStrictText key) (sqlValueJSONB val)

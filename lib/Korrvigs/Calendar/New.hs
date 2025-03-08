@@ -54,6 +54,6 @@ new nc = do
   path <- calendarPath' i
   writeJsonToFile path json
   -- Sync
-  rel <- dSyncOneImpl path
+  (rel, _) <- dSyncOneImpl path
   processRelData i rel
   pure i

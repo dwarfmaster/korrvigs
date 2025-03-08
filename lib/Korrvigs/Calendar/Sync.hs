@@ -16,6 +16,8 @@ import qualified Data.Text as T
 import GHC.Int (Int64)
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.SQL
+import Korrvigs.Compute
+import Korrvigs.Compute.Builtin (Action (CalDav))
 import Korrvigs.Entry
 import Korrvigs.FTS
 import Korrvigs.Kind
@@ -113,12 +115,16 @@ dListImpl = S.fromList <$> allCalendars
 dGetIdImpl :: FilePath -> Id
 dGetIdImpl = calIdFromPath
 
-dSyncImpl :: (MonadKorrvigs m) => m (Map Id RelData)
+dSyncImpl :: (MonadKorrvigs m) => m (Map Id (RelData, EntryComps))
 dSyncImpl =
-  M.fromList <$> (allCalendars >>= mapM (sequence . (calIdFromPath &&& syncCal)))
+  M.fromList <$> (allCalendars >>= mapM (sequence . (calIdFromPath &&& dSyncOneImpl)))
 
-dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
-dSyncOneImpl = syncCal
+dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m (RelData, EntryComps)
+dSyncOneImpl path = do
+  relData <- syncCal path
+  let i = calIdFromPath path
+  let cmps = M.singleton "dav" (Computation i "dav" (Builtin CalDav) Json)
+  pure (relData, cmps)
 
 dRemoveDBImpl :: Id -> [Delete Int64]
 dRemoveDBImpl i =

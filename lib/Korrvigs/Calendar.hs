@@ -20,8 +20,8 @@ instance IsKD Calendar where
   dList _ = S.map CalIdentifier <$> dListImpl
   dGetId (CalIdentifier path) = dGetIdImpl path
   dListCompute _ = pure M.empty
-  dSync _ = fmap (,M.empty) <$> dSyncImpl
-  dSyncOne (CalIdentifier path) = (,M.empty) <$> dSyncOneImpl path
+  dSync _ = dSyncImpl
+  dSyncOne (CalIdentifier path) = dSyncOneImpl path
   dRemove (CalIdentifier path) = dRemoveImpl path
   dUpdateMetadata = dUpdateMetadataImpl
   dUpdateParents = dUpdateParentsImpl

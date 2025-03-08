@@ -541,7 +541,7 @@ getSearchR = do
                 <$> ireq checkBoxField "checkmtdt"
                 <*> (zip <$> ireq keysField "mtdtKey" <*> ireq valuesField "mtdtVal")
             )
-        <*> (fromMaybe def <$> iopt optsField "sortopts")
+        <*> (fromMaybe (ByDate, SortDesc) <$> iopt optsField "sortopts")
         <*> (join <$> iopt maxResultsField "maxresults")
   display <- runInputGet $ fromMaybe DisplayList <$> iopt displayResultsField "display"
   hasMaxResults <- isJust <$> lookupGetParam "maxresults"

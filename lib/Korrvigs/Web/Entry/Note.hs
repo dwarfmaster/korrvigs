@@ -129,7 +129,9 @@ embed lvl note = do
                  ^{checksDisplay $ md ^. docChecks}
            |]
             markdown
-            unless isEmbedded Wdgs.sectionLogic
+            unless isEmbedded $ do
+              Wdgs.sectionLogic
+              toWidget [julius|checkboxCleanSpans()|]
       pure (w, md ^. docChecks)
 
 content :: Note -> Handler Widget

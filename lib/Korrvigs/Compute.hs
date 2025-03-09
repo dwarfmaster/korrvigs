@@ -15,6 +15,7 @@ import qualified Data.Text as T
 import qualified Korrvigs.Compute.Builtin as Builtin
 import Korrvigs.Entry
 import Korrvigs.Monad
+import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.Git.Annex
 import Korrvigs.Utils.JSON (writeJsonToFile)
 import System.Directory
@@ -177,9 +178,10 @@ storeComputations :: (MonadKorrvigs m) => Id -> EntryComps -> m ()
 storeComputations i cmps = storeComputations' cmps =<< compsFile i
 
 storeComputations' :: (MonadKorrvigs m) => EntryComps -> FilePath -> m ()
-storeComputations' cmps file | M.null cmps = liftIO $ do
-  ex <- doesFileExist file
-  when ex $ removeFile file
+storeComputations' cmps file | M.null cmps = do
+  ex <- liftIO $ doesFileExist file
+  rt <- cacheDir
+  when ex $ recursiveRemoveFile rt file
 storeComputations' cmps file = do
   let dir = takeDirectory file
   liftIO $ createDirectoryIfMissing True dir
@@ -219,7 +221,8 @@ syncComputations i cmps = do
   forM_ (M.toList toRm) $ \(_, cmp) -> do
     file <- compFile cmp
     ex <- liftIO $ doesFileExist file
-    when ex $ liftIO $ removeFile file
+    rt <- cacheDir
+    when ex $ recursiveRemoveFile rt file
   storeComputations i cmps
 
 listComputations :: (MonadKorrvigs m) => m (Map Id EntryComps)

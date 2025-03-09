@@ -21,9 +21,10 @@ import Korrvigs.KindData (RelData (..))
 import Korrvigs.Link.JSON
 import Korrvigs.Link.SQL
 import Korrvigs.Monad
+import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree (listFiles)
 import Opaleye hiding (not)
-import System.Directory (doesFileExist, removeFile)
+import System.Directory (doesFileExist)
 import System.FilePath (takeBaseName)
 import Prelude hiding (readFile, writeFile)
 
@@ -122,8 +123,9 @@ dRemoveDBImpl i =
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
+  rt <- linkJSONPath
   exists <- liftIO $ doesFileExist path
-  when exists $ liftIO $ removeFile path
+  when exists $ recursiveRemoveFile rt path
 
 linkFromRow :: LinkRow -> Entry -> Link
 linkFromRow row entry =

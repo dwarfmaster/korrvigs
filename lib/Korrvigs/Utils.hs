@@ -1,6 +1,7 @@
 module Korrvigs.Utils where
 
-import Control.Monad (guard)
+import Control.Monad
+import Control.Monad.IO.Class
 import Data.Foldable
 import System.Directory
 import System.FilePath
@@ -44,3 +45,22 @@ joinNull f mx = do
   x <- mx
   guard $ not $ f x
   pure x
+
+-- Remove file, then delete its parents directory if it is empty, and recursively
+-- until root.
+recursiveRemoveFile :: (MonadIO m) => FilePath -> FilePath -> m ()
+recursiveRemoveFile root file = liftIO $ do
+  ex <- doesFileExist file
+  when ex $ removeFile file
+  recursiveRemoveDir root $ takeDirectory file
+
+recursiveRemoveDir :: (MonadIO m) => FilePath -> FilePath -> m ()
+recursiveRemoveDir _ "/" = pure ()
+recursiveRemoveDir root dir | normalise root == normalise dir = pure ()
+recursiveRemoveDir root dir = liftIO $ do
+  ex <- doesDirectoryExist dir
+  when ex $ do
+    content <- listDirectory dir
+    when (null content) $ do
+      removeDirectory dir
+      recursiveRemoveDir root $ takeDirectory dir

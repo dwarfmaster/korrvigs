@@ -25,9 +25,10 @@ import Korrvigs.Note.Helpers
 import Korrvigs.Note.Pandoc
 import Korrvigs.Note.Render (writeNoteLazy)
 import Korrvigs.Note.SQL
+import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
 import Opaleye
-import System.Directory (doesFileExist, removeFile)
+import System.Directory (doesFileExist)
 import System.FilePath (joinPath, takeBaseName)
 import Prelude hiding (writeFile)
 
@@ -58,8 +59,9 @@ dRemoveDBImpl i =
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
+  rt <- noteDirectory
   exists <- liftIO $ doesFileExist path
-  when exists $ liftIO $ removeFile path
+  when exists $ recursiveRemoveFile rt path
 
 noteDirectory :: (MonadKorrvigs m) => m FilePath
 noteDirectory = joinPath . (: ["notes"]) <$> root

@@ -28,9 +28,10 @@ import Korrvigs.Kind
 import Korrvigs.KindData
 import Korrvigs.Metadata
 import Korrvigs.Monad
+import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
 import Opaleye hiding (not)
-import System.Directory (doesFileExist, removeFile)
+import System.Directory (doesFileExist)
 import System.FilePath (joinPath, takeBaseName)
 
 eventTreeType :: DateTreeType
@@ -63,8 +64,9 @@ dRemoveDBImpl i =
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
+  rt <- eventsDirectory
   exists <- liftIO $ doesFileExist path
-  when exists $ liftIO $ removeFile path
+  when exists $ recursiveRemoveFile rt path
 
 eventsDirectory :: (MonadKorrvigs m) => m FilePath
 eventsDirectory = joinPath . (: ["events"]) <$> root

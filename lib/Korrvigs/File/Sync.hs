@@ -27,7 +27,7 @@ import Korrvigs.Geometry
 import Korrvigs.Kind
 import Korrvigs.KindData
 import Korrvigs.Monad
-import Korrvigs.Utils (resolveSymbolicLink)
+import Korrvigs.Utils (recursiveRemoveFile, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree
 import Network.Mime
 import Opaleye hiding (not)
@@ -112,11 +112,12 @@ dRemoveDBImpl i =
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
+  rt <- filesDirectory
   exists <- liftIO $ doesFileExist path
-  when exists $ liftIO $ removeFile path
+  when exists $ recursiveRemoveFile rt path
   let meta = metaPath path
   existsMeta <- liftIO $ doesFileExist meta
-  when existsMeta $ liftIO $ removeFile meta
+  when existsMeta $ recursiveRemoveFile rt meta
 
 filesDirectory :: (MonadKorrvigs m) => m FilePath
 filesDirectory = joinPath . (: ["files"]) <$> root

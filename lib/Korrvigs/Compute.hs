@@ -177,6 +177,9 @@ storeComputations :: (MonadKorrvigs m) => Id -> EntryComps -> m ()
 storeComputations i cmps = storeComputations' cmps =<< compsFile i
 
 storeComputations' :: (MonadKorrvigs m) => EntryComps -> FilePath -> m ()
+storeComputations' cmps file | M.null cmps = liftIO $ do
+  ex <- doesFileExist file
+  when ex $ removeFile file
 storeComputations' cmps file = do
   let dir = takeDirectory file
   liftIO $ createDirectoryIfMissing True dir

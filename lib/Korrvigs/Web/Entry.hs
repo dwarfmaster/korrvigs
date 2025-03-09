@@ -100,7 +100,7 @@ geometryWidget entry = case entry ^. geo of
 
 refsWidget :: Entry -> Handler Widget
 refsWidget entry = do
-  graph <- filter (\(e1, e2, b) -> b && e1 ^. sqlEntryName /= e2 ^. sqlEntryName) <$> rSelect notesCC
+  graph <- filter (\(e1, e2, _) -> e1 ^. sqlEntryName /= e2 ^. sqlEntryName) <$> rSelect notesCC
   let rows = (view _1 <$> graph) ++ (view _2 <$> graph)
   let entries = map head $ groupBy (\r1 r2 -> cmp r1 r2 == EQ) $ sortBy cmp rows
   nodes <- mapM mkNode entries

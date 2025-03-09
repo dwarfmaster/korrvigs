@@ -15,7 +15,8 @@ import Yesod
 
 widget :: Entry -> Handler Widget
 widget entry = do
-  mtdt <- loadMetadata $ entry ^. name
+  let i = entry ^. name
+  mtdt <- loadMetadata i
   mtdts <- mapM (\(key, val) -> (key,val,) <$> newIdent) $ M.toList mtdt
   pure $ do
     Rcs.mtdtCode
@@ -29,7 +30,7 @@ widget entry = do
       $forall (key,val,ident) <- mtdts
         <tr ##{ident}>
           <td .mtdt-key>#{CI.foldedCase key}
-          <td .mtdt-value>
+          <td .mtdt-value data-mtdt-value-for=#{CI.foldedCase key} data-mtdt-for=#{unId i}>
             #{prepareMtdtValue val}
           <td .mtdt-button-case>
             <button .mtdt-button .mtdt-edit-button data-mtdt-id=#{ident}>✎

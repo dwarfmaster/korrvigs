@@ -55,7 +55,7 @@ taskWidget i subL (Just tsk) = pure $ do
     then
       toWidget
         [julius|
-        setupTopTask("@{EntryMtdtR (WId i)}", #{spanId})
+        setupTopTask("@{EntryMtdtR (WId i)}", #{spanId}, #{unId i})
       |]
     else
       toWidget

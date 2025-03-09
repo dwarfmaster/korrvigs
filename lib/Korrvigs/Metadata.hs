@@ -11,7 +11,7 @@ import qualified Data.Map as M
 import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Monad
-import Korrvigs.Utils.JSON (sqlJsonToText)
+import Korrvigs.Utils.JSON (fromJSONM, sqlJsonToText)
 import Opaleye
 import qualified Opaleye as O
 
@@ -27,11 +27,7 @@ extractMtdt ::
   mtdt ->
   Map (CI Text) Value ->
   Maybe (MtdtType mtdt)
-extractMtdt mtdt mp = do
-  value <- M.lookup (mtdtName mtdt) mp
-  case fromJSON value of
-    Success v -> pure v
-    Error _ -> Nothing
+extractMtdt mtdt mp = M.lookup (mtdtName mtdt) mp >>= fromJSONM
 
 insertMtdt ::
   (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) =>

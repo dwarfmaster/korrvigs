@@ -16,6 +16,7 @@ import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Actions.Load
 import Korrvigs.Actions.Sync (processRelData)
 import Korrvigs.Entry
+import Korrvigs.Metadata.Task
 import Korrvigs.Monad (KorrvigsError (KMiscError))
 import Korrvigs.Note
 import Korrvigs.Note.Pandoc
@@ -128,9 +129,4 @@ postNoteSubR (WId i) (WLoc loc) =
             redirect $ NoteSubR (WId i) (WLoc loc)
       _ -> notFound
   where
-    parseTaskStatus "todo" = pure TaskTodo
-    parseTaskStatus "started" = pure TaskOngoing
-    parseTaskStatus "blocked" = pure TaskBlocked
-    parseTaskStatus "done" = pure TaskDone
-    parseTaskStatus "dont" = pure TaskDont
-    parseTaskStatus txt = throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid task state"
+    parseTaskStatus txt = maybe (throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid task state") pure $ parseStatusName txt

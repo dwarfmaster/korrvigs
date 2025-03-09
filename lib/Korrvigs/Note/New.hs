@@ -45,7 +45,9 @@ new note = do
             _docTitle = note ^. nnTitle,
             _docRefTo = S.empty,
             _docChecks = Checks 0 0 0 0 0,
-            _docParents = S.fromList $ note ^. nnEntry . neParents
+            _docParents = S.fromList $ note ^. nnEntry . neParents,
+            _docTask = Nothing,
+            _docTasks = []
           }
   let bs = writeNoteLazy doc
   rt <- noteDirectory

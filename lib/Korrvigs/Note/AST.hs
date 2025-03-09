@@ -7,17 +7,9 @@ import Data.CaseInsensitive (CI)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
-import Data.Time.LocalTime
 import Korrvigs.Entry
+import Korrvigs.Metadata.Task
 import Network.URI
-
-data TaskStatus
-  = TaskTodo
-  | TaskOngoing
-  | TaskBlocked
-  | TaskDone
-  | TaskDont
-  deriving (Eq, Show, Bounded, Enum, Ord, Ix)
 
 data Checks = Checks
   { _ckTodo :: Int,
@@ -27,18 +19,6 @@ data Checks = Checks
     _ckDont :: Int
   }
   deriving (Show, Eq)
-
-data Task = Task
-  { _tskStatus :: TaskStatus,
-    _tskStatusName :: Text,
-    _tskLabel :: Text,
-    _tskChecks :: Checks,
-    _tskDeadline :: Maybe ZonedTime,
-    _tskScheduled :: Maybe ZonedTime,
-    _tskStarted :: Maybe ZonedTime,
-    _tskFinished :: Maybe ZonedTime
-  }
-  deriving (Show)
 
 data Document = Document
   { _docMtdt :: Map (CI Text) Value,
@@ -128,9 +108,7 @@ data Table = MkTable
   }
   deriving (Show)
 
-makePrisms ''TaskStatus
 makeLenses ''Checks
-makeLenses ''Task
 makeLenses ''Document
 makeLenses ''Attr
 makeLenses ''Header

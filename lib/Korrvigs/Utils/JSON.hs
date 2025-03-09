@@ -14,6 +14,11 @@ writeJsonToFile :: (MonadIO m, ToJSON x) => FilePath -> x -> m ()
 writeJsonToFile path val =
   liftIO $ LBS.writeFile path $ LEnc.encodeUtf8 $ Bld.toLazyText $ encodeToTextBuilder val
 
+fromJSONM :: (FromJSON a) => Value -> Maybe a
+fromJSONM v = case fromJSON v of
+  Error _ -> Nothing
+  Success x -> Just x
+
 jsonAsText :: Value -> Maybe Text
 jsonAsText (String txt) = Just txt
 jsonAsText _ = Nothing

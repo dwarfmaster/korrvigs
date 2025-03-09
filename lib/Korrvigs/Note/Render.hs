@@ -20,6 +20,7 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import Korrvigs.Entry.Ident
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Task
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers (renderInlines)
 import Korrvigs.Note.Render.Monad

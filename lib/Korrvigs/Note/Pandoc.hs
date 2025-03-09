@@ -23,8 +23,8 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (readFile)
-import Data.Time.Format.ISO8601 (iso8601ParseM)
 import Korrvigs.Entry.Ident
+import Korrvigs.Metadata.Task
 import qualified Korrvigs.Note.AST as A
 import Korrvigs.Note.Helpers
 import Korrvigs.Utils.JSON (jsonAsText)
@@ -42,11 +42,11 @@ data BlockStackZipper = BSZ
   { _bszLevel :: Int,
     _bszAttr :: A.Attr,
     _bszTitle :: Text,
-    _bszTask :: Maybe A.Task,
+    _bszTask :: Maybe Task,
     _bszRefTo :: Set Id,
     _bszChecks :: A.Checks,
     _bszLeft :: [WithParent A.Block],
-    _bszTasks :: [A.Task],
+    _bszTasks :: [Task],
     _bszParent :: Maybe BlockStackZipper
   }
 
@@ -80,7 +80,7 @@ bszToHeader bsz doc parent =
           { A._hdAttr = bsz ^. bszAttr,
             A._hdTitle = bsz ^. bszTitle,
             A._hdRefTo = bsz ^. bszRefTo,
-            A._hdTask = bsz ^. bszTask & _Just . A.tskChecks .~ bsz ^. bszChecks,
+            A._hdTask = bsz ^. bszTask,
             A._hdTasks = bsz ^. bszTasks,
             A._hdChecks = bsz ^. bszChecks,
             A._hdLevel = bsz ^. bszLevel,
@@ -105,12 +105,12 @@ makeLenses ''BuildingCell
 propagateChecks :: BlockStackZipper -> ParseM ()
 propagateChecks bsz = case bsz ^. bszTask of
   Just task -> do
-    let st = task ^. A.tskStatus
-    when (st == A.TaskTodo) $ stack . bszChecks . A.ckTodo %= (+ 1)
-    when (st == A.TaskOngoing) $ stack . bszChecks . A.ckOngoing %= (+ 1)
-    when (st == A.TaskBlocked) $ stack . bszChecks . A.ckBlocked %= (+ 1)
-    when (st == A.TaskDone) $ stack . bszChecks . A.ckDone %= (+ 1)
-    when (st == A.TaskDont) $ stack . bszChecks . A.ckDont %= (+ 1)
+    let st = task ^. tskStatus
+    when (st == TaskTodo) $ stack . bszChecks . A.ckTodo %= (+ 1)
+    when (st == TaskOngoing) $ stack . bszChecks . A.ckOngoing %= (+ 1)
+    when (st == TaskBlocked) $ stack . bszChecks . A.ckBlocked %= (+ 1)
+    when (st == TaskDone) $ stack . bszChecks . A.ckDone %= (+ 1)
+    when (st == TaskDont) $ stack . bszChecks . A.ckDont %= (+ 1)
   Nothing -> do
     stack . bszChecks . A.ckTodo %= (bsz ^. bszChecks . A.ckTodo +)
     stack . bszChecks . A.ckOngoing %= (bsz ^. bszChecks . A.ckOngoing +)
@@ -147,7 +147,7 @@ run act mtdt bks =
             A._docContent = reverse $ st ^. stack . bszLeft <&> \bk -> bk doc Nothing,
             A._docTitle = st ^. stack . bszTitle,
             A._docRefTo = st ^. stack . bszRefTo,
-            A._docTask = st ^. stack . bszTask & _Just . A.tskChecks .~ (st ^. stack . bszChecks),
+            A._docTask = st ^. stack . bszTask,
             A._docTasks = st ^. stack . bszTasks,
             A._docChecks = st ^. stack . bszChecks,
             A._docParents = S.fromList $ fmap MkId $ join $ toList $ maybe (Success []) fromJSON $ M.lookup (CI.mk "parents") cimtdt
@@ -187,9 +187,9 @@ parsePandoc (Pandoc mtdt bks) = run act meta bks
       let rendered = renderInlines title
       stack . bszTitle .= rendered
       forM_ (M.lookup "task" meta >>= jsonAsText) $ \stname -> do
-        let st = matchStatusName stname
-        let tsk = mkTask st stname & A.tskLabel .~ rendered
-        stack . bszTask ?= parseTaskAttrs (flip M.lookup meta >=> jsonAsText) tsk
+        let st = fromMaybe TaskTodo $ parseStatusName stname
+        let tsk = mkTask st stname & tskLabel .~ rendered
+        stack . bszTask ?= applyTaskMtdt (flip M.lookup meta . CI.foldedCase) tsk
       whileJust_ getBlock parseTopBlock
 
 parseHeader :: Int -> Pandoc -> Maybe A.Header
@@ -207,8 +207,9 @@ parseTopBlock (Header lvl attr title) = do
   stack . bszTitle .= rendered
   isTask <- isJust <$> use (stack . bszTask)
   when isTask $ do
-    stack . bszTask . _Just . A.tskLabel .= rendered
-    stack . bszTask . _Just %= parseTaskAttrs (flip M.lookup $ parsed ^. A.attrMtdt)
+    stack . bszTask . _Just . tskLabel .= rendered
+    let look = fmap toJSON . flip M.lookup (parsed ^. A.attrMtdt) . CI.foldedCase
+    stack . bszTask . _Just %= applyTaskMtdt look
 parseTopBlock bk = mapM_ (pushBlock . noParent) =<< parseBlock bk
 
 -- Parse a block that is not a header
@@ -257,21 +258,13 @@ parseBlock (Figure attr (Caption _ caption) bks) = do
   pure . pure $ A.Figure a capt content
 parseBlock _ = pure []
 
-mkTask :: A.TaskStatus -> Text -> A.Task
-mkTask st stname = A.Task st stname "" (A.Checks 0 0 0 0 0) Nothing Nothing Nothing Nothing
+mkTask :: TaskStatus -> Text -> Task
+mkTask st stname = Task st stname "" Nothing Nothing Nothing Nothing
 
-matchStatusName :: Text -> A.TaskStatus
-matchStatusName "todo" = A.TaskTodo
-matchStatusName "started" = A.TaskOngoing
-matchStatusName "blocked" = A.TaskBlocked
-matchStatusName "done" = A.TaskDone
-matchStatusName "dont" = A.TaskDont
-matchStatusName _ = A.TaskTodo
-
-matchStatus :: Text -> Maybe A.TaskStatus
+matchStatus :: Text -> Maybe TaskStatus
 matchStatus txt
   | not (T.null txt) && T.head txt == '[' && T.last txt == ']' =
-      Just $ matchStatusName $ T.init $ T.tail txt
+      Just $ fromMaybe TaskTodo $ parseStatusName $ T.init $ T.tail txt
 matchStatus _ = Nothing
 
 parseTitleInlines :: [Inline] -> ParseM [A.Inline]
@@ -282,31 +275,22 @@ parseTitleInlines (Str stname : xs) = case matchStatus stname of
   Nothing -> concatMapM parseInline $ Str stname : xs
 parseTitleInlines xs = concatMapM parseInline xs
 
-parseTaskAttrs :: (Text -> Maybe Text) -> A.Task -> A.Task
-parseTaskAttrs attrs =
-  extractAttr "deadline" A.tskDeadline
-    . extractAttr "scheduled" A.tskScheduled
-    . extractAttr "started" A.tskStarted
-    . extractAttr "finished" A.tskFinished
-  where
-    extractAttr attr setter = setter .~ (attrs attr >>= iso8601ParseM . T.unpack)
-
 parseInlines :: [Inline] -> ParseM [A.Inline]
 parseInlines (Str "[x]" : xs) = do
   stack . bszChecks . A.ckDone %= (+ 1)
-  (A.Check A.TaskDone :) <$> parseInlines xs
+  (A.Check TaskDone :) <$> parseInlines xs
 parseInlines (Str "[-]" : xs) = do
   stack . bszChecks . A.ckOngoing %= (+ 1)
-  (A.Check A.TaskOngoing :) <$> parseInlines xs
+  (A.Check TaskOngoing :) <$> parseInlines xs
 parseInlines (Str "[*]" : xs) = do
   stack . bszChecks . A.ckBlocked %= (+ 1)
-  (A.Check A.TaskBlocked :) <$> parseInlines xs
+  (A.Check TaskBlocked :) <$> parseInlines xs
 parseInlines (Str "[X]" : xs) = do
   stack . bszChecks . A.ckDont %= (+ 1)
-  (A.Check A.TaskDont :) <$> parseInlines xs
+  (A.Check TaskDont :) <$> parseInlines xs
 parseInlines (Str "[" : Space : Str "]" : xs) = do
   stack . bszChecks . A.ckTodo %= (+ 1)
-  (A.Check A.TaskTodo :) <$> parseInlines xs
+  (A.Check TaskTodo :) <$> parseInlines xs
 parseInlines (x : xs) = (++) <$> parseInline x <*> parseInlines xs
 parseInlines [] = pure []
 

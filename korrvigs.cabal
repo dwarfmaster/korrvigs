@@ -106,6 +106,7 @@ library korrvigs-lib
     Korrvigs.Link.SQL
     Korrvigs.Link.Sync
     Korrvigs.Metadata
+    Korrvigs.Metadata.Task
     Korrvigs.Monad
     Korrvigs.Note
     Korrvigs.Note.AST

@@ -8,6 +8,7 @@ import Data.Text (Text)
 import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.Builder
 import Korrvigs.Entry.Ident (unId)
+import Korrvigs.Metadata.Task
 import Korrvigs.Note.AST
 import Network.URI
 

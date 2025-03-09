@@ -4,6 +4,7 @@ import Control.Lens
 import Data.Aeson (Value)
 import Data.Array
 import Data.CaseInsensitive (CI)
+import Data.Default
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
@@ -19,6 +20,9 @@ data Checks = Checks
     _ckDont :: Int
   }
   deriving (Show, Eq)
+
+instance Default Checks where
+  def = Checks 0 0 0 0 0
 
 data Document = Document
   { _docMtdt :: Map (CI Text) Value,

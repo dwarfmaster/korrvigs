@@ -5,6 +5,7 @@ import Control.Monad
 import Control.Monad.Loops (whileJust)
 import Control.Monad.State
 import Data.Array
+import Data.Default
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe
@@ -29,6 +30,7 @@ import Text.Blaze hiding ((!))
 import qualified Text.Blaze as Blz
 import qualified Text.Blaze.Html5 as Html
 import qualified Text.Blaze.Html5.Attributes as Attr
+import Text.Julius hiding (js)
 import Yesod hiding (Attr, get, (.=))
 import Yesod.Static hiding (embed)
 
@@ -87,21 +89,23 @@ withLevel lvl act = do
   currentLevel .= prev
   pure r
 
-embed :: Int -> Note -> Handler Widget
+embed :: Int -> Note -> Handler (Widget, Checks)
 embed lvl note = do
   let path = note ^. notePath
   mmd <- readNote path
   case mmd of
     Left err ->
       pure
-        [whamlet|
+        ( [whamlet|
         <p>
           Failed to load
           <em>#{path}
           :
         <code>
           #{err}
-      |]
+      |],
+          def
+        )
     Right md -> do
       let isEmbedded = lvl > 0
       subL <- fmap parseLoc <$> lookupGetParam "open"
@@ -115,19 +119,21 @@ embed lvl note = do
             Just (Right (LocCode loc)) -> st' & openedSub .~ (loc ^. codeSub)
             _ -> st'
       markdown <- runCompile st $ compileBlocks $ md ^. docContent
-      pure $ do
-        Ace.setup
-        Rcs.mathjax StaticR
-        Rcs.checkboxCode
-        [whamlet|
-          <p .checks-top>
-            ^{checksDisplay $ md ^. docChecks}
-        |]
-        markdown
-        unless isEmbedded Wdgs.sectionLogic
+      let w = do
+            Ace.setup
+            Rcs.mathjax StaticR
+            Rcs.checkboxCode
+            [whamlet|
+             $if not isEmbedded
+               <p .checks-top>
+                 ^{checksDisplay $ md ^. docChecks}
+           |]
+            markdown
+            unless isEmbedded Wdgs.sectionLogic
+      pure (w, md ^. docChecks)
 
 content :: Note -> Handler Widget
-content = embed 0
+content = fmap fst . embed 0
 
 compileBlocks :: [Block] -> CompileM Widget
 compileBlocks = fmap mconcat . mapM compileBlock
@@ -234,20 +240,36 @@ compileBlock' (Figure attr caption fig) = do
 compileBlock' (Embed i) = do
   let lnk = embedLnk i
   lvl <- use currentLevel
-  widget <- lift $ embedBody i lvl
-  pure
+  embedId <- newIdent
+  (widget, checks) <- lift $ embedBody i lvl
+  pure $ do
+    propagateChecks embedId checks
     [whamlet|
-  <div .embedded>
+  <div ##{embedId} .embedded>
     ^{lnk}
     ^{widget}
 |]
 compileBlock' (EmbedHeader i) = do
   let lnk = embedLnk i
   lvl <- use currentLevel
-  widget <- lift $ embedBody i $ lvl + 1
+  (widget, checks) <- lift $ embedBody i $ lvl + 1
+  task <- lift $ loadTask i
+  taskW <- lift $ Wdgs.taskWidget i (SubLoc []) task
   titleText <- lift $ rSelectMtdt Title $ sqlId i
-  title <- lift $ compileHeader (lvl + 1) [whamlet|#{fromMaybe "" titleText} ^{lnk}|]
-  pure $ Wdgs.mkSection (lvl + 1) [("class", "collapsed")] [] title widget
+  title <- lift $ compileHeader (lvl + 1) [whamlet|^{taskW} #{fromMaybe "" titleText} ^{checksDisplay checks} ^{lnk}|]
+  pure $ do
+    embedId <- Wdgs.mkSection (lvl + 1) [("class", "collapsed")] [] title widget
+    case task of
+      Nothing -> propagateChecks embedId checks
+      Just tk -> do
+        let tkchecks =
+              Checks
+                (if tk ^. tskStatus == TaskTodo then 1 else 0)
+                (if tk ^. tskStatus == TaskOngoing then 1 else 0)
+                (if tk ^. tskStatus == TaskBlocked then 1 else 0)
+                (if tk ^. tskStatus == TaskDone then 1 else 0)
+                (if tk ^. tskStatus == TaskDont then 1 else 0)
+        propagateChecks embedId tkchecks
 compileBlock' (Sub hd) = do
   -- Compute level shift
   rtLvl <- use hdRootLevel
@@ -278,7 +300,7 @@ compileBlock' (Sub hd) = do
   let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
   let taskClass :: [Text] = ["task-section" | isJust (hd ^. hdTask)]
   let classes = compileAttrWithClasses (collapsedClass ++ taskClass) $ hd ^. hdAttr
-  pure $ Wdgs.mkSection lvl classes [("id", editIdent)] hdW contentW
+  pure $ void $ Wdgs.mkSection lvl classes [("id", editIdent)] hdW contentW
 compileBlock' (Table tbl) = do
   tableW <- compileTable (tbl ^. tableHeader) (tbl ^. tableFooter) (tbl ^. tableCells)
   captionW <- compileBlocks $ tbl ^. tableCaption
@@ -291,6 +313,22 @@ compileBlock' (Table tbl) = do
       ^{captionW}
   |]
 
+propagateChecks :: Text -> Checks -> Widget
+propagateChecks _ cks | cks == def = mempty
+propagateChecks embedId cks =
+  toWidget
+    [julius|
+    propagateChecks(#{embedId}, [#{todo}, #{ongoing}, #{blocked}, #{done}, #{dont}])
+  |]
+  where
+    jsInt :: Int -> RawJavascript
+    jsInt = rawJS . show
+    todo = jsInt $ cks ^. ckTodo
+    ongoing = jsInt $ cks ^. ckOngoing
+    blocked = jsInt $ cks ^. ckBlocked
+    done = jsInt $ cks ^. ckDone
+    dont = jsInt $ cks ^. ckDont
+
 embedLnk :: Id -> Widget
 embedLnk i =
   [whamlet|
@@ -299,16 +337,16 @@ embedLnk i =
       @#{unId i}
 |]
 
-embedBody :: Id -> Int -> Handler Widget
+embedBody :: Id -> Int -> Handler (Widget, Checks)
 embedBody i lvl =
   load i >>= \case
-    Nothing -> pure mempty
+    Nothing -> pure (mempty, def)
     Just entry -> do
       case entry ^. kindData of
-        LinkD link -> Link.embed lvl link
-        FileD file -> File.embed lvl file
-        EventD event -> Event.embed lvl event
-        CalendarD cal -> Cal.embed lvl cal
+        LinkD link -> (,def) <$> Link.embed lvl link
+        FileD file -> (,def) <$> File.embed lvl file
+        EventD event -> (,def) <$> Event.embed lvl event
+        CalendarD cal -> (,def) <$> Cal.embed lvl cal
         NoteD note -> embed lvl note
 
 compileAttrWithClasses :: [Text] -> Attr -> [(Text, Text)]
@@ -381,7 +419,6 @@ editButton entry i hdId edit subL = do
         else NoteSubR (WId entry) $ WLoc $ LocSub subL
 
 checksDisplay :: Checks -> Widget
-checksDisplay (Checks 0 0 0 0 0) = mempty
 checksDisplay (Checks todo ongoing blocked done dont) =
   [whamlet|
     <span .checks-count>

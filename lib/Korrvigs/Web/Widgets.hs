@@ -15,7 +15,7 @@ import Yesod
 headerSymbol :: Text -> Widget
 headerSymbol s = [whamlet|<span .section-symbol>#{s}|]
 
-mkSection :: Int -> [(Text, Text)] -> [(Text, Text)] -> Widget -> Widget -> Widget
+mkSection :: Int -> [(Text, Text)] -> [(Text, Text)] -> Widget -> Widget -> WidgetFor WebData Text
 mkSection lvl secAttrs divAttrs header content = do
   let lvlClass = T.pack $ "level" <> show (lvl + 1)
   let secAttrsFinal = updClasses [lvlClass] secAttrs
@@ -27,6 +27,7 @@ mkSection lvl secAttrs divAttrs header content = do
       <div *{divAttrsFinal}>
         ^{content}
   |]
+  pure i
   where
     updClasses' :: [Text] -> Map Text Text -> Map Text Text
     updClasses' clss attrs = case M.lookup "class" attrs of

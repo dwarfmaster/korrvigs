@@ -99,7 +99,7 @@ displayFavTree lvl cat favs = do
     $forall sub <- subs
       ^{sub}
   |]
-  pure $ Widgets.mkSection lvl [("class", "collapsed") | lvl > 1] [] (header lvl) content
+  pure $ void $ Widgets.mkSection lvl [("class", "collapsed") | lvl > 1] [] (header lvl) content
   where
     header :: Int -> Widget
     header 1 = [whamlet|<h2> ^{Widgets.headerSymbol "★"} #{cat}|]
@@ -119,7 +119,7 @@ displayHome errMsgs = do
     Widgets.sectionLogic
     [whamlet|
     <h1>Welcome to Korrvigs
-    ^{Widgets.mkSection 1 [] [] nwHd nw}
+    ^{void $ Widgets.mkSection 1 [] [] nwHd nw}
     ^{favs}
   |]
 

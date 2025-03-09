@@ -49,6 +49,11 @@
     sha256 = "1a2rfvid8iqsnq582myjbbz3mjavwy7566lgfbds0badzf9l5srm";
   };
   sed = "${gnused}/bin/sed";
+  charis = fetchzip {
+    url = "https://software.sil.org/downloads/r/charis/CharisSIL-6.200.zip";
+    sha256 = "0yl0cjfnbgzjj0aa9gnimgfsp477qapz1avrdba5v5rzwyapb3mb";
+    stripRoot = true;
+  };
 in
   runCommand "korrvigs-static" {} ''
     mkdir -p $out
@@ -68,4 +73,6 @@ in
     ${sed} 's/fill="#000000"/fill="${theme.base08}"/' ${./ressources/icons/checkbox-dont.svg} > $out/icons/checkbox-dont.svg
     ${sed} 's/fill="#0F0F0F"/fill="${theme.base01}"/' ${./ressources/icons/edit-save.svg} > $out/icons/edit-save.svg
     ${sed} 's/fill="#0D0D0D"/fill="${theme.base01}"/' ${./ressources/icons/edit-quit.svg} > $out/icons/edit-quit.svg
+    mkdir -p $out/font
+    cp ${charis}/web/*.woff2 $out/font
   ''

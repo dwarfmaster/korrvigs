@@ -18,6 +18,7 @@
   --base0F: #{base Base0F}
 
 body
+  font-family: CharisSILW, sans-serif
   background-color: var(--base00)
   color: var(--base05)
 

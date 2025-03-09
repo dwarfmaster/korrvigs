@@ -9,8 +9,34 @@ import Text.Cassius (cassiusFile)
 import Yesod
 import Yesod.Static
 
-defaultCss :: (Base16Index -> Text) -> WidgetFor site ()
-defaultCss base = toWidget $(cassiusFile $ css "default.cassius")
+charisFontFamily :: (Route Static -> Route site) -> WidgetFor site ()
+charisFontFamily mkStatic =
+  toWidget
+    [cassius|
+    @font-face
+      font-family: CharisSILW
+      src: url(@{fontRoute "CharisSIL-Regular.woff2"})
+    @font-face
+      font-family: CharisSILW
+      font-style: italic
+      src: url(@{fontRoute "CharisSIL-Italic.woff2"})
+    @font-face
+      font-family: CharisSILW
+      font-weight: bold
+      src: url(@{fontRoute "CharisSIL-Bold.woff2"})
+    @font-face
+      font-family: CharisSILW
+      font-weight: bold
+      font-style: italic
+      src: url(@{fontRoute "CharisSIL-BoldItalic.woff2"})
+  |]
+  where
+    fontRoute name = mkStatic $ StaticRoute ["font", name] []
+
+defaultCss :: (Base16Index -> Text) -> (Route Static -> Route site) -> WidgetFor site ()
+defaultCss base mkStatic = do
+  charisFontFamily mkStatic
+  toWidget $(cassiusFile $ css "default.cassius")
 
 header :: [(Bool, Text, Route site)] -> WidgetFor site ()
 header pages = do

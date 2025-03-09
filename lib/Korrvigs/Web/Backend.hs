@@ -65,7 +65,7 @@ instance Yesod WebData where
   defaultLayout w = do
     base <- getBase
     hd <- mkHeader
-    let widget = sequence_ [Rcs.defaultCss base, hd, w]
+    let widget = sequence_ [Rcs.defaultCss base StaticR, hd, w]
     p <- widgetToPageContent widget
     msgs <- getMessages
     withUrlRenderer

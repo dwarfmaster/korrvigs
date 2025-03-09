@@ -32,6 +32,7 @@ import qualified Korrvigs.Web.Vis.Network as Network
 import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye hiding (groupBy, not, null)
 import qualified Opaleye as O
+import Text.Blaze (toMarkup)
 import Text.Julius (rawJS)
 import Yesod hiding (Field)
 
@@ -42,7 +43,10 @@ titleWidget entry contentId = do
   favourite <- rSelectMtdt Favourite $ sqlId $ entry ^. name
   taskW <- Wdgs.taskWidget (entry ^. name) (SubLoc []) =<< loadTask (entry ^. name)
   medit <- editWidget
-  pure
+  pure $ do
+    case title of
+      Just t -> setTitle $ toMarkup t
+      Nothing -> setTitle $ toMarkup $ "@" <> unId (entry ^. name)
     [whamlet|
     ^{htmlKind $ entry ^. kind}
     <span .download-button>

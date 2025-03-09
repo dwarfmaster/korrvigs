@@ -114,6 +114,8 @@ displayHome errMsgs = do
   let nwHd = [whamlet|<h2> ^{Widgets.headerSymbol "⊕"} Create entry|]
   favs <- displayFavTree 1 "Favourites" =<< favTree
   defaultLayout $ do
+    setTitle "Korrvigs's Home"
+    setDescriptionIdemp "Korrvigs home page"
     Rcs.entryStyle
     Rcs.formsStyle
     Widgets.sectionLogic

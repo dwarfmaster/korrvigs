@@ -552,7 +552,11 @@ getSearchR = do
     pure (entry, title)
   search <- searchForm q display
   results <- displayResults display $ r & each . _2 %~ nullToNothing
-  defaultLayout $ search <> [whamlet|<div .search-results> ^{results}|]
+  defaultLayout $ do
+    setTitle "Korrvigs search"
+    setDescriptionIdemp "Korrvigs search page"
+    search
+    [whamlet|<div .search-results> ^{results}|]
   where
     nullToNothing :: Maybe Text -> Maybe Text
     nullToNothing (Just "") = Nothing

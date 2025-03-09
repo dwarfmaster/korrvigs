@@ -259,6 +259,8 @@ getGitR = do
   msgId <- newIdent
   aggregateId <- newIdent
   defaultLayout $ do
+    setTitle "Korrvigs Git"
+    setDescriptionIdemp "Korrvigs git status page"
     toWidget $ fileTreeCss base
     toWidget fileTreeJs
     toWidget $ commitJs aggregateId

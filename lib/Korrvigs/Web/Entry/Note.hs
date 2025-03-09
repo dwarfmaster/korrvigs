@@ -333,30 +333,8 @@ compileAttr' (MkAttr i clss misc) = applyId . applyClasses . applyMisc
 compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Maybe Task -> Checks -> SubLoc -> Handler Widget
 compileHead entry n hdId t edit task checks subL = do
   btm <- editButton entry (min n 5) hdId edit subL
-  compileHeader n [whamlet|^{taskWidget entry subL task} #{t} ^{checksDisplay checks} ^{btm}|]
-
-taskWidget :: Id -> SubLoc -> Maybe Task -> Widget
-taskWidget _ _ Nothing = mempty
-taskWidget i subL (Just task) = do
-  spanId <- newIdent
-  let loc = LocTask $ TaskLoc subL
-  toWidget
-    [julius|
-    setupTask("@{NoteSubR (WId i) (WLoc loc)}", #{spanId})
-  |]
-  [whamlet|
-  <span ##{spanId} .task-span .#{status}>
-    ^{label}
-|]
-  where
-    label = task ^. tskStatusName
-    status :: Text
-    status = case task ^. tskStatus of
-      TaskTodo -> "task-todo"
-      TaskOngoing -> "task-ongoing"
-      TaskBlocked -> "task-blocked"
-      TaskDone -> "task-done"
-      TaskDont -> "task-dont"
+  tsk <- Wdgs.taskWidget entry subL task
+  compileHeader n [whamlet|^{tsk} #{t} ^{checksDisplay checks} ^{btm}|]
 
 compileHeader :: Int -> Widget -> Handler Widget
 compileHeader 0 tit =

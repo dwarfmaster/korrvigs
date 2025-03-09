@@ -1,7 +1,6 @@
 module Korrvigs.Metadata.Task where
 
 import Control.Lens
-import Control.Monad.IO.Class
 import Data.Aeson
 import Data.CaseInsensitive (CI)
 import Data.Maybe

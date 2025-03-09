@@ -9,6 +9,7 @@ import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Note.Loc (SubLoc (SubLoc))
 import Korrvigs.Utils.Base16
@@ -27,6 +28,7 @@ import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
 import qualified Korrvigs.Web.Vis.Network as Network
+import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye hiding (groupBy, not, null)
 import qualified Opaleye as O
 import Text.Julius (rawJS)
@@ -37,6 +39,7 @@ titleWidget :: Entry -> Text -> Handler Widget
 titleWidget entry contentId = do
   title <- rSelectTextMtdt Title $ sqlId $ entry ^. name
   favourite <- rSelectMtdt Favourite $ sqlId $ entry ^. name
+  taskW <- Wdgs.taskWidget (entry ^. name) (SubLoc []) =<< loadTask (entry ^. name)
   medit <- editWidget
   pure
     [whamlet|
@@ -47,6 +50,7 @@ titleWidget entry contentId = do
     <h1>
       $maybe _ <- favourite
         ★
+      ^{taskW}
       $maybe t <- title
         #{t}
       <span .entry-name>

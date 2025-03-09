@@ -1,10 +1,15 @@
 module Korrvigs.Web.Widgets where
 
+import Control.Lens
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
+import Korrvigs.Entry
+import Korrvigs.Metadata.Task
+import Korrvigs.Note.Loc
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Routes
 import Yesod
 
 headerSymbol :: Text -> Widget
@@ -40,3 +45,33 @@ sectionLogic =
       })
     }
   |]
+
+taskWidget :: Id -> SubLoc -> Maybe Task -> Handler Widget
+taskWidget _ _ Nothing = pure mempty
+taskWidget i subL (Just tsk) = pure $ do
+  spanId <- newIdent
+  let loc = LocTask $ TaskLoc subL
+  if null (subL ^. subOffsets)
+    then
+      toWidget
+        [julius|
+        setupTopTask("@{EntryMtdtR (WId i)}", #{spanId})
+      |]
+    else
+      toWidget
+        [julius|
+        setupTask("@{NoteSubR (WId i) (WLoc loc)}", #{spanId})
+      |]
+  [whamlet|
+    <span ##{spanId} .task-span .#{status}>
+      ^{lbl}
+  |]
+  where
+    lbl = tsk ^. tskStatusName
+    status :: Text
+    status = case tsk ^. tskStatus of
+      TaskTodo -> "task-todo"
+      TaskOngoing -> "task-ongoing"
+      TaskBlocked -> "task-blocked"
+      TaskDone -> "task-done"
+      TaskDont -> "task-dont"

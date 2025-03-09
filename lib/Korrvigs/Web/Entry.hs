@@ -184,7 +184,7 @@ refsWidget entry = do
                 O.not isSub
                   .|| eid1
                   .== sqlId i
-                  .|| O.not (isPair e1 e2 [(Event, Calendar), (File, Event)])
+                  .|| O.not (isPair e1 e2 [(Event, Calendar), (File, Event), (File, Note)])
           )
           (pure (sqlId i, sqlId i, sqlBool True))
       e1 <- selectTable entriesTable

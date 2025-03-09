@@ -1,11 +1,14 @@
 module Korrvigs.Web.Download (getEntryDownloadR) where
 
 import Control.Lens
+import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Calendar (calendarPath)
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
+import System.FilePath
 import Yesod
 
 downloadEntry :: KindData -> Handler TypedContent
@@ -23,8 +26,21 @@ downloadEntry (CalendarD cal) = do
   path <- calendarPath cal
   pure $ toTypedContent (typeJson, ContentFile path Nothing)
 
+suggestExtension :: KindData -> Text
+suggestExtension (LinkD _) = ".json"
+suggestExtension (FileD file) = T.pack $ takeExtension $ file ^. filePath
+suggestExtension (NoteD _) = ".md"
+suggestExtension (EventD _) = ".ics"
+suggestExtension (CalendarD _) = ".json"
+
+filenameHint :: Id -> KindData -> Handler ()
+filenameHint i dat =
+  addHeader "Content-Disposition" $ "inline; filename=\"" <> unId i <> suggestExtension dat <> "\""
+
 getEntryDownloadR :: WebId -> Handler TypedContent
 getEntryDownloadR (WId i) =
   load i >>= \case
-    Just entry -> downloadEntry $ entry ^. kindData
+    Just entry -> do
+      filenameHint i $ entry ^. kindData
+      downloadEntry $ entry ^. kindData
     Nothing -> notFound

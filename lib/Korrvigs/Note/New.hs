@@ -9,6 +9,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
+import Korrvigs.Kind
 import Korrvigs.KindData
 import Korrvigs.Metadata
 import Korrvigs.Monad
@@ -16,6 +17,7 @@ import Korrvigs.Note.AST
 import Korrvigs.Note.Render
 import Korrvigs.Note.Sync
 import Korrvigs.Utils.DateTree
+import Opaleye hiding (not, null)
 
 data NewNote = NewNote
   { _nnEntry :: NewEntry,
@@ -26,6 +28,18 @@ makeLenses ''NewNote
 
 new :: (MonadKorrvigs m) => NewNote -> m Id
 new note = do
+  mi <- rSelect $ do
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryKind .== sqlKind Note
+    t <- baseSelectTextMtdt Title $ entry ^. sqlEntryName
+    where_ $ matchNullable (sqlBool False) (.== sqlStrictText (note ^. nnTitle)) t
+    pure $ entry ^. sqlEntryName
+  case mi of
+    (i : _) -> pure i
+    [] -> create note
+
+create :: (MonadKorrvigs m) => NewNote -> m Id
+create note = do
   idmk' <- applyNewEntry (note ^. nnEntry) (imk "note")
   let idmk = idmk' & idTitle ?~ note ^. nnTitle
   i <- newId idmk

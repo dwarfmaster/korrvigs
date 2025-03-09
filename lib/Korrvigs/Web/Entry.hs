@@ -1,6 +1,7 @@
 module Korrvigs.Web.Entry (getEntryR, postEntryR) where
 
 import Control.Lens hiding (children)
+import Control.Monad
 import Data.List
 import Data.Maybe
 import Data.Text (Text)
@@ -125,13 +126,17 @@ refsWidget entry = do
             <td .mtdt-button-case>
               <button ##{parRmId} .mtdt-button .mtdt-rm-button>❌
     |]
-    toWidget
-      [julius|
+    unless (null entries) $
+      toWidget
+        [julius|
       document.getElementById(#{detId}).addEventListener("toggle", function(e) {
         if (e.newState == "open") {
           network.fit()
         }
       })
+      |]
+    toWidget
+      [julius|
       document.getElementById(#{parConfirmId}).addEventListener("click", function() {
         const parInput = document.getElementById(#{parInputId})
         fetch("@{EntryParentsR $ WId i}", {

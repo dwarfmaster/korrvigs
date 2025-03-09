@@ -40,6 +40,7 @@ listFavs = do
   pure $ mapMaybe prepJSON favs
   where
     prepJSON :: (Id, Maybe Text, Value) -> Maybe (Id, Maybe Text, [Text])
+    prepJSON (i, title, String "") = Just (i, title, [])
     prepJSON (i, title, val) = case fromJSON val of
       Success cats -> Just (i, title, cats)
       Error _ -> Just (i, title, [])

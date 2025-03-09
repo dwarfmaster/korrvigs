@@ -17,7 +17,8 @@ headerSymbol s = [whamlet|<span .section-symbol>#{s}|]
 
 mkSection :: Int -> [(Text, Text)] -> [(Text, Text)] -> Widget -> Widget -> WidgetFor WebData Text
 mkSection lvl secAttrs divAttrs header content = do
-  let lvlClass = T.pack $ "level" <> show (lvl + 1)
+  let htmlLvl = if lvl > 5 then 6 else lvl + 1
+  let lvlClass = T.pack $ "level" <> show htmlLvl
   let secAttrsFinal = updClasses [lvlClass] secAttrs
   let divAttrsFinal = updClasses ["section-content"] divAttrs
   i <- newIdent

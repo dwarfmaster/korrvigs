@@ -52,7 +52,6 @@ module Korrvigs.Note
 where
 
 import qualified Data.Map as M
-import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
@@ -66,8 +65,6 @@ import Korrvigs.Note.Sync
 instance IsKD Note where
   data KDIdentifier Note = NoteIdentifier FilePath
     deriving (Ord, Eq)
-  dList _ = S.map NoteIdentifier <$> dListImpl
-  dGetId (NoteIdentifier path) = dGetIdImpl path
   dSync _ = fmap (,M.empty) <$> dSyncImpl
   dSyncOne (NoteIdentifier path) = (,M.empty) <$> dSyncOneImpl path
 

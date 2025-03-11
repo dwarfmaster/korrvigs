@@ -58,8 +58,8 @@ allEvents = do
   files <- listFiles rt dtt
   pure $ view _1 <$> files
 
-dListImpl :: (MonadKorrvigs m) => m (Set FilePath)
-dListImpl = S.fromList <$> allEvents
+list :: (MonadKorrvigs m) => m (Set FilePath)
+list = S.fromList <$> allEvents
 
 createIdFor :: (MonadKorrvigs m) => ICalFile -> ICalEvent -> Set Id -> m Id
 createIdFor ical ievent forbidden = do

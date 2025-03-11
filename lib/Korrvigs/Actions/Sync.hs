@@ -9,6 +9,7 @@ import Data.List (find, foldl', singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (isJust)
+import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -16,35 +17,35 @@ import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
 import Korrvigs.Actions.Remove
 import Korrvigs.Actions.SQL
-import Korrvigs.Calendar
+import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Compute (EntryComps, syncComputations)
 import Korrvigs.Entry
-import Korrvigs.Event
-import Korrvigs.File
+import qualified Korrvigs.Event.Sync as Event
+import qualified Korrvigs.File.Sync as File
 import Korrvigs.Kind
 import Korrvigs.KindData
-import Korrvigs.Link
+import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad
-import Korrvigs.Note hiding (Link, check)
+import qualified Korrvigs.Note.Sync as Note
 import Korrvigs.Utils.Cycle
 import Korrvigs.Utils.Time (measureTime, measureTime_)
 import Opaleye hiding (not, null)
 import Prelude hiding (putStrLn)
 
-loadIDsFor :: forall a m f. (IsKD a, MonadKorrvigs m) => Text -> f a -> (KDIdentifier a -> Text) -> m (Map Id [Text])
-loadIDsFor kdTxt _ showId = do
-  (tm, st) <- measureTime $ dList (Nothing :: Maybe a)
+loadIDsFor :: forall m. (MonadKorrvigs m) => Text -> (FilePath -> Id) -> m (Set FilePath) -> m (Map Id [FilePath])
+loadIDsFor kdTxt extractId doList = do
+  (tm, st) <- measureTime doList
   liftIO $ putStrLn $ kdTxt <> ": listed " <> T.pack (show $ S.size st) <> " in " <> tm
-  pure . M.fromListWith (<>) . S.toList $ S.map (dGetId &&& singleton . showId) st
+  pure . M.fromListWith (<>) . S.toList $ S.map (extractId &&& singleton) st
 
-loadIDsOn :: (MonadKorrvigs m) => Kind -> m (Map Id [Text])
-loadIDsOn Link = loadIDsFor (displayKind Link) (Nothing :: Maybe Link) displayLinkId
-loadIDsOn Note = loadIDsFor (displayKind Note) (Nothing :: Maybe Note) displayNoteId
-loadIDsOn File = loadIDsFor (displayKind File) (Nothing :: Maybe File) displayFileId
-loadIDsOn Event = loadIDsFor (displayKind Event) (Nothing :: Maybe Event) displayEventId
-loadIDsOn Calendar = loadIDsFor (displayKind Calendar) (Nothing :: Maybe Calendar) displayCalId
+loadIDsOn :: (MonadKorrvigs m) => Kind -> m (Map Id [FilePath])
+loadIDsOn Link = loadIDsFor (displayKind Link) Link.linkIdFromPath Link.list
+loadIDsOn Note = loadIDsFor (displayKind Note) Note.noteIdFromPath Note.list
+loadIDsOn File = loadIDsFor (displayKind File) File.fileIdFromPath File.list
+loadIDsOn Event = loadIDsFor (displayKind Event) (fst . Event.eventIdFromPath) Event.list
+loadIDsOn Calendar = loadIDsFor (displayKind Calendar) Cal.calIdFromPath Cal.list
 
-loadIDs :: (MonadKorrvigs m) => m (Map Id [Text])
+loadIDs :: (MonadKorrvigs m) => m (Map Id [FilePath])
 loadIDs = do
   allIDs <- mapM loadIDsOn [minBound .. maxBound]
   pure $ M.unionsWith (<>) allIDs

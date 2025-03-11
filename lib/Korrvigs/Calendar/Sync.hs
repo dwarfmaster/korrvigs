@@ -109,11 +109,8 @@ allCalendars = do
   files <- liftIO $ listDirectory rt
   pure $ joinPath . (\f -> [rt, f]) <$> files
 
-dListImpl :: (MonadKorrvigs m) => m (Set FilePath)
-dListImpl = S.fromList <$> allCalendars
-
-dGetIdImpl :: FilePath -> Id
-dGetIdImpl = calIdFromPath
+list :: (MonadKorrvigs m) => m (Set FilePath)
+list = S.fromList <$> allCalendars
 
 dSyncImpl :: (MonadKorrvigs m) => m (Map Id (RelData, EntryComps))
 dSyncImpl =

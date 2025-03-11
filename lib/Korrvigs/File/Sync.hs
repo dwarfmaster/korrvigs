@@ -78,8 +78,8 @@ metaPath = (<> ".meta")
 isMeta :: FilePath -> Bool
 isMeta p = takeExtension p == ".meta"
 
-dGetIdImpl :: FilePath -> Id
-dGetIdImpl = MkId . T.pack . takeBaseName
+fileIdFromPath :: FilePath -> Id
+fileIdFromPath = MkId . T.pack . takeBaseName
 
 remove :: (MonadKorrvigs m) => File -> m ()
 remove file = do
@@ -104,8 +104,8 @@ allFiles = do
   files <- listFiles rt dtt
   pure . filter (not . isMeta) $ (^. _1) <$> files
 
-dListImpl :: (MonadKorrvigs m) => m (Set FilePath)
-dListImpl = S.fromList <$> allFiles
+list :: (MonadKorrvigs m) => m (Set FilePath)
+list = S.fromList <$> allFiles
 
 computeStatus :: FilePath -> IO FileStatus
 computeStatus path = do
@@ -141,11 +141,11 @@ listCompute file = do
 
 dSyncImpl :: (MonadKorrvigs m) => m (Map Id (RelData, EntryComps))
 dSyncImpl =
-  M.fromList <$> (allFiles >>= mapM (sequence . (dGetIdImpl &&& dSyncOneImpl)))
+  M.fromList <$> (allFiles >>= mapM (sequence . (fileIdFromPath &&& dSyncOneImpl)))
 
 dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m (RelData, EntryComps)
 dSyncOneImpl path = do
-  let i = dGetIdImpl path
+  let i = fileIdFromPath path
   prev <- load i
   forM_ prev removeDB
   let meta = metaPath path

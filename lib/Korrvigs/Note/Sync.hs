@@ -33,8 +33,8 @@ import System.Directory (doesFileExist)
 import System.FilePath (joinPath, takeBaseName)
 import Prelude hiding (writeFile)
 
-dGetIdImpl :: FilePath -> Id
-dGetIdImpl = MkId . T.pack . takeBaseName
+noteIdFromPath :: FilePath -> Id
+noteIdFromPath = MkId . T.pack . takeBaseName
 
 remove :: (MonadKorrvigs m) => Note -> m ()
 remove note = do
@@ -56,12 +56,12 @@ allNotes = do
   files <- listFiles rt dtt
   pure $ (^. _1) <$> files
 
-dListImpl :: (MonadKorrvigs m) => m (Set FilePath)
-dListImpl = S.fromList <$> allNotes
+list :: (MonadKorrvigs m) => m (Set FilePath)
+list = S.fromList <$> allNotes
 
 dSyncImpl :: (MonadKorrvigs m) => m (Map Id RelData)
 dSyncImpl =
-  M.fromList <$> (allNotes >>= mapM (sequence . (dGetIdImpl &&& dSyncOneImpl)))
+  M.fromList <$> (allNotes >>= mapM (sequence . (noteIdFromPath &&& dSyncOneImpl)))
 
 fromJSON' :: (FromJSON a) => Value -> Maybe a
 fromJSON' v = case fromJSON v of
@@ -70,7 +70,7 @@ fromJSON' v = case fromJSON v of
 
 dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
 dSyncOneImpl path = do
-  let i = dGetIdImpl path
+  let i = noteIdFromPath path
   prev <- load i
   forM_ prev removeDB
   doc <- readNote path >>= throwEither (KCantLoad i)

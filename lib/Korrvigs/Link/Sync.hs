@@ -100,11 +100,8 @@ allJSONs = do
   files <- listFiles rt dtt
   pure $ (^. _1) <$> files
 
-dListImpl :: (MonadKorrvigs m) => m (Set FilePath)
-dListImpl = S.fromList <$> allJSONs
-
-dGetIdImpl :: FilePath -> Id
-dGetIdImpl = linkIdFromPath
+list :: (MonadKorrvigs m) => m (Set FilePath)
+list = S.fromList <$> allJSONs
 
 dSyncImpl :: (MonadKorrvigs m) => f Link -> m (Map Id RelData)
 dSyncImpl _ =

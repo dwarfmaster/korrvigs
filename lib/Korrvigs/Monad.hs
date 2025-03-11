@@ -19,7 +19,7 @@ import Opaleye hiding (null)
 
 data KorrvigsError
   = KIOError IOException
-  | KDuplicateId [(Id, [Text])]
+  | KDuplicateId [(Id, [FilePath])]
   | KCantLoad Id Text
   | KSubCycle [Id]
   | KRelToUnknown Id

@@ -1,16 +1,19 @@
-module Korrvigs.Actions.Load where
+module Korrvigs.Actions.SQL (load, loadMetadata) where
 
 import Control.Lens
 import qualified Data.Map as M
-import Korrvigs.AllEntries ()
+import qualified Korrvigs.Calendar.SQL as Cal
 import Korrvigs.Entry
+import qualified Korrvigs.Event.SQL as Event
+import qualified Korrvigs.File.SQL as File
 import Korrvigs.Kind
-import Korrvigs.KindData
+import qualified Korrvigs.Link.SQL as Link
 import Korrvigs.Monad
+import qualified Korrvigs.Note.SQL as Note
 import Opaleye
 
-mkEntry :: (IsKD a) => f a -> EntryRow -> (Entry -> a) -> Entry
-mkEntry _ row = dEntry . entryFromRow dToData row
+mkEntry :: (IsKindData a) => EntryRow -> (Entry -> a) -> Entry
+mkEntry row = kdEntry . entryFromRow kdKindData row
 
 load :: (MonadKorrvigs m) => Id -> m (Maybe Entry)
 load i = do
@@ -22,11 +25,11 @@ load i = do
     Nothing -> pure Nothing
     Just row -> do
       case row ^. sqlEntryKind of
-        Note -> dLoad i $ mkEntry (Nothing :: Maybe Note) row
-        Link -> dLoad i $ mkEntry (Nothing :: Maybe Link) row
-        File -> dLoad i $ mkEntry (Nothing :: Maybe File) row
-        Event -> dLoad i $ mkEntry (Nothing :: Maybe Event) row
-        Calendar -> dLoad i $ mkEntry (Nothing :: Maybe Calendar) row
+        Note -> Note.sqlLoad i $ mkEntry row
+        Link -> Link.sqlLoad i $ mkEntry row
+        File -> File.sqlLoad i $ mkEntry row
+        Event -> Event.sqlLoad i $ mkEntry row
+        Calendar -> Cal.sqlLoad i $ mkEntry row
 
 loadMetadata :: (MonadKorrvigs m) => Id -> m Metadata
 loadMetadata i = do

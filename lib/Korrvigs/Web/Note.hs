@@ -13,8 +13,7 @@ import Data.Conduit.Combinators (fold)
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
-import Korrvigs.Actions.Load
-import Korrvigs.Actions.Sync (processRelData)
+import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad (KorrvigsError (KMiscError))

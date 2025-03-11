@@ -18,6 +18,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time.LocalTime
 import GHC.Int (Int64)
+import Korrvigs.Actions.SQL
 import Korrvigs.Compute
 import Korrvigs.Compute.Builtin
 import Korrvigs.Entry
@@ -80,26 +81,6 @@ isMeta p = takeExtension p == ".meta"
 
 dGetIdImpl :: FilePath -> Id
 dGetIdImpl = MkId . T.pack . takeBaseName
-
-fileFromRow :: FileRow -> Entry -> File
-fileFromRow frow entry =
-  MkFile
-    { _fileEntry = entry,
-      _filePath = frow ^. sqlFilePath,
-      _fileMeta = frow ^. sqlFileMeta,
-      _fileStatus = frow ^. sqlFileStatus,
-      _fileMime = frow ^. sqlFileMime
-    }
-
-dLoadImpl :: (MonadKorrvigs m) => Id -> ((Entry -> File) -> Entry) -> m (Maybe Entry)
-dLoadImpl i cstr = do
-  sel <- rSelectOne $ do
-    frow <- selectTable filesTable
-    where_ $ frow ^. sqlFileName .== sqlId i
-    pure frow
-  case (sel :: Maybe FileRow) of
-    Nothing -> pure Nothing
-    Just frow -> pure . Just . cstr $ fileFromRow frow
 
 dRemoveDBImpl :: Id -> [Delete Int64]
 dRemoveDBImpl i =

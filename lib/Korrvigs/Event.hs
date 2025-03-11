@@ -15,7 +15,7 @@ import Korrvigs.KindData
 instance IsKD Event where
   data KDIdentifier Event = EventIdentifier FilePath
     deriving (Ord, Eq)
-  dLoad = dLoadImpl
+  dLoad = undefined
   dRemoveDB _ = dRemoveDBImpl
   dList _ = S.map EventIdentifier <$> dListImpl
   dGetId (EventIdentifier path) = view _1 $ eventIdFromPath path

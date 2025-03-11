@@ -8,6 +8,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
+import Korrvigs.Actions
 import qualified Korrvigs.Calendar.DAV as DAV
 import qualified Korrvigs.Calendar.New as NC
 import Korrvigs.Calendar.SQL

@@ -30,10 +30,11 @@ library korrvigs-lib
     Korrvigs
     Korrvigs.Actions
     Korrvigs.Actions.Compute
-    Korrvigs.Actions.Load
     Korrvigs.Actions.Metadata
     Korrvigs.Actions.Remove
+    Korrvigs.Actions.SQL
     Korrvigs.Actions.Sync
+    Korrvigs.Actions.Utils
     Korrvigs.AllEntries
     Korrvigs.Calendar
     Korrvigs.Calendar.DAV

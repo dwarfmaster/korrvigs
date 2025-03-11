@@ -17,7 +17,7 @@ import qualified Data.Text.IO as TIO
 import Data.Text.Manipulate (mapHead)
 import Data.Time.Format.ISO8601 (iso8601Show)
 import qualified Data.Vector as V
-import Korrvigs.Actions.Load (loadMetadata)
+import Korrvigs.Actions
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
 import Korrvigs.Kind

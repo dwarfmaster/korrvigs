@@ -7,6 +7,7 @@ import Data.Maybe
 import Data.Text (Text)
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
+import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata

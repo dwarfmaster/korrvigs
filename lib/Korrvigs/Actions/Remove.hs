@@ -3,6 +3,7 @@ module Korrvigs.Actions.Remove where
 import Control.Lens
 import Control.Monad (forM_, void)
 import GHC.Int (Int64)
+import Korrvigs.Actions.SQL
 import Korrvigs.AllEntries ()
 import Korrvigs.Compute (rmComputations)
 import Korrvigs.Entry

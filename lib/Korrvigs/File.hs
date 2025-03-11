@@ -15,7 +15,7 @@ import Korrvigs.KindData
 instance IsKD File where
   data KDIdentifier File = FileIdentifier FilePath
     deriving (Ord, Eq)
-  dLoad = dLoadImpl
+  dLoad = undefined
   dRemoveDB _ = dRemoveDBImpl
   dList _ = S.map FileIdentifier <$> dListImpl
   dGetId (FileIdentifier path) = dGetIdImpl path

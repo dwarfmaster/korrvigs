@@ -12,6 +12,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
+import Korrvigs.Actions.SQL
 import qualified Korrvigs.Compute.Builtin as Builtin
 import Korrvigs.Entry
 import Korrvigs.Monad

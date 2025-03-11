@@ -7,8 +7,10 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
+import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Monad
 import Opaleye
 
 data LinkRowImpl a b c d = LinkRow
@@ -40,3 +42,15 @@ linksTable =
         (tableField "protocol")
         (tableField "ref")
         (tableField "file")
+
+linkFromRow :: LinkRow -> Entry -> Link
+linkFromRow row entry =
+  MkLink
+    { _linkEntry = entry,
+      _linkProtocol = row ^. sqlLinkProtocol,
+      _linkRef = row ^. sqlLinkRef,
+      _linkPath = row ^. sqlLinkFile
+    }
+
+sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Link) -> Entry) -> m (Maybe Entry)
+sqlLoad = genSqlLoad linksTable (view sqlLinkName) linkFromRow

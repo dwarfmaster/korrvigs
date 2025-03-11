@@ -7,8 +7,10 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import qualified Data.Text.Encoding as Enc
+import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Monad
 import Korrvigs.Utils.Opaleye (makeSqlMapper)
 import Network.Mime
 import Opaleye
@@ -73,3 +75,16 @@ filesTable =
         (tableField "meta")
         (tableField "status")
         (tableField "mime")
+
+fileFromRow :: FileRow -> Entry -> File
+fileFromRow frow entry =
+  MkFile
+    { _fileEntry = entry,
+      _filePath = frow ^. sqlFilePath,
+      _fileMeta = frow ^. sqlFileMeta,
+      _fileStatus = frow ^. sqlFileStatus,
+      _fileMime = frow ^. sqlFileMime
+    }
+
+sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> File) -> Entry) -> m (Maybe Entry)
+sqlLoad = genSqlLoad filesTable (view sqlFileName) fileFromRow

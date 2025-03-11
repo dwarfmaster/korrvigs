@@ -19,7 +19,7 @@ import Prelude hiding (readFile)
 instance IsKD Link where
   data KDIdentifier Link = LinkIdentifier FilePath
     deriving (Ord, Eq)
-  dLoad = dLoadImpl
+  dLoad = undefined
   dRemoveDB _ = dRemoveDBImpl
   dList _ = S.map LinkIdentifier <$> dListImpl
   dGetId (LinkIdentifier path) = dGetIdImpl path

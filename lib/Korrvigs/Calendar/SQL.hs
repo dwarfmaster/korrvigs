@@ -6,8 +6,10 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
+import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Monad
 import Opaleye
 
 data CalRowImpl a b c d = CalRow
@@ -39,3 +41,15 @@ calendarsTable =
         (tableField "server")
         (tableField "usr")
         (tableField "calname")
+
+calFromRow :: CalRow -> Entry -> Calendar
+calFromRow row entry =
+  MkCalendar
+    { _calEntry = entry,
+      _calServer = row ^. sqlCalServer,
+      _calUser = row ^. sqlCalUser,
+      _calName = row ^. sqlCalCalName
+    }
+
+sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Calendar) -> Entry) -> m (Maybe Entry)
+sqlLoad = genSqlLoad calendarsTable (view sqlCalName) calFromRow

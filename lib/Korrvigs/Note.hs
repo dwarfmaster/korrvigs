@@ -68,7 +68,7 @@ import Korrvigs.Note.Sync
 instance IsKD Note where
   data KDIdentifier Note = NoteIdentifier FilePath
     deriving (Ord, Eq)
-  dLoad = dLoadImpl
+  dLoad = undefined
   dRemoveDB _ = dRemoveDBImpl
   dList _ = S.map NoteIdentifier <$> dListImpl
   dGetId (NoteIdentifier path) = dGetIdImpl path

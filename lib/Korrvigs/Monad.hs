@@ -32,7 +32,6 @@ instance Exception KorrvigsError
 class (MonadIO m, MonadThrow m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
-  load :: Id -> m (Maybe Entry)
   remove :: Id -> m ()
   dispatchRemove :: Entry -> m ()
   removeDB :: Id -> m ()

@@ -15,7 +15,7 @@ import Korrvigs.KindData
 instance IsKD Calendar where
   data KDIdentifier Calendar = CalIdentifier FilePath
     deriving (Ord, Eq)
-  dLoad = dLoadImpl
+  dLoad = undefined
   dRemoveDB _ = dRemoveDBImpl
   dList _ = S.map CalIdentifier <$> dListImpl
   dGetId (CalIdentifier path) = dGetIdImpl path

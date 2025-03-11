@@ -2,7 +2,7 @@
 
 module Korrvigs.Entry.Def where
 
-import Control.Lens (Getter, Traversal', to)
+import Control.Lens (Getter, Traversal', to, view)
 import Control.Lens.TH (makeLenses, makePrisms)
 import Data.Aeson (Value)
 import Data.CaseInsensitive (CI)
@@ -112,3 +112,30 @@ _File = kindData . _FileD
 
 _Event :: Traversal' Entry Event
 _Event = kindData . _EventD
+
+_Calendar :: Traversal' Entry Calendar
+_Calendar = kindData . _CalendarD
+
+class IsKindData a where
+  kdEntry :: a -> Entry
+  kdKindData :: a -> KindData
+
+instance IsKindData Link where
+  kdEntry = view linkEntry
+  kdKindData = LinkD
+
+instance IsKindData Note where
+  kdEntry = view noteEntry
+  kdKindData = NoteD
+
+instance IsKindData File where
+  kdEntry = view fileEntry
+  kdKindData = FileD
+
+instance IsKindData Event where
+  kdEntry = view eventEntry
+  kdKindData = EventD
+
+instance IsKindData Calendar where
+  kdEntry = view calEntry
+  kdKindData = CalendarD

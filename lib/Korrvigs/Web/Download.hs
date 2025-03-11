@@ -3,9 +3,9 @@ module Korrvigs.Web.Download (getEntryDownloadR) where
 import Control.Lens
 import Data.Text (Text)
 import qualified Data.Text as T
+import Korrvigs.Actions
 import Korrvigs.Calendar (calendarPath)
 import Korrvigs.Entry
-import Korrvigs.Monad
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import System.FilePath

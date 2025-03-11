@@ -15,6 +15,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Int (Int64)
+import Korrvigs.Actions.SQL
 import Korrvigs.Entry
 import Korrvigs.FTS
 import Korrvigs.Kind
@@ -34,19 +35,6 @@ import Prelude hiding (writeFile)
 
 dGetIdImpl :: FilePath -> Id
 dGetIdImpl = MkId . T.pack . takeBaseName
-
-noteFromRow :: NoteRow -> Entry -> Note
-noteFromRow nrow entry = MkNote entry (nrow ^. sqlNotePath)
-
-dLoadImpl :: (MonadKorrvigs m) => Id -> ((Entry -> Note) -> Entry) -> m (Maybe Entry)
-dLoadImpl i cstr = do
-  sel <- rSelectOne $ do
-    nrow <- selectTable notesTable
-    where_ $ nrow ^. sqlNoteName .== sqlId i
-    pure nrow
-  case (sel :: Maybe NoteRow) of
-    Nothing -> pure Nothing
-    Just nrow -> pure . Just . cstr $ noteFromRow nrow
 
 dRemoveDBImpl :: Id -> [Delete Int64]
 dRemoveDBImpl i =

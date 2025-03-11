@@ -14,6 +14,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Int (Int64)
+import Korrvigs.Actions.SQL
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.SQL
 import Korrvigs.Compute
@@ -139,25 +140,6 @@ dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
   exists <- liftIO $ doesFileExist path
   when exists $ liftIO $ removeFile path
-
-calFromRow :: CalRow -> Entry -> Calendar
-calFromRow row entry =
-  MkCalendar
-    { _calEntry = entry,
-      _calServer = row ^. sqlCalServer,
-      _calUser = row ^. sqlCalUser,
-      _calName = row ^. sqlCalCalName
-    }
-
-dLoadImpl :: (MonadKorrvigs m) => Id -> ((Entry -> Calendar) -> Entry) -> m (Maybe Entry)
-dLoadImpl i cstr = do
-  sel <- rSelectOne $ do
-    crow <- selectTable calendarsTable
-    where_ $ crow ^. sqlCalName .== sqlId i
-    pure crow
-  case (sel :: Maybe CalRow) of
-    Nothing -> pure Nothing
-    Just crow -> pure $ Just $ cstr $ calFromRow crow
 
 dUpdateImpl :: (MonadKorrvigs m) => Calendar -> (CalJSON -> m CalJSON) -> m ()
 dUpdateImpl cal f = do

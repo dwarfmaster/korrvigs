@@ -6,8 +6,10 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
+import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Monad
 import Opaleye
 
 data EventRowImpl a b c d = EventRow
@@ -39,3 +41,9 @@ eventsTable =
         (tableField "calendar")
         (tableField "file")
         (tableField "uid")
+
+eventFromRow :: EventRow -> Entry -> Event
+eventFromRow erow entry = MkEvent entry (erow ^. sqlEventCalendar) (erow ^. sqlEventFile) (erow ^. sqlEventUID)
+
+sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Event) -> Entry) -> m (Maybe Entry)
+sqlLoad = genSqlLoad eventsTable (view sqlEventName) eventFromRow

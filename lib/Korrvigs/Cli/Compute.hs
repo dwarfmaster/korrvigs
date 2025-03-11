@@ -7,6 +7,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Text.IO (putStr, putStrLn)
+import Korrvigs.Actions
 import Korrvigs.Actions.Compute
 import Korrvigs.Cli.Monad
 import Korrvigs.Compute hiding (run)

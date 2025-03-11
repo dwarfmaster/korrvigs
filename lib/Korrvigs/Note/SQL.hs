@@ -5,8 +5,10 @@ module Korrvigs.Note.SQL where
 import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
+import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Monad
 import Opaleye
 
 data NoteRowImpl a b = NoteRow
@@ -34,3 +36,9 @@ notesTable =
       NoteRow
         (nameKindField Note)
         (tableField "path")
+
+noteFromRow :: NoteRow -> Entry -> Note
+noteFromRow nrow entry = MkNote entry (nrow ^. sqlNotePath)
+
+sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Note) -> Entry) -> m (Maybe Entry)
+sqlLoad = genSqlLoad notesTable (view sqlNoteName) noteFromRow

@@ -20,6 +20,7 @@ import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.LocalTime
 import GHC.Int (Int64)
+import Korrvigs.Actions.SQL
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
@@ -39,19 +40,6 @@ eventTreeType = def & dtYear .~ True & dtMonth .~ True
 
 eventIdFromPath :: FilePath -> (Id, Id)
 eventIdFromPath path = MkId *** (MkId . T.drop 1) $ T.breakOn "_" $ T.pack $ takeBaseName path
-
-eventFromRow :: EventRow -> Entry -> Event
-eventFromRow erow entry = MkEvent entry (erow ^. sqlEventCalendar) (erow ^. sqlEventFile) (erow ^. sqlEventUID)
-
-dLoadImpl :: (MonadKorrvigs m) => Id -> ((Entry -> Event) -> Entry) -> m (Maybe Entry)
-dLoadImpl i cstr = do
-  sel <- rSelectOne $ do
-    erow <- selectTable eventsTable
-    where_ $ erow ^. sqlEventName .== sqlId i
-    pure erow
-  case (sel :: Maybe EventRow) of
-    Nothing -> pure Nothing
-    Just erow -> pure . Just . cstr $ eventFromRow erow
 
 dRemoveDBImpl :: Id -> [Delete Int64]
 dRemoveDBImpl i =

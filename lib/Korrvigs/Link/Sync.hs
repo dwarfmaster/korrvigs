@@ -14,6 +14,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Int (Int64)
+import Korrvigs.Actions.SQL
 import Korrvigs.Entry
 import Korrvigs.FTS
 import Korrvigs.Kind
@@ -83,7 +84,7 @@ syncLink :: (MonadKorrvigs m) => FilePath -> m RelData
 syncLink path = do
   let i = linkIdFromPath path
   prev <- load i
-  forM_ prev dispatchRemoveDB
+  forM_ prev $ \entry -> when (entry ^. kind /= Link) $ dispatchRemoveDB entry
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   void $ syncLinkJSON i path json
   pure $
@@ -126,26 +127,6 @@ dRemoveImpl path = do
   rt <- linkJSONPath
   exists <- liftIO $ doesFileExist path
   when exists $ recursiveRemoveFile rt path
-
-linkFromRow :: LinkRow -> Entry -> Link
-linkFromRow row entry =
-  MkLink
-    { _linkEntry = entry,
-      _linkProtocol = row ^. sqlLinkProtocol,
-      _linkRef = row ^. sqlLinkRef,
-      _linkPath = row ^. sqlLinkFile
-    }
-
-dLoadImpl :: (MonadKorrvigs m) => Id -> ((Entry -> Link) -> Entry) -> m (Maybe Entry)
-dLoadImpl i cstr = do
-  sel <- rSelectOne $ do
-    lrow <- selectTable linksTable
-    where_ $ lrow ^. sqlLinkName .== sqlId i
-    pure lrow
-  case (sel :: Maybe LinkRow) of
-    Nothing -> pure Nothing
-    Just lrow -> do
-      pure $ Just $ cstr $ linkFromRow lrow
 
 dUpdateImpl :: (MonadKorrvigs m) => Link -> (LinkJSON -> m LinkJSON) -> m ()
 dUpdateImpl link f = do

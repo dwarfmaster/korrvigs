@@ -10,8 +10,7 @@ import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
-import Korrvigs.Actions.Load (loadMetadata)
-import Korrvigs.Actions.Metadata
+import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Web.Backend

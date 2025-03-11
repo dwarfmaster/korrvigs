@@ -22,7 +22,7 @@ instance IsKD Event where
   dListCompute _ = pure M.empty
   dSync _ = fmap (,M.empty) <$> dSyncImpl
   dSyncOne (EventIdentifier path) = (,M.empty) <$> dSyncOneImpl path
-  dRemove (EventIdentifier path) = dRemoveImpl path
+  dRemove = undefined
   dUpdateMetadata = dUpdateMetadataImpl
   dUpdateParents = dUpdateParentsImpl
   dKind = const Event

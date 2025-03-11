@@ -53,7 +53,6 @@ newtype KorrM a = KorrM (ExceptT SomeException (ReaderT KorrState IO) a)
 instance MonadKorrvigs KorrM where
   pgSQL = view korrConnection
   root = view korrRoot
-  remove = Actions.remove
   sync = Actions.sync
 
 runKorrM :: KorrConfig -> KorrM a -> IO (Either KorrvigsError a)

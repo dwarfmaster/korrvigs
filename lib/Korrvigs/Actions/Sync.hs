@@ -14,6 +14,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
+import Korrvigs.Actions.Remove
+import Korrvigs.Actions.SQL
 import Korrvigs.Calendar
 import Korrvigs.Compute (EntryComps, syncComputations)
 import Korrvigs.Entry
@@ -99,7 +101,9 @@ sync = do
   unless (null conflict) $ throwM $ KDuplicateId conflict
   sqls <- sqlIDs
   let toRemove = view _1 <$> M.toList (M.difference sqls ids)
-  rmT <- measureTime_ $ forM_ toRemove remove
+  rmT <- measureTime_ $ forM_ toRemove $ \i -> do
+    entry <- load i
+    forM_ entry remove
   liftIO $ putStrLn $ "Removed " <> T.pack (show $ length toRemove) <> " entries in " <> rmT
   allrels <- mapM runSyncOn [minBound .. maxBound]
   let rels = foldl' M.union M.empty allrels

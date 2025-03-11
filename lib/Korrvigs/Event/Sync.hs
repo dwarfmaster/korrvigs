@@ -40,8 +40,9 @@ eventTreeType = def & dtYear .~ True & dtMonth .~ True
 eventIdFromPath :: FilePath -> (Id, Id)
 eventIdFromPath path = MkId *** (MkId . T.drop 1) $ T.breakOn "_" $ T.pack $ takeBaseName path
 
-dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
-dRemoveImpl path = do
+remove :: (MonadKorrvigs m) => Event -> m ()
+remove ev = do
+  let path = ev ^. eventFile
   rt <- eventsDirectory
   exists <- liftIO $ doesFileExist path
   when exists $ recursiveRemoveFile rt path

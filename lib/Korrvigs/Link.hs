@@ -26,7 +26,7 @@ instance IsKD Link where
   dListCompute _ = pure M.empty
   dSync = (fmap (,M.empty) <$>) . dSyncImpl
   dSyncOne (LinkIdentifier path) = (,M.empty) <$> dSyncOneImpl path
-  dRemove (LinkIdentifier path) = dRemoveImpl path
+  dRemove = undefined
   dUpdateMetadata = dUpdateMetadataImpl
   dUpdateParents = dUpdateParentsImpl
   dKind = const Link

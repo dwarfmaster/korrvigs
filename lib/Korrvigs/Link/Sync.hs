@@ -112,8 +112,9 @@ dSyncImpl _ =
 dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
 dSyncOneImpl = syncLink
 
-dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
-dRemoveImpl path = do
+remove :: (MonadKorrvigs m) => Link -> m ()
+remove lnk = do
+  let path = lnk ^. linkPath
   rt <- linkJSONPath
   exists <- liftIO $ doesFileExist path
   when exists $ recursiveRemoveFile rt path

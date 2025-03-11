@@ -75,7 +75,7 @@ instance IsKD Note where
   dListCompute _ = pure M.empty
   dSync _ = fmap (,M.empty) <$> dSyncImpl
   dSyncOne (NoteIdentifier path) = (,M.empty) <$> dSyncOneImpl path
-  dRemove (NoteIdentifier path) = dRemoveImpl path
+  dRemove = undefined
   dUpdateMetadata = dUpdateMetadataImpl
   dUpdateParents = dUpdateParentsImpl
   dKind = const Note

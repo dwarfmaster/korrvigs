@@ -81,8 +81,9 @@ isMeta p = takeExtension p == ".meta"
 dGetIdImpl :: FilePath -> Id
 dGetIdImpl = MkId . T.pack . takeBaseName
 
-dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
-dRemoveImpl path = do
+remove :: (MonadKorrvigs m) => File -> m ()
+remove file = do
+  let path = file ^. filePath
   rt <- filesDirectory
   exists <- liftIO $ doesFileExist path
   when exists $ recursiveRemoveFile rt path

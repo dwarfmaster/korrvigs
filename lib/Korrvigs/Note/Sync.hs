@@ -35,8 +35,9 @@ import Prelude hiding (writeFile)
 dGetIdImpl :: FilePath -> Id
 dGetIdImpl = MkId . T.pack . takeBaseName
 
-dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
-dRemoveImpl path = do
+remove :: (MonadKorrvigs m) => Note -> m ()
+remove note = do
+  let path = note ^. notePath
   rt <- noteDirectory
   exists <- liftIO $ doesFileExist path
   when exists $ recursiveRemoveFile rt path

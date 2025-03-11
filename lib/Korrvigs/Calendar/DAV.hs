@@ -18,6 +18,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.LocalTime
+import Korrvigs.Actions (load, remove)
 import Korrvigs.Compute
 import qualified Korrvigs.Compute.Builtin as Blt
 import Korrvigs.Entry
@@ -262,7 +263,8 @@ sync restore cals pwd = do
         erow <- selectTable eventsTable
         where_ $ erow ^. sqlEventFile .== sqlString rmPath
         pure $ erow ^. sqlEventName
-      forM_ rmId remove
+      rmEv <- join <$> forM rmId load
+      forM_ rmEv remove
     forM_ addedFiles dSyncOneImpl
 
   -- We push the events and reset the calsync branch to main

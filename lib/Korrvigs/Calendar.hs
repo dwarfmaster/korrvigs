@@ -22,7 +22,7 @@ instance IsKD Calendar where
   dListCompute _ = pure M.empty
   dSync _ = dSyncImpl
   dSyncOne (CalIdentifier path) = dSyncOneImpl path
-  dRemove (CalIdentifier path) = dRemoveImpl path
+  dRemove = undefined
   dUpdateMetadata = dUpdateMetadataImpl
   dUpdateParents = dUpdateParentsImpl
   dKind = const Calendar

@@ -126,8 +126,9 @@ dSyncOneImpl path = do
   let cmps = M.singleton "dav" (Computation i "dav" (Builtin CalDav) Json)
   pure (relData, cmps)
 
-dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
-dRemoveImpl path = do
+remove :: (MonadKorrvigs m) => Calendar -> m ()
+remove cal = do
+  path <- calendarPath cal
   exists <- liftIO $ doesFileExist path
   when exists $ liftIO $ removeFile path
 

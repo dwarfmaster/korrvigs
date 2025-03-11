@@ -100,7 +100,6 @@ instance RenderMessage WebData FormMessage where
 instance MonadKorrvigs Handler where
   pgSQL = getsYesod web_connection
   root = getsYesod web_root
-  remove = Actions.remove
   sync = Actions.sync
 
 getFaviconR :: Handler TypedContent

@@ -22,7 +22,7 @@ instance IsKD File where
   dListCompute (FileIdentifier path) = dListComputeImpl path
   dSync _ = dSyncImpl
   dSyncOne (FileIdentifier path) = dSyncOneImpl path
-  dRemove (FileIdentifier path) = dRemoveImpl path
+  dRemove = undefined
   dUpdateMetadata = dUpdateMetadataImpl
   dUpdateParents = dUpdateParentsImpl
   dKind = const File

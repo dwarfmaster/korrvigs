@@ -5,6 +5,7 @@ module Korrvigs.Note.SQL where
 import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
+import GHC.Int (Int64)
 import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -42,3 +43,6 @@ noteFromRow nrow entry = MkNote entry (nrow ^. sqlNotePath)
 
 sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Note) -> Entry) -> m (Maybe Entry)
 sqlLoad = genSqlLoad notesTable (view sqlNoteName) noteFromRow
+
+sqlRemove :: Id -> [Delete Int64]
+sqlRemove = genSqlRemove notesTable $ view sqlNoteName

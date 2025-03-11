@@ -13,7 +13,6 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
-import GHC.Int (Int64)
 import Korrvigs.Actions.SQL
 import Korrvigs.Entry
 import Korrvigs.FTS
@@ -84,7 +83,7 @@ syncLink :: (MonadKorrvigs m) => FilePath -> m RelData
 syncLink path = do
   let i = linkIdFromPath path
   prev <- load i
-  forM_ prev $ \entry -> when (entry ^. kind /= Link) $ dispatchRemoveDB entry
+  forM_ prev $ \entry -> when (entry ^. kind /= Link) $ removeDB entry
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   void $ syncLinkJSON i path json
   pure $
@@ -112,15 +111,6 @@ dSyncImpl _ =
 
 dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
 dSyncOneImpl = syncLink
-
-dRemoveDBImpl :: Id -> [Delete Int64]
-dRemoveDBImpl i =
-  [ Delete
-      { dTable = linksTable,
-        dWhere = \lrow -> lrow ^. sqlLinkName .== sqlId i,
-        dReturning = rCount
-      }
-  ]
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do

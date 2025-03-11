@@ -69,7 +69,7 @@ instance IsKD Note where
   data KDIdentifier Note = NoteIdentifier FilePath
     deriving (Ord, Eq)
   dLoad = undefined
-  dRemoveDB _ = dRemoveDBImpl
+  dRemoveDB _ = undefined
   dList _ = S.map NoteIdentifier <$> dListImpl
   dGetId (NoteIdentifier path) = dGetIdImpl path
   dListCompute _ = pure M.empty

@@ -101,9 +101,6 @@ instance MonadKorrvigs Handler where
   pgSQL = getsYesod web_connection
   root = getsYesod web_root
   remove = Actions.remove
-  dispatchRemove = Actions.dispatchRemove
-  removeDB = Actions.removeDB
-  dispatchRemoveDB = Actions.dispatchRemoveDB
   sync = Actions.sync
 
 getFaviconR :: Handler TypedContent

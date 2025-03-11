@@ -7,6 +7,7 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import qualified Data.Text.Encoding as Enc
+import GHC.Int (Int64)
 import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -88,3 +89,6 @@ fileFromRow frow entry =
 
 sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> File) -> Entry) -> m (Maybe Entry)
 sqlLoad = genSqlLoad filesTable (view sqlFileName) fileFromRow
+
+sqlRemove :: Id -> [Delete Int64]
+sqlRemove = genSqlRemove filesTable $ view sqlFileName

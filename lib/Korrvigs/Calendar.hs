@@ -16,7 +16,7 @@ instance IsKD Calendar where
   data KDIdentifier Calendar = CalIdentifier FilePath
     deriving (Ord, Eq)
   dLoad = undefined
-  dRemoveDB _ = dRemoveDBImpl
+  dRemoveDB _ = undefined
   dList _ = S.map CalIdentifier <$> dListImpl
   dGetId (CalIdentifier path) = dGetIdImpl path
   dListCompute _ = pure M.empty

@@ -54,9 +54,6 @@ instance MonadKorrvigs KorrM where
   pgSQL = view korrConnection
   root = view korrRoot
   remove = Actions.remove
-  dispatchRemove = Actions.dispatchRemove
-  removeDB = Actions.removeDB
-  dispatchRemoveDB = Actions.dispatchRemoveDB
   sync = Actions.sync
 
 runKorrM :: KorrConfig -> KorrM a -> IO (Either KorrvigsError a)

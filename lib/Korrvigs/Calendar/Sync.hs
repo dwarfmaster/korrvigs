@@ -13,7 +13,6 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
-import GHC.Int (Int64)
 import Korrvigs.Actions.SQL
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.SQL
@@ -95,7 +94,7 @@ syncCal :: (MonadKorrvigs m) => FilePath -> m RelData
 syncCal path = do
   let i = calIdFromPath path
   prev <- load i
-  forM_ prev dispatchRemoveDB
+  forM_ prev removeDB
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   void $ syncCalJSON i json
   pure $
@@ -126,15 +125,6 @@ dSyncOneImpl path = do
   let i = calIdFromPath path
   let cmps = M.singleton "dav" (Computation i "dav" (Builtin CalDav) Json)
   pure (relData, cmps)
-
-dRemoveDBImpl :: Id -> [Delete Int64]
-dRemoveDBImpl i =
-  [ Delete
-      { dTable = calendarsTable,
-        dWhere = \crow -> crow ^. sqlCalName .== sqlId i,
-        dReturning = rCount
-      }
-  ]
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do

@@ -20,7 +20,7 @@ instance IsKD Link where
   data KDIdentifier Link = LinkIdentifier FilePath
     deriving (Ord, Eq)
   dLoad = undefined
-  dRemoveDB _ = dRemoveDBImpl
+  dRemoveDB _ = undefined
   dList _ = S.map LinkIdentifier <$> dListImpl
   dGetId (LinkIdentifier path) = dGetIdImpl path
   dListCompute _ = pure M.empty

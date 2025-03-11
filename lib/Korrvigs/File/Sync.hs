@@ -17,7 +17,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time.LocalTime
-import GHC.Int (Int64)
 import Korrvigs.Actions.SQL
 import Korrvigs.Compute
 import Korrvigs.Compute.Builtin
@@ -81,15 +80,6 @@ isMeta p = takeExtension p == ".meta"
 
 dGetIdImpl :: FilePath -> Id
 dGetIdImpl = MkId . T.pack . takeBaseName
-
-dRemoveDBImpl :: Id -> [Delete Int64]
-dRemoveDBImpl i =
-  [ Delete
-      { dTable = filesTable,
-        dWhere = \frow -> frow ^. sqlFileName .== sqlId i,
-        dReturning = rCount
-      }
-  ]
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
@@ -155,7 +145,7 @@ dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m (RelData, EntryComps)
 dSyncOneImpl path = do
   let i = dGetIdImpl path
   prev <- load i
-  forM_ prev dispatchRemoveDB
+  forM_ prev removeDB
   let meta = metaPath path
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   let mtdt = json ^. annoted

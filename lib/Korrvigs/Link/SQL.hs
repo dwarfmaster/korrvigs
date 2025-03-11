@@ -7,6 +7,7 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
+import GHC.Int (Int64)
 import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -54,3 +55,6 @@ linkFromRow row entry =
 
 sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Link) -> Entry) -> m (Maybe Entry)
 sqlLoad = genSqlLoad linksTable (view sqlLinkName) linkFromRow
+
+sqlRemove :: Id -> [Delete Int64]
+sqlRemove = genSqlRemove linksTable $ view sqlLinkName

@@ -33,9 +33,6 @@ class (MonadIO m, MonadThrow m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
   remove :: Id -> m ()
-  dispatchRemove :: Entry -> m ()
-  removeDB :: Id -> m ()
-  dispatchRemoveDB :: Entry -> m ()
   sync :: m ()
 
 setupPsql :: (MonadKorrvigs m) => m ()

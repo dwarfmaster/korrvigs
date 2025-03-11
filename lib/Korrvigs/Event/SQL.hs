@@ -6,6 +6,7 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
+import GHC.Int (Int64)
 import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -47,3 +48,6 @@ eventFromRow erow entry = MkEvent entry (erow ^. sqlEventCalendar) (erow ^. sqlE
 
 sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Event) -> Entry) -> m (Maybe Entry)
 sqlLoad = genSqlLoad eventsTable (view sqlEventName) eventFromRow
+
+sqlRemove :: Id -> [Delete Int64]
+sqlRemove = genSqlRemove eventsTable $ view sqlEventName

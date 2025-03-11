@@ -6,6 +6,7 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
+import GHC.Int (Int64)
 import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -53,3 +54,6 @@ calFromRow row entry =
 
 sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Calendar) -> Entry) -> m (Maybe Entry)
 sqlLoad = genSqlLoad calendarsTable (view sqlCalName) calFromRow
+
+sqlRemove :: Id -> [Delete Int64]
+sqlRemove = genSqlRemove calendarsTable $ view sqlCalName

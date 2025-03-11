@@ -16,7 +16,7 @@ instance IsKD File where
   data KDIdentifier File = FileIdentifier FilePath
     deriving (Ord, Eq)
   dLoad = undefined
-  dRemoveDB _ = dRemoveDBImpl
+  dRemoveDB _ = undefined
   dList _ = S.map FileIdentifier <$> dListImpl
   dGetId (FileIdentifier path) = dGetIdImpl path
   dListCompute (FileIdentifier path) = dListComputeImpl path

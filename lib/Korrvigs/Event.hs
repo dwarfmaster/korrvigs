@@ -16,7 +16,7 @@ instance IsKD Event where
   data KDIdentifier Event = EventIdentifier FilePath
     deriving (Ord, Eq)
   dLoad = undefined
-  dRemoveDB _ = dRemoveDBImpl
+  dRemoveDB _ = undefined
   dList _ = S.map EventIdentifier <$> dListImpl
   dGetId (EventIdentifier path) = view _1 $ eventIdFromPath path
   dListCompute _ = pure M.empty

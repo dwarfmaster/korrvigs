@@ -14,7 +14,6 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
-import GHC.Int (Int64)
 import Korrvigs.Actions.SQL
 import Korrvigs.Entry
 import Korrvigs.FTS
@@ -35,15 +34,6 @@ import Prelude hiding (writeFile)
 
 dGetIdImpl :: FilePath -> Id
 dGetIdImpl = MkId . T.pack . takeBaseName
-
-dRemoveDBImpl :: Id -> [Delete Int64]
-dRemoveDBImpl i =
-  [ Delete
-      { dTable = notesTable,
-        dWhere = \nrow -> nrow ^. sqlNoteName .== sqlId i,
-        dReturning = rCount
-      }
-  ]
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
@@ -80,7 +70,7 @@ dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
 dSyncOneImpl path = do
   let i = dGetIdImpl path
   prev <- load i
-  forM_ prev dispatchRemoveDB
+  forM_ prev removeDB
   doc <- readNote path >>= throwEither (KCantLoad i)
   syncDocument i path doc
   pure $

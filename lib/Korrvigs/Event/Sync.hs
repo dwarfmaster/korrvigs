@@ -19,7 +19,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.LocalTime
-import GHC.Int (Int64)
 import Korrvigs.Actions.SQL
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
@@ -40,15 +39,6 @@ eventTreeType = def & dtYear .~ True & dtMonth .~ True
 
 eventIdFromPath :: FilePath -> (Id, Id)
 eventIdFromPath path = MkId *** (MkId . T.drop 1) $ T.breakOn "_" $ T.pack $ takeBaseName path
-
-dRemoveDBImpl :: Id -> [Delete Int64]
-dRemoveDBImpl i =
-  [ Delete
-      { dTable = eventsTable,
-        dWhere = \erow -> erow ^. sqlEventName .== sqlId i,
-        dReturning = rCount
-      }
-  ]
 
 dRemoveImpl :: (MonadKorrvigs m) => FilePath -> m ()
 dRemoveImpl path = do
@@ -146,7 +136,7 @@ syncEvent i calendar ics ifile ical = do
 syncOneEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m RelData
 syncOneEvent i calendar ics ifile ievent = do
   prev <- load i
-  forM_ prev dispatchRemoveDB
+  forM_ prev removeDB
   syncEvent i calendar ics ifile ievent
   pure $
     RelData

@@ -14,6 +14,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Actions.SQL
+import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.FTS
 import Korrvigs.Kind
@@ -119,22 +120,25 @@ remove lnk = do
   exists <- liftIO $ doesFileExist path
   when exists $ recursiveRemoveFile rt path
 
-dUpdateImpl :: (MonadKorrvigs m) => Link -> (LinkJSON -> m LinkJSON) -> m ()
-dUpdateImpl link f = do
+updateImpl :: (MonadKorrvigs m) => Link -> (LinkJSON -> m LinkJSON) -> m ()
+updateImpl link f = do
   let path = link ^. linkPath
   let i = link ^. linkEntry . name
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   njson <- f json
   liftIO $ writeFile path $ encode njson
 
-dUpdateMetadataImpl :: (MonadKorrvigs m) => Link -> Map Text Value -> [Text] -> m ()
-dUpdateMetadataImpl link upd rm = dUpdateImpl link $ pure . updMtdt
+updateMetadata :: (MonadKorrvigs m) => Link -> Map Text Value -> [Text] -> m ()
+updateMetadata link upd rm = updateImpl link $ pure . updMtdt
   where
     updMtdt = lkjsMetadata %~ M.union upd . flip (foldr M.delete) rm
 
-dUpdateParentsImpl :: (MonadKorrvigs m) => Link -> [Id] -> [Id] -> m ()
-dUpdateParentsImpl link toAdd toRm = dUpdateImpl link $ pure . updParents
+updateParents :: (MonadKorrvigs m) => Link -> [Id] -> [Id] -> m ()
+updateParents link toAdd toRm = updateImpl link $ pure . updParents
   where
     rmTxt = unId <$> toRm
     addTxt = unId <$> toAdd
     updParents = lkjsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)
+
+listCompute :: (MonadKorrvigs m) => Link -> m EntryComps
+listCompute _ = pure M.empty

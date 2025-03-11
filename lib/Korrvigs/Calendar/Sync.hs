@@ -132,21 +132,26 @@ remove cal = do
   exists <- liftIO $ doesFileExist path
   when exists $ liftIO $ removeFile path
 
-dUpdateImpl :: (MonadKorrvigs m) => Calendar -> (CalJSON -> m CalJSON) -> m ()
-dUpdateImpl cal f = do
+updateImpl :: (MonadKorrvigs m) => Calendar -> (CalJSON -> m CalJSON) -> m ()
+updateImpl cal f = do
   path <- calendarPath cal
   let i = cal ^. calEntry . name
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   njson <- f json
   liftIO $ writeFile path $ encode njson
 
-dUpdateMetadataImpl :: (MonadKorrvigs m) => Calendar -> Map Text Value -> [Text] -> m ()
-dUpdateMetadataImpl cal upd rm =
-  dUpdateImpl cal $ pure . (cljsMetadata %~ M.union upd . flip (foldr M.delete) rm)
+updateMetadata :: (MonadKorrvigs m) => Calendar -> Map Text Value -> [Text] -> m ()
+updateMetadata cal upd rm =
+  updateImpl cal $ pure . (cljsMetadata %~ M.union upd . flip (foldr M.delete) rm)
 
-dUpdateParentsImpl :: (MonadKorrvigs m) => Calendar -> [Id] -> [Id] -> m ()
-dUpdateParentsImpl cal toAdd toRm = dUpdateImpl cal $ pure . updParents
+updateParents :: (MonadKorrvigs m) => Calendar -> [Id] -> [Id] -> m ()
+updateParents cal toAdd toRm = updateImpl cal $ pure . updParents
   where
     rmTxt = unId <$> toRm
     addTxt = unId <$> toAdd
     updParents = cljsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)
+
+listCompute :: (MonadKorrvigs m) => Calendar -> m EntryComps
+listCompute cal =
+  let i = cal ^. calEntry . name
+   in pure $ M.singleton "dav" $ Computation i "dav" (Builtin CalDav) Json

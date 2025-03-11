@@ -19,11 +19,8 @@ instance IsKD Link where
     deriving (Ord, Eq)
   dList _ = S.map LinkIdentifier <$> dListImpl
   dGetId (LinkIdentifier path) = dGetIdImpl path
-  dListCompute _ = pure M.empty
   dSync = (fmap (,M.empty) <$>) . dSyncImpl
   dSyncOne (LinkIdentifier path) = (,M.empty) <$> dSyncOneImpl path
-  dUpdateMetadata = dUpdateMetadataImpl
-  dUpdateParents = dUpdateParentsImpl
 
 displayLinkId :: KDIdentifier Link -> Text
 displayLinkId (LinkIdentifier path) = "link:" <> T.pack path

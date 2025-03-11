@@ -8,7 +8,6 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Text.IO (putStr, putStrLn)
 import Korrvigs.Actions
-import Korrvigs.Actions.Compute
 import Korrvigs.Cli.Monad
 import Korrvigs.Compute hiding (run)
 import qualified Korrvigs.Compute as Cmp

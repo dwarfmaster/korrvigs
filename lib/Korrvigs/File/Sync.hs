@@ -130,9 +130,10 @@ computeFromMime i mime = cmp $ Enc.decodeASCII mime
     miniature = M.singleton "miniature" . Computation i "miniature" (Builtin Miniature)
     scalars = S.fromList ["image/apng", "image/png", "image/bmp"]
 
-dListComputeImpl :: (MonadKorrvigs m) => FilePath -> m EntryComps
-dListComputeImpl path = do
-  let i = dGetIdImpl path
+listCompute :: (MonadKorrvigs m) => File -> m EntryComps
+listCompute file = do
+  let path = file ^. filePath
+  let i = file ^. fileEntry . name
   let meta = metaPath path
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   let mime = Enc.encodeUtf8 $ json ^. savedMime
@@ -205,20 +206,20 @@ dSyncOneImpl path = do
       cmps
     )
 
-dUpdateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()
-dUpdateImpl file f = do
+updateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()
+updateImpl file f = do
   let i = file ^. fileEntry . name
   let meta = file ^. fileMeta
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   njson <- f json
   liftIO $ writeFile meta $ encode njson
 
-dUpdateMetadataImpl :: (MonadKorrvigs m) => File -> Map Text Value -> [Text] -> m ()
-dUpdateMetadataImpl file upd rm = do
-  dUpdateImpl file $ pure . (annoted %~ M.union upd . flip (foldr M.delete) rm)
+updateMetadata :: (MonadKorrvigs m) => File -> Map Text Value -> [Text] -> m ()
+updateMetadata file upd rm = do
+  updateImpl file $ pure . (annoted %~ M.union upd . flip (foldr M.delete) rm)
 
-dUpdateParentsImpl :: (MonadKorrvigs m) => File -> [Id] -> [Id] -> m ()
-dUpdateParentsImpl file toAdd toRm =
-  dUpdateImpl file $ pure . (exParents %~ updParents)
+updateParents :: (MonadKorrvigs m) => File -> [Id] -> [Id] -> m ()
+updateParents file toAdd toRm =
+  updateImpl file $ pure . (exParents %~ updParents)
   where
     updParents = (toAdd ++) . filter (not . flip elem toRm)

@@ -20,6 +20,7 @@ import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.LocalTime
 import Korrvigs.Actions.SQL
+import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
@@ -162,8 +163,8 @@ dSyncImpl = do
     (i,) <$> dSyncOneImpl path
   pure $ M.fromList rdata
 
-dUpdateImpl :: (MonadKorrvigs m) => Event -> (ICalFile -> m ICalFile) -> m ()
-dUpdateImpl event f = do
+updateImpl :: (MonadKorrvigs m) => Event -> (ICalFile -> m ICalFile) -> m ()
+updateImpl event f = do
   let path = event ^. eventFile
   ical <-
     liftIO (parseICalFile path)
@@ -171,9 +172,9 @@ dUpdateImpl event f = do
   ncal <- f ical
   liftIO $ BSL.writeFile path $ renderICalFile ncal
 
-dUpdateMetadataImpl :: (MonadKorrvigs m) => Event -> Map Text Value -> [Text] -> m ()
-dUpdateMetadataImpl event upd rm =
-  dUpdateImpl event $ pure . (icEvent . _Just %~ doMtdt)
+updateMetadata :: (MonadKorrvigs m) => Event -> Map Text Value -> [Text] -> m ()
+updateMetadata event upd rm =
+  updateImpl event $ pure . (icEvent . _Just %~ doMtdt)
   where
     rmMtdt :: Text -> ICalEvent -> ICalEvent
     rmMtdt "categories" ievent = ievent & iceCategories .~ []
@@ -186,8 +187,11 @@ dUpdateMetadataImpl event upd rm =
     doMtdt :: ICalEvent -> ICalEvent
     doMtdt = foldr (.) id $ (uncurry updMtdt <$> M.toList upd) ++ (rmMtdt <$> rm)
 
-dUpdateParentsImpl :: (MonadKorrvigs m) => Event -> [Id] -> [Id] -> m ()
-dUpdateParentsImpl event toAdd toRm =
-  dUpdateImpl event $ pure . (icEvent . _Just . iceParents %~ updParents)
+updateParents :: (MonadKorrvigs m) => Event -> [Id] -> [Id] -> m ()
+updateParents event toAdd toRm =
+  updateImpl event $ pure . (icEvent . _Just . iceParents %~ updParents)
   where
     updParents = (toAdd ++) . filter (not . flip elem toRm)
+
+listCompute :: (MonadKorrvigs m) => Event -> m EntryComps
+listCompute _ = pure M.empty

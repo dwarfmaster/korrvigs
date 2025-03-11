@@ -29,7 +29,6 @@ library korrvigs-lib
   exposed-modules:
     Korrvigs
     Korrvigs.Actions
-    Korrvigs.Actions.Compute
     Korrvigs.Actions.Metadata
     Korrvigs.Actions.Remove
     Korrvigs.Actions.SQL

@@ -15,6 +15,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Actions.SQL
+import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.FTS
 import Korrvigs.Kind
@@ -125,23 +126,26 @@ syncDocument i path doc = do
           }
   pure ()
 
-dUpdateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
-dUpdateImpl note f = do
+updateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
+updateImpl note f = do
   let path = note ^. notePath
   let i = note ^. noteEntry . name
   doc <- readNote path >>= throwEither (KCantLoad i)
   ndoc <- f doc
   liftIO $ writeFile path $ writeNoteLazy ndoc
 
-dUpdateMetadataImpl :: (MonadKorrvigs m) => Note -> Map Text Value -> [Text] -> m ()
-dUpdateMetadataImpl note upd rm = dUpdateImpl note $ pure . ndoc
+updateMetadata :: (MonadKorrvigs m) => Note -> Map Text Value -> [Text] -> m ()
+updateMetadata note upd rm = updateImpl note $ pure . ndoc
   where
     updCi = M.fromList $ first CI.mk <$> M.toList upd
     rmCi = CI.mk <$> rm
     ndoc = docMtdt %~ M.union updCi . flip (foldr M.delete) rmCi
 
-dUpdateParentsImpl :: (MonadKorrvigs m) => Note -> [Id] -> [Id] -> m ()
-dUpdateParentsImpl note toAdd toRm = dUpdateImpl note $ pure . upd
+updateParents :: (MonadKorrvigs m) => Note -> [Id] -> [Id] -> m ()
+updateParents note toAdd toRm = updateImpl note $ pure . upd
   where
     updParents = foldr (.) id $ fmap S.insert toAdd ++ fmap S.delete toRm
     upd = docParents %~ updParents
+
+listCompute :: (MonadKorrvigs m) => Note -> m EntryComps
+listCompute _ = pure M.empty

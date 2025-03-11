@@ -68,11 +68,8 @@ instance IsKD Note where
     deriving (Ord, Eq)
   dList _ = S.map NoteIdentifier <$> dListImpl
   dGetId (NoteIdentifier path) = dGetIdImpl path
-  dListCompute _ = pure M.empty
   dSync _ = fmap (,M.empty) <$> dSyncImpl
   dSyncOne (NoteIdentifier path) = (,M.empty) <$> dSyncOneImpl path
-  dUpdateMetadata = dUpdateMetadataImpl
-  dUpdateParents = dUpdateParentsImpl
 
 displayNoteId :: KDIdentifier Note -> Text
 displayNoteId (NoteIdentifier path) = "note:" <> T.pack path

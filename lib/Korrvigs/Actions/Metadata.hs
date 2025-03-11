@@ -1,4 +1,4 @@
-module Korrvigs.Actions.Metadata (updateMetadata, updateParents) where
+module Korrvigs.Actions.Metadata (updateMetadata, updateParents, listCompute) where
 
 import Control.Lens
 import Control.Monad
@@ -6,10 +6,14 @@ import Data.Aeson
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
-import Korrvigs.AllEntries ()
+import qualified Korrvigs.Calendar.Sync as Cal
+import Korrvigs.Compute
 import Korrvigs.Entry
-import Korrvigs.KindData
+import qualified Korrvigs.Event.Sync as Event
+import qualified Korrvigs.File.Sync as File
+import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad
+import qualified Korrvigs.Note.Sync as Note
 import Opaleye hiding (not, null)
 
 -- Update the metadate on the database from a list of updates to do and a list of
@@ -18,11 +22,11 @@ updateMetadata :: (MonadKorrvigs m) => Entry -> Map Text Value -> [Text] -> m ()
 updateMetadata entry upd rm = do
   let i = entry ^. name
   case entry ^. kindData of
-    LinkD link -> dUpdateMetadata link upd rm
-    FileD file -> dUpdateMetadata file upd rm
-    NoteD note -> dUpdateMetadata note upd rm
-    EventD event -> dUpdateMetadata event upd rm
-    CalendarD cal -> dUpdateMetadata cal upd rm
+    LinkD link -> Link.updateMetadata link upd rm
+    FileD file -> File.updateMetadata file upd rm
+    NoteD note -> Note.updateMetadata note upd rm
+    EventD event -> Event.updateMetadata event upd rm
+    CalendarD cal -> Cal.updateMetadata cal upd rm
   let rows = mkRow i <$> M.toList upd
   atomicSQL $ \conn -> do
     void $
@@ -48,11 +52,11 @@ updateParents :: (MonadKorrvigs m) => Entry -> [Id] -> [Id] -> m ()
 updateParents entry toAdd toRm = do
   let i = entry ^. name
   case entry ^. kindData of
-    LinkD link -> dUpdateParents link toAdd toRm
-    FileD file -> dUpdateParents file toAdd toRm
-    NoteD note -> dUpdateParents note toAdd toRm
-    EventD event -> dUpdateParents event toAdd toRm
-    CalendarD cal -> dUpdateParents cal toAdd toRm
+    LinkD link -> Link.updateParents link toAdd toRm
+    FileD file -> File.updateParents file toAdd toRm
+    NoteD note -> Note.updateParents note toAdd toRm
+    EventD event -> Event.updateParents event toAdd toRm
+    CalendarD cal -> Cal.updateParents cal toAdd toRm
   let rows = RelRow i <$> toAdd
   atomicSQL $ \conn -> do
     unless (null toRm) $
@@ -72,3 +76,11 @@ updateParents entry toAdd toRm = do
               iReturning = rCount,
               iOnConflict = Just doNothing
             }
+
+listCompute :: (MonadKorrvigs m) => Entry -> m EntryComps
+listCompute entry = case entry ^. kindData of
+  LinkD link -> Link.listCompute link
+  FileD file -> File.listCompute file
+  NoteD note -> Note.listCompute note
+  EventD event -> Event.listCompute event
+  CalendarD cal -> Cal.listCompute cal

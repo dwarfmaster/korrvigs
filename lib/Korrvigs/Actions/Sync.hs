@@ -31,18 +31,18 @@ import Korrvigs.Utils.Time (measureTime, measureTime_)
 import Opaleye hiding (not, null)
 import Prelude hiding (putStrLn)
 
-loadIDsFor :: forall a m f. (IsKD a, MonadKorrvigs m) => f a -> (KDIdentifier a -> Text) -> m (Map Id [Text])
-loadIDsFor kd showId = do
+loadIDsFor :: forall a m f. (IsKD a, MonadKorrvigs m) => Text -> f a -> (KDIdentifier a -> Text) -> m (Map Id [Text])
+loadIDsFor kdTxt _ showId = do
   (tm, st) <- measureTime $ dList (Nothing :: Maybe a)
-  liftIO $ putStrLn $ displayKind (dKind kd) <> ": listed " <> T.pack (show $ S.size st) <> " in " <> tm
+  liftIO $ putStrLn $ kdTxt <> ": listed " <> T.pack (show $ S.size st) <> " in " <> tm
   pure . M.fromListWith (<>) . S.toList $ S.map (dGetId &&& singleton . showId) st
 
 loadIDsOn :: (MonadKorrvigs m) => Kind -> m (Map Id [Text])
-loadIDsOn Link = loadIDsFor (Nothing :: Maybe Link) displayLinkId
-loadIDsOn Note = loadIDsFor (Nothing :: Maybe Note) displayNoteId
-loadIDsOn File = loadIDsFor (Nothing :: Maybe File) displayFileId
-loadIDsOn Event = loadIDsFor (Nothing :: Maybe Event) displayEventId
-loadIDsOn Calendar = loadIDsFor (Nothing :: Maybe Calendar) displayCalId
+loadIDsOn Link = loadIDsFor (displayKind Link) (Nothing :: Maybe Link) displayLinkId
+loadIDsOn Note = loadIDsFor (displayKind Note) (Nothing :: Maybe Note) displayNoteId
+loadIDsOn File = loadIDsFor (displayKind File) (Nothing :: Maybe File) displayFileId
+loadIDsOn Event = loadIDsFor (displayKind Event) (Nothing :: Maybe Event) displayEventId
+loadIDsOn Calendar = loadIDsFor (displayKind Calendar) (Nothing :: Maybe Calendar) displayCalId
 
 loadIDs :: (MonadKorrvigs m) => m (Map Id [Text])
 loadIDs = do
@@ -79,18 +79,18 @@ processRelData i rd = do
   let refsTo = (i,) <$> rd ^. relRefTo
   atomicInsert $ insertSubOf subsOf <> insertRefTo refsTo
 
-runSync :: (IsKD a, MonadKorrvigs m) => f a -> m (Map Id (RelData, EntryComps))
-runSync kd = do
+runSync :: (IsKD a, MonadKorrvigs m) => Text -> f a -> m (Map Id (RelData, EntryComps))
+runSync kdTxt kd = do
   (tm, r) <- measureTime $ dSync kd
-  liftIO $ putStrLn $ displayKind (dKind kd) <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
+  liftIO $ putStrLn $ kdTxt <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
   pure r
 
 runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id (RelData, EntryComps))
-runSyncOn Link = runSync (Nothing :: Maybe Link)
-runSyncOn Note = runSync (Nothing :: Maybe Note)
-runSyncOn File = runSync (Nothing :: Maybe File)
-runSyncOn Event = runSync (Nothing :: Maybe Event)
-runSyncOn Calendar = runSync (Nothing :: Maybe Calendar)
+runSyncOn Link = runSync (displayKind Link) (Nothing :: Maybe Link)
+runSyncOn Note = runSync (displayKind Note) (Nothing :: Maybe Note)
+runSyncOn File = runSync (displayKind File) (Nothing :: Maybe File)
+runSyncOn Event = runSync (displayKind Event) (Nothing :: Maybe Event)
+runSyncOn Calendar = runSync (displayKind Calendar) (Nothing :: Maybe Calendar)
 
 sync :: (MonadKorrvigs m) => m ()
 sync = do

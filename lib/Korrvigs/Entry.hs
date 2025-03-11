@@ -46,6 +46,7 @@ module Korrvigs.Entry
     _Calendar,
     IsKindData,
     kdEntry,
+    kdKind,
     kdKindData,
     EntryRowImpl (..),
     sqlEntryName,

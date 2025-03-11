@@ -13,8 +13,8 @@ import Korrvigs.Note ()
 
 listCompute :: (MonadKorrvigs m) => Entry -> m EntryComps
 listCompute entry = case entry ^. kindData of
-  LinkD link -> dListCompute $ dIdentify link
-  FileD file -> dListCompute $ dIdentify file
-  NoteD note -> dListCompute $ dIdentify note
-  EventD event -> dListCompute $ dIdentify event
-  CalendarD cal -> dListCompute $ dIdentify cal
+  LinkD link -> dListCompute link
+  FileD file -> dListCompute file
+  NoteD note -> dListCompute note
+  EventD event -> dListCompute event
+  CalendarD cal -> dListCompute cal

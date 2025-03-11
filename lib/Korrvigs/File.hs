@@ -9,26 +9,18 @@ import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.File.New
 import Korrvigs.File.Sync
-import Korrvigs.Kind
 import Korrvigs.KindData
 
 instance IsKD File where
   data KDIdentifier File = FileIdentifier FilePath
     deriving (Ord, Eq)
-  dLoad = undefined
-  dRemoveDB _ = undefined
   dList _ = S.map FileIdentifier <$> dListImpl
   dGetId (FileIdentifier path) = dGetIdImpl path
-  dListCompute (FileIdentifier path) = dListComputeImpl path
+  dListCompute file = dListComputeImpl $ file ^. filePath
   dSync _ = dSyncImpl
   dSyncOne (FileIdentifier path) = dSyncOneImpl path
-  dRemove = undefined
   dUpdateMetadata = dUpdateMetadataImpl
   dUpdateParents = dUpdateParentsImpl
-  dKind = const File
-  dEntry = view fileEntry
-  dIdentify = FileIdentifier . view filePath
-  dToData = FileD
 
 displayFileId :: KDIdentifier File -> Text
 displayFileId (FileIdentifier path) = "file:" <> T.pack path

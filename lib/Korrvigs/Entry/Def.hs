@@ -118,24 +118,30 @@ _Calendar = kindData . _CalendarD
 
 class IsKindData a where
   kdEntry :: a -> Entry
+  kdKind :: a -> Kind
   kdKindData :: a -> KindData
 
 instance IsKindData Link where
   kdEntry = view linkEntry
+  kdKind = const Link
   kdKindData = LinkD
 
 instance IsKindData Note where
   kdEntry = view noteEntry
+  kdKind = const Note
   kdKindData = NoteD
 
 instance IsKindData File where
   kdEntry = view fileEntry
+  kdKind = const File
   kdKindData = FileD
 
 instance IsKindData Event where
   kdEntry = view eventEntry
+  kdKind = const Event
   kdKindData = EventD
 
 instance IsKindData Calendar where
   kdEntry = view calEntry
+  kdKind = const Calendar
   kdKindData = CalendarD

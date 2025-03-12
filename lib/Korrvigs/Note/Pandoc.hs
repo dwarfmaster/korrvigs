@@ -279,10 +279,10 @@ parseInlines :: [Inline] -> ParseM [A.Inline]
 parseInlines (Str "[x]" : xs) = do
   stack . bszChecks . A.ckDone %= (+ 1)
   (A.Check TaskDone :) <$> parseInlines xs
-parseInlines (Str "[-]" : xs) = do
+parseInlines (Str "[*]" : xs) = do
   stack . bszChecks . A.ckOngoing %= (+ 1)
   (A.Check TaskOngoing :) <$> parseInlines xs
-parseInlines (Str "[*]" : xs) = do
+parseInlines (Str "[-]" : xs) = do
   stack . bszChecks . A.ckBlocked %= (+ 1)
   (A.Check TaskBlocked :) <$> parseInlines xs
 parseInlines (Str "[X]" : xs) = do

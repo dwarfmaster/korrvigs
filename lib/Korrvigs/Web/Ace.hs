@@ -126,6 +126,9 @@ setupAceJs =
       editor.session.setUseWorker(false)
     } else if ('ontouchstart' in document.documentElement) {
       editor.setOptions({ ...commonOptions, ...rwOptions })
+      editor.getSession().selection.on('changeSelection', function (e) {
+        editor.getSession().selection.clearSelection()
+      });
 
       let saveBtm = document.createElement("img")
       saveBtm.setAttribute("src", "@{saveIcon}")

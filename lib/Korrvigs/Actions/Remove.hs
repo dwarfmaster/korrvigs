@@ -2,7 +2,6 @@ module Korrvigs.Actions.Remove where
 
 import Control.Lens
 import Korrvigs.Actions.SQL
-import Korrvigs.AllEntries ()
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Compute (rmComputations)
 import Korrvigs.Entry

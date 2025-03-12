@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 module Korrvigs.Note
   ( Document (..),
     docMtdt,
@@ -46,25 +44,11 @@ module Korrvigs.Note
     writeNote,
     writeNoteLazy,
     writeHeaderLazy,
-    displayNoteId,
     module Korrvigs.Note.Loc,
   )
 where
 
-import Data.Text (Text)
-import qualified Data.Text as T
-import Korrvigs.Entry
-import Korrvigs.KindData
 import Korrvigs.Note.AST
 import Korrvigs.Note.Loc
 import Korrvigs.Note.Pandoc
 import Korrvigs.Note.Render
-
-instance IsKD Note where
-  data KDIdentifier Note = NoteIdentifier FilePath
-    deriving (Ord, Eq)
-  dSync = undefined
-  dSyncOne = undefined
-
-displayNoteId :: KDIdentifier Note -> Text
-displayNoteId (NoteIdentifier path) = "note:" <> T.pack path

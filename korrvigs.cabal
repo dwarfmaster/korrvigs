@@ -34,7 +34,6 @@ library korrvigs-lib
     Korrvigs.Actions.SQL
     Korrvigs.Actions.Sync
     Korrvigs.Actions.Utils
-    Korrvigs.AllEntries
     Korrvigs.Calendar
     Korrvigs.Calendar.DAV
     Korrvigs.Calendar.JSON
@@ -99,7 +98,6 @@ library korrvigs-lib
     Korrvigs.Kind
     Korrvigs.Kind.Def
     Korrvigs.Kind.SQL
-    Korrvigs.KindData
     Korrvigs.Link
     Korrvigs.Link.JSON
     Korrvigs.Link.New

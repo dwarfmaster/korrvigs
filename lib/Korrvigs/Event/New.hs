@@ -16,12 +16,13 @@ import qualified Data.Text as T
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
 import Data.Time.Format
 import Data.Time.LocalTime
+import Korrvigs.Actions
 import Korrvigs.Calendar.SQL
 import Korrvigs.Entry.Ident
 import Korrvigs.Entry.New
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.Sync
-import Korrvigs.KindData
+import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils.DateTree
@@ -120,6 +121,5 @@ new opts = do
   let filename = unId i <> "_" <> unId (opts ^. nevCalendar) <> ".ics"
   let day = localDay . zonedTimeToLocalTime . resolveICalTime ncal <$> ncal ^? icEvent . _Just . iceStart . _Just
   path <- storeFile rt eventTreeType day filename $ renderICalFile ncal
-  relData <- dSyncOneImpl path
-  atomicInsertRelData i relData
+  syncFileOfKind path Event
   pure i

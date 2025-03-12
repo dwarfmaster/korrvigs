@@ -2,7 +2,7 @@ module Korrvigs.Link.Sync where
 
 import Control.Arrow (first, (&&&))
 import Control.Lens
-import Control.Monad (forM_, void, when)
+import Control.Monad (when)
 import Control.Monad.IO.Class
 import Data.Aeson (Value, eitherDecode, encode)
 import Data.ByteString.Lazy (readFile, writeFile)
@@ -16,23 +16,23 @@ import qualified Data.Text as T
 import Korrvigs.Actions.SQL
 import Korrvigs.Compute
 import Korrvigs.Entry
-import Korrvigs.FTS
 import Korrvigs.Kind
-import Korrvigs.KindData (RelData (..))
 import Korrvigs.Link.JSON
 import Korrvigs.Link.SQL
 import Korrvigs.Monad
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree (listFiles)
-import Opaleye hiding (not)
 import System.Directory (doesFileExist)
 import System.FilePath (takeBaseName)
 import Prelude hiding (readFile, writeFile)
 
+linksDirectory :: (MonadKorrvigs m) => m FilePath
+linksDirectory = linkJSONPath
+
 linkIdFromPath :: FilePath -> Id
 linkIdFromPath = MkId . T.pack . takeBaseName
 
-syncLinkJSON :: (MonadKorrvigs m) => Id -> FilePath -> LinkJSON -> m (EntryRow, LinkRow)
+syncLinkJSON :: (MonadKorrvigs m) => Id -> FilePath -> LinkJSON -> m (SyncData LinkRow)
 syncLinkJSON i path json = do
   let mtdt = json ^. lkjsMetadata
   let tm = json ^. lkjsDate
@@ -41,57 +41,14 @@ syncLinkJSON i path json = do
   let erow = EntryRow i Link tm dur geom Nothing :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let lrow = LinkRow i (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
-  atomicSQL $ \conn -> do
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesTable,
-            iRows = [toFields erow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = linksTable,
-            iRows = [toFields lrow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesMetadataTable,
-            iRows = toFields <$> mtdtrows,
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    case json ^. lkjsText of
-      Nothing -> pure ()
-      Just t ->
-        void $
-          runUpdate conn $
-            Update
-              { uTable = entriesTable,
-                uUpdateWith =
-                  sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText t),
-                uWhere = \row -> row ^. sqlEntryName .== sqlId i,
-                uReturning = rCount
-              }
-  pure (erow, lrow)
+  pure $ SyncData erow lrow mtdtrows (json ^. lkjsText) (MkId <$> json ^. lkjsParents) []
 
-syncLink :: (MonadKorrvigs m) => FilePath -> m RelData
+syncLink :: (MonadKorrvigs m) => FilePath -> m (SyncData LinkRow, EntryComps)
 syncLink path = do
   let i = linkIdFromPath path
-  prev <- load i
-  forM_ prev $ \entry -> when (entry ^. kind /= Link) $ removeDB entry
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
-  void $ syncLinkJSON i path json
-  pure $
-    RelData
-      { _relSubOf = MkId <$> json ^. lkjsParents,
-        _relRefTo = []
-      }
+  dt <- syncLinkJSON i path json
+  pure (dt, M.empty)
 
 allJSONs :: (MonadKorrvigs m) => m [FilePath]
 allJSONs = do
@@ -103,12 +60,12 @@ allJSONs = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allJSONs
 
-dSyncImpl :: (MonadKorrvigs m) => f Link -> m (Map Id RelData)
-dSyncImpl _ =
+sync :: (MonadKorrvigs m) => m (Map Id (SyncData LinkRow, EntryComps))
+sync =
   M.fromList <$> (allJSONs >>= mapM (sequence . (linkIdFromPath &&& syncLink)))
 
-dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
-dSyncOneImpl = syncLink
+syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData LinkRow, EntryComps)
+syncOne = syncLink
 
 remove :: (MonadKorrvigs m) => Link -> m ()
 remove lnk = do

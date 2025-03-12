@@ -15,11 +15,11 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Actions
 import Korrvigs.Entry
+import Korrvigs.Kind
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad (KorrvigsError (KMiscError))
 import Korrvigs.Note
 import Korrvigs.Note.Pandoc
-import Korrvigs.Note.Sync (dSyncOneImpl)
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import System.IO
@@ -53,7 +53,7 @@ postNoteR (WId i) =
                 throwM $ KMiscError err
               Nothing -> pure ()
             liftIO $ hClose fd
-            dSyncOneImpl path >>= processRelData i
+            syncFileOfKind path Note
             redirect $ NoteR $ WId i
       _ -> notFound
 
@@ -124,7 +124,7 @@ postNoteSubR (WId i) (WLoc loc) =
                 throwM $ KMiscError err
               Nothing -> pure ()
             liftIO $ hClose fd
-            dSyncOneImpl path >>= processRelData i
+            syncFileOfKind path Note
             redirect $ NoteSubR (WId i) (WLoc loc)
       _ -> notFound
   where

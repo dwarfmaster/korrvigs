@@ -1,4 +1,4 @@
-module Korrvigs.Actions.Sync where
+module Korrvigs.Actions.Sync (sync, syncFile, syncFileOfKind) where
 
 import Conduit (throwM)
 import Control.Arrow ((&&&))
@@ -9,6 +9,7 @@ import Data.List (find, foldl', singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (isJust)
+import Data.Profunctor.Product.Default
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
@@ -17,19 +18,24 @@ import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
 import Korrvigs.Actions.Remove
 import Korrvigs.Actions.SQL
+import qualified Korrvigs.Calendar.SQL as CalS
 import qualified Korrvigs.Calendar.Sync as Cal
-import Korrvigs.Compute (EntryComps, syncComputations)
+import Korrvigs.Compute (EntryComps, run, syncComputations)
 import Korrvigs.Entry
+import qualified Korrvigs.Event.SQL as EventS
 import qualified Korrvigs.Event.Sync as Event
+import qualified Korrvigs.File.SQL as FileS
 import qualified Korrvigs.File.Sync as File
 import Korrvigs.Kind
-import Korrvigs.KindData
+import qualified Korrvigs.Link.SQL as LinkS
 import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad
+import qualified Korrvigs.Note.SQL as NoteS
 import qualified Korrvigs.Note.Sync as Note
 import Korrvigs.Utils.Cycle
 import Korrvigs.Utils.Time (measureTime, measureTime_)
 import Opaleye hiding (not, null)
+import System.FilePath
 import Prelude hiding (putStrLn)
 
 loadIDsFor :: forall m. (MonadKorrvigs m) => Text -> (FilePath -> Id) -> m (Set FilePath) -> m (Map Id [FilePath])
@@ -57,41 +63,23 @@ sqlIDs = do
     pure $ erow ^. sqlEntryName
   pure $ M.fromList $ (MkId &&& const []) <$> ids
 
-processRelData :: (MonadKorrvigs m) => Id -> RelData -> m ()
-processRelData i rd = do
-  atomicSQL $ \conn -> do
-    void $
-      liftIO $
-        runDelete conn $
-          Delete
-            { dTable = entriesSubTable,
-              dWhere = \sb -> sb ^. source .== sqlId i,
-              dReturning = rCount
-            }
-    void $
-      liftIO $
-        runDelete conn $
-          Delete
-            { dTable = entriesRefTable,
-              dWhere = \sb -> sb ^. source .== sqlId i,
-              dReturning = rCount
-            }
-  let subsOf = (i,) <$> rd ^. relSubOf
-  let refsTo = (i,) <$> rd ^. relRefTo
-  atomicInsert $ insertSubOf subsOf <> insertRefTo refsTo
-
-runSync :: (IsKD a, MonadKorrvigs m) => Text -> f a -> m (Map Id (RelData, EntryComps))
-runSync kdTxt kd = do
-  (tm, r) <- measureTime $ dSync kd
+runSync ::
+  (MonadKorrvigs m, Default ToFields r sql) =>
+  Text ->
+  Table sql sql ->
+  m (Map Id (SyncData r, EntryComps)) ->
+  m (Map Id ([Id], [Id], m (), EntryComps))
+runSync kdTxt tbl dt = do
+  (tm, r) <- measureTime dt
   liftIO $ putStrLn $ kdTxt <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
-  pure r
+  pure $ (\sdt -> (sdt ^. _1 . syncParents, sdt ^. _1 . syncRefs, syncSQL tbl $ sdt ^. _1, sdt ^. _2)) <$> r
 
-runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id (RelData, EntryComps))
-runSyncOn Link = runSync (displayKind Link) (Nothing :: Maybe Link)
-runSyncOn Note = runSync (displayKind Note) (Nothing :: Maybe Note)
-runSyncOn File = runSync (displayKind File) (Nothing :: Maybe File)
-runSyncOn Event = runSync (displayKind Event) (Nothing :: Maybe Event)
-runSyncOn Calendar = runSync (displayKind Calendar) (Nothing :: Maybe Calendar)
+runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id ([Id], [Id], m (), EntryComps))
+runSyncOn Link = runSync (displayKind Link) LinkS.linksTable Link.sync
+runSyncOn Note = runSync (displayKind Note) NoteS.notesTable Note.sync
+runSyncOn File = runSync (displayKind File) FileS.filesTable File.sync
+runSyncOn Event = runSync (displayKind Event) EventS.eventsTable Event.sync
+runSyncOn Calendar = runSync (displayKind Calendar) CalS.calendarsTable Cal.sync
 
 sync :: (MonadKorrvigs m) => m ()
 sync = do
@@ -108,26 +96,72 @@ sync = do
   liftIO $ putStrLn $ "Removed " <> T.pack (show $ length toRemove) <> " entries in " <> rmT
   allrels <- mapM runSyncOn [minBound .. maxBound]
   let rels = foldl' M.union M.empty allrels
-  cmpT <- measureTime_ $ forM_ (M.toList rels) $ \(i, (_, cmps)) -> syncComputations i cmps
+  cmpT <- measureTime_ $ forM_ (M.toList rels) $ \(i, (_, _, _, cmps)) -> syncComputations i cmps
   liftIO $ putStrLn $ "Synced " <> T.pack (show $ M.size rels) <> " computations in " <> cmpT
   let checkRD = checkRelData $ \i -> isJust $ M.lookup i ids
-  case foldr (firstJust . checkRD . view (_2 . _1)) Nothing (M.toList rels) of
+  case foldr (firstJust . checkRD . (view _1 &&& view _2) . view _2) Nothing (M.toList rels) of
     Nothing -> pure ()
     Just i -> throwM $ KRelToUnknown i
-  case hasCycle (view (_1 . relSubOf) <$> rels) of
+  case hasCycle (view _2 <$> rels) of
     Nothing -> pure ()
     Just cle -> throwM $ KSubCycle cle
-  let subBindings = mkBindings $ view (_1 . relSubOf) <$> rels
-  let refBindings = mkBindings $ view (_1 . relRefTo) <$> rels
-  atomicInsert $ insertSubOf subBindings <> insertRefTo refBindings
+  let subBindings = mkBindings $ view _1 <$> rels
+  let refBindings = mkBindings $ view _2 <$> rels
+  dbT <- measureTime_ $ do
+    forM_ rels $ view _3
+    atomicInsert [insertSubOf subBindings, insertRefTo refBindings]
+  liftIO $ putStrLn $ "Updated database in " <> dbT
   where
     mkBindings :: Map a [a] -> [(a, a)]
     mkBindings m = (\(a, l) -> (a,) <$> l) =<< M.toList m
-    checkRelData :: (Id -> Bool) -> RelData -> Maybe Id
-    checkRelData check rd =
+    checkRelData :: (Id -> Bool) -> ([Id], [Id]) -> Maybe Id
+    checkRelData check (subOf, refTo) =
       firstJust
-        (find (not . check) $ rd ^. relSubOf)
-        (find (not . check) $ rd ^. relRefTo)
+        (find (not . check) subOf)
+        (find (not . check) refTo)
     firstJust :: Maybe a -> Maybe a -> Maybe a
     firstJust (Just x) _ = Just x
     firstJust Nothing x = x
+
+identifyPath :: forall m. (MonadKorrvigs m) => FilePath -> m Kind
+identifyPath path = do
+  roots <- mapM (\kd -> (kd,) <$> kdRoot kd) [minBound .. maxBound]
+  case find (isRel . snd) roots of
+    Nothing -> throwM $ KMiscError $ "\"" <> T.pack path <> "\" is not a valid path entry"
+    Just (kd, _) -> pure kd
+  where
+    isRel :: FilePath -> Bool
+    isRel rt = isRelative $ makeRelative rt path
+    kdRoot :: Kind -> m FilePath
+    kdRoot Link = Link.linksDirectory
+    kdRoot Note = Note.noteDirectory
+    kdRoot File = File.filesDirectory
+    kdRoot Event = Event.eventsDirectory
+    kdRoot Calendar = Cal.calendarsDirectory
+
+syncFileImpl ::
+  (MonadKorrvigs m, Default ToFields hs sql) =>
+  Id ->
+  Table sql sql ->
+  (SyncData hs, EntryComps) ->
+  m ()
+syncFileImpl i tbl (sdt, cmps) = do
+  syncSQL tbl sdt
+  syncRelsSQL i (sdt ^. syncParents) (sdt ^. syncRefs)
+  syncComputations i cmps
+  forM_ cmps run
+
+syncFileOfKind :: (MonadKorrvigs m) => FilePath -> Kind -> m ()
+syncFileOfKind path Link =
+  syncFileImpl (Link.linkIdFromPath path) LinkS.linksTable =<< Link.syncOne path
+syncFileOfKind path Note =
+  syncFileImpl (Note.noteIdFromPath path) NoteS.notesTable =<< Note.syncOne path
+syncFileOfKind path File =
+  syncFileImpl (File.fileIdFromPath path) FileS.filesTable =<< File.syncOne path
+syncFileOfKind path Event =
+  syncFileImpl (fst $ Event.eventIdFromPath path) EventS.eventsTable =<< Event.syncOne path
+syncFileOfKind path Calendar =
+  syncFileImpl (Cal.calIdFromPath path) CalS.calendarsTable =<< Cal.syncOne path
+
+syncFile :: (MonadKorrvigs m) => FilePath -> m ()
+syncFile path = identifyPath path >>= syncFileOfKind path

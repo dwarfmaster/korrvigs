@@ -1,18 +1,36 @@
-module Korrvigs.Actions.SQL (load, loadMetadata, removeKindDB, removeDB) where
+module Korrvigs.Actions.SQL
+  ( load,
+    loadMetadata,
+    removeKindDB,
+    removeDB,
+    SyncData (..),
+    syncSQL,
+    syncRelsSQL,
+    syncEntryRow,
+    syncDataRow,
+    syncMtdtRows,
+    syncTextContent,
+    syncParents,
+    syncRefs,
+  )
+where
 
 import Control.Lens
 import Control.Monad
 import qualified Data.Map as M
+import Data.Profunctor.Product.Default
+import Data.Text (Text)
 import GHC.Int (Int64)
 import qualified Korrvigs.Calendar.SQL as Cal
 import Korrvigs.Entry
 import qualified Korrvigs.Event.SQL as Event
+import Korrvigs.FTS
 import qualified Korrvigs.File.SQL as File
 import Korrvigs.Kind
 import qualified Korrvigs.Link.SQL as Link
 import Korrvigs.Monad
 import qualified Korrvigs.Note.SQL as Note
-import Opaleye
+import Opaleye hiding (null)
 
 mkEntry :: (IsKindData a) => EntryRow -> (Entry -> a) -> Entry
 mkEntry row = kdEntry . entryFromRow kdKindData row
@@ -77,3 +95,90 @@ genRemoveDB i dels =
 
 removeDB :: (MonadKorrvigs m) => Entry -> m ()
 removeDB entry = dispatchRemove genRemoveDB $ entry ^. kindData
+
+data SyncData drow = SyncData
+  { _syncEntryRow :: EntryRow,
+    _syncDataRow :: drow,
+    _syncMtdtRows :: [MetadataRow],
+    _syncTextContent :: Maybe Text,
+    _syncParents :: [Id],
+    _syncRefs :: [Id]
+  }
+
+makeLenses ''SyncData
+
+syncSQL :: (MonadKorrvigs m, Default ToFields hs sql) => Table sql sql -> SyncData hs -> m ()
+syncSQL tbl dt = atomicSQL $ \conn -> do
+  let i = dt ^. syncEntryRow . sqlEntryName
+  -- Update entry
+  -- TODO remove previous one if necessary, and update instead of inserting if possible
+  void $
+    runInsert conn $
+      Insert
+        { iTable = entriesTable,
+          iRows = [toFields $ dt ^. syncEntryRow],
+          iReturning = rCount,
+          iOnConflict = Just doNothing
+        }
+  void $
+    runInsert conn $
+      Insert
+        { iTable = tbl,
+          iRows = [toFields $ dt ^. syncDataRow],
+          iReturning = rCount,
+          iOnConflict = Just doNothing
+        }
+  -- Update metadata
+  void $
+    runDelete conn $
+      Delete
+        { dTable = entriesMetadataTable,
+          dWhere = \mtdt -> mtdt ^. sqlEntry .== sqlId i,
+          dReturning = rCount
+        }
+  void $
+    runInsert conn $
+      Insert
+        { iTable = entriesMetadataTable,
+          iRows = toFields <$> dt ^. syncMtdtRows,
+          iReturning = rCount,
+          iOnConflict = Just doNothing
+        }
+  -- Optionally set textContent
+  forM_ (dt ^. syncTextContent) $ \txt ->
+    runUpdate conn $
+      Update
+        { uTable = entriesTable,
+          uUpdateWith = sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText txt),
+          uWhere = \row -> row ^. sqlEntryName .== sqlId i,
+          uReturning = rCount
+        }
+
+syncRelsSQL :: (MonadKorrvigs m) => Id -> [Id] -> [Id] -> m ()
+syncRelsSQL i subsOf relsTo = atomicSQL $ \conn -> do
+  -- Sync parents
+  void $
+    runDelete conn $
+      Delete
+        { dTable = entriesSubTable,
+          dWhere = \sb -> sb ^. source .== sqlId i,
+          dReturning = rCount
+        }
+  unless (null subsOf) $
+    void $
+      runInsert conn $
+        insertSubOf $
+          (i,) <$> subsOf
+  -- Sync references
+  void $
+    runDelete conn $
+      Delete
+        { dTable = entriesRefTable,
+          dWhere = \sb -> sb ^. source .== sqlId i,
+          dReturning = rCount
+        }
+  unless (null relsTo) $
+    void $
+      runInsert conn $
+        insertRefTo $
+          (i,) <$> relsTo

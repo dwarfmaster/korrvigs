@@ -8,11 +8,12 @@ import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
-import Korrvigs.Actions.Sync (processRelData)
+import Korrvigs.Actions
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.Sync
 import Korrvigs.Entry
 import Korrvigs.Entry.New
+import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON (writeJsonToFile)
 import System.Directory
@@ -54,6 +55,5 @@ new nc = do
   path <- calendarPath' i
   writeJsonToFile path json
   -- Sync
-  (rel, _) <- dSyncOneImpl path
-  processRelData i rel
+  syncFileOfKind path Calendar
   pure i

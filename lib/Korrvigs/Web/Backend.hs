@@ -6,7 +6,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Database.PostgreSQL.Simple (Connection)
-import qualified Korrvigs.Actions as Actions
 import Korrvigs.Monad
 import Korrvigs.Utils.Base16
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -100,7 +99,6 @@ instance RenderMessage WebData FormMessage where
 instance MonadKorrvigs Handler where
   pgSQL = getsYesod web_connection
   root = getsYesod web_root
-  sync = Actions.sync
 
 getFaviconR :: Handler TypedContent
 getFaviconR = redirect $ StaticR $ StaticRoute ["favicon.ico"] []

@@ -157,18 +157,17 @@ entryFromRow tkd row cstr = kd
         }
 
 -- Deal with RelData
-insertSubOf :: [(Id, Id)] -> [Insert Int64]
+insertSubOf :: [(Id, Id)] -> Insert Int64
 insertSubOf = insertRelationImpl entriesSubTable
 
-insertRefTo :: [(Id, Id)] -> [Insert Int64]
+insertRefTo :: [(Id, Id)] -> Insert Int64
 insertRefTo = insertRelationImpl entriesRefTable
 
-insertRelationImpl :: Table RelRowSQL a -> [(Id, Id)] -> [Insert Int64]
+insertRelationImpl :: Table RelRowSQL a -> [(Id, Id)] -> Insert Int64
 insertRelationImpl tbl rels =
-  [ Insert
-      { iTable = tbl,
-        iRows = toFields . uncurry RelRow <$> rels,
-        iReturning = rCount,
-        iOnConflict = Just doNothing
-      }
-  ]
+  Insert
+    { iTable = tbl,
+      iRows = toFields . uncurry RelRow <$> rels,
+      iReturning = rCount,
+      iOnConflict = Just doNothing
+    }

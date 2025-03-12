@@ -7,10 +7,10 @@ import qualified Data.CaseInsensitive as CI
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Text (Text)
+import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.Kind
-import Korrvigs.KindData
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note.AST
@@ -66,6 +66,5 @@ create note = do
   let bs = writeNoteLazy doc
   rt <- noteDirectory
   path <- storeFile rt noteTreeType Nothing (unId i <> ".md") bs
-  relData <- dSyncOneImpl path
-  atomicInsertRelData i relData
+  syncFileOfKind path Note
   pure i

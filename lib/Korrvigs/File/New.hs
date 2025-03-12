@@ -18,12 +18,12 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Time.LocalTime
-import Korrvigs.Compute
+import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Mtdt
 import Korrvigs.File.Sync
-import Korrvigs.KindData
+import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils (joinNull, resolveSymbolicLink)
@@ -126,8 +126,5 @@ new path' options = do
   liftIO $ TLIO.writeFile metapath $ encodeToLazyText mtdt
   rt <- root
   when annex $ annexAdd rt stored
-  (relData, cmps) <- dSyncOneImpl stored
-  storeComputations i cmps
-  forM_ (view _2 <$> M.toList cmps) run
-  atomicInsertRelData i relData
+  syncFileOfKind stored File
   pure i

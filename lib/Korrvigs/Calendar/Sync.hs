@@ -19,11 +19,8 @@ import Korrvigs.Calendar.SQL
 import Korrvigs.Compute
 import Korrvigs.Compute.Builtin (Action (CalDav))
 import Korrvigs.Entry
-import Korrvigs.FTS
 import Korrvigs.Kind
-import Korrvigs.KindData (RelData (..))
 import Korrvigs.Monad
-import Opaleye hiding (not)
 import System.Directory
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
@@ -34,6 +31,9 @@ calIdFromPath = MkId . T.pack . takeBaseName
 calBasename :: Id -> FilePath
 calBasename cal = T.unpack $ unId cal <> ".json"
 
+calendarsDirectory :: (MonadKorrvigs m) => m FilePath
+calendarsDirectory = calJSONPath
+
 calendarPath' :: (MonadKorrvigs m) => Id -> m FilePath
 calendarPath' cal = do
   rt <- calJSONPath
@@ -42,7 +42,7 @@ calendarPath' cal = do
 calendarPath :: (MonadKorrvigs m) => Calendar -> m FilePath
 calendarPath = calendarPath' . view (calEntry . name)
 
-syncCalJSON :: (MonadKorrvigs m) => Id -> CalJSON -> m (EntryRow, CalRow)
+syncCalJSON :: (MonadKorrvigs m) => Id -> CalJSON -> m (SyncData CalRow)
 syncCalJSON i json = do
   let mtdt = json ^. cljsMetadata
   let tm = json ^. cljsDate
@@ -51,57 +51,13 @@ syncCalJSON i json = do
   let erow = EntryRow i Calendar tm dur geom Nothing :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let crow = CalRow i (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
-  atomicSQL $ \conn -> do
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesTable,
-            iRows = [toFields erow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = calendarsTable,
-            iRows = [toFields crow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesMetadataTable,
-            iRows = toFields <$> mtdtrows,
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    case json ^. cljsText of
-      Nothing -> pure ()
-      Just t ->
-        void $
-          runUpdate conn $
-            Update
-              { uTable = entriesTable,
-                uUpdateWith =
-                  sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText t),
-                uWhere = \row -> row ^. sqlEntryName .== sqlId i,
-                uReturning = rCount
-              }
-  pure (erow, crow)
+  pure $ SyncData erow crow mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) []
 
-syncCal :: (MonadKorrvigs m) => FilePath -> m RelData
+syncCal :: (MonadKorrvigs m) => FilePath -> m (SyncData CalRow)
 syncCal path = do
   let i = calIdFromPath path
-  prev <- load i
-  forM_ prev removeDB
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
-  void $ syncCalJSON i json
-  pure $
-    RelData
-      { _relSubOf = MkId <$> json ^. cljsParents,
-        _relRefTo = []
-      }
+  syncCalJSON i json
 
 allCalendars :: (MonadKorrvigs m) => m [FilePath]
 allCalendars = do
@@ -112,16 +68,16 @@ allCalendars = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allCalendars
 
-dSyncImpl :: (MonadKorrvigs m) => m (Map Id (RelData, EntryComps))
-dSyncImpl =
-  M.fromList <$> (allCalendars >>= mapM (sequence . (calIdFromPath &&& dSyncOneImpl)))
+sync :: (MonadKorrvigs m) => m (Map Id (SyncData CalRow, EntryComps))
+sync =
+  M.fromList <$> (allCalendars >>= mapM (sequence . (calIdFromPath &&& syncOne)))
 
-dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m (RelData, EntryComps)
-dSyncOneImpl path = do
-  relData <- syncCal path
+syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData CalRow, EntryComps)
+syncOne path = do
+  dt <- syncCal path
   let i = calIdFromPath path
   let cmps = M.singleton "dav" (Computation i "dav" (Builtin CalDav) Json)
-  pure (relData, cmps)
+  pure (dt, cmps)
 
 remove :: (MonadKorrvigs m) => Calendar -> m ()
 remove cal = do

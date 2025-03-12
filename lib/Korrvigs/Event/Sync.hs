@@ -24,14 +24,11 @@ import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
-import Korrvigs.FTS
 import Korrvigs.Kind
-import Korrvigs.KindData
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
-import Opaleye hiding (not)
 import System.Directory (doesFileExist)
 import System.FilePath (joinPath, takeBaseName)
 
@@ -85,7 +82,7 @@ register ical forbidden =
       let nevent' = ievent & iceMtdt . at (mtdtName Title) ?~ toJSON summary
       createIdFor ical nevent' forbidden
 
-syncEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m ()
+syncEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m (SyncData EventRow)
 syncEvent i calendar ics ifile ical = do
   let mtdt = ical ^. iceMtdt
   let geom = ical ^. iceGeometry
@@ -100,54 +97,18 @@ syncEvent i calendar ics ifile ical = do
   let mrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
   let evrow = EventRow i calendar ics (ical ^. iceUid) :: EventRow
   let txt = T.intercalate " " $ catMaybes [ical ^. iceComment, ical ^. iceSummary, ical ^. iceDescription]
-  atomicSQL $ \conn -> do
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesTable,
-            iRows = [toFields erow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = eventsTable,
-            iRows = [toFields evrow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesMetadataTable,
-            iRows = toFields <$> mrows,
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    unless (T.null txt) $
-      void $
-        runUpdate conn $
-          Update
-            { uTable = entriesTable,
-              uUpdateWith = sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText txt),
-              uWhere = \row -> row ^. sqlEntryName .== sqlId i,
-              uReturning = rCount
-            }
+  let txt' = if T.null txt then Nothing else Just txt
+  pure $ SyncData erow evrow mrows txt' (calendar : ical ^. iceParents) []
 
-syncOneEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m RelData
+syncOneEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m (SyncData EventRow, EntryComps)
 syncOneEvent i calendar ics ifile ievent = do
   prev <- load i
   forM_ prev removeDB
-  syncEvent i calendar ics ifile ievent
-  pure $
-    RelData
-      { _relSubOf = calendar : ievent ^. iceParents,
-        _relRefTo = []
-      }
+  sdt <- syncEvent i calendar ics ifile ievent
+  pure (sdt, M.empty)
 
-dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
-dSyncOneImpl path = do
+syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData EventRow, EntryComps)
+syncOne path = do
   let (i, calendar) = eventIdFromPath path
   liftIO (parseICalFile path) >>= \case
     Left err -> throwM $ KMiscError $ "Failed to parse \"" <> T.pack path <> "\": " <> err
@@ -155,12 +116,12 @@ dSyncOneImpl path = do
       Nothing -> throwM $ KMiscError $ "Ics file \"" <> T.pack path <> "\" has no VEVENT"
       Just ievent -> syncOneEvent i calendar path ifile ievent
 
-dSyncImpl :: (MonadKorrvigs m) => m (Map Id RelData)
-dSyncImpl = do
+sync :: (MonadKorrvigs m) => m (Map Id (SyncData EventRow, EntryComps))
+sync = do
   files <- allEvents
   rdata <- forM files $ \path -> do
     let i = eventIdFromPath path ^. _1
-    (i,) <$> dSyncOneImpl path
+    (i,) <$> syncOne path
   pure $ M.fromList rdata
 
 updateImpl :: (MonadKorrvigs m) => Event -> (ICalFile -> m ICalFile) -> m ()

@@ -32,7 +32,6 @@ instance Exception KorrvigsError
 class (MonadIO m, MonadThrow m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
-  sync :: m ()
 
 setupPsql :: (MonadKorrvigs m) => m ()
 setupPsql = do

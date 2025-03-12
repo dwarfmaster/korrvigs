@@ -2,7 +2,7 @@ module Korrvigs.Note.Sync where
 
 import Control.Arrow (first, (&&&))
 import Control.Lens
-import Control.Monad (forM_, void, when)
+import Control.Monad (when)
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.ByteString.Lazy (writeFile)
@@ -17,9 +17,7 @@ import qualified Data.Text as T
 import Korrvigs.Actions.SQL
 import Korrvigs.Compute
 import Korrvigs.Entry
-import Korrvigs.FTS
 import Korrvigs.Kind
-import Korrvigs.KindData
 import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers
@@ -28,7 +26,6 @@ import Korrvigs.Note.Render (writeNoteLazy)
 import Korrvigs.Note.SQL
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
-import Opaleye
 import System.Directory (doesFileExist)
 import System.FilePath (joinPath, takeBaseName)
 import Prelude hiding (writeFile)
@@ -59,29 +56,23 @@ allNotes = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allNotes
 
-dSyncImpl :: (MonadKorrvigs m) => m (Map Id RelData)
-dSyncImpl =
-  M.fromList <$> (allNotes >>= mapM (sequence . (noteIdFromPath &&& dSyncOneImpl)))
+sync :: (MonadKorrvigs m) => m (Map Id (SyncData NoteRow, EntryComps))
+sync =
+  M.fromList <$> (allNotes >>= mapM (sequence . (noteIdFromPath &&& syncOne)))
 
 fromJSON' :: (FromJSON a) => Value -> Maybe a
 fromJSON' v = case fromJSON v of
   Success x -> Just x
   Error _ -> Nothing
 
-dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m RelData
-dSyncOneImpl path = do
+syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData NoteRow, EntryComps)
+syncOne path = do
   let i = noteIdFromPath path
-  prev <- load i
-  forM_ prev removeDB
   doc <- readNote path >>= throwEither (KCantLoad i)
-  syncDocument i path doc
-  pure $
-    RelData
-      { _relSubOf = S.toList $ doc ^. docParents,
-        _relRefTo = S.toList $ doc ^. docRefTo
-      }
+  dt <- syncDocument i path doc
+  pure (dt, M.empty)
 
-syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Document -> m ()
+syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Document -> m (SyncData NoteRow)
 syncDocument i path doc = do
   let mtdt = doc ^. docMtdt
   let geom = fromJSON' =<< mtdt ^. at "geometry"
@@ -91,40 +82,7 @@ syncDocument i path doc = do
   let mrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
   let nrow = NoteRow i path :: NoteRow
   let txt = renderDocument doc
-  atomicSQL $ \conn -> do
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesTable,
-            iRows = [toFields erow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = notesTable,
-            iRows = [toFields nrow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesMetadataTable,
-            iRows = toFields <$> mrows,
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runUpdate conn $
-        Update
-          { uTable = entriesTable,
-            uUpdateWith = sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText txt),
-            uWhere = \row -> row ^. sqlEntryName .== sqlId i,
-            uReturning = rCount
-          }
-  pure ()
+  pure $ SyncData erow nrow mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo)
 
 updateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
 updateImpl note f = do

@@ -11,8 +11,8 @@ import Korrvigs.KindData
 instance IsKD Calendar where
   data KDIdentifier Calendar = CalIdentifier FilePath
     deriving (Ord, Eq)
-  dSync _ = dSyncImpl
-  dSyncOne (CalIdentifier path) = dSyncOneImpl path
+  dSync = undefined
+  dSyncOne = undefined
 
 displayCalId :: KDIdentifier Calendar -> Text
 displayCalId (CalIdentifier path) = "calendar:" <> T.pack path

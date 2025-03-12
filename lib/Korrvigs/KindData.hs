@@ -19,9 +19,3 @@ class IsKD a where
   -- Sync the content of the filesystem to the database and extract the relation data
   dSync :: (MonadKorrvigs m) => f a -> m (Map Id (RelData, EntryComps))
   dSyncOne :: (MonadKorrvigs m) => KDIdentifier a -> m (RelData, EntryComps)
-
-atomicInsertRelData :: (MonadKorrvigs m) => Id -> RelData -> m ()
-atomicInsertRelData src relData =
-  atomicInsert $
-    insertSubOf ((src,) <$> relData ^. relSubOf)
-      <> insertRefTo ((src,) <$> relData ^. relRefTo)

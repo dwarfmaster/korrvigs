@@ -51,7 +51,6 @@ module Korrvigs.Note
   )
 where
 
-import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
@@ -60,13 +59,12 @@ import Korrvigs.Note.AST
 import Korrvigs.Note.Loc
 import Korrvigs.Note.Pandoc
 import Korrvigs.Note.Render
-import Korrvigs.Note.Sync
 
 instance IsKD Note where
   data KDIdentifier Note = NoteIdentifier FilePath
     deriving (Ord, Eq)
-  dSync _ = fmap (,M.empty) <$> dSyncImpl
-  dSyncOne (NoteIdentifier path) = (,M.empty) <$> dSyncOneImpl path
+  dSync = undefined
+  dSyncOne = undefined
 
 displayNoteId :: KDIdentifier Note -> Text
 displayNoteId (NoteIdentifier path) = "note:" <> T.pack path

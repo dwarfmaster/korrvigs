@@ -2,7 +2,7 @@ module Korrvigs.File.Sync where
 
 import Control.Arrow (first, (&&&))
 import Control.Lens hiding ((.=))
-import Control.Monad (forM_, void, when)
+import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson hiding (json)
 import Data.Aeson.Types
@@ -21,16 +21,13 @@ import Korrvigs.Actions.SQL
 import Korrvigs.Compute
 import Korrvigs.Compute.Builtin
 import Korrvigs.Entry
-import Korrvigs.FTS
 import Korrvigs.File.SQL
 import Korrvigs.Geometry
 import Korrvigs.Kind
-import Korrvigs.KindData
 import Korrvigs.Monad
 import Korrvigs.Utils (recursiveRemoveFile, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree
 import Network.Mime
-import Opaleye hiding (not)
 import System.Directory
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
@@ -139,15 +136,13 @@ listCompute file = do
   let mime = Enc.encodeUtf8 $ json ^. savedMime
   pure $ computeFromMime i mime
 
-dSyncImpl :: (MonadKorrvigs m) => m (Map Id (RelData, EntryComps))
-dSyncImpl =
-  M.fromList <$> (allFiles >>= mapM (sequence . (fileIdFromPath &&& dSyncOneImpl)))
+sync :: (MonadKorrvigs m) => m (Map Id (SyncData FileRow, EntryComps))
+sync =
+  M.fromList <$> (allFiles >>= mapM (sequence . (fileIdFromPath &&& syncOne)))
 
-dSyncOneImpl :: (MonadKorrvigs m) => FilePath -> m (RelData, EntryComps)
-dSyncOneImpl path = do
+syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData FileRow, EntryComps)
+syncOne path = do
   let i = fileIdFromPath path
-  prev <- load i
-  forM_ prev removeDB
   let meta = metaPath path
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   let mtdt = json ^. annoted
@@ -161,50 +156,8 @@ dSyncOneImpl path = do
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let frow = FileRow i path (metaPath path) status mime :: FileRow
   let txt = json ^. exText
-  atomicSQL $ \conn -> do
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesTable,
-            iRows = [toFields erow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = filesTable,
-            iRows = [toFields frow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesMetadataTable,
-            iRows = toFields <$> mtdtrows,
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    case txt of
-      Nothing -> pure ()
-      Just t ->
-        void $
-          runUpdate conn $
-            Update
-              { uTable = entriesTable,
-                uUpdateWith =
-                  sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText t),
-                uWhere = \row -> row ^. sqlEntryName .== sqlId i,
-                uReturning = rCount
-              }
-  pure
-    ( RelData
-        { _relSubOf = json ^. exParents,
-          _relRefTo = []
-        },
-      cmps
-    )
+  let sdt = SyncData erow frow mtdtrows txt (json ^. exParents) []
+  pure (sdt, cmps)
 
 updateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()
 updateImpl file f = do

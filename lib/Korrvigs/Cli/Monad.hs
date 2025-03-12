@@ -14,7 +14,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Database.PostgreSQL.Simple (Connection, close, connectPostgreSQL)
-import qualified Korrvigs.Actions as Actions
 import Korrvigs.Monad
 import Korrvigs.Utils.Base16
 import System.Directory
@@ -53,7 +52,6 @@ newtype KorrM a = KorrM (ExceptT SomeException (ReaderT KorrState IO) a)
 instance MonadKorrvigs KorrM where
   pgSQL = view korrConnection
   root = view korrRoot
-  sync = Actions.sync
 
 runKorrM :: KorrConfig -> KorrM a -> IO (Either KorrvigsError a)
 runKorrM config act = do

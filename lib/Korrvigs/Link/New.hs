@@ -19,11 +19,11 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
+import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Entry.New
-import Korrvigs.KindData
+import Korrvigs.Kind
 import Korrvigs.Link.JSON
-import Korrvigs.Link.Sync
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils (joinNull)
@@ -34,7 +34,7 @@ import Network.HTTP.Simple
 import Network.HTTP.Types.Status
 import Network.Mime
 import Network.URI
-import Text.Pandoc hiding (getCurrentTimeZone)
+import Text.Pandoc hiding (Link, getCurrentTimeZone)
 import Text.Parsec
 
 data NewLink = NewLink
@@ -118,6 +118,5 @@ new url options = case parseURI (T.unpack url) of
     let jsonTT = linkJSONTreeType
     let content = encodingToLazyByteString . value $ toJSON json
     pth <- storeFile rt jsonTT Nothing (unId i <> ".json") content
-    relData <- dSyncOneImpl pth
-    atomicInsertRelData i relData
+    syncFileOfKind pth Link
     pure i

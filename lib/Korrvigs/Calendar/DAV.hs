@@ -18,16 +18,17 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.LocalTime
-import Korrvigs.Actions (load, remove)
+import Korrvigs.Actions (load, remove, syncFileOfKind)
 import Korrvigs.Compute
 import qualified Korrvigs.Compute.Builtin as Blt
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
-import Korrvigs.Event.Sync (dSyncOneImpl, eventsDirectory)
+import Korrvigs.Event.Sync (eventsDirectory)
 import qualified Korrvigs.Event.Sync as Ev
+import Korrvigs.Kind
 import Korrvigs.Metadata
-import Korrvigs.Monad hiding (sync)
+import Korrvigs.Monad
 import Korrvigs.Utils (partitionM)
 import qualified Korrvigs.Utils.DAV.Cal as DAV
 import Korrvigs.Utils.DateTree
@@ -265,7 +266,7 @@ sync restore cals pwd = do
         pure $ erow ^. sqlEventName
       rmEv <- join <$> forM rmId load
       forM_ rmEv remove
-    forM_ addedFiles dSyncOneImpl
+    forM_ addedFiles $ flip syncFileOfKind Event
 
   -- We push the events and reset the calsync branch to main
   comps <- do

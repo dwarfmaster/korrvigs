@@ -18,6 +18,7 @@ where
 import Control.Lens
 import Control.Monad
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Profunctor.Product.Default
 import Data.Text (Text)
 import GHC.Int (Int64)
@@ -111,15 +112,35 @@ syncSQL :: (MonadKorrvigs m, Default ToFields hs sql) => Table sql sql -> SyncDa
 syncSQL tbl dt = atomicSQL $ \conn -> do
   let i = dt ^. syncEntryRow . sqlEntryName
   -- Update entry
-  -- TODO remove previous one if necessary, and update instead of inserting if possible
-  void $
-    runInsert conn $
-      Insert
-        { iTable = entriesTable,
-          iRows = [toFields $ dt ^. syncEntryRow],
-          iReturning = rCount,
-          iOnConflict = Just doNothing
-        }
+  mprev :: [EntryRow] <- runSelect conn $ limit 1 $ do
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryName .== sqlId i
+    pure entry
+  case listToMaybe mprev of
+    Nothing ->
+      void $
+        runInsert conn $
+          Insert
+            { iTable = entriesTable,
+              iRows = [toFields $ dt ^. syncEntryRow],
+              iReturning = rCount,
+              iOnConflict = Just doNothing
+            }
+    Just prev -> do
+      case prev ^. sqlEntryKind of
+        Link -> mapM_ (runDelete conn) $ Link.sqlRemove i
+        Note -> mapM_ (runDelete conn) $ Note.sqlRemove i
+        File -> mapM_ (runDelete conn) $ File.sqlRemove i
+        Event -> mapM_ (runDelete conn) $ Event.sqlRemove i
+        Calendar -> mapM_ (runDelete conn) $ Cal.sqlRemove i
+      void $
+        runUpdate conn $
+          Update
+            { uTable = entriesTable,
+              uUpdateWith = const $ toFields $ dt ^. syncEntryRow,
+              uWhere = \row -> row ^. sqlEntryName .== sqlId i,
+              uReturning = rCount
+            }
   void $
     runInsert conn $
       Insert

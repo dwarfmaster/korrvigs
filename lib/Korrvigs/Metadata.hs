@@ -11,6 +11,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import Korrvigs.Entry
+import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON (fromJSONM, sqlJsonToText)
 import Opaleye
@@ -98,44 +99,10 @@ selectTextMtdt mtdt i = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtd
       Nothing -> O.null
 
 -- Metadata list
-data Title = Title
-
-instance ExtraMetadata Title where
-  type MtdtType Title = Text
-  mtdtName = const "title"
-
-data Language = Language
-
-instance ExtraMetadata Language where
-  type MtdtType Language = Text
-  mtdtName = const "language"
-
-data Favourite = Favourite
-
-instance ExtraMetadata Favourite where
-  type MtdtType Favourite = JSONList Text
-  mtdtName = const "favourite"
-
-data Pages = Pages
-
-instance ExtraMetadata Pages where
-  type MtdtType Pages = Int
-  mtdtName = const "pages"
-
-data Height = Height
-
-instance ExtraMetadata Height where
-  type MtdtType Height = Int
-  mtdtName = const "height"
-
-data Width = Width
-
-instance ExtraMetadata Width where
-  type MtdtType Width = Int
-  mtdtName = const "width"
-
-data Gallery = Gallery
-
-instance ExtraMetadata Gallery where
-  type MtdtType Gallery = Text
-  mtdtName = const "gallery"
+mkMtdt "Title" "title" [t|Text|]
+mkMtdt "Language" "language" [t|Text|]
+mkMtdt "Favourite" "favourite" [t|JSONList Text|]
+mkMtdt "Pages" "pages" [t|Int|]
+mkMtdt "Height" "height" [t|Int|]
+mkMtdt "Width" "width" [t|Int|]
+mkMtdt "Gallery" "gallery" [t|Text|]

@@ -8,6 +8,7 @@ import Data.Text (Text)
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Metadata
+import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON (fromJSONM)
 
@@ -42,35 +43,11 @@ parseStatusName "done" = Just TaskDone
 parseStatusName "dont" = Just TaskDont
 parseStatusName _ = Nothing
 
-data TaskMtdt = TaskMtdt
-
-instance ExtraMetadata TaskMtdt where
-  type MtdtType TaskMtdt = Text
-  mtdtName = const "task"
-
-data TaskDeadline = TaskDeadline
-
-instance ExtraMetadata TaskDeadline where
-  type MtdtType TaskDeadline = ZonedTime
-  mtdtName = const "deadline"
-
-data TaskScheduled = TaskScheduled
-
-instance ExtraMetadata TaskScheduled where
-  type MtdtType TaskScheduled = ZonedTime
-  mtdtName = const "scheduled"
-
-data TaskStarted = TaskStarted
-
-instance ExtraMetadata TaskStarted where
-  type MtdtType TaskStarted = ZonedTime
-  mtdtName = const "started"
-
-data TaskFinished = TaskFinished
-
-instance ExtraMetadata TaskFinished where
-  type MtdtType TaskFinished = ZonedTime
-  mtdtName = const "finished"
+mkMtdt "TaskMtdt" "task" [t|Text|]
+mkMtdt "TaskDeadline" "deadline" [t|ZonedTime|]
+mkMtdt "TaskScheduled" "scheduled" [t|ZonedTime|]
+mkMtdt "TaskStarted" "started" [t|ZonedTime|]
+mkMtdt "TaskFinished" "finished" [t|ZonedTime|]
 
 applyTaskMtdt :: (CI Text -> Maybe Value) -> Task -> Task
 applyTaskMtdt f =

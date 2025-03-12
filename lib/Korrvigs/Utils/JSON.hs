@@ -43,3 +43,6 @@ sqlJsonToBool = UOp.sqlCast
 
 sqlJsonToArray :: FieldNullable SqlJsonb -> FieldNullable (SqlArray SqlJsonb)
 sqlJsonToArray = UOp.ap1 "jsonb_array_elements"
+
+sqlJsonLength :: FieldNullable SqlJsonb -> FieldNullable SqlInt4
+sqlJsonLength = UOp.ap1 "jsonb_array_length"

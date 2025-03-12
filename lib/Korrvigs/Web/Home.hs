@@ -10,9 +10,9 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry.Ident
 import Korrvigs.Entry.New
-import Korrvigs.Favourites
 import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
+import Korrvigs.Metadata.Collections
 import qualified Korrvigs.Note.New as NNote
 import Korrvigs.Utils (firstJustM)
 import Korrvigs.Web.Backend
@@ -82,10 +82,10 @@ newForms postUrl prefix errMsgs = do
     ^{newFile}
   |]
 
-displayFavTree :: Int -> Text -> FavouriteTree -> Handler Widget
+displayFavTree :: Int -> Text -> ColTree -> Handler Widget
 displayFavTree lvl cat favs = do
-  let entries = favs ^. favEntries
-  subs <- forM (M.toList $ favs ^. favSubs) $ uncurry (displayFavTree $ lvl + 1)
+  let entries = favs ^. colEntries
+  subs <- forM (M.toList $ favs ^. colSubs) $ uncurry (displayFavTree $ lvl + 1)
   let content =
         [whamlet|
     <ul>
@@ -112,7 +112,7 @@ displayHome :: [Text] -> Handler Html
 displayHome errMsgs = do
   nw <- newForms HomeR "Create" errMsgs
   let nwHd = [whamlet|<h2> ^{Widgets.headerSymbol "⊕"} Create entry|]
-  favs <- displayFavTree 1 "Favourites" =<< favTree
+  favs <- displayFavTree 1 "Favourites" =<< colTree Favourite [] True
   defaultLayout $ do
     setTitle "Korrvigs's Home"
     setDescriptionIdemp "Korrvigs home page"

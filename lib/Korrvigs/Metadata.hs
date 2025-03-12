@@ -101,7 +101,6 @@ selectTextMtdt mtdt i = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtd
 -- Metadata list
 mkMtdt "Title" "title" [t|Text|]
 mkMtdt "Language" "language" [t|Text|]
-mkMtdt "Favourite" "favourite" [t|JSONList Text|]
 mkMtdt "Pages" "pages" [t|Int|]
 mkMtdt "Height" "height" [t|Int|]
 mkMtdt "Width" "width" [t|Int|]

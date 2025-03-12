@@ -75,7 +75,6 @@ library korrvigs-lib
     Korrvigs.Event.New
     Korrvigs.Event.SQL
     Korrvigs.Event.Sync
-    Korrvigs.Favourites
     Korrvigs.File
     Korrvigs.File.Mtdt
     Korrvigs.File.Mtdt.ExifTool
@@ -104,6 +103,7 @@ library korrvigs-lib
     Korrvigs.Link.SQL
     Korrvigs.Link.Sync
     Korrvigs.Metadata
+    Korrvigs.Metadata.Collections
     Korrvigs.Metadata.Task
     Korrvigs.Metadata.TH
     Korrvigs.Monad

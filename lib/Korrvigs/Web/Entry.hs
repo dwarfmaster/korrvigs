@@ -11,6 +11,7 @@ import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Collections (Favourite (..))
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Note.Loc (SubLoc (SubLoc))

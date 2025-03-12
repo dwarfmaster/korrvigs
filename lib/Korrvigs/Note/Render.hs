@@ -157,7 +157,7 @@ renderBlock (BulletList bks) =
       | shouldSpaceList bks = 2
       | otherwise = 1
 renderBlock (DefinitionList defs) =
-  separatedRenders seps $ for defs $ \(term, def) -> do
+  separatedRenders 2 $ for defs $ \(term, def) -> do
     withoutBreak $ do
       forM_ term renderInline
       flush

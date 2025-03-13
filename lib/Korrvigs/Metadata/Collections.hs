@@ -40,7 +40,7 @@ buildTree :: [(Id, Maybe Text, [Text])] -> ColTree
 buildTree = foldr insertIntoTree emptyTree
 
 listCol ::
-  (MonadKorrvigs m, ExtraMetadata mtdt, MtdtType mtdt ~ JSONList Text) =>
+  (MonadKorrvigs m, ExtraMetadata mtdt, MtdtType mtdt ~ [Text]) =>
   mtdt ->
   [Text] ->
   Bool ->
@@ -57,7 +57,7 @@ listCol mtdt prefix recursive = do
   where
     prepJSON :: (Id, Maybe Text, Value) -> Maybe (Id, Maybe Text, [Text])
     prepJSON (i, title, val) = case fromJSON val of
-      Success cats -> Just (i, title, unJSList cats)
+      Success cats -> Just (i, title, cats)
       Error _ -> Just (i, title, [])
     matchPrefix :: Field SqlJsonb -> Field SqlBool
     matchPrefix js =
@@ -67,11 +67,11 @@ listCol mtdt prefix recursive = do
         $ zip [0 ..] prefix
 
 colTree ::
-  (MonadKorrvigs m, ExtraMetadata mtdt, MtdtType mtdt ~ JSONList Text) =>
+  (MonadKorrvigs m, ExtraMetadata mtdt, MtdtType mtdt ~ [Text]) =>
   mtdt ->
   [Text] ->
   Bool ->
   m ColTree
 colTree mtdt prefix recursive = buildTree <$> listCol mtdt prefix recursive
 
-mkMtdt "Favourite" "favourite" [t|JSONList Text|]
+mkMtdt "Favourite" "favourite" [t|[Text]|]

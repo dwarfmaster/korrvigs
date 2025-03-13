@@ -3,7 +3,6 @@ module Korrvigs.Metadata where
 import Control.Lens
 import Control.Monad (join)
 import Data.Aeson
-import Data.Aeson.Types
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Kind (Type)
@@ -16,20 +15,6 @@ import Korrvigs.Monad
 import Korrvigs.Utils.JSON (fromJSONM, sqlJsonToText)
 import Opaleye
 import qualified Opaleye as O
-
--- Helper types
-newtype JSONList a = JSONList {unJSList :: [a]}
-  deriving (Eq, Ord, Show)
-
-instance (ToJSON a) => ToJSON (JSONList a) where
-  toJSON = toJSON . unJSList
-
-instance (FromJSON a) => FromJSON (JSONList a) where
-  parseJSON js@(Array _) = JSONList <$> parseJSON js
-  parseJSON (String "") = pure $ JSONList []
-  parseJSON Null = pure $ JSONList []
-  parseJSON invalid =
-    prependFailure "parsing list failed, " $ typeMismatch "Array" invalid
 
 -- Metadata functions
 class ExtraMetadata mtdt where

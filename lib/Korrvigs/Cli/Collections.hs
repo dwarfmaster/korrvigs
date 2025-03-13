@@ -109,7 +109,7 @@ displayTree showEntries prefixL isFirst hd tree = do
 run :: Cmd -> KorrM ()
 run (AnyCol col, List prefix) = do
   tree <- colTree col prefix True
-  liftIO $ displayTree False 0 False (T.intercalate ">" prefix) tree
+  liftIO $ displayTree False 0 False "" tree
 run (AnyCol col, Show rec prefix) = do
   tree <- colTree col prefix rec
-  liftIO $ displayTree True 0 False (T.intercalate ">" prefix) tree
+  liftIO $ displayTree True 0 False "" tree

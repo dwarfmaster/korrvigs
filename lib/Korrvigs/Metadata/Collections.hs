@@ -20,7 +20,6 @@ import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON
 import Opaleye hiding (not, null)
-import Opaleye.Exists
 
 data ColTree = ColTree
   { _colEntries :: [(Id, Maybe Text)],
@@ -52,18 +51,16 @@ listCol mtdt prefix recursive = do
     fav <- selectTable entriesMetadataTable
     where_ $ fav ^. sqlKey .== sqlStrictText (mtdtSqlName mtdt)
     title <- selectTextMtdt Title $ fav ^. sqlEntry
-    toSelect <- exists $ do
-      val <- sqlJsonElements $ toNullable $ fav ^. sqlValue
-      when (recursive && not (null prefix)) $ where_ $ matchPrefix val
-      unless recursive $ where_ $ val .== sqlValueJSONB prefix
-    where_ toSelect
-    pure (fav ^. sqlEntry, title, fav ^. sqlValue)
-  pure $ prepJSON =<< favs
+    val <- sqlJsonElements $ toNullable $ fav ^. sqlValue
+    when (recursive && not (null prefix)) $ where_ $ matchPrefix val
+    unless recursive $ where_ $ val .== sqlValueJSONB prefix
+    pure (fav ^. sqlEntry, title, val)
+  pure $ prepJSON <$> favs
   where
-    prepJSON :: (Id, Maybe Text, Value) -> [(Id, Maybe Text, [Text])]
+    prepJSON :: (Id, Maybe Text, Value) -> (Id, Maybe Text, [Text])
     prepJSON (i, title, val) = case fromJSON val of
-      Success cats -> (i,title,) <$> cats
-      Error _ -> [(i, title, [])]
+      Success cats -> (i, title, drop (length prefix) cats)
+      Error _ -> (i, title, [])
     matchPrefix :: Field SqlJsonb -> Field SqlBool
     matchPrefix js =
       foldr

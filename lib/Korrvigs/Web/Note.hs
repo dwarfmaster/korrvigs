@@ -82,7 +82,7 @@ getNoteSubR (WId i) (WLoc loc) =
   where
     renderTaskStatus :: TaskStatus -> LT.Text
     renderTaskStatus TaskTodo = "todo"
-    renderTaskStatus TaskOngoing = "ongoing"
+    renderTaskStatus TaskOngoing = "started"
     renderTaskStatus TaskBlocked = "blocked"
     renderTaskStatus TaskDone = "done"
     renderTaskStatus TaskDont = "dont"

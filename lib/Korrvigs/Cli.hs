@@ -1,5 +1,6 @@
 module Korrvigs.Cli (main) where
 
+import qualified Korrvigs.Cli.Collections as Cols
 import qualified Korrvigs.Cli.Compute as Compute
 import qualified Korrvigs.Cli.Config as Config
 import qualified Korrvigs.Cli.Event as Event
@@ -25,6 +26,7 @@ data KorrCommand
   | Server Server.Cmd
   | Event Event.Cmd
   | Compute Compute.Cmd
+  | Collections Cols.Cmd
 
 data Command
   = Init Init.Cmd
@@ -43,6 +45,7 @@ parser' =
       <> command "server" (KCmd . Server <$> Server.parser)
       <> command "event" (KCmd . Event <$> Event.parser)
       <> command "compute" (KCmd . Compute <$> Compute.parser)
+      <> command "collections" (KCmd . Collections <$> Cols.parser)
       <> command "init" (Init <$> Init.parser)
 
 parser :: ParserInfo Command
@@ -63,6 +66,7 @@ run (Config cmd) = Config.run cmd
 run (Server cmd) = Server.run cmd
 run (Event cmd) = Event.run cmd
 run (Compute cmd) = Compute.run cmd
+run (Collections cmd) = Cols.run cmd
 
 main :: IO ()
 main = do

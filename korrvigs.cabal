@@ -41,6 +41,7 @@ library korrvigs-lib
     Korrvigs.Calendar.SQL
     Korrvigs.Calendar.Sync
     Korrvigs.Cli
+    Korrvigs.Cli.Collections
     Korrvigs.Cli.Compute
     Korrvigs.Cli.Config
     Korrvigs.Cli.Event

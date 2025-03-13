@@ -4,7 +4,6 @@ import Conduit
 import Control.Lens
 import Control.Monad
 import Data.Default
-import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -16,6 +15,7 @@ import Korrvigs.Metadata.Collections
 import qualified Korrvigs.Note.New as NNote
 import Korrvigs.Utils (firstJustM)
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Collections as Cols
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widgets
@@ -82,37 +82,11 @@ newForms postUrl prefix errMsgs = do
     ^{newFile}
   |]
 
-displayFavTree :: Int -> Text -> ColTree -> Handler Widget
-displayFavTree lvl cat favs = do
-  let entries = favs ^. colEntries
-  subs <- forM (M.toList $ favs ^. colSubs) $ uncurry (displayFavTree $ lvl + 1)
-  let content =
-        [whamlet|
-    <ul>
-      $forall (i,title) <- entries
-        <li>
-          <a href=@{EntryR (WId i)}>
-            $maybe t <- title
-              #{t}
-            $nothing
-              @#{unId i}
-    $forall sub <- subs
-      ^{sub}
-  |]
-  pure $ void $ Widgets.mkSection lvl [("class", "collapsed") | lvl > 1] [] (header lvl) content
-  where
-    header :: Int -> Widget
-    header 1 = [whamlet|<h2> ^{Widgets.headerSymbol "★"} #{cat}|]
-    header 2 = [whamlet|<h3> ^{Widgets.headerSymbol "★"} #{cat}|]
-    header 3 = [whamlet|<h4> ^{Widgets.headerSymbol "★"} #{cat}|]
-    header 4 = [whamlet|<h5> ^{Widgets.headerSymbol "★"} #{cat}|]
-    header _ = [whamlet|<h6> ^{Widgets.headerSymbol "★"} #{cat}|]
-
 displayHome :: [Text] -> Handler Html
 displayHome errMsgs = do
   nw <- newForms HomeR "Create" errMsgs
   let nwHd = [whamlet|<h2> ^{Widgets.headerSymbol "⊕"} Create entry|]
-  favs <- displayFavTree 1 "Favourites" =<< colTree Favourite [] True
+  favs <- Cols.displayFavTree 1 "Favourites" [] =<< colTree Favourite [] True
   defaultLayout $ do
     setTitle "Korrvigs's Home"
     setDescriptionIdemp "Korrvigs home page"

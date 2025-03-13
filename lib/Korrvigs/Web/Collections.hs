@@ -11,6 +11,7 @@ import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widgets
+import Text.Blaze (toMarkup)
 import Yesod
 
 displayFavTree :: Int -> Text -> [Text] -> ColTree -> Handler Widget
@@ -48,7 +49,7 @@ getColFavouriteR prefix = do
   let hdTree = if null prefix then "Favourites" else T.intercalate ">" prefix
   favs <- displayFavTree 0 hdTree (reverse prefix) =<< colTree Favourite prefix True
   defaultLayout $ do
-    setTitle "Favourite page"
+    setTitle $ toMarkup hdTree
     Rcs.entryStyle
     Widgets.sectionLogic
     favs

@@ -46,3 +46,6 @@ sqlJsonToArray = UOp.ap1 "jsonb_array_elements"
 
 sqlJsonLength :: FieldNullable SqlJsonb -> FieldNullable SqlInt4
 sqlJsonLength = UOp.ap1 "jsonb_array_length"
+
+sqlJsonElements :: FieldNullable SqlJsonb -> Select (Field SqlJsonb)
+sqlJsonElements = UOp.sel1 "jsonb_array_elements"

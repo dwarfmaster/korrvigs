@@ -18,7 +18,9 @@ import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad
+import Korrvigs.Utils.JSON
 import Opaleye hiding (not, null)
+import Opaleye.Exists
 
 data ColTree = ColTree
   { _colEntries :: [(Id, Maybe Text)],
@@ -40,7 +42,7 @@ buildTree :: [(Id, Maybe Text, [Text])] -> ColTree
 buildTree = foldr insertIntoTree emptyTree
 
 listCol ::
-  (MonadKorrvigs m, ExtraMetadata mtdt, MtdtType mtdt ~ [Text]) =>
+  (MonadKorrvigs m, ExtraMetadata mtdt, MtdtType mtdt ~ [[Text]]) =>
   mtdt ->
   [Text] ->
   Bool ->
@@ -50,15 +52,18 @@ listCol mtdt prefix recursive = do
     fav <- selectTable entriesMetadataTable
     where_ $ fav ^. sqlKey .== sqlStrictText (mtdtSqlName mtdt)
     title <- selectTextMtdt Title $ fav ^. sqlEntry
-    when (recursive && not (null prefix)) $ where_ $ matchPrefix $ fav ^. sqlValue
-    unless recursive $ where_ $ fav ^. sqlValue .== sqlValueJSONB prefix
+    toSelect <- exists $ do
+      val <- sqlJsonElements $ toNullable $ fav ^. sqlValue
+      when (recursive && not (null prefix)) $ where_ $ matchPrefix val
+      unless recursive $ where_ $ val .== sqlValueJSONB prefix
+    where_ toSelect
     pure (fav ^. sqlEntry, title, fav ^. sqlValue)
-  pure $ mapMaybe prepJSON favs
+  pure $ prepJSON =<< favs
   where
-    prepJSON :: (Id, Maybe Text, Value) -> Maybe (Id, Maybe Text, [Text])
+    prepJSON :: (Id, Maybe Text, Value) -> [(Id, Maybe Text, [Text])]
     prepJSON (i, title, val) = case fromJSON val of
-      Success cats -> Just (i, title, cats)
-      Error _ -> Just (i, title, [])
+      Success cats -> (i,title,) <$> cats
+      Error _ -> [(i, title, [])]
     matchPrefix :: Field SqlJsonb -> Field SqlBool
     matchPrefix js =
       foldr
@@ -67,11 +72,11 @@ listCol mtdt prefix recursive = do
         $ zip [0 ..] prefix
 
 colTree ::
-  (MonadKorrvigs m, ExtraMetadata mtdt, MtdtType mtdt ~ [Text]) =>
+  (MonadKorrvigs m, ExtraMetadata mtdt, MtdtType mtdt ~ [[Text]]) =>
   mtdt ->
   [Text] ->
   Bool ->
   m ColTree
 colTree mtdt prefix recursive = buildTree <$> listCol mtdt prefix recursive
 
-mkMtdt "Favourite" "favourite" [t|[Text]|]
+mkMtdt "Favourite" "favourite" [t|[[Text]]|]

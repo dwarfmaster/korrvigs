@@ -86,7 +86,7 @@ displayHome :: [Text] -> Handler Html
 displayHome errMsgs = do
   nw <- newForms HomeR "Create" errMsgs
   let nwHd = [whamlet|<h2> ^{Widgets.headerSymbol "⊕"} Create entry|]
-  favs <- Cols.displayFavTree 1 "Favourites" [] =<< colTree Favourite [] True
+  favs <- Cols.displayFavTree 1 1 "Favourites" [] =<< colTree Favourite [] True
   defaultLayout $ do
     setTitle "Korrvigs's Home"
     setDescriptionIdemp "Korrvigs home page"

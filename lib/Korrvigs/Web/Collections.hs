@@ -14,11 +14,23 @@ import qualified Korrvigs.Web.Widgets as Widgets
 import Text.Blaze (toMarkup)
 import Yesod
 
-displayFavTree :: Int -> Text -> [Text] -> ColTree -> Handler Widget
-displayFavTree lvl cat rprefix favs = do
+getColR :: Handler Html
+getColR = do
+  favs <- displayFavTree 1 0 "Favourites" [] =<< colCatTree Favourite []
+  defaultLayout $ do
+    setTitle "Collections"
+    Rcs.entryStyle
+    Widgets.sectionLogic
+    [whamlet|
+      <h1>Collections
+      ^{favs}
+    |]
+
+displayFavTree :: Int -> Int -> Text -> [Text] -> ColTree -> Handler Widget
+displayFavTree lvl threshold cat rprefix favs = do
   let entries = favs ^. colEntries
   subs <- forM (M.toList $ favs ^. colSubs) $ \(subHd, sub) ->
-    displayFavTree (lvl + 1) subHd (subHd : rprefix) sub
+    displayFavTree (lvl + 1) threshold subHd (subHd : rprefix) sub
   let content =
         [whamlet|
     <ul>
@@ -32,7 +44,7 @@ displayFavTree lvl cat rprefix favs = do
     $forall sub <- subs
       ^{sub}
   |]
-  pure $ void $ Widgets.mkSection lvl [("class", "collapsed") | lvl > 1] [] (header lvl) content
+  pure $ void $ Widgets.mkSection lvl [("class", "collapsed") | lvl > threshold] [] (header lvl) content
   where
     header :: Int -> Widget
     header 0 = [whamlet|<h1> ^{Widgets.headerSymbol "★"} ^{ref}|]
@@ -47,7 +59,7 @@ displayFavTree lvl cat rprefix favs = do
 getColFavouriteR :: [Text] -> Handler Html
 getColFavouriteR prefix = do
   let hdTree = if null prefix then "Favourites" else T.intercalate ">" prefix
-  favs <- displayFavTree 0 hdTree (reverse prefix) =<< colTree Favourite prefix True
+  favs <- displayFavTree 0 0 hdTree (reverse prefix) =<< colTree Favourite prefix True
   defaultLayout $ do
     setTitle $ toMarkup hdTree
     Rcs.entryStyle

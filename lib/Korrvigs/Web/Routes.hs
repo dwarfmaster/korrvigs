@@ -40,7 +40,7 @@ korrvigsRoutes =
 /note/#WebId/sub/#WebAnyLoc NoteSubR GET POST
 
 -- Collections
-
+/collections ColR GET
 /collections/favourite/*[Text] ColFavouriteR GET
 
 -- Git visualisation and manipulation

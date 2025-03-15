@@ -40,6 +40,7 @@ hdIsEntry (NoteSubR _ _) = True
 hdIsEntry _ = False
 
 hdIsCol :: Route WebData -> Bool
+hdIsCol ColR = True
 hdIsCol (ColFavouriteR _) = True
 hdIsCol _ = False
 
@@ -47,7 +48,7 @@ headerContent :: [(Text, Route WebData, Route WebData -> Bool)]
 headerContent =
   [ ("Home", HomeR, (== HomeR)),
     ("Entry", SearchR, hdIsEntry),
-    ("Collection", ColFavouriteR [], hdIsCol),
+    ("Collection", ColR, hdIsCol),
     ("Git", GitR, (== GitR))
   ]
 

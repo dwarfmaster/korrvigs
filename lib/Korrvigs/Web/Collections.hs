@@ -124,7 +124,7 @@ getColGalR prefix = do
   let titleH = mkTitle (render . ColGalR) "Gallery" rprefix
   subTree <- colCatTree GalleryCollection prefix
   subs <- displayMiscTree ColGalR (const $ Widget.headerSymbol "📷") 1 0 "Sub galleries" rprefix subTree
-  pictures <- rSelect $ do
+  pictures <- rSelect $ orderBy (ascNullsFirst snd <> asc fst) $ do
     (i, _) <- selectCol GalleryCollection prefix False
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryName .== i

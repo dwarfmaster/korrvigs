@@ -3,10 +3,13 @@ module Korrvigs.Web.Collections where
 import Control.Lens
 import Control.Monad
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Metadata.Collections
 import Korrvigs.Web.Backend
+import Korrvigs.Web.PhotoSwipe (PhotoswipeEntry (..))
+import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widget
@@ -23,6 +26,8 @@ getColR = do
   favs <- displayFavTree 1 0 hdFav [] =<< colCatTree Favourite []
   let hdMisc = Html.a "Miscellaneous" ! Attr.href (textValue $ render $ ColMiscR [])
   miscs <- displayMiscTree ColMiscR (const $ Widgets.headerSymbol "•") 1 0 hdMisc [] =<< colCatTree MiscCollection []
+  let hdGal = Html.a "Gallery" ! Attr.href (textValue $ render $ ColGalR [])
+  gals <- displayMiscTree ColGalR (const $ Widgets.headerSymbol "📷") 1 0 hdGal [] =<< colCatTree GalleryCollection []
   defaultLayout $ do
     setTitle "Collections"
     Rcs.entryStyle
@@ -31,6 +36,7 @@ getColR = do
       <h1>Collections
       ^{favs}
       ^{miscs}
+      ^{gals}
     |]
 
 displayFavTree :: Int -> Int -> Html -> [Text] -> ColTree -> Handler Widget
@@ -70,7 +76,7 @@ displayMiscTree mkUrl symbols lvl threshold cat rprefix favs = do
 getColFavouriteR :: [Text] -> Handler Html
 getColFavouriteR prefix = do
   render <- getUrlRender
-  favs <- displayFavTree 0 0 (mkTitle render "Favourites" rprefix) rprefix =<< colTree Favourite prefix True
+  favs <- displayFavTree 0 0 (mkTitle (render . ColFavouriteR) "Favourites" rprefix) rprefix =<< colTree Favourite prefix True
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
@@ -82,8 +88,8 @@ getColFavouriteR prefix = do
       [] -> "Favourites"
       (hd : _) -> hd
 
-mkTitle :: (Route WebData -> Text) -> Text -> [Text] -> Html
-mkTitle render base rprefix = case rprefix of
+mkTitle :: ([Text] -> Text) -> Text -> [Text] -> Html
+mkTitle renderUrl base rprefix = case rprefix of
   [] -> toMarkup base
   (lp : prs) -> buildTitle prs <> toMarkup lp
   where
@@ -91,13 +97,13 @@ mkTitle render base rprefix = case rprefix of
     buildTitle [] = mempty
     buildTitle (hd : rpr) =
       let rec = buildTitle rpr
-       in let lnk = Html.a (toMarkup hd) ! Attr.href (textValue $ render $ ColFavouriteR $ reverse $ hd : rpr)
+       in let lnk = Html.a (toMarkup hd) ! Attr.href (textValue $ renderUrl $ reverse $ hd : rpr)
            in rec <> lnk <> " > "
 
 getColMiscR :: [Text] -> Handler Html
 getColMiscR prefix = do
   render <- getUrlRender
-  miscs <- displayMiscTree ColMiscR (const $ Widget.headerSymbol "•") 0 0 (mkTitle render "Miscellaneous" rprefix) rprefix =<< colTree MiscCollection prefix True
+  miscs <- displayMiscTree ColMiscR (const $ Widget.headerSymbol "•") 0 0 (mkTitle (render . ColMiscR) "Miscellaneous" rprefix) rprefix =<< colTree MiscCollection prefix True
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
@@ -108,3 +114,32 @@ getColMiscR prefix = do
     title = case rprefix of
       [] -> "Miscellaneous"
       (lp : _) -> lp
+
+getColGalR :: [Text] -> Handler Html
+getColGalR prefix = do
+  render <- getUrlRender
+  let titleH = mkTitle (render . ColGalR) "Gallery" rprefix
+  subTree <- colCatTree GalleryCollection prefix
+  subs <- displayMiscTree ColGalR (const $ Widget.headerSymbol "📷") 1 0 "Sub galleries" rprefix subTree
+  pictures <- view colEntries <$> colTree GalleryCollection prefix False
+  entries <- mapM mkEntry pictures
+  photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
+  defaultLayout $ do
+    setTitle $ toMarkup title
+    Rcs.entryStyle
+    Widgets.sectionLogic
+    PhotoSwipe.photoswipeHeader
+    [whamlet|
+      <h1>📷 ^{titleH}
+      $if not (nullTree subTree)
+        ^{subs}
+      <div #common-gallery>
+        ^{photoswipe}
+    |]
+  where
+    rprefix = reverse prefix
+    title = case rprefix of
+      [] -> "Gallery"
+      (lp : _) -> lp
+    mkEntry :: (Id, Maybe Text) -> Handler (Maybe PhotoswipeEntry)
+    mkEntry (i, _) = PhotoSwipe.miniatureEntry Nothing i

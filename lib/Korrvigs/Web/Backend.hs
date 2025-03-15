@@ -42,6 +42,8 @@ hdIsEntry _ = False
 hdIsCol :: Route WebData -> Bool
 hdIsCol ColR = True
 hdIsCol (ColFavouriteR _) = True
+hdIsCol (ColMiscR _) = True
+hdIsCol (ColGalR _) = True
 hdIsCol _ = False
 
 headerContent :: [(Text, Route WebData, Route WebData -> Bool)]

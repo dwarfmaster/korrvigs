@@ -80,6 +80,7 @@ parser' =
   subparser $
     colCmd Favourite "favourite"
       <> colCmd MiscCollection "misc"
+      <> colCmd GalleryCollection "gallery"
 
 parser :: ParserInfo Cmd
 parser =

@@ -4,8 +4,10 @@ module Korrvigs.Metadata.Collections
     colSubs,
     colTree,
     colCatTree,
+    nullTree,
     Favourite (..),
     MiscCollection (..),
+    GalleryCollection (..),
   )
 where
 
@@ -33,6 +35,9 @@ makeLenses ''ColTree
 
 emptyTree :: ColTree
 emptyTree = ColTree [] M.empty
+
+nullTree :: ColTree -> Bool
+nullTree (ColTree entries subs) = null entries && M.null subs
 
 insertActOnTree :: (ColTree -> ColTree) -> [Text] -> ColTree -> ColTree
 insertActOnTree f [] col = f col
@@ -102,3 +107,4 @@ colCatTree mtdt prefix = do
 
 mkMtdt "Favourite" "favourite" [t|[[Text]]|]
 mkMtdt "MiscCollection" "collection" [t|[[Text]]|]
+mkMtdt "GalleryCollection" "ingallery" [t|[[Text]]|]

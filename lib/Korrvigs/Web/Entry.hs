@@ -276,14 +276,16 @@ colsWidget entry = do
   let i = entry ^. name
   mfavs <- fromMaybe [] <$> rSelectMtdt Favourite (sqlId i)
   mmisc <- fromMaybe [] <$> rSelectMtdt MiscCollection (sqlId i)
+  mgals <- fromMaybe [] <$> rSelectMtdt GalleryCollection (sqlId i)
   let cols =
         [ ("Favourites", ColFavouriteR, mfavs),
-          ("Miscellaneous", ColMiscR, mmisc)
+          ("Miscellaneous", ColMiscR, mmisc),
+          ("Gallery", ColGalR, mgals)
         ] ::
           [(Text, [Text] -> Route WebData, [[Text]])]
   pure $
     unless
-      (null mfavs && null mmisc)
+      (null mfavs && null mmisc && null mgals)
       [whamlet|
   <details .common-details>
     <summary>Collections

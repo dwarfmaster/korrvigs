@@ -5,6 +5,7 @@ import Control.Monad
 import Data.List
 import Data.Maybe
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
 import Korrvigs.Actions
@@ -270,6 +271,27 @@ contentWidget entry = case entry ^. kindData of
   EventD event -> Event.content event
   CalendarD cal -> Cal.content cal
 
+colsWidget :: Entry -> Handler Widget
+colsWidget entry = do
+  let i = entry ^. name
+  mfavs <- fromMaybe [] <$> rSelectMtdt Favourite (sqlId i)
+  case mfavs of
+    [] -> pure mempty
+    favs ->
+      pure
+        [whamlet|
+      <details .common-details>
+        <summary>Collections
+        <ul>
+          <li>
+            <a href=@{ColFavouriteR []}>Favourites
+            <ul>
+              $forall fav <- favs
+                <li>
+                  <a href=@{ColFavouriteR fav}>
+                    #{T.intercalate " > " fav}
+      |]
+
 newFormWidget :: [Text] -> Entry -> Handler Widget
 newFormWidget errMsgs entry = do
   nw <- Home.newForms (EntryR $ WId $ entry ^. name) "Attach" errMsgs
@@ -287,6 +309,7 @@ entryWidget errMsgs entry = do
   dt <- dateWidget entry
   geom <- geometryWidget entry
   mtdt <- Mtdt.widget entry
+  cols <- colsWidget entry
   refs <- refsWidget entry
   gallery <- galleryWidget entry
   content <- contentWidget entry
@@ -300,6 +323,7 @@ entryWidget errMsgs entry = do
     nw
     geom
     mtdt
+    cols
     refs
     gallery
     [whamlet|

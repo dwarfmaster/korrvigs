@@ -3,6 +3,7 @@ module Korrvigs.Metadata.Collections
     colEntries,
     colSubs,
     colTree,
+    colCatTree,
     Favourite (..),
   )
 where
@@ -32,10 +33,13 @@ makeLenses ''ColTree
 emptyTree :: ColTree
 emptyTree = ColTree [] M.empty
 
+insertActOnTree :: (ColTree -> ColTree) -> [Text] -> ColTree -> ColTree
+insertActOnTree f [] col = f col
+insertActOnTree f (cat : cats) col =
+  col & colSubs . at cat %~ Just . insertActOnTree f cats . fromMaybe emptyTree
+
 insertIntoTree :: (Id, Maybe Text, [Text]) -> ColTree -> ColTree
-insertIntoTree (i, title, []) fav = fav & colEntries %~ ((i, title) :)
-insertIntoTree (i, title, cat : cats) fav =
-  fav & colSubs . at cat %~ Just . insertIntoTree (i, title, cats) . fromMaybe emptyTree
+insertIntoTree (i, title, cats) = insertActOnTree (colEntries %~ ((i, title) :)) cats
 
 buildTree :: [(Id, Maybe Text, [Text])] -> ColTree
 buildTree = foldr insertIntoTree emptyTree
@@ -52,7 +56,7 @@ listCol mtdt prefix recursive = do
     where_ $ fav ^. sqlKey .== sqlStrictText (mtdtSqlName mtdt)
     title <- selectTextMtdt Title $ fav ^. sqlEntry
     val <- sqlJsonElements $ toNullable $ fav ^. sqlValue
-    when (recursive && not (null prefix)) $ where_ $ matchPrefix val
+    when (recursive && not (null prefix)) $ where_ $ matchPrefix prefix val
     unless recursive $ where_ $ val .== sqlValueJSONB prefix
     pure (fav ^. sqlEntry, title, val)
   pure $ prepJSON <$> favs
@@ -61,12 +65,13 @@ listCol mtdt prefix recursive = do
     prepJSON (i, title, val) = case fromJSON val of
       Success cats -> (i, title, drop (length prefix) cats)
       Error _ -> (i, title, [])
-    matchPrefix :: Field SqlJsonb -> Field SqlBool
-    matchPrefix js =
-      foldr
-        (\(i, txt) b -> b .&& matchNullable (sqlBool False) (.== sqlStrictText txt) (toNullable js .->> sqlInt4 i))
-        (sqlBool True)
-        $ zip [0 ..] prefix
+
+matchPrefix :: [Text] -> Field SqlJsonb -> Field SqlBool
+matchPrefix prefix js =
+  foldr
+    (\(i, txt) b -> b .&& matchNullable (sqlBool False) (.== sqlStrictText txt) (toNullable js .->> sqlInt4 i))
+    (sqlBool True)
+    $ zip [0 ..] prefix
 
 colTree ::
   (MonadKorrvigs m, ExtraMetadata mtdt, MtdtType mtdt ~ [[Text]]) =>
@@ -75,5 +80,23 @@ colTree ::
   Bool ->
   m ColTree
 colTree mtdt prefix recursive = buildTree <$> listCol mtdt prefix recursive
+
+colCatTree ::
+  (MonadKorrvigs m, ExtraMetadata mtdt, MtdtType mtdt ~ [[Text]]) =>
+  mtdt ->
+  [Text] ->
+  m ColTree
+colCatTree mtdt prefix = do
+  catsJS <- rSelect $ do
+    col <- selectTable entriesMetadataTable
+    where_ $ col ^. sqlKey .== sqlStrictText (mtdtSqlName mtdt)
+    sqlJsonElements $ toNullable $ col ^. sqlValue
+  let cats = prepJSON <$> catsJS
+  pure $ foldr (insertActOnTree id) emptyTree cats
+  where
+    prepJSON :: Value -> [Text]
+    prepJSON val = case fromJSON val of
+      Success cats -> drop (length prefix) cats
+      Error _ -> []
 
 mkMtdt "Favourite" "favourite" [t|[[Text]]|]

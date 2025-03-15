@@ -3,6 +3,7 @@ module Korrvigs.Metadata.Collections
     colEntries,
     colSubs,
     colTree,
+    selectCol,
     colCatTree,
     nullTree,
     Favourite (..),
@@ -58,19 +59,29 @@ listCol ::
   m [(Id, Maybe Text, [Text])]
 listCol mtdt prefix recursive = do
   favs <- rSelect $ do
-    fav <- selectTable entriesMetadataTable
-    where_ $ fav ^. sqlKey .== sqlStrictText (mtdtSqlName mtdt)
-    title <- selectTextMtdt Title $ fav ^. sqlEntry
-    val <- sqlJsonElements $ toNullable $ fav ^. sqlValue
-    when (recursive && not (null prefix)) $ where_ $ matchPrefix prefix val
-    unless recursive $ where_ $ val .== sqlValueJSONB prefix
-    pure (fav ^. sqlEntry, title, val)
+    (i, val) <- selectCol mtdt prefix recursive
+    title <- selectTextMtdt Title i
+    pure (i, title, val)
   pure $ prepJSON <$> favs
   where
     prepJSON :: (Id, Maybe Text, Value) -> (Id, Maybe Text, [Text])
     prepJSON (i, title, val) = case fromJSON val of
       Success cats -> (i, title, drop (length prefix) cats)
       Error _ -> (i, title, [])
+
+selectCol ::
+  (ExtraMetadata mtdt, MtdtType mtdt ~ [[Text]]) =>
+  mtdt ->
+  [Text] ->
+  Bool ->
+  Select (Field SqlText, Field SqlJsonb)
+selectCol mtdt prefix recursive = do
+  fav <- selectTable entriesMetadataTable
+  where_ $ fav ^. sqlKey .== sqlStrictText (mtdtSqlName mtdt)
+  val <- sqlJsonElements $ toNullable $ fav ^. sqlValue
+  when (recursive && not (null prefix)) $ where_ $ matchPrefix prefix val
+  unless recursive $ where_ $ val .== sqlValueJSONB prefix
+  pure (fav ^. sqlEntry, val)
 
 matchPrefix :: [Text] -> Field SqlJsonb -> Field SqlBool
 matchPrefix prefix js =

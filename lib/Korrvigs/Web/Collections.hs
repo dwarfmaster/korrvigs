@@ -5,8 +5,10 @@ import Control.Monad
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
+import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Metadata.Collections
+import Korrvigs.Monad
 import Korrvigs.Web.Backend
 import Korrvigs.Web.PhotoSwipe (PhotoswipeEntry (..))
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
@@ -14,6 +16,7 @@ import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widget
 import qualified Korrvigs.Web.Widgets as Widgets
+import Opaleye hiding (not, null)
 import Text.Blaze (textValue, toMarkup, (!))
 import qualified Text.Blaze.Html5 as Html
 import qualified Text.Blaze.Html5.Attributes as Attr
@@ -121,7 +124,11 @@ getColGalR prefix = do
   let titleH = mkTitle (render . ColGalR) "Gallery" rprefix
   subTree <- colCatTree GalleryCollection prefix
   subs <- displayMiscTree ColGalR (const $ Widget.headerSymbol "📷") 1 0 "Sub galleries" rprefix subTree
-  pictures <- view colEntries <$> colTree GalleryCollection prefix False
+  pictures <- rSelect $ do
+    (i, _) <- selectCol GalleryCollection prefix False
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryName .== i
+    pure (i, entry ^. sqlEntryDate)
   entries <- mapM mkEntry pictures
   photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
   defaultLayout $ do
@@ -141,5 +148,6 @@ getColGalR prefix = do
     title = case rprefix of
       [] -> "Gallery"
       (lp : _) -> lp
-    mkEntry :: (Id, Maybe Text) -> Handler (Maybe PhotoswipeEntry)
-    mkEntry (i, _) = PhotoSwipe.miniatureEntry Nothing i
+    mkEntry :: (Id, Maybe ZonedTime) -> Handler (Maybe PhotoswipeEntry)
+    mkEntry (i, dt) =
+      PhotoSwipe.miniatureEntry (localDay . zonedTimeToLocalTime <$> dt) i

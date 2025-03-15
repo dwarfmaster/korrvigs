@@ -77,8 +77,9 @@ showCmd mtdt mName =
 
 parser' :: Parser Cmd
 parser' =
-  subparser
-    (colCmd Favourite "favourite")
+  subparser $
+    colCmd Favourite "favourite"
+      <> colCmd MiscCollection "misc"
 
 parser :: ParserInfo Cmd
 parser =

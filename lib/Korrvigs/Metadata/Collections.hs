@@ -5,6 +5,7 @@ module Korrvigs.Metadata.Collections
     colTree,
     colCatTree,
     Favourite (..),
+    MiscCollection (..),
   )
 where
 
@@ -100,3 +101,4 @@ colCatTree mtdt prefix = do
       Error _ -> []
 
 mkMtdt "Favourite" "favourite" [t|[[Text]]|]
+mkMtdt "MiscCollection" "collection" [t|[[Text]]|]

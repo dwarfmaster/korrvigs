@@ -42,6 +42,7 @@ korrvigsRoutes =
 -- Collections
 /collections ColR GET
 /collections/favourite/*[Text] ColFavouriteR GET
+/collections/misc/*[Text] ColMiscR GET
 
 -- Git visualisation and manipulation
 /git GitR GET POST

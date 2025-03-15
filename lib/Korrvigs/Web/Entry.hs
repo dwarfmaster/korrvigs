@@ -12,7 +12,7 @@ import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
-import Korrvigs.Metadata.Collections (Favourite (..))
+import Korrvigs.Metadata.Collections
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Note.Loc (SubLoc (SubLoc))
@@ -275,22 +275,29 @@ colsWidget :: Entry -> Handler Widget
 colsWidget entry = do
   let i = entry ^. name
   mfavs <- fromMaybe [] <$> rSelectMtdt Favourite (sqlId i)
-  case mfavs of
-    [] -> pure mempty
-    favs ->
-      pure
-        [whamlet|
-      <details .common-details>
-        <summary>Collections
-        <ul>
+  mmisc <- fromMaybe [] <$> rSelectMtdt MiscCollection (sqlId i)
+  let cols =
+        [ ("Favourites", ColFavouriteR, mfavs),
+          ("Miscellaneous", ColMiscR, mmisc)
+        ] ::
+          [(Text, [Text] -> Route WebData, [[Text]])]
+  pure $
+    unless
+      (null mfavs && null mmisc)
+      [whamlet|
+  <details .common-details>
+    <summary>Collections
+    <ul>
+      $forall (title,lnk,subcols) <- cols
+        $if (not $ null subcols)
           <li>
-            <a href=@{ColFavouriteR []}>Favourites
+            <a href=@{lnk []}>#{title}
             <ul>
-              $forall fav <- favs
+              $forall col <- subcols
                 <li>
-                  <a href=@{ColFavouriteR fav}>
-                    #{T.intercalate " > " fav}
-      |]
+                  <a href=@{lnk col}>
+                    #{T.intercalate " > " col}
+  |]
 
 newFormWidget :: [Text] -> Entry -> Handler Widget
 newFormWidget errMsgs entry = do

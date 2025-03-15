@@ -9,6 +9,7 @@ import Korrvigs.Metadata.Collections
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
+import qualified Korrvigs.Web.Widgets as Widget
 import qualified Korrvigs.Web.Widgets as Widgets
 import Text.Blaze (textValue, toMarkup, (!))
 import qualified Text.Blaze.Html5 as Html
@@ -18,8 +19,10 @@ import Yesod
 getColR :: Handler Html
 getColR = do
   render <- getUrlRender
-  let hd = Html.a "Favourites" ! Attr.href (textValue $ render $ ColFavouriteR [])
-  favs <- displayFavTree 1 0 hd [] =<< colCatTree Favourite []
+  let hdFav = Html.a "Favourites" ! Attr.href (textValue $ render $ ColFavouriteR [])
+  favs <- displayFavTree 1 0 hdFav [] =<< colCatTree Favourite []
+  let hdMisc = Html.a "Miscellaneous" ! Attr.href (textValue $ render $ ColMiscR [])
+  miscs <- displayMiscTree ColMiscR (const $ Widgets.headerSymbol "•") 1 0 hdMisc [] =<< colCatTree MiscCollection []
   defaultLayout $ do
     setTitle "Collections"
     Rcs.entryStyle
@@ -27,16 +30,20 @@ getColR = do
     [whamlet|
       <h1>Collections
       ^{favs}
+      ^{miscs}
     |]
 
 displayFavTree :: Int -> Int -> Html -> [Text] -> ColTree -> Handler Widget
-displayFavTree lvl threshold cat rprefix favs = do
+displayFavTree = displayMiscTree ColFavouriteR $ const $ Widget.headerSymbol "★"
+
+displayMiscTree :: ([Text] -> Route WebData) -> (Int -> Widget) -> Int -> Int -> Html -> [Text] -> ColTree -> Handler Widget
+displayMiscTree mkUrl symbols lvl threshold cat rprefix favs = do
   let entries = favs ^. colEntries
   subs <- forM (M.toList $ favs ^. colSubs) $ \(subHd, sub) -> do
     render <- getUrlRender
-    let url = ColFavouriteR $ reverse $ subHd : rprefix
+    let url = mkUrl $ reverse $ subHd : rprefix
     let subH = Html.a (toMarkup subHd) ! Attr.href (textValue $ render url)
-    displayFavTree (lvl + 1) threshold subH (subHd : rprefix) sub
+    displayMiscTree mkUrl symbols (lvl + 1) threshold subH (subHd : rprefix) sub
   let content =
         [whamlet|
     <ul>
@@ -53,17 +60,17 @@ displayFavTree lvl threshold cat rprefix favs = do
   pure $ void $ Widgets.mkSection lvl [("class", "collapsed") | lvl > threshold] [] (header lvl) content
   where
     header :: Int -> Widget
-    header 0 = [whamlet|<h1> ^{Widgets.headerSymbol "★"} ^{cat}|]
-    header 1 = [whamlet|<h2> ^{Widgets.headerSymbol "★"} ^{cat}|]
-    header 2 = [whamlet|<h3> ^{Widgets.headerSymbol "★"} ^{cat}|]
-    header 3 = [whamlet|<h4> ^{Widgets.headerSymbol "★"} ^{cat}|]
-    header 4 = [whamlet|<h5> ^{Widgets.headerSymbol "★"} ^{cat}|]
-    header _ = [whamlet|<h6> ^{Widgets.headerSymbol "★"} ^{cat}|]
+    header 0 = [whamlet|<h1> ^{symbols 0} ^{cat}|]
+    header 1 = [whamlet|<h2> ^{symbols 1} ^{cat}|]
+    header 2 = [whamlet|<h3> ^{symbols 2} ^{cat}|]
+    header 3 = [whamlet|<h4> ^{symbols 3} ^{cat}|]
+    header 4 = [whamlet|<h5> ^{symbols 4} ^{cat}|]
+    header n = [whamlet|<h6> ^{symbols n} ^{cat}|]
 
 getColFavouriteR :: [Text] -> Handler Html
 getColFavouriteR prefix = do
   render <- getUrlRender
-  favs <- displayFavTree 0 0 (mkTitle render) rprefix =<< colTree Favourite prefix True
+  favs <- displayFavTree 0 0 (mkTitle render "Favourites" rprefix) rprefix =<< colTree Favourite prefix True
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
@@ -74,13 +81,30 @@ getColFavouriteR prefix = do
     title = case rprefix of
       [] -> "Favourites"
       (hd : _) -> hd
-    mkTitle :: (Route WebData -> Text) -> Html
-    mkTitle render = case rprefix of
-      [] -> "Favourites"
-      (lp : prs) -> buildTitle render prs <> toMarkup lp
-    buildTitle :: (Route WebData -> Text) -> [Text] -> Html
-    buildTitle _ [] = mempty
-    buildTitle render (hd : rpr) =
-      let rec = buildTitle render rpr
+
+mkTitle :: (Route WebData -> Text) -> Text -> [Text] -> Html
+mkTitle render base rprefix = case rprefix of
+  [] -> toMarkup base
+  (lp : prs) -> buildTitle prs <> toMarkup lp
+  where
+    buildTitle :: [Text] -> Html
+    buildTitle [] = mempty
+    buildTitle (hd : rpr) =
+      let rec = buildTitle rpr
        in let lnk = Html.a (toMarkup hd) ! Attr.href (textValue $ render $ ColFavouriteR $ reverse $ hd : rpr)
            in rec <> lnk <> " > "
+
+getColMiscR :: [Text] -> Handler Html
+getColMiscR prefix = do
+  render <- getUrlRender
+  miscs <- displayMiscTree ColMiscR (const $ Widget.headerSymbol "•") 0 0 (mkTitle render "Miscellaneous" rprefix) rprefix =<< colTree MiscCollection prefix True
+  defaultLayout $ do
+    setTitle $ toMarkup title
+    Rcs.entryStyle
+    Widgets.sectionLogic
+    miscs
+  where
+    rprefix = reverse prefix
+    title = case rprefix of
+      [] -> "Miscellaneous"
+      (lp : _) -> lp

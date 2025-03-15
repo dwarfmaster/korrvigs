@@ -21,6 +21,9 @@ import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widgets
 import System.FilePath
 import System.IO.Temp
+import Text.Blaze (textValue, (!))
+import qualified Text.Blaze.Html5 as Html
+import qualified Text.Blaze.Html5.Attributes as Attr
 import Yesod hiding (joinPath)
 
 newtype NewNote = NewNote {_nnoteTitle :: Text}
@@ -86,7 +89,9 @@ displayHome :: [Text] -> Handler Html
 displayHome errMsgs = do
   nw <- newForms HomeR "Create" errMsgs
   let nwHd = [whamlet|<h2> ^{Widgets.headerSymbol "⊕"} Create entry|]
-  favs <- Cols.displayFavTree 1 1 "Favourites" [] =<< colTree Favourite [] True
+  render <- getUrlRender
+  let hd = Html.a "Favourites" ! Attr.href (textValue $ render $ ColFavouriteR [])
+  favs <- Cols.displayFavTree 1 1 hd [] =<< colTree Favourite [] True
   defaultLayout $ do
     setTitle "Korrvigs's Home"
     setDescriptionIdemp "Korrvigs home page"

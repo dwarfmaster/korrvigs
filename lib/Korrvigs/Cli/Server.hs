@@ -7,6 +7,7 @@ import Korrvigs.Monad
 import Korrvigs.Utils.Base16
 import Korrvigs.Web ()
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Public.Crypto
 import Options.Applicative
 import System.Environment
 import Yesod
@@ -46,6 +47,7 @@ run cmd = do
   let staticP = firstJust "./static" [cmd ^. staticPath, staticEnv, staticCfg]
   stc <- liftIO $ staticDevel staticP
   staticRedirect <- view $ korrWeb . webStaticRedirect
+  secret <- liftIO loadOrGenerateKey
   liftIO $
     warp prt $
       WebData
@@ -53,5 +55,6 @@ run cmd = do
           web_root = rt,
           web_theme = theme16 theme,
           web_static = stc,
-          web_static_redirect = staticRedirect
+          web_static_redirect = staticRedirect,
+          web_mac_secret = secret
         }

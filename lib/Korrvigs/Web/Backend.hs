@@ -1,6 +1,7 @@
 module Korrvigs.Web.Backend where
 
 import Data.Binary.Builder
+import Data.ByteString (ByteString)
 import Data.Functor ((<&>))
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -19,7 +20,8 @@ data WebData = WebData
     web_root :: FilePath,
     web_theme :: Base16Index -> Text,
     web_static :: Static,
-    web_static_redirect :: Maybe Text
+    web_static_redirect :: Maybe Text,
+    web_mac_secret :: ByteString
   }
 
 getStaticR :: WebData -> Static
@@ -37,6 +39,8 @@ hdIsEntry (EntryDownloadR _) = True
 hdIsEntry (EntryMtdtR _) = True
 hdIsEntry (NoteR _) = True
 hdIsEntry (NoteSubR _ _) = True
+hdIsEntry (PublicEntryR _ _) = True
+hdIsEntry (PublicEntryDownloadR _ _) = True
 hdIsEntry _ = False
 
 hdIsCol :: Route WebData -> Bool
@@ -45,6 +49,9 @@ hdIsCol (ColFavouriteR _) = True
 hdIsCol (ColMiscR _) = True
 hdIsCol (ColGalR _) = True
 hdIsCol (ColTaskR _) = True
+hdIsCol (PublicColMiscR _ _) = True
+hdIsCol (PublicColGalR _ _) = True
+hdIsCol (PublicColTaskR _ _) = True
 hdIsCol _ = False
 
 headerContent :: [(Text, Route WebData, Route WebData -> Bool)]

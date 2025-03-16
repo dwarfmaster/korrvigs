@@ -193,6 +193,10 @@ in {
               client_max_body_size 0;
             '';
           };
+          locations."/public" = {
+            proxyPass = "http://localhost:${builtins.toString server.port}";
+            recommendedProxySettings = true;
+          };
         };
       };
     })

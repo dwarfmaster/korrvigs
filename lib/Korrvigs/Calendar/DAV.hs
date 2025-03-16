@@ -94,9 +94,10 @@ downloadAndWrite cal pwd rt toinsert forbidden = do
   let insertUids = M.keys toinsert
   dat <- DAV.getCalData cdd insertUids >>= throwEither (\err -> KMiscError $ "Failed to download content for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
   flip runStateT forbidden $ forM dat $ \ics -> do
-    ical <- lift $ liftIO (parseICal Nothing $ LEnc.encodeUtf8 $ LT.fromStrict ics) >>= throwEither (\err -> KMiscError $ "Failed to parse received ics: " <> err)
-    ievent' <- lift $ throwMaybe (KMiscError "Received ics has no VEVENT") $ ical ^. icEvent
+    ical' <- lift $ liftIO (parseICal Nothing $ LEnc.encodeUtf8 $ LT.fromStrict ics) >>= throwEither (\err -> KMiscError $ "Failed to parse received ics: " <> err)
+    ievent' <- lift $ throwMaybe (KMiscError "Received ics has no VEVENT") $ ical' ^. icEvent
     let ievent = ievent' & iceMtdt . at (mtdtName Title) %~ maybe (toJSON <$> ievent' ^. iceSummary) Just
+    let ical = ical' & icEvent ?~ ievent
     let pth = join $ M.lookup (ievent ^. iceUid) toinsert
     case pth of
       Just icspath -> do

@@ -6,7 +6,7 @@ import Control.Arrow ((***))
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson (Result (Error, Success), Value, fromJSON, toJSON)
+import Data.Aeson (Result (Error, Success), Value, fromJSON)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.CaseInsensitive as CI
 import Data.Default
@@ -77,10 +77,7 @@ register :: (MonadKorrvigs m) => ICalFile -> Set Id -> m Id
 register ical forbidden =
   case ical ^. icEvent of
     Nothing -> throwM $ KMiscError "ics has no event"
-    Just ievent -> do
-      let summary = ievent ^. iceSummary
-      let nevent' = ievent & iceMtdt . at (mtdtName Title) ?~ toJSON summary
-      createIdFor ical nevent' forbidden
+    Just ievent -> createIdFor ical ievent forbidden
 
 syncEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m (SyncData EventRow)
 syncEvent i calendar ics ifile ical = do

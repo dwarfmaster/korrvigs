@@ -1,4 +1,4 @@
-module Korrvigs.Web.Entry.Note (content, embed, editButton) where
+module Korrvigs.Web.Entry.Note (content, embed, editButton, embedBody, embedLnk) where
 
 import Control.Lens
 import Control.Monad
@@ -122,7 +122,6 @@ embed lvl note = do
       let w = do
             Ace.setup
             Rcs.mathjax StaticR
-            Rcs.checkboxCode
             [whamlet|
              $if not isEmbedded
                <p .checks-top>

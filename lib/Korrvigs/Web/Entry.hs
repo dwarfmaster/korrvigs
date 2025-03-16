@@ -277,15 +277,17 @@ colsWidget entry = do
   mfavs <- fromMaybe [] <$> rSelectMtdt Favourite (sqlId i)
   mmisc <- fromMaybe [] <$> rSelectMtdt MiscCollection (sqlId i)
   mgals <- fromMaybe [] <$> rSelectMtdt GalleryCollection (sqlId i)
+  mtsks <- fromMaybe [] <$> rSelectMtdt TaskSet (sqlId i)
   let cols =
         [ ("Favourites", ColFavouriteR, mfavs),
           ("Miscellaneous", ColMiscR, mmisc),
-          ("Gallery", ColGalR, mgals)
+          ("Gallery", ColGalR, mgals),
+          ("Task Set", ColTaskR, mtsks)
         ] ::
           [(Text, [Text] -> Route WebData, [[Text]])]
   pure $
     unless
-      (null mfavs && null mmisc && null mgals)
+      (null mfavs && null mmisc && null mgals && null mtsks)
       [whamlet|
   <details .common-details>
     <summary>Collections
@@ -326,6 +328,7 @@ entryWidget errMsgs entry = do
   pure $ do
     Rcs.entryStyle
     Rcs.formsStyle
+    Rcs.checkboxCode
     PhotoSwipe.photoswipeHeader
     title
     dt

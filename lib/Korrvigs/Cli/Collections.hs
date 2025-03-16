@@ -81,6 +81,7 @@ parser' =
     colCmd Favourite "favourite"
       <> colCmd MiscCollection "misc"
       <> colCmd GalleryCollection "gallery"
+      <> colCmd TaskSet "taskset"
 
 parser :: ParserInfo Cmd
 parser =

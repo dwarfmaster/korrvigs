@@ -9,6 +9,7 @@ module Korrvigs.Metadata.Collections
     Favourite (..),
     MiscCollection (..),
     GalleryCollection (..),
+    TaskSet (..),
   )
 where
 
@@ -119,3 +120,4 @@ colCatTree mtdt prefix = do
 mkMtdt "Favourite" "favourite" [t|[[Text]]|]
 mkMtdt "MiscCollection" "collection" [t|[[Text]]|]
 mkMtdt "GalleryCollection" "ingallery" [t|[[Text]]|]
+mkMtdt "TaskSet" "taskset" [t|[[Text]]|]

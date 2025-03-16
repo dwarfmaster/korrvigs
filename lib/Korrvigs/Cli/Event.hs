@@ -16,10 +16,11 @@ import Korrvigs.Cli.Monad
 import Korrvigs.Cli.New
 import Korrvigs.Entry
 import Korrvigs.Event.New
+import Korrvigs.Event.SQL
 import Korrvigs.Monad
 import Korrvigs.Utils.DateParser (dayParser)
-import Korrvigs.Utils.Time (measureTime)
-import Opaleye (selectTable)
+import Korrvigs.Utils.Time (measureTime, measureTime_)
+import Opaleye hiding (optional)
 import Options.Applicative
 import System.IO hiding (putStrLn, utf8)
 import Prelude hiding (putStrLn)
@@ -29,6 +30,7 @@ data Cmd
   | New NewEvent
   | NewCal NC.NewCalendar
   | Pull
+  | Push
 
 makeLenses ''Cmd
 
@@ -89,6 +91,14 @@ parser' =
                 <> header "korr event pull -- Pull events"
             )
         )
+      <> command
+        "push"
+        ( info
+            (pure Push)
+            ( progDesc "Push all events to caldav server"
+                <> header "korr event push -- Push events"
+            )
+        )
 
 parser :: ParserInfo Cmd
 parser =
@@ -136,6 +146,16 @@ run Pull = do
     )
     S.empty
     cals
+run Push = do
+  cals <- listCalendars
+  pwd <- getPwd
+  forM_ cals $ \cal -> do
+    evs <- rSelect $ do
+      ev <- selectTable eventsTable
+      where_ $ ev ^. sqlEventCalendar .== sqlId (cal ^. calEntry . name)
+      pure $ ev ^. sqlEventFile
+    txt <- measureTime_ $ DAV.push cal pwd evs []
+    liftIO $ putStrLn $ "Pushed to calendar " <> unId (cal ^. calEntry . name) <> " in " <> txt
 
 -- Caldav
 withEcho :: Bool -> IO a -> IO a

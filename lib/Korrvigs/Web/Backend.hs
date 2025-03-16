@@ -64,14 +64,29 @@ headerContent =
 
 mkHeader :: Handler Widget
 mkHeader =
-  getCurrentRoute
-    <&> Rcs.header . \case
-      Just route -> [(current route, txt, rt) | (txt, rt, current) <- headerContent]
-      Nothing -> [(False, txt, rt) | (txt, rt, _) <- headerContent]
+  isPublic >>= \case
+    True -> pure mempty
+    False ->
+      getCurrentRoute
+        <&> Rcs.header . \case
+          Just route -> [(current route, txt, rt) | (txt, rt, current) <- headerContent]
+          Nothing -> [(False, txt, rt) | (txt, rt, _) <- headerContent]
 
 mkQuery :: (Text, Text) -> QueryItem
 mkQuery (key, val) | T.null val = (Enc.encodeUtf8 key, Nothing)
 mkQuery (key, val) = (Enc.encodeUtf8 key, Just $ Enc.encodeUtf8 val)
+
+isPublicRoute :: Route WebData -> Bool
+isPublicRoute PublicR = True
+isPublicRoute (PublicEntryR _ _) = True
+isPublicRoute (PublicEntryDownloadR _ _) = True
+isPublicRoute (PublicColMiscR _ _) = True
+isPublicRoute (PublicColGalR _ _) = True
+isPublicRoute (PublicColTaskR _ _) = True
+isPublicRoute _ = False
+
+isPublic :: Handler Bool
+isPublic = maybe True isPublicRoute <$> getCurrentRoute
 
 instance Yesod WebData where
   jsLoader _ = BottomOfBody

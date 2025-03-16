@@ -58,3 +58,17 @@ checkMac mac64 route = do
     Left _ -> notFound
     Right False -> permissionDenied "Invalid MAC"
     Right True -> pure ()
+
+mkPublicImpl :: Route WebData -> Handler (Route WebData)
+mkPublicImpl r@(EntryR i) = PublicEntryR <$> signRoute r <*> pure i
+mkPublicImpl r@(EntryDownloadR i) = PublicEntryDownloadR <$> signRoute r <*> pure i
+mkPublicImpl r@(ColMiscR prefix) = PublicColMiscR <$> signRoute r <*> pure prefix
+mkPublicImpl r@(ColGalR prefix) = PublicColGalR <$> signRoute r <*> pure prefix
+mkPublicImpl r@(ColTaskR prefix) = PublicColTaskR <$> signRoute r <*> pure prefix
+mkPublicImpl _ = pure PublicR
+
+mkPublic :: Route WebData -> Handler (Route WebData)
+mkPublic r =
+  isPublic >>= \case
+    True -> mkPublicImpl r
+    False -> pure r

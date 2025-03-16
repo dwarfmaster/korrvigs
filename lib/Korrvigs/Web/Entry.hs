@@ -43,10 +43,12 @@ import Yesod hiding (Field)
 -- Takes the ID of the div containing the content
 titleWidget :: Entry -> Text -> Handler Widget
 titleWidget entry contentId = do
+  public <- isPublic
   title <- rSelectTextMtdt Title $ sqlId $ entry ^. name
   favourite <- rSelectMtdt Favourite $ sqlId $ entry ^. name
   taskW <- Wdgs.taskWidget (entry ^. name) (SubLoc []) =<< loadTask (entry ^. name)
-  medit <- editWidget
+  medit <- if public then pure mempty else editWidget
+  downloadUrl <- Public.mkPublic $ EntryDownloadR $ WId $ entry ^. name
   pure $ do
     case title of
       Just t -> setTitle $ toMarkup t
@@ -54,7 +56,7 @@ titleWidget entry contentId = do
     [whamlet|
     ^{htmlKind $ entry ^. kind}
     <span .download-button>
-      <a href=@{EntryDownloadR $ WId $ entry ^. name}>
+      <a href=@{downloadUrl}>
         ⬇
     <h1>
       $maybe _ <- favourite
@@ -332,6 +334,7 @@ newFormWidget errMsgs entry = do
 
 entryWidget :: [Text] -> Entry -> Handler Widget
 entryWidget errMsgs entry = do
+  public <- isPublic
   contentId <- newIdent
   title <- titleWidget entry contentId
   dt <- dateWidget entry
@@ -349,14 +352,15 @@ entryWidget errMsgs entry = do
     Rcs.checkboxCode
     PhotoSwipe.photoswipeHeader
     title
-    dt
-    nw
-    shr
-    geom
-    mtdt
-    cols
-    refs
-    gallery
+    unless public $ do
+      dt
+      nw
+      shr
+      geom
+      mtdt
+      cols
+      refs
+      gallery
     [whamlet|
       <div ##{contentId}>
         ^{content}

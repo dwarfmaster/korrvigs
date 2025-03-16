@@ -55,8 +55,8 @@ korrvigsRoutes =
 
 -- Public
 /public PublicR GET
-/public/#Text/Entry/#WebId PublicEntryR GET
-/public/#Text/Entry/#WebId/download PublicEntryDownloadR GET
+/public/#Text/entry/#WebId PublicEntryR GET
+/public/#Text/entry/#WebId/download PublicEntryDownloadR GET
 /public/#Text/collections/misc/*[Text] PublicColMiscR GET
 /public/#Text/collections/gallery/*[Text] PublicColGalR GET
 /public/#Text/collections/taskset/*[Text] PublicColTaskR GET

@@ -1,6 +1,7 @@
 module Korrvigs.Web.Widgets where
 
 import Control.Lens
+import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -50,24 +51,27 @@ sectionLogic =
 
 taskWidget :: Id -> SubLoc -> Maybe Task -> Handler Widget
 taskWidget _ _ Nothing = pure mempty
-taskWidget i subL (Just tsk) = pure $ do
-  spanId <- newIdent
-  let loc = LocTask $ TaskLoc subL
-  if null (subL ^. subOffsets)
-    then
-      toWidget
-        [julius|
-        setupTopTask("@{EntryMtdtR (WId i)}", #{spanId}, #{unId i})
-      |]
-    else
-      toWidget
-        [julius|
-        setupTask("@{NoteSubR (WId i) (WLoc loc)}", #{spanId})
-      |]
-  [whamlet|
-    <span ##{spanId} .task-span .#{status}>
-      ^{lbl}
-  |]
+taskWidget i subL (Just tsk) = do
+  public <- isPublic
+  pure $ do
+    spanId <- newIdent
+    let loc = LocTask $ TaskLoc subL
+    unless public $
+      if null (subL ^. subOffsets)
+        then
+          toWidget
+            [julius|
+          setupTopTask("@{EntryMtdtR (WId i)}", #{spanId}, #{unId i})
+        |]
+        else
+          toWidget
+            [julius|
+          setupTask("@{NoteSubR (WId i) (WLoc loc)}", #{spanId})
+        |]
+    [whamlet|
+      <span ##{spanId} .task-span .#{status}>
+        ^{lbl}
+    |]
   where
     lbl = tsk ^. tskStatusName
     status :: Text

@@ -23,6 +23,7 @@ import qualified Korrvigs.Web.Entry.Calendar as Cal
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
+import Korrvigs.Web.Public.Crypto (mkPublic)
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Wdgs
@@ -192,12 +193,20 @@ compileBlock' (CodeBlock attr code) = do
         (NoteSubR (WId entry) $ WLoc loc)
         redirUrl
   codeCount %= (+ 1)
-  pure $
-    js
-      >> [whamlet|
-  <div ##{divId} .sourceCode *{compileAttr attr}>
+  public <- lift isPublic
+  let editW =
+        if public
+          then mempty
+          else
+            [whamlet|
     <div ##{buttonId} .edit-code>
       ✎
+  |]
+  pure $ do
+    unless public js
+    [whamlet|
+  <div ##{divId} .sourceCode *{compileAttr attr}>
+    ^{editW}
     ^{ace}
   |]
 compileBlock' (BlockQuote bks) = do
@@ -239,7 +248,7 @@ compileBlock' (Figure attr caption fig) = do
     <figcaption>^{captionW}
   |]
 compileBlock' (Embed i) = do
-  let lnk = embedLnk i
+  lnk <- lift $ embedLnk i
   lvl <- use currentLevel
   embedId <- newIdent
   (widget, checks) <- lift $ embedBody i lvl
@@ -251,7 +260,7 @@ compileBlock' (Embed i) = do
     ^{widget}
 |]
 compileBlock' (EmbedHeader i) = do
-  let lnk = embedLnk i
+  lnk <- lift $ embedLnk i
   lvl <- use currentLevel
   (widget, checks) <- lift $ embedBody i $ lvl + 1
   task <- lift $ loadTask i
@@ -330,10 +339,12 @@ propagateChecks embedId cks =
     done = jsInt $ cks ^. ckDone
     dont = jsInt $ cks ^. ckDont
 
-embedLnk :: Id -> Widget
-embedLnk i =
-  [whamlet|
-  <a href=@{EntryR $ WId i}>
+embedLnk :: Id -> Handler Widget
+embedLnk i = do
+  url <- mkPublic $ EntryR $ WId i
+  pure
+    [whamlet|
+  <a href=@{url}>
     <code>
       @#{unId i}
 |]
@@ -401,15 +412,19 @@ aceRedirect i mhdId loc = do
 
 editButton :: Id -> Int -> Maybe Text -> Text -> SubLoc -> Handler Widget
 editButton entry i hdId edit subL = do
+  public <- isPublic
   buttonId <- newIdent
   redirUrl <- aceRedirect entry hdId subL
   js <- Ace.editOnClick buttonId edit "pandoc" link redirUrl
   pure $
-    js
-      >> [whamlet|
-    <span ##{buttonId} .edit-header .#{"edit-header-" <> show lvl}>
-      ✎
-  |]
+    if public
+      then mempty
+      else do
+        js
+        [whamlet|
+        <span ##{buttonId} .edit-header .#{"edit-header-" <> show lvl}>
+          ✎
+      |]
   where
     lvl :: Int
     lvl = i + 1
@@ -490,11 +505,15 @@ compileInline (Link attr inls tgt) = do
   (inlsH, inlsW) <- compileInlines' inls
   render <- getUrlRender
   let link = textValue $ render $ EntryR $ WId tgt
-  pure (applyAttr (Attr.href link) $ compileAttr' attr $ Html.a inlsH, inlsW)
+  lift isPublic >>= \case
+    False -> pure (applyAttr (Attr.href link) $ compileAttr' attr $ Html.a inlsH, inlsW)
+    True -> pure (inlsH, inlsW)
 compileInline (Cite i) = do
   render <- getUrlRender
   let link = textValue $ render $ EntryR $ WId i
-  pure (applyAttr (Attr.href link) $ Html.a $ toMarkup $ unId i, mempty)
+  lift isPublic >>= \case
+    False -> pure (applyAttr (Attr.href link) $ Html.a $ toMarkup $ unId i, mempty)
+    True -> pure (toMarkup $ unId i, mempty)
 compileInline (PlainLink mtitle uri) = do
   let url = T.pack $ show uri
   (titleH, titleW) <- case mtitle of
@@ -525,7 +544,8 @@ compileInline (Check ck) = do
         applyAttr (Attr.id $ textValue cid) $
           applyAttr (Attr.src $ textValue $ render $ checkImg ck) $
             applyAttr (Attr.class_ "checkBox") Html.img
-  pure (h, w)
+  public <- lift isPublic
+  pure (h, if public then mempty else w)
 
 checkImg :: TaskStatus -> Route WebData
 checkImg TaskTodo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []

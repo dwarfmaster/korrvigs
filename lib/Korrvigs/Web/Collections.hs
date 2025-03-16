@@ -14,8 +14,9 @@ import Korrvigs.Monad
 import Korrvigs.Note.Loc
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Note as Note
-import Korrvigs.Web.PhotoSwipe (PhotoswipeEntry (..))
+import Korrvigs.Web.PhotoSwipe (PhotoswipeEntry (..), swpMiniature, swpRedirect, swpUrl)
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
+import Korrvigs.Web.Public.Crypto (mkPublic)
 import qualified Korrvigs.Web.Public.Crypto as Public
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
@@ -57,13 +58,14 @@ displayMiscTree :: ([Text] -> Route WebData) -> (Int -> Widget) -> Int -> Int ->
 displayMiscTree = displayTreeImpl mkLeafs
   where
     mkLeafs :: Int -> [(Id, Maybe Text)] -> Handler Widget
-    mkLeafs _ ents =
+    mkLeafs _ ents = do
+      pents <- forM ents $ \(i, title) -> (i,title,) <$> mkPublic (EntryR $ WId i)
       pure
         [whamlet|
         <ul>
-          $forall (i,title) <- ents
+          $forall (i,title,url) <- pents
             <li>
-              <a href=@{EntryR (WId i)}>
+              <a href=@{url}>
                 $maybe t <- title
                   #{t}
                 $nothing
@@ -82,11 +84,14 @@ displayTreeImpl ::
   Handler Widget
 displayTreeImpl mkLeafs mkUrl symbols lvl threshold cat rprefix favs = do
   let entries = favs ^. colEntries
-  subs <- forM (M.toList $ favs ^. colSubs) $ \(subHd, sb) -> do
-    render <- getUrlRender
-    let url = mkUrl $ reverse $ subHd : rprefix
-    let subH = Html.a (toMarkup subHd) ! Attr.href (textValue $ render url)
-    displayTreeImpl mkLeafs mkUrl symbols (lvl + 1) threshold subH (subHd : rprefix) sb
+  subs <-
+    isPublic >>= \case
+      True -> pure []
+      False -> forM (M.toList $ favs ^. colSubs) $ \(subHd, sb) -> do
+        render <- getUrlRender
+        let url = mkUrl $ reverse $ subHd : rprefix
+        let subH = Html.a (toMarkup subHd) ! Attr.href (textValue $ render url)
+        displayTreeImpl mkLeafs mkUrl symbols (lvl + 1) threshold subH (subHd : rprefix) sb
   leafs <- mkLeafs lvl entries
   let content =
         [whamlet|
@@ -107,7 +112,8 @@ displayTreeImpl mkLeafs mkUrl symbols lvl threshold cat rprefix favs = do
 getColFavouriteR :: [Text] -> Handler Html
 getColFavouriteR prefix = do
   render <- getUrlRender
-  favs <- displayFavTree 0 0 (mkTitle (render . ColFavouriteR) "Favourites" rprefix) rprefix =<< colTree Favourite prefix True
+  titleH <- mkTitle (render . ColFavouriteR) "Favourites" rprefix
+  favs <- displayFavTree 0 0 titleH rprefix =<< colTree Favourite prefix True
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
@@ -119,28 +125,34 @@ getColFavouriteR prefix = do
       [] -> "Favourites"
       (hd : _) -> hd
 
-mkTitle :: ([Text] -> Text) -> Text -> [Text] -> Html
-mkTitle renderUrl base rprefix = case rprefix of
-  [] -> toMarkup base
-  (lp : prs) -> buildTitle prs <> toMarkup lp
+mkTitle :: ([Text] -> Text) -> Text -> [Text] -> Handler Html
+mkTitle renderUrl base rprefix = do
+  public <- isPublic
+  pure $ case rprefix of
+    [] -> toMarkup base
+    (lp : prs) -> buildTitle public prs <> toMarkup lp
   where
-    buildTitle :: [Text] -> Html
-    buildTitle [] = mempty
-    buildTitle (hd : rpr) =
-      let rec = buildTitle rpr
+    buildTitle :: Bool -> [Text] -> Html
+    buildTitle _ [] = mempty
+    buildTitle public (hd : rpr) =
+      let rec = buildTitle public rpr
        in let lnk = Html.a (toMarkup hd) ! Attr.href (textValue $ renderUrl $ reverse $ hd : rpr)
-           in rec <> lnk <> " > "
+           in rec <> (if public then toMarkup hd else lnk) <> " > "
 
 getColMiscR :: [Text] -> Handler Html
 getColMiscR prefix = do
   render <- getUrlRender
-  miscs <- displayMiscTree ColMiscR (const $ Widget.headerSymbol "•") 0 0 (mkTitle (render . ColMiscR) "Miscellaneous" rprefix) rprefix =<< colTree MiscCollection prefix True
+  titleH <- mkTitle (render . ColMiscR) "Miscellaneous" rprefix
+  miscs <- displayMiscTree ColMiscR (const $ Widget.headerSymbol "•") 0 0 titleH rprefix =<< colTree MiscCollection prefix True
   public <- Public.signRoute $ ColMiscR prefix
+  pub <- isPublic
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
     Widgets.sectionLogic
-    [whamlet|
+    unless
+      pub
+      [whamlet|
       <p>
         <a href=@{PublicColMiscR public prefix}>
           Share
@@ -155,7 +167,7 @@ getColMiscR prefix = do
 getColGalR :: [Text] -> Handler Html
 getColGalR prefix = do
   render <- getUrlRender
-  let titleH = mkTitle (render . ColGalR) "Gallery" rprefix
+  titleH <- mkTitle (render . ColGalR) "Gallery" rprefix
   subTree <- colCatTree GalleryCollection prefix
   subs <- displayMiscTree ColGalR (const $ Widget.headerSymbol "📷") 1 0 "Sub galleries" rprefix subTree
   pictures <- rSelect $ orderBy (ascNullsFirst snd <> asc fst) $ do
@@ -166,15 +178,20 @@ getColGalR prefix = do
   entries <- mapM mkEntry pictures
   photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
   public <- Public.signRoute $ ColGalR prefix
+  pub <- isPublic
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
     Widgets.sectionLogic
     PhotoSwipe.photoswipeHeader
-    [whamlet|
+    unless
+      pub
+      [whamlet|
       <p>
         <a href=@{PublicColGalR public prefix}>
           Share
+    |]
+    [whamlet|
       <h1>📷 ^{titleH}
       $if not (nullTree subTree)
         ^{subs}
@@ -188,21 +205,31 @@ getColGalR prefix = do
       (lp : _) -> lp
     mkEntry :: (Id, Maybe ZonedTime) -> Handler (Maybe PhotoswipeEntry)
     mkEntry (i, dt) =
-      PhotoSwipe.miniatureEntry (localDay . zonedTimeToLocalTime <$> dt) i
+      PhotoSwipe.miniatureEntry (localDay . zonedTimeToLocalTime <$> dt) i >>= \case
+        Nothing -> pure Nothing
+        Just entry -> do
+          url <- mkPublic $ entry ^. swpUrl
+          mini <- mkPublic $ entry ^. swpMiniature
+          public <- isPublic
+          let redir = if public then url else entry ^. swpRedirect
+          pure . Just $ entry & swpUrl .~ url & swpMiniature .~ mini & swpRedirect .~ redir
 
 getColTaskR :: [Text] -> Handler Html
 getColTaskR prefix = do
   tree <- colTree TaskSet prefix True
   render <- getUrlRender
-  let titleH = mkTitle (render . ColTaskR) "Task sets" rprefix
+  titleH <- mkTitle (render . ColTaskR) "Task sets" rprefix
   widget <- displayTreeImpl mkLeafs ColTaskR (const $ Widgets.headerSymbol "✔") 0 0 titleH prefix tree
   public <- Public.signRoute $ ColTaskR prefix
+  pub <- isPublic
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
     Widgets.sectionLogic
     Rcs.checkboxCode
-    [whamlet|
+    unless
+      pub
+      [whamlet|
       <p>
         <a href=@{PublicColTaskR public prefix}>
           Share

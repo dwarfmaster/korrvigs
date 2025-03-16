@@ -28,6 +28,7 @@ import qualified Korrvigs.Web.Entry.Note as Note
 import qualified Korrvigs.Web.Home as Home
 import Korrvigs.Web.Leaflet
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
+import qualified Korrvigs.Web.Public.Crypto as Public
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
@@ -263,6 +264,22 @@ galleryWidget entry =
         (e ^? sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
         (e ^. sqlEntryName)
 
+shareWidget :: Entry -> Handler Widget
+shareWidget entry = do
+  let i = entry ^. name
+  public <- Public.signRoute $ EntryR $ WId i
+  publicDl <- Public.signRoute $ EntryDownloadR $ WId i
+  pure
+    [whamlet|
+    <details .common-details>
+      <summary>Share
+      <ul>
+        <li>
+          <a href=@{PublicEntryR public $ WId i}>Share this entry
+        <li>
+          <a href=@{PublicEntryDownloadR publicDl $ WId i}>Share the content of this entry
+  |]
+
 contentWidget :: Entry -> Handler Widget
 contentWidget entry = case entry ^. kindData of
   LinkD link -> Link.content link
@@ -323,6 +340,7 @@ entryWidget errMsgs entry = do
   cols <- colsWidget entry
   refs <- refsWidget entry
   gallery <- galleryWidget entry
+  shr <- shareWidget entry
   content <- contentWidget entry
   nw <- newFormWidget errMsgs entry
   pure $ do
@@ -333,6 +351,7 @@ entryWidget errMsgs entry = do
     title
     dt
     nw
+    shr
     geom
     mtdt
     cols

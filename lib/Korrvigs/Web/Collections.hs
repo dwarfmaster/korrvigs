@@ -16,6 +16,7 @@ import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Note as Note
 import Korrvigs.Web.PhotoSwipe (PhotoswipeEntry (..))
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
+import qualified Korrvigs.Web.Public.Crypto as Public
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widget
@@ -134,10 +135,16 @@ getColMiscR :: [Text] -> Handler Html
 getColMiscR prefix = do
   render <- getUrlRender
   miscs <- displayMiscTree ColMiscR (const $ Widget.headerSymbol "•") 0 0 (mkTitle (render . ColMiscR) "Miscellaneous" rprefix) rprefix =<< colTree MiscCollection prefix True
+  public <- Public.signRoute $ ColMiscR prefix
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
     Widgets.sectionLogic
+    [whamlet|
+      <p>
+        <a href=@{PublicColMiscR public prefix}>
+          Share
+    |]
     miscs
   where
     rprefix = reverse prefix
@@ -158,12 +165,16 @@ getColGalR prefix = do
     pure (i, entry ^. sqlEntryDate)
   entries <- mapM mkEntry pictures
   photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
+  public <- Public.signRoute $ ColGalR prefix
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
     Widgets.sectionLogic
     PhotoSwipe.photoswipeHeader
     [whamlet|
+      <p>
+        <a href=@{PublicColGalR public prefix}>
+          Share
       <h1>📷 ^{titleH}
       $if not (nullTree subTree)
         ^{subs}
@@ -185,11 +196,17 @@ getColTaskR prefix = do
   render <- getUrlRender
   let titleH = mkTitle (render . ColTaskR) "Task sets" rprefix
   widget <- displayTreeImpl mkLeafs ColTaskR (const $ Widgets.headerSymbol "✔") 0 0 titleH prefix tree
+  public <- Public.signRoute $ ColTaskR prefix
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
     Widgets.sectionLogic
     Rcs.checkboxCode
+    [whamlet|
+      <p>
+        <a href=@{PublicColTaskR public prefix}>
+          Share
+    |]
     widget
   where
     rprefix = reverse prefix

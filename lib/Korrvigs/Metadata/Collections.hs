@@ -76,7 +76,7 @@ selectCol ::
   [Text] ->
   Bool ->
   Select (Field SqlText, Field SqlJsonb)
-selectCol mtdt prefix recursive = do
+selectCol mtdt prefix recursive = orderBy (asc fst) $ do
   fav <- selectTable entriesMetadataTable
   where_ $ fav ^. sqlKey .== sqlStrictText (mtdtSqlName mtdt)
   val <- sqlJsonElements $ toNullable $ fav ^. sqlValue

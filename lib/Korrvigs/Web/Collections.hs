@@ -2,6 +2,7 @@ module Korrvigs.Web.Collections where
 
 import Control.Lens
 import Control.Monad
+import Data.List (elemIndex, sortBy)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
@@ -205,8 +206,10 @@ getColTaskR prefix = do
         let titleT = fromMaybe (unId i) titleText
         let titleW = [whamlet|<a href=@{EntryR $ WId i}>#{titleT}|]
         let t = header lvl [whamlet|^{Widgets.headerSymbol "📖"} ^{taskW} ^{titleW}|]
-        pure . void $ Widgets.mkSection lvl [("class", "collapsed")] [] t widget
-      pure $ mconcat widgets
+        let w = void $ Widgets.mkSection lvl [("class", "collapsed")] [] t widget
+        pure (view tskStatus <$> tsk, w)
+      let ordered = sortBy (ordTaskStatus fst) widgets
+      pure $ mconcat $ snd <$> ordered
     header :: Int -> Widget -> Widget
     header 0 content = [whamlet|<h1> ^{content}|]
     header 1 content = [whamlet|<h2> ^{content}|]
@@ -214,3 +217,9 @@ getColTaskR prefix = do
     header 3 content = [whamlet|<h4> ^{content}|]
     header 4 content = [whamlet|<h5> ^{content}|]
     header _ content = [whamlet|<h6> ^{content}|]
+    ordTaskStatus :: (a -> Maybe TaskStatus) -> a -> a -> Ordering
+    ordTaskStatus f t1 t2 =
+      let ordered = Nothing : (Just <$> [TaskOngoing, TaskBlocked, TaskTodo, TaskDone, TaskDont])
+       in let i1 = elemIndex (f t1) ordered
+           in let i2 = elemIndex (f t2) ordered
+               in compare i1 i2

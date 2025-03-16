@@ -16,7 +16,7 @@ import System.Entropy
 import System.Environment
 import System.FilePath
 import System.Posix.Files
-import Yesod hiding (joinPath)
+import Yesod hiding (cached, joinPath)
 
 type Algo = Blake2b 160
 
@@ -62,6 +62,7 @@ checkMac mac64 route = do
 mkPublicImpl :: Route WebData -> Handler (Route WebData)
 mkPublicImpl r@(EntryR i) = PublicEntryR <$> signRoute r <*> pure i
 mkPublicImpl r@(EntryDownloadR i) = PublicEntryDownloadR <$> signRoute r <*> pure i
+mkPublicImpl r@(EntryComputeR i cached) = PublicEntryComputeR <$> signRoute r <*> pure i <*> pure cached
 mkPublicImpl r@(ColMiscR prefix) = PublicColMiscR <$> signRoute r <*> pure prefix
 mkPublicImpl r@(ColGalR prefix) = PublicColGalR <$> signRoute r <*> pure prefix
 mkPublicImpl r@(ColTaskR prefix) = PublicColTaskR <$> signRoute r <*> pure prefix

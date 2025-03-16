@@ -3,6 +3,7 @@ module Korrvigs.Web.Public where
 import Data.Text (Text)
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Collections (getColGalR, getColMiscR, getColTaskR)
+import Korrvigs.Web.Compute (getEntryComputeR)
 import Korrvigs.Web.Download (getEntryDownloadR)
 import Korrvigs.Web.Entry (getEntryR)
 import Korrvigs.Web.Public.Crypto
@@ -26,6 +27,11 @@ getPublicEntryDownloadR :: Text -> WebId -> Handler TypedContent
 getPublicEntryDownloadR mac i = do
   checkMac mac $ EntryDownloadR i
   getEntryDownloadR i
+
+getPublicEntryComputeR :: Text -> WebId -> Text -> Handler TypedContent
+getPublicEntryComputeR mac i cached = do
+  checkMac mac $ EntryComputeR i cached
+  getEntryComputeR i cached
 
 getPublicColMiscR :: Text -> [Text] -> Handler Html
 getPublicColMiscR mac prefix = do

@@ -8,7 +8,7 @@ import Korrvigs.Web.Download (getEntryDownloadR)
 import Korrvigs.Web.Entry (getEntryR)
 import Korrvigs.Web.Public.Crypto
 import Korrvigs.Web.Routes
-import Yesod hiding (joinPath)
+import Yesod hiding (cached, joinPath)
 
 getPublicR :: Handler Html
 getPublicR = do

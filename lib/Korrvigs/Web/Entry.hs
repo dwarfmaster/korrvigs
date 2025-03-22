@@ -235,6 +235,33 @@ refsWidget entry = do
        in let style = mkStyle edgeStyle base
            in (unId $ r1 ^. sqlEntryName, unId $ r2 ^. sqlEntryName, style)
 
+subWidget :: Entry -> Handler Widget
+subWidget entry = do
+  let i = entry ^. name
+  subs :: [(Id, Maybe Text)] <- rSelect $ orderBy ord $ do
+    rel <- selectTable entriesSubTable
+    where_ $ rel ^. target .== sqlId i
+    title <- selectTextMtdt Title $ rel ^. source
+    pure (rel ^. source, title)
+  pure $
+    if null subs
+      then mempty
+      else
+        [whamlet|
+    <details .common-details>
+      <summary>Attached
+      <ul>
+        $forall (sub,title) <- subs
+          <li>
+            <a href=@{EntryR $ WId sub}>
+              $maybe t <- title
+                #{t}
+              $nothing
+                #{"@" <> unId sub}
+  |]
+  where
+    ord = ascNullsLast snd <> asc fst
+
 galleryWidget :: Entry -> Handler Widget
 galleryWidget entry =
   rSelectMtdt Gallery (sqlId $ entry ^. name) >>= \case
@@ -342,6 +369,7 @@ entryWidget errMsgs entry = do
   mtdt <- Mtdt.widget entry
   cols <- colsWidget entry
   refs <- refsWidget entry
+  subs <- subWidget entry
   gallery <- galleryWidget entry
   shr <- shareWidget entry
   content <- contentWidget entry
@@ -360,6 +388,7 @@ entryWidget errMsgs entry = do
       mtdt
       cols
       refs
+      subs
       gallery
     [whamlet|
       <div ##{contentId}>

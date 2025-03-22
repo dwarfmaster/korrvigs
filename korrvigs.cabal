@@ -105,6 +105,8 @@ library korrvigs-lib
     Korrvigs.Link.Sync
     Korrvigs.Metadata
     Korrvigs.Metadata.Collections
+    Korrvigs.Metadata.Media
+    Korrvigs.Metadata.Media.Ontology
     Korrvigs.Metadata.Task
     Korrvigs.Metadata.TH
     Korrvigs.Monad

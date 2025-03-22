@@ -8,6 +8,7 @@ import qualified Data.CaseInsensitive as CI
 import Data.Kind (Type)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Metadata.TH
@@ -57,6 +58,13 @@ rSelectMtdt mtdt i =
       Success v -> v
       Error _ -> Nothing
 
+rSelectListMtdt ::
+  (ExtraMetadata mtdt, FromJSON (MtdtType mtdt), MonadKorrvigs m, MtdtType mtdt ~ [a]) =>
+  mtdt ->
+  Field SqlText ->
+  m (MtdtType mtdt)
+rSelectListMtdt mtdt i = fromMaybe [] <$> rSelectMtdt mtdt i
+
 selectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlText -> Select (FieldNullable SqlJsonb)
 selectMtdt mtdt i =
   fmap maybeFieldsToNullable $ optional $ limit 1 $ baseSelectMtdt mtdt i
@@ -86,6 +94,7 @@ selectTextMtdt mtdt i = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtd
 -- Metadata list
 mkMtdt "Title" "title" [t|Text|]
 mkMtdt "Language" "language" [t|Text|]
+mkMtdt "Authors" "authors" [t|[Text]|]
 mkMtdt "Pages" "pages" [t|Int|]
 mkMtdt "Height" "height" [t|Int|]
 mkMtdt "Width" "width" [t|Int|]

@@ -102,11 +102,10 @@ postNoteSubR (WId i) (WLoc loc) =
               LocCode lc -> pure $ setCode lc doc txt
               LocSub lc -> do
                 let lvl = length $ lc ^. subOffsets
-                hd <- readNoteFromText (parseHeader lvl) txt
+                hd <- readNoteFromText (parseTopBlocks lvl) txt
                 case hd of
                   Left err -> throwM $ KMiscError err
-                  Right Nothing -> throwM $ KMiscError "Partial markdown file is not a single header"
-                  Right (Just hdv) -> pure $ setSub lc doc hdv
+                  Right bks -> pure $ doc & subs lc .~ bks
               LocCheck lc -> do
                 cb <- parseTaskStatus txt
                 pure $ setCheck lc doc cb

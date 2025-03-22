@@ -1,4 +1,4 @@
-module Korrvigs.Note.Pandoc (readNote, readNoteFromText, parsePandoc, parseHeader) where
+module Korrvigs.Note.Pandoc (readNote, readNoteFromText, parsePandoc, parseTopBlocks) where
 
 import Control.Arrow (first, (&&&))
 import Control.Exception (SomeException, try)
@@ -192,8 +192,8 @@ parsePandoc (Pandoc mtdt bks) = run act meta bks
         stack . bszTask ?= applyTaskMtdt (flip M.lookup meta . CI.foldedCase) tsk
       whileJust_ getBlock parseTopBlock
 
-parseHeader :: Int -> Pandoc -> Maybe A.Header
-parseHeader lvl (Pandoc _ bks) = run act M.empty bks ^? A.docContent . ix 0 . A._Sub
+parseTopBlocks :: Int -> Pandoc -> [A.Block]
+parseTopBlocks lvl (Pandoc _ bks) = run act M.empty bks ^. A.docContent
   where
     act = do
       stack . bszLevel .= lvl - 1

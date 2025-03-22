@@ -11,7 +11,7 @@ import Korrvigs.Entry
 import Korrvigs.Metadata.Collections
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
-import Korrvigs.Note.Loc
+import Korrvigs.Note.Loc hiding (subs)
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Note as Note
 import Korrvigs.Web.PhotoSwipe (PhotoswipeEntry (..), swpMiniature, swpRedirect, swpUrl)

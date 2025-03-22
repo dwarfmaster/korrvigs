@@ -11,6 +11,7 @@ module Korrvigs.Note.Loc
     taskSub,
     AnyLoc (..),
     sub,
+    subs,
     getSub,
     setSub,
     code,
@@ -41,6 +42,7 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Metadata.Task
 import Korrvigs.Note.AST
+import Korrvigs.Utils.Lens
 import Text.Parsec
 import Text.Parsec.Number
 
@@ -93,6 +95,22 @@ sub :: (Applicative f) => SubLoc -> (Header -> f Header) -> Document -> f Docume
 sub (SubLoc []) = const pure
 sub (SubLoc [off]) = docContent . subOff off
 sub (SubLoc (off : offs)) = sub (SubLoc offs) . hdContent . subOff off
+
+subsOff :: (Applicative f) => Int -> ([Block] -> f [Block]) -> [Block] -> f [Block]
+subsOff i f bks = expandAt offset f bks
+  where
+    findOffset :: Int -> Int -> [Block] -> Int
+    findOffset _ off [] = off
+    findOffset j off (Sub _ : _) | i == j = off
+    findOffset j off (Sub _ : bs) = findOffset (j + 1) (off + 1) bs
+    findOffset j off (_ : bs) = findOffset j (off + 1) bs
+    offset = findOffset 0 0 bks
+
+-- subs: Traversal giving the list of headers at a loc and all the followings
+subs :: (Applicative f) => SubLoc -> ([Block] -> f [Block]) -> Document -> f Document
+subs (SubLoc []) = const pure
+subs (SubLoc [off]) = docContent . subsOff off
+subs (SubLoc (off : offs)) = sub (SubLoc offs) . hdContent . subsOff off
 
 subContents :: (Applicative f) => SubLoc -> ([Block] -> f [Block]) -> Document -> f Document
 subContents (SubLoc []) = docContent

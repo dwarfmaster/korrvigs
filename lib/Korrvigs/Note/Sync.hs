@@ -18,6 +18,7 @@ import Korrvigs.Actions.SQL
 import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers
@@ -26,6 +27,7 @@ import Korrvigs.Note.Render (writeNoteLazy)
 import Korrvigs.Note.SQL
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
+import Korrvigs.Utils.JSON (fromJSONM)
 import System.Directory (doesFileExist)
 import System.FilePath (joinPath, takeBaseName)
 import Prelude hiding (writeFile)
@@ -93,10 +95,11 @@ updateImpl note f = do
   liftIO $ writeFile path $ writeNoteLazy ndoc
 
 updateMetadata :: (MonadKorrvigs m) => Note -> Map Text Value -> [Text] -> m ()
-updateMetadata note upd rm = updateImpl note $ pure . ndoc
+updateMetadata note upd rm = updateImpl note $ pure . ndoc . updTitle
   where
     updCi = M.fromList $ first CI.mk <$> M.toList upd
     rmCi = CI.mk <$> rm
+    updTitle = maybe id (docTitle .~) $ M.lookup (mtdtName Title) updCi >>= fromJSONM
     ndoc = docMtdt %~ M.union updCi . flip (foldr M.delete) rmCi
 
 updateParents :: (MonadKorrvigs m) => Note -> [Id] -> [Id] -> m ()

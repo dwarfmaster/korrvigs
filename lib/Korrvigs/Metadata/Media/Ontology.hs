@@ -3,6 +3,9 @@ module Korrvigs.Metadata.Media.Ontology where
 import Control.Arrow ((&&&))
 import Control.Lens hiding ((.=))
 import Data.Aeson
+import Data.Aeson.Types (Parser)
+import Data.Default
+import Data.List (singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -15,6 +18,7 @@ data MediaType
   | Booklet
   | Inbook
   | Incollection
+  | Inproceedings
   | Manual
   | MastersThesis
   | PhdThesis
@@ -33,34 +37,38 @@ data MediaSource
   | MiscSource Text
   deriving (Show, Eq, Ord)
 
-data MediaInBook = MediaInBook
-  { _bookName :: Text,
-    _bookChapter :: Text,
-    _bookPage :: Int
+data MediaContainer = MediaContainer
+  { _conTitle :: Text,
+    _conCollection :: Maybe Text,
+    _conVolume :: Maybe Int,
+    _conChapter :: Maybe Text,
+    _conPages :: Maybe (Int, Int)
   }
   deriving (Show, Eq, Ord)
 
 data Media = Media
   { _medType :: MediaType,
+    _medAbstract :: Maybe Text,
+    _medBibtex :: Maybe Text,
     _medDOI :: [Text],
     _medISBN :: [Text],
+    _medISSN :: [Text],
     _medTitle :: Maybe Text,
     _medAuthors :: [Text],
+    _medMonth :: Maybe MonthOfYear,
     _medYear :: Maybe Year,
     _medUrl :: Maybe Text,
     _medRSS :: Maybe Text,
     _medSource :: [MediaSource],
-    _medJournal :: [Text],
     _medPublisher :: [Text],
-    _medInBook :: Maybe MediaInBook,
-    _medInCollection :: Maybe Text,
+    _medContainer :: Maybe MediaContainer,
     _medInstitution :: [Text],
     _medLicense :: [Text]
   }
   deriving (Show, Eq, Ord)
 
 makeLenses ''MediaSource
-makeLenses ''MediaInBook
+makeLenses ''MediaContainer
 makeLenses ''Media
 
 displayMediaType :: MediaType -> Text
@@ -69,6 +77,7 @@ displayMediaType Book = "book"
 displayMediaType Booklet = "booklet"
 displayMediaType Inbook = "inbook"
 displayMediaType Incollection = "incollection"
+displayMediaType Inproceedings = "inproceedings"
 displayMediaType Manual = "manual"
 displayMediaType MastersThesis = "mastersthesis"
 displayMediaType PhdThesis = "phdthesis"
@@ -130,14 +139,27 @@ instance FromJSON MediaSource where
       "misc" -> MiscSource <$> obj .: "url"
       src -> fail $ T.unpack $ "\"" <> src <> "\" is not a valid media source"
 
-instance ToJSON MediaInBook where
-  toJSON (MediaInBook book chapter page) =
-    object
-      [ "book" .= book,
-        "chapter" .= chapter,
-        "page" .= page
-      ]
+instance ToJSON MediaContainer where
+  toJSON (MediaContainer title col vol chapter pages) =
+    object $
+      ["title" .= title]
+        ++ maybe [] (singleton . ("collection" .=)) col
+        ++ maybe [] (singleton . ("volume" .=)) vol
+        ++ maybe [] (singleton . ("chapter" .=)) chapter
+        ++ maybe [] (\(s, e) -> ["pages" .= object ["start" .= s, "end" .= e]]) pages
 
-instance FromJSON MediaInBook where
-  parseJSON = withObject "MediaInBook" $ \obj ->
-    MediaInBook <$> obj .: "book" <*> obj .: "chapter" <*> obj .: "page"
+instance FromJSON MediaContainer where
+  parseJSON = withObject "MediaContainer" $ \obj ->
+    MediaContainer
+      <$> obj .: "title"
+      <*> obj .:? "collection"
+      <*> obj .:? "volume"
+      <*> obj .:? "chapter"
+      <*> (obj .:? "page" >>= maybe (pure Nothing) (fmap Just . parseJSONPages))
+
+instance Default MediaContainer where
+  def = MediaContainer "" Nothing Nothing Nothing Nothing
+
+parseJSONPages :: Value -> Parser (Int, Int)
+parseJSONPages = withObject "Book pages" $ \obj ->
+  (,) <$> obj .: "start" <*> obj .: "end"

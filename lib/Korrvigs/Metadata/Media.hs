@@ -15,15 +15,19 @@ import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 
 mkMtdt "MediaMtdt" "media" [t|MediaType|]
+mkMtdt "Abstract" "abstract" [t|Text|]
+mkMtdt "BibtexKey" "bibtex" [t|Text|]
 mkMtdt "DOI" "doi" [t|[Text]|]
 mkMtdt "ISBN" "isbn" [t|[Text]|]
+mkMtdt "ISSN" "issn" [t|[Text]|]
+mkMtdt "MedMonth" "month" [t|MonthOfYear|]
 mkMtdt "MedYear" "year" [t|Year|]
 mkMtdt "Url" "url" [t|Text|]
 mkMtdt "Feed" "feed" [t|Text|]
 mkMtdt "Source" "source" [t|[MediaSource]|]
-mkMtdt "Journal" "journal" [t|[Text]|]
+mkMtdt "Journal" "journal" [t|Text|]
 mkMtdt "Publisher" "publisher" [t|[Text]|]
-mkMtdt "InBook" "inbook" [t|MediaInBook|]
+mkMtdt "InContainer" "inbook" [t|MediaContainer|]
 mkMtdt "InCollection" "incollection" [t|Text|]
 mkMtdt "Institution" "institution" [t|[Text]|]
 mkMtdt "License" "license" [t|[Text]|]
@@ -35,18 +39,20 @@ rSelectMedia i =
     Just mtype ->
       Just
         <$> ( Media mtype
-                <$> rSelectListMtdt DOI (sqlId i)
+                <$> rSelectMtdt BibtexKey (sqlId i)
+                <*> rSelectMtdt Abstract (sqlId i)
+                <*> rSelectListMtdt DOI (sqlId i)
                 <*> rSelectListMtdt ISBN (sqlId i)
+                <*> rSelectListMtdt ISSN (sqlId i)
                 <*> rSelectMtdt Title (sqlId i)
                 <*> rSelectListMtdt Authors (sqlId i)
+                <*> rSelectMtdt MedMonth (sqlId i)
                 <*> rSelectMtdt MedYear (sqlId i)
                 <*> rSelectMtdt Url (sqlId i)
                 <*> rSelectMtdt Feed (sqlId i)
                 <*> rSelectListMtdt Source (sqlId i)
-                <*> rSelectListMtdt Journal (sqlId i)
                 <*> rSelectListMtdt Publisher (sqlId i)
-                <*> rSelectMtdt InBook (sqlId i)
-                <*> rSelectMtdt InCollection (sqlId i)
+                <*> rSelectMtdt InContainer (sqlId i)
                 <*> rSelectListMtdt Institution (sqlId i)
                 <*> rSelectListMtdt License (sqlId i)
             )
@@ -56,17 +62,19 @@ mediaMetadata med =
   M.fromList $
     mconcat
       [ [(mtdtName MediaMtdt, toJSON $ med ^. medType)],
+        medRow Abstract medAbstract,
+        medRow BibtexKey medBibtex,
         medLstRow DOI medDOI,
         medLstRow ISBN medISBN,
+        medLstRow ISSN medISSN,
         medRow Title medTitle,
         medLstRow Authors medAuthors,
+        medRow MedMonth medMonth,
         medRow MedYear medYear,
         medRow Feed medRSS,
         medLstRow Source medSource,
-        medLstRow Journal medJournal,
         medLstRow Publisher medPublisher,
-        medRow InBook medInBook,
-        medRow InCollection medInCollection,
+        medRow InContainer medContainer,
         medLstRow Institution medInstitution,
         medLstRow License medLicense
       ]

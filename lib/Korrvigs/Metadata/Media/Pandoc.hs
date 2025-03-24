@@ -175,18 +175,6 @@ importPandoc reader input =
       refs <- getReferences Nothing pd
       pure $ importReferences refs
 
-importTest :: BSL.ByteString -> IO (Map Text (Reference Inlines))
-importTest input =
-  runIO act <&> \case
-    Left _ -> M.empty
-    Right v -> v
-  where
-    txt = LT.toStrict $ LEnc.decodeUtf8 input
-    act = do
-      pd <- readBibLaTeX def txt
-      refs <- getReferences Nothing pd
-      pure $ M.fromList $ (unItemId . referenceId &&& id) <$> refs
-
 importBibtex :: BSL.ByteString -> IO (Map Text Media)
 importBibtex = importPandoc readBibLaTeX
 

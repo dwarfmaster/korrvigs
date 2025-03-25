@@ -1,12 +1,11 @@
 module Korrvigs.Event.Sync where
 
 import Conduit (throwM)
-import Control.Applicative ((<|>))
 import Control.Arrow ((***))
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson (Result (Error, Success), Value, fromJSON)
+import Data.Aeson (Result (Error, Success), Value, fromJSON, toJSON)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.CaseInsensitive as CI
 import Data.Default
@@ -61,14 +60,13 @@ list = S.fromList <$> allEvents
 createIdFor :: (MonadKorrvigs m) => ICalFile -> ICalEvent -> Set Id -> m Id
 createIdFor ical ievent forbidden = do
   let language = extractMtdt Language $ ievent ^. iceMtdt
-  let title = extractMtdt Title $ ievent ^. iceMtdt
   let summary = ievent ^. iceSummary
   let startSpec = ievent ^? iceStart . _Just
   let start = resolveICalTime ical <$> startSpec
   let parents = ievent ^. iceParents
   newId' forbidden $
     imk "ics"
-      & idTitle .~ (title <|> summary)
+      & idTitle .~ summary
       & idDate .~ start
       & idLanguage ?~ fromMaybe "fr" language
       & idParent .~ listToMaybe parents
@@ -81,7 +79,8 @@ register ical forbidden =
 
 syncEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m (SyncData EventRow)
 syncEvent i calendar ics ifile ical = do
-  let mtdt = ical ^. iceMtdt
+  let extractTitle = maybe id (M.insert (mtdtName Title) . toJSON) $ ical ^. iceSummary
+  let mtdt = extractTitle $ ical ^. iceMtdt
   let geom = ical ^. iceGeometry
   let tm = resolveICalTime ifile <$> ical ^. iceStart
   let dur = case (tm, ical ^. iceEnd) of
@@ -134,12 +133,16 @@ updateMetadata :: (MonadKorrvigs m) => Event -> Map Text Value -> [Text] -> m ()
 updateMetadata event upd rm =
   updateImpl event $ pure . (icEvent . _Just %~ doMtdt)
   where
+    -- Title is a special case, it cannot be removed
     rmMtdt :: Text -> ICalEvent -> ICalEvent
     rmMtdt "categories" ievent = ievent & iceCategories .~ []
     rmMtdt key ievent = ievent & iceMtdt %~ M.delete (CI.mk key)
     updMtdt :: Text -> Value -> ICalEvent -> ICalEvent
     updMtdt "categories" val ievent = case fromJSON val of
       Success cats -> ievent & iceCategories .~ cats
+      Error _ -> ievent
+    updMtdt key val ievent | CI.mk key == mtdtName Title = case fromJSON val of
+      Success txt -> ievent & iceSummary .~ txt
       Error _ -> ievent
     updMtdt key val ievent = ievent & iceMtdt . at (CI.mk key) ?~ val
     doMtdt :: ICalEvent -> ICalEvent

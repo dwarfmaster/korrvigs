@@ -75,8 +75,8 @@ checkChanges cal pwd ctag etags = do
       netags <- DAV.getETags cdd >>= throwEither (\err -> KMiscError $ "Failed to get etags for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
       let onServer = M.difference netags etags
       let local = view _2 <$> M.difference etags netags
-      let candidates = M.differenceWith (\oldtag (ntag, _) -> if ntag /= oldtag then Just ntag else Nothing) netags etags
-      let update = M.intersectionWith (const id) candidates etags
+      let candidates = M.differenceWith (\ntag (oldtag, _) -> if ntag /= oldtag then Just ntag else Nothing) netags etags
+      let update = M.intersectionWith (\netg (_, pth) -> (netg, pth)) candidates etags
       let same = M.map snd $ M.filter (\(netg, (etg, _)) -> netg == etg) $ M.intersectionWith (,) netags etags
       pure $ CalChanges nctag onServer update same local
 
@@ -116,10 +116,10 @@ doPull :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> CalChanges -> Set
 doPull cal pwd rt changes forbidden = do
   let onServer = M.fromList $ (,Nothing) <$> M.keys (changes ^. calOnServer)
   evRt <- Ev.eventsDirectory
-  let prepPath = joinPath . (\f -> [rt, f]) . makeRelative evRt
-  let diff = M.map (Just . prepPath . view _2) $ changes ^. calDiff
+  let diff = M.map (Just . makeRelative evRt . view _2) $ changes ^. calDiff
   let toinsert = M.union onServer diff
   inserted <- downloadAndWrite cal pwd rt toinsert forbidden
+  let prepPath = joinPath . (\f -> [rt, f]) . makeRelative evRt
   forM_ (changes ^. calLocal) $ \evpath -> do
     let rerooted = prepPath evpath
     exists <- liftIO $ doesFileExist rerooted

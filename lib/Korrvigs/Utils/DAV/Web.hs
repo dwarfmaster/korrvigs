@@ -32,7 +32,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Korrvigs.Utils.XML
 import Network.HTTP.Conduit
-import Network.HTTP.Types.Header (Header)
+import Network.HTTP.Simple
 import Network.HTTP.Types.Status
 import Text.XML
 import Text.XML.Cursor (fromDocument)
@@ -222,7 +222,8 @@ report dav server query properties filtr depth =
     propXml =
       [NodeElement $ Element (propToName prop) M.empty [] | prop <- properties]
 
-put :: (MonadIO m, MonadThrow m) => DavData -> Text -> Maybe Text -> LBS.ByteString -> m (Either DavError ())
+-- Return new ETAG if the information is present in the response
+put :: (MonadIO m, MonadThrow m) => DavData -> Text -> Maybe Text -> LBS.ByteString -> m (Either DavError (Maybe Text))
 put dav server etag dat = do
   initReq <- parseRequest $ T.unpack server
   let user = dav ^. davUser
@@ -232,7 +233,7 @@ put dav server etag dat = do
           initReq
             { method = "PUT"
             }
-  let hdContent = [("Content-type", "text/calendar; charset=utf-8")]
+  let hdContent = [("Content-Type", "text/calendar; charset=utf-8")]
   let matchETag = case etag of
         Just e -> [("If-Match", Enc.encodeUtf8 e)]
         Nothing -> []
@@ -242,12 +243,18 @@ put dav server etag dat = do
             requestHeaders = hdContent ++ matchETag ++ requestHeaders req
           }
   let man = dav ^. davManager
+  liftIO $ print $ "Putting to " <> T.unpack server
   liftIO $ runResourceT $ do
     resp <- http reqWithBody man
     let scode = statusCode (responseStatus resp)
-    if scode == 200 || scode == 207
-      then pure $ Right ()
-      else pure $ Left $ DavError scode $ "Failed with status code " <> T.pack (show scode)
+    if scode == 200 || scode == 204
+      then pure $ case getResponseHeader "ETag" resp of
+        [netag] -> Right $ Just $ Enc.decodeUtf8 netag
+        _ -> Right Nothing
+      else
+        if scode == 412
+          then liftIO (putStrLn "Precondition failed") >> pure (Right Nothing)
+          else pure $ Left $ DavError scode $ "Failed with status code " <> T.pack (show scode)
 
 delete :: (MonadIO m, MonadThrow m) => DavData -> Text -> Text -> m (Either DavError ())
 delete dav server etag = do

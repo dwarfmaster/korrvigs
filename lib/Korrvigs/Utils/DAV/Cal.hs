@@ -59,7 +59,7 @@ getCTag cdd =
     uri = maybe url ((<> "/") . T.pack . uriPath) $ parseURI (T.unpack url)
 
 processICS :: (PropStat -> Maybe Text) -> (Text, PropStat) -> Maybe (Text, Text)
-processICS ext (ics, metag) = (T.pack $ view basename $ T.unpack ics,) . T.dropAround (== '"') <$> ext metag
+processICS ext (ics, metag) = (T.pack $ view basename $ T.unpack ics,) <$> ext metag
 
 getETags :: (MonadIO m) => CalDavData -> m (Either DavError (Map Text Text))
 getETags cdd =
@@ -110,12 +110,10 @@ putCalData :: (MonadIO m) => CalDavData -> Text -> Maybe Text -> LBS.ByteString 
 putCalData cdd i etag content =
   liftIO (put (toDavData cdd) (makeCalURL cdd $ Just i) etag content) >>= \case
     Left err -> pure $ Left err
-    Right () ->
-      getETags cdd <&> \case
-        Left err -> Left err
-        Right etags -> case M.lookup i etags of
-          Nothing -> Left $ DavError 207 "Couldn't find new ETag"
-          Just etg -> Right etg
+    Right (Just netag) -> pure $ Right netag
+    Right Nothing -> case etag of
+      Just etg -> pure $ Right etg
+      Nothing -> pure $ Left $ DavError 204 "No ETag returned for new upload"
 
 -- Delete an entry
 deleteCalData :: (MonadIO m) => CalDavData -> Text -> Text -> m (Either DavError ())

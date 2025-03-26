@@ -86,7 +86,7 @@ parser' =
       <> command
         "pull"
         ( info
-            (pure Pull)
+            (pure Pull <**> helper)
             ( progDesc "Pull from caldav server"
                 <> header "korr event pull -- Pull events"
             )
@@ -94,7 +94,7 @@ parser' =
       <> command
         "push"
         ( info
-            (pure Push)
+            (pure Push <**> helper)
             ( progDesc "Push all events to caldav server"
                 <> header "korr event push -- Push events"
             )

@@ -1,6 +1,9 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Korrvigs.Utils.DAV.Web
   ( DavData (..),
     DavError (..),
+    DavRessource (..),
     davStatusCode,
     davError,
     PropfindDepth (..),
@@ -21,6 +24,7 @@ import Control.Lens hiding (element)
 import Control.Monad.Except (throwError)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Reader
+import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import qualified Data.ByteString.Lazy as LBS
 import Data.Conduit.Text
 import Data.List (singleton)
@@ -52,6 +56,8 @@ data DavError = DavError
   deriving (Show)
 
 makeLenses ''DavError
+
+newtype DavRessource = DavRc {extractDavRc :: Text} deriving (Ord, Eq, Show, ToJSON, FromJSON, ToJSONKey, FromJSONKey)
 
 type DavM = ExceptT DavError (ReaderT DavData IO)
 
@@ -107,7 +113,7 @@ guardName :: Element -> Text -> XMLParser ()
 guardName el nm | bname el == nm = pure ()
 guardName el nm = fail $ "Expected \"" <> T.unpack nm <> "\" element, got \"" <> T.unpack (bname el) <> "\""
 
-parsePropFind :: XMLParser [(Text, PropStat)]
+parsePropFind :: XMLParser [(DavRessource, PropStat)]
 parsePropFind = do
   onElementChildren $ \mstatus -> do
     guardName mstatus "multistatus"
@@ -120,7 +126,7 @@ parsePropFind = do
         pstat <- onElementChildren $ \stat -> do
           guardName stat "propstat"
           parsePropStat
-        pure (lnk, pstat)
+        pure (DavRc lnk, pstat)
 
 textContent :: XMLParser Text
 textContent = mconcat . catMaybes <$> tillEof (optional content)
@@ -167,7 +173,7 @@ propToName (CalDavProp nm) = Name nm (Just "http://calendarserver.org/ns/") (Jus
 propToName (CalProp nm) = Name nm (Just "urn:ietf:params:xml:ns:caldav") (Just "c")
 propToName (MiscProp nm ns) = Name nm (Just ns) Nothing
 
-propfind :: (MonadIO m) => DavData -> Text -> [Property] -> PropfindDepth -> m (Either DavError (Map Text PropStat))
+propfind :: (MonadIO m) => DavData -> Text -> [Property] -> PropfindDepth -> m (Either DavError (Map DavRessource PropStat))
 propfind dav server properties depth =
   runDavM dav davAct >>= \case
     Left err -> pure $ Left err
@@ -199,7 +205,7 @@ propfind dav server properties depth =
           | prop <- properties
         ]
 
-report :: (MonadIO m) => DavData -> Text -> Property -> [Property] -> ((Property -> Name) -> [Element]) -> PropfindDepth -> m (Either DavError (Map Text PropStat))
+report :: (MonadIO m) => DavData -> Text -> Property -> [Property] -> ((Property -> Name) -> [Element]) -> PropfindDepth -> m (Either DavError (Map DavRessource PropStat))
 report dav server query properties filtr depth =
   runDavM dav davAct >>= \case
     Left err -> pure $ Left err
@@ -222,6 +228,7 @@ report dav server query properties filtr depth =
     propXml =
       [NodeElement $ Element (propToName prop) M.empty [] | prop <- properties]
 
+-- TODO change put and delete to take server + DavRessource
 -- Return new ETAG if the information is present in the response
 put :: (MonadIO m, MonadThrow m) => DavData -> Text -> Maybe Text -> LBS.ByteString -> m (Either DavError (Maybe Text))
 put dav server etag dat = do
@@ -243,7 +250,6 @@ put dav server etag dat = do
             requestHeaders = hdContent ++ matchETag ++ requestHeaders req
           }
   let man = dav ^. davManager
-  liftIO $ print $ "Putting to " <> T.unpack server
   liftIO $ runResourceT $ do
     resp <- http reqWithBody man
     let scode = statusCode (responseStatus resp)

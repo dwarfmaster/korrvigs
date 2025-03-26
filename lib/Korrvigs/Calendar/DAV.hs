@@ -7,10 +7,11 @@ import Control.Monad.IO.Class
 import Control.Monad.State.Lazy
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BSL
-import qualified Data.ByteString.Lazy as LBS
 import Data.Char (isSpace)
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
@@ -29,7 +30,9 @@ import qualified Korrvigs.Event.Sync as Ev
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Utils (partitionM)
+import Korrvigs.Utils.DAV.Cal (DavTag (..))
 import qualified Korrvigs.Utils.DAV.Cal as DAV
+import Korrvigs.Utils.DAV.Web (DavRessource (..))
 import Korrvigs.Utils.DateTree
 import qualified Korrvigs.Utils.Git.Status as St
 import Korrvigs.Utils.JSON (writeJsonToFile)
@@ -43,11 +46,11 @@ import System.FilePath
 import System.Process
 
 data CalChanges = CalChanges
-  { _calCTag :: Text,
-    _calOnServer :: Map Text Text, -- ics only on server
-    _calDiff :: Map Text (Text, FilePath), -- ics on both that have changed
-    _calSame :: Map Text (Text, FilePath), -- ics on both that are the same
-    _calLocal :: Map Text FilePath -- ics only present locally
+  { _calCTag :: DavTag,
+    _calOnServer :: Map DavRessource DavTag, -- ics only on server
+    _calDiff :: Map DavRessource (DavTag, FilePath), -- ics on both that have changed
+    _calSame :: Map DavRessource (DavTag, FilePath), -- ics on both that are the same
+    _calLocal :: Map DavRessource FilePath -- ics only present locally
   }
   deriving (Eq, Show)
 
@@ -65,7 +68,7 @@ setupCDD cal pwd = do
         DAV._calCalendar = cal ^. calName
       }
 
-checkChanges :: (MonadKorrvigs m) => Calendar -> Text -> Maybe Text -> Map Text (Text, FilePath) -> m CalChanges
+checkChanges :: (MonadKorrvigs m) => Calendar -> Text -> Maybe DavTag -> Map DavRessource (DavTag, FilePath) -> m CalChanges
 checkChanges cal pwd ctag etags = do
   cdd <- setupCDD cal pwd
   nctag <- DAV.getCTag cdd >>= throwEither (\err -> KMiscError $ "Failed to get ctag for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
@@ -85,24 +88,24 @@ downloadAndWrite ::
   Calendar ->
   Text ->
   FilePath ->
-  Map Text (Maybe FilePath) ->
+  Map DavRessource (Maybe FilePath) ->
   Set Id ->
-  m (Map Text FilePath, Set Id)
+  m (Map DavRessource FilePath, Set Id)
 downloadAndWrite cal pwd rt toinsert forbidden = do
   cdd <- setupCDD cal pwd
   let insertUids = M.keys toinsert
   dat <- DAV.getCalData cdd insertUids >>= throwEither (\err -> KMiscError $ "Failed to download content for calendar \"" <> cal ^. calName <> "\": " <> T.pack (show err))
-  flip runStateT forbidden $ forM dat $ \ics -> do
+  flip runStateT forbidden $ fmap (M.fromList . catMaybes) $ forM (M.toList dat) $ \(davR, ics) -> do
     ical <- lift $ liftIO (parseICal Nothing $ LEnc.encodeUtf8 $ LT.fromStrict ics) >>= throwEither (\err -> KMiscError $ "Failed to parse received ics: " <> err)
     ievent <- lift $ throwMaybe (KMiscError "Received ics has no VEVENT") $ ical ^. icEvent
-    let pth = join $ M.lookup (ievent ^. iceUid) toinsert
+    let pth = M.lookup davR toinsert
     case pth of
-      Just icspath -> do
+      Just (Just icspath) -> do
         liftIO $ BSL.writeFile (rt </> icspath) $ renderICalFile ical
         let (i, _) = Ev.eventIdFromPath icspath
         modify $ S.insert i
-        pure icspath
-      Nothing -> do
+        pure $ Just (davR, icspath)
+      Just Nothing -> do
         forbid <- get
         i <- lift $ Ev.register ical forbid
         put $ S.insert i forbid
@@ -110,9 +113,11 @@ downloadAndWrite cal pwd rt toinsert forbidden = do
         let start = resolveICalTime ical <$> ievent ^. iceStart
         let day = localDay . zonedTimeToLocalTime <$> start
         stored <- lift $ storeFile rt Ev.eventTreeType day basename $ renderICalFile ical
-        pure $ makeRelative rt stored
+        pure $ Just (davR, makeRelative rt stored)
+      Nothing ->
+        throwM $ KMiscError $ "Received an event that was not asked for: \"" <> ievent ^. iceUid <> "\""
 
-doPull :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> CalChanges -> Set Id -> m (Map Text FilePath, Set Id)
+doPull :: (MonadKorrvigs m) => Calendar -> Text -> FilePath -> CalChanges -> Set Id -> m (Map DavRessource FilePath, Set Id)
 doPull cal pwd rt changes forbidden = do
   let onServer = M.fromList $ (,Nothing) <$> M.keys (changes ^. calOnServer)
   evRt <- Ev.eventsDirectory
@@ -127,15 +132,15 @@ doPull cal pwd rt changes forbidden = do
   pure inserted
 
 data CachedData = CachedData
-  { _cachedCtag :: Maybe Text,
-    _cachedEtags :: Map Text (Text, FilePath)
+  { _cachedCtag :: Maybe DavTag,
+    _cachedEtags :: Map DavRessource (DavTag, FilePath)
   }
 
 makeLenses ''CachedData
 
 instance ToJSON CachedData where
   toJSON (CachedData ctag etags) =
-    object $ maybe [] (\c -> ["ctag" .= String c]) ctag ++ ["etags" .= etags]
+    object $ maybe [] (singleton . ("ctag" .=)) ctag ++ ["etags" .= etags]
 
 instance FromJSON CachedData where
   parseJSON = withObject "CachedData" $ \obj ->
@@ -184,43 +189,45 @@ pushMsg cals = "Pushed calendars " <> T.intercalate ", " cals
 
 push :: (MonadKorrvigs m) => Calendar -> Text -> [FilePath] -> [FilePath] -> m FilePath
 push cal pwd add rm = do
-  let i = cal ^. calEntry . name
-  -- Extract cached etags
-  comps <- entryStoredComputations i
-  cdata <- case M.lookup "dav" comps of
-    Nothing -> throwM $ KMiscError "No dav computation for calendar"
-    Just cached | cached ^. cmpAction /= Builtin Blt.CalDav -> throwM $ KMiscError "dav computation of calendar is already used"
-    Just cached ->
-      compFile cached >>= reroot >>= getJsonComp' >>= \case
-        Nothing -> throwM $ KMiscError "Failed to load cached tags for calendar DAV"
-        Just js -> pure js
-  -- Push each file one by one
-  cdd <- setupCDD cal pwd
-  r <- forM add $ \evPath -> do
-    mevUID <- rSelectOne $ do
-      ev <- selectTable eventsTable
-      where_ $ ev ^. sqlEventFile .== sqlString evPath
-      pure $ ev ^. sqlEventUID
-    evUID <- throwMaybe (KMiscError $ "Event \"" <> T.pack evPath <> "\" is not in database") mevUID
-    let etag = view _1 <$> M.lookup evUID (cdata ^. cachedEtags)
-    r <- DAV.putCalData cdd evUID etag =<< liftIO (LBS.readFile evPath)
-    case r of
-      Left err -> throwM $ KMiscError $ "Failed to upload event \"" <> T.pack evPath <> "\": " <> T.pack (show err)
-      Right netag -> pure (evUID, netag)
-  -- Remove
-  let pathToUID = M.fromList $ (\(uid, (etg, pth)) -> (pth, (etg, uid))) <$> M.toList (cdata ^. cachedEtags)
-  forM_ rm $ \evPath -> case M.lookup evPath pathToUID of
-    Nothing -> pure ()
-    Just (etg, uid) ->
-      DAV.deleteCalData cdd uid etg >>= \case
-        Left err -> throwM $ KMiscError $ "Failed to delete event \"" <> uid <> "\" from calendar \"" <> unId i <> "\": " <> T.pack (show err)
-        Right () -> pure ()
-  -- Store new etags
-  let ncData = foldr (\(uid, etg) -> cachedEtags . at uid . _Just . _1 .~ etg) cdata r
-  let cmp = Computation i "dav" (Builtin Blt.CalDav) Json
-  compPath <- compFile cmp
-  writeJsonToFile compPath ncData
-  pure compPath
+  pure undefined
+
+-- let i = cal ^. calEntry . name
+-- -- Extract cached etags
+-- comps <- entryStoredComputations i
+-- cdata <- case M.lookup "dav" comps of
+--   Nothing -> throwM $ KMiscError "No dav computation for calendar"
+--   Just cached | cached ^. cmpAction /= Builtin Blt.CalDav -> throwM $ KMiscError "dav computation of calendar is already used"
+--   Just cached ->
+--     compFile cached >>= reroot >>= getJsonComp' >>= \case
+--       Nothing -> throwM $ KMiscError "Failed to load cached tags for calendar DAV"
+--       Just js -> pure js
+-- -- Push each file one by one
+-- cdd <- setupCDD cal pwd
+-- r <- forM add $ \evPath -> do
+--   mevUID <- rSelectOne $ do
+--     ev <- selectTable eventsTable
+--     where_ $ ev ^. sqlEventFile .== sqlString evPath
+--     pure $ ev ^. sqlEventUID
+--   evUID <- throwMaybe (KMiscError $ "Event \"" <> T.pack evPath <> "\" is not in database") mevUID
+--   let etag = view _1 <$> M.lookup evUID (cdata ^. cachedEtags)
+--   r <- DAV.putCalData cdd evUID etag =<< liftIO (LBS.readFile evPath)
+--   case r of
+--     Left err -> throwM $ KMiscError $ "Failed to upload event \"" <> T.pack evPath <> "\": " <> T.pack (show err)
+--     Right netag -> pure (evUID, netag)
+-- -- Remove
+-- let pathToUID = M.fromList $ (\(uid, (etg, pth)) -> (pth, (etg, uid))) <$> M.toList (cdata ^. cachedEtags)
+-- forM_ rm $ \evPath -> case M.lookup evPath pathToUID of
+--   Nothing -> pure ()
+--   Just (etg, uid) ->
+--     DAV.deleteCalData cdd uid etg >>= \case
+--       Left err -> throwM $ KMiscError $ "Failed to delete event \"" <> uid <> "\" from calendar \"" <> unId i <> "\": " <> T.pack (show err)
+--       Right () -> pure ()
+-- -- Store new etags
+-- let ncData = foldr (\(uid, etg) -> cachedEtags . at uid . _Just . _1 .~ etg) cdata r
+-- let cmp = Computation i "dav" (Builtin Blt.CalDav) Json
+-- compPath <- compFile cmp
+-- writeJsonToFile compPath ncData
+-- pure compPath
 
 sync :: (MonadKorrvigs m) => Bool -> [Calendar] -> Text -> m ()
 sync restore cals pwd = do

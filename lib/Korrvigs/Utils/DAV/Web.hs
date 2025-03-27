@@ -4,6 +4,7 @@ module Korrvigs.Utils.DAV.Web
   ( DavData (..),
     DavError (..),
     DavRessource (..),
+    DavTag (..),
     davStatusCode,
     davError,
     PropfindDepth (..),
@@ -38,6 +39,7 @@ import Korrvigs.Utils.XML
 import Network.HTTP.Conduit
 import Network.HTTP.Simple
 import Network.HTTP.Types.Status
+import System.FilePath
 import Text.XML
 import Text.XML.Cursor (fromDocument)
 
@@ -58,6 +60,8 @@ data DavError = DavError
 makeLenses ''DavError
 
 newtype DavRessource = DavRc {extractDavRc :: Text} deriving (Ord, Eq, Show, ToJSON, FromJSON, ToJSONKey, FromJSONKey)
+
+newtype DavTag = DavTag {extractDavTag :: Text} deriving (Ord, Eq, Show, ToJSON, FromJSON, ToJSONKey, FromJSONKey)
 
 type DavM = ExceptT DavError (ReaderT DavData IO)
 
@@ -228,11 +232,11 @@ report dav server query properties filtr depth =
     propXml =
       [NodeElement $ Element (propToName prop) M.empty [] | prop <- properties]
 
--- TODO change put and delete to take server + DavRessource
 -- Return new ETAG if the information is present in the response
-put :: (MonadIO m, MonadThrow m) => DavData -> Text -> Maybe Text -> LBS.ByteString -> m (Either DavError (Maybe Text))
-put dav server etag dat = do
-  initReq <- parseRequest $ T.unpack server
+put :: (MonadIO m, MonadThrow m) => DavData -> Text -> DavRessource -> Maybe DavTag -> LBS.ByteString -> m (Either DavError (Maybe DavTag))
+put dav server rc etag dat = do
+  let url = T.unpack server </> T.unpack (extractDavRc rc)
+  initReq <- parseRequest url
   let user = dav ^. davUser
   let pwd = dav ^. davPwd
   let req =
@@ -242,7 +246,7 @@ put dav server etag dat = do
             }
   let hdContent = [("Content-Type", "text/calendar; charset=utf-8")]
   let matchETag = case etag of
-        Just e -> [("If-Match", Enc.encodeUtf8 e)]
+        Just e -> [("If-Match", Enc.encodeUtf8 $ extractDavTag e)]
         Nothing -> []
   let reqWithBody =
         req
@@ -255,16 +259,17 @@ put dav server etag dat = do
     let scode = statusCode (responseStatus resp)
     if scode == 200 || scode == 204
       then pure $ case getResponseHeader "ETag" resp of
-        [netag] -> Right $ Just $ Enc.decodeUtf8 netag
+        [netag] -> Right $ Just $ DavTag $ Enc.decodeUtf8 netag
         _ -> Right Nothing
       else
         if scode == 412
           then liftIO (putStrLn "Precondition failed") >> pure (Right Nothing)
           else pure $ Left $ DavError scode $ "Failed with status code " <> T.pack (show scode)
 
-delete :: (MonadIO m, MonadThrow m) => DavData -> Text -> Text -> m (Either DavError ())
-delete dav server etag = do
-  initReq <- parseRequest $ T.unpack server
+delete :: (MonadIO m, MonadThrow m) => DavData -> Text -> DavRessource -> DavTag -> m (Either DavError ())
+delete dav server rc etag = do
+  let url = T.unpack server </> T.unpack (extractDavRc rc)
+  initReq <- parseRequest url
   let user = dav ^. davUser
   let pwd = dav ^. davPwd
   let req =
@@ -273,7 +278,7 @@ delete dav server etag = do
             { method = "DELETE"
             }
   let hdContent = [("Content-type", "text/calendar; charset=utf-8")]
-  let matchETag = [("If-Match", Enc.encodeUtf8 etag)]
+  let matchETag = [("If-Match", Enc.encodeUtf8 $ extractDavTag etag)]
   let reqWithHds = req {requestHeaders = hdContent ++ matchETag ++ requestHeaders req}
   let man = dav ^. davManager
   liftIO $ runResourceT $ do

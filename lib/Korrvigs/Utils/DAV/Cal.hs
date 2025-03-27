@@ -2,7 +2,6 @@
 
 module Korrvigs.Utils.DAV.Cal
   ( CalDavData (..),
-    DavTag (..),
     calUser,
     calPwd,
     calManager,
@@ -18,13 +17,12 @@ where
 
 import Control.Lens
 import Control.Monad.IO.Class
-import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import qualified Data.ByteString.Lazy as LBS
 import Data.List (singleton)
 import Data.List.Split (chunksOf)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (mapMaybe)
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Utils.DAV.Web
@@ -43,13 +41,11 @@ data CalDavData = CalDavData
 
 makeLenses ''CalDavData
 
-newtype DavTag = DavTag {extractDavTag :: Text} deriving (Ord, Eq, Show, ToJSON, FromJSON, ToJSONKey, FromJSONKey)
-
 toDavData :: CalDavData -> DavData
 toDavData cdd = DavData (cdd ^. calUser) (cdd ^. calPwd) (cdd ^. calManager)
 
-makeCalURL :: CalDavData -> Maybe Text -> Text
-makeCalURL cdd ics = T.pack $ joinPath $ [T.unpack (cdd ^. calServer), "calendars", T.unpack (cdd ^. calUser), T.unpack (cdd ^. calCalendar)] ++ maybe [] (singleton . T.unpack . (<> ".ics")) ics
+makeCalURL :: CalDavData -> Text
+makeCalURL cdd = T.pack $ joinPath [T.unpack (cdd ^. calServer), "calendars", T.unpack (cdd ^. calUser), T.unpack (cdd ^. calCalendar)]
 
 getCTag :: (MonadIO m) => CalDavData -> m (Either DavError DavTag)
 getCTag cdd =
@@ -60,7 +56,7 @@ getCTag cdd =
       Just ctag -> pure $ Right $ DavTag ctag
   where
     dav = toDavData cdd
-    url = makeCalURL cdd Nothing
+    url = makeCalURL cdd
     uri = DavRc $ maybe url ((<> "/") . T.pack . uriPath) $ parseURI (T.unpack url)
 
 processICS :: (Text -> a) -> (PropStat -> Maybe Text) -> (DavRessource, PropStat) -> Maybe (DavRessource, a)
@@ -73,7 +69,7 @@ getETags cdd =
     Right props -> pure $ Right $ M.fromList $ mapMaybe (processICS DavTag fromStat) $ M.toList props
   where
     dav = toDavData cdd
-    url = makeCalURL cdd Nothing
+    url = makeCalURL cdd
     filtr p2n =
       singleton $
         Element (p2n $ CalProp "filter") M.empty $
@@ -93,7 +89,7 @@ getCalData' cdd ids =
     Right props -> pure $ Right $ M.fromList $ mapMaybe (processICS id fromStat) $ M.toList props
   where
     dav = toDavData cdd
-    url = makeCalURL cdd Nothing
+    url = makeCalURL cdd
     filtr p2n = flip map ids $ \i ->
       Element (p2n $ DavProp "href") M.empty [NodeContent $ extractDavRc i]
     fromStat :: PropStat -> Maybe Text
@@ -107,17 +103,22 @@ getCalData cdd ids = do
     Left err -> pure $ Left err
     Right mps -> pure $ Right $ foldr M.union M.empty mps
 
+extractServer :: Text -> Text
+extractServer url = case parseURI $ T.unpack url of
+  Nothing -> url
+  Just uri -> T.pack $ show uri {uriPath = "", uriQuery = "", uriFragment = ""}
+
 -- Returns the new ETag after upload
-putCalData :: (MonadIO m) => CalDavData -> Text -> Maybe DavTag -> LBS.ByteString -> m (Either DavError DavTag)
-putCalData cdd i etag content =
-  liftIO (put (toDavData cdd) (makeCalURL cdd $ Just i) (extractDavTag <$> etag) content) >>= \case
+putCalData :: (MonadIO m) => CalDavData -> DavRessource -> Maybe DavTag -> LBS.ByteString -> m (Either DavError DavTag)
+putCalData cdd rc etag content =
+  liftIO (put (toDavData cdd) (extractServer $ cdd ^. calServer) rc etag content) >>= \case
     Left err -> pure $ Left err
-    Right (Just netag) -> pure $ Right $ DavTag netag
+    Right (Just netag) -> pure $ Right netag
     Right Nothing -> case etag of
       Just etg -> pure $ Right etg
       Nothing -> pure $ Left $ DavError 204 "No ETag returned for new upload"
 
 -- Delete an entry
-deleteCalData :: (MonadIO m) => CalDavData -> Text -> DavTag -> m (Either DavError ())
-deleteCalData cdd i etag =
-  let url = makeCalURL cdd $ Just i in liftIO $ delete (toDavData cdd) url $ extractDavTag etag
+deleteCalData :: (MonadIO m) => CalDavData -> DavRessource -> DavTag -> m (Either DavError ())
+deleteCalData cdd rc etag =
+  liftIO $ delete (toDavData cdd) (extractServer $ cdd ^. calServer) rc etag

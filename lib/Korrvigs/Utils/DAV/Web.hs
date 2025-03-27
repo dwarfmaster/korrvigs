@@ -235,7 +235,7 @@ report dav server query properties filtr depth =
 -- Return new ETAG if the information is present in the response
 put :: (MonadIO m, MonadThrow m) => DavData -> Text -> DavRessource -> Maybe DavTag -> LBS.ByteString -> m (Either DavError (Maybe DavTag))
 put dav server rc etag dat = do
-  let url = T.unpack server </> T.unpack (extractDavRc rc)
+  let url = T.unpack $ server <> extractDavRc rc
   initReq <- parseRequest url
   let user = dav ^. davUser
   let pwd = dav ^. davPwd
@@ -263,7 +263,9 @@ put dav server rc etag dat = do
         _ -> Right Nothing
       else
         if scode == 412
-          then liftIO (putStrLn "Precondition failed") >> pure (Right Nothing)
+          then do
+            liftIO $ putStrLn $ "Precondition failed for " <> url
+            pure (Right Nothing)
           else pure $ Left $ DavError scode $ "Failed with status code " <> T.pack (show scode)
 
 delete :: (MonadIO m, MonadThrow m) => DavData -> Text -> DavRessource -> DavTag -> m (Either DavError ())

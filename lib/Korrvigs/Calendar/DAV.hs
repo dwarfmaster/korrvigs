@@ -25,7 +25,7 @@ import qualified Korrvigs.Compute.Builtin as Blt
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
-import Korrvigs.Event.Sync (eventsDirectory)
+import Korrvigs.Event.Sync (eventIdFromPath, eventsDirectory)
 import qualified Korrvigs.Event.Sync as Ev
 import Korrvigs.Kind
 import Korrvigs.Monad
@@ -198,28 +198,29 @@ push cal pwd add rm = do
       compFile cached >>= reroot >>= getJsonComp' >>= \case
         Nothing -> throwM $ KMiscError "Failed to load cached tags for calendar DAV"
         Just js -> pure js
-  let pathToUID = M.fromList $ (\(rc, (etg, pth)) -> (pth, (etg, rc))) <$> M.toList (cdata ^. cachedEtags)
+  let pathToRC = M.fromList $ (\(rc, (etg, pth)) -> (pth, (etg, rc))) <$> M.toList (cdata ^. cachedEtags)
   evDir <- eventsDirectory
   -- Push each file one by one
   cdd <- setupCDD cal pwd
   r <- forM add $ \evPath -> do
     let relPath = makeRelative evDir evPath
-    case M.lookup relPath pathToUID of
-      Just (etag, evRC) -> do
-        r <- DAV.putCalData cdd evRC (Just etag) =<< liftIO (BSL.readFile evPath)
-        case r of
-          Left err -> throwM $ KMiscError $ "Failed to upload event \"" <> T.pack evPath <> "\": " <> T.pack (show err)
-          Right netag -> pure (evRC, netag)
-      Nothing -> undefined
+    let evI = fst $ eventIdFromPath evPath
+    (evRC, etag) <- case M.lookup relPath pathToRC of
+      Just (etag, evRC) -> pure (evRC, Just etag)
+      Nothing -> pure (DavRc $ "/korr_" <> T.replace ":" "_" (unId evI) <> ".ics", Nothing)
+    r <- DAV.putCalData cdd evRC etag =<< liftIO (BSL.readFile evPath)
+    case r of
+      Left err -> throwM $ KMiscError $ "Failed to upload event \"" <> T.pack evPath <> "\": " <> T.pack (show err)
+      Right netag -> pure (evRC, netag, relPath)
   -- Remove
-  forM_ rm $ \evPath -> case M.lookup evPath pathToUID of
+  forM_ rm $ \evPath -> case M.lookup evPath pathToRC of
     Nothing -> pure ()
     Just (etg, rc) ->
       DAV.deleteCalData cdd rc etg >>= \case
         Left err -> throwM $ KMiscError $ "Failed to delete event \"" <> extractDavRc rc <> "\" from calendar \"" <> unId i <> "\": " <> T.pack (show err)
         Right () -> pure ()
   -- Store new etags
-  let ncData = foldr (\(uid, etg) -> cachedEtags . at uid . _Just . _1 .~ etg) cdata r
+  let ncData = foldr (\(rc, etg, pth) -> cachedEtags . at rc ?~ (etg, pth)) cdata r
   let cmp = Computation i "dav" (Builtin Blt.CalDav) Json
   compPath <- compFile cmp
   writeJsonToFile compPath ncData

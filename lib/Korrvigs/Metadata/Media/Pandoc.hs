@@ -8,6 +8,7 @@ import qualified Data.ByteString.Lazy as BSL
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
+import Data.ISBN
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -49,6 +50,12 @@ parseTxt (TextVal txt) = Just txt
 parseTxt (FancyVal inls) = Just $ inlinesToText inls
 parseTxt (NumVal i) = Just $ T.pack $ show i
 parseTxt _ = Nothing
+
+parseISBN :: Val Inlines -> Maybe ISBN
+parseISBN inls = case validateISBN <$> parseTxt inls of
+  Nothing -> Nothing
+  Just (Left _) -> Nothing
+  Just (Right isbn) -> Just isbn
 
 parseIntFromText :: Text -> Maybe Int
 parseIntFromText txt = case parse decimal "<integer>" txt of
@@ -112,7 +119,7 @@ variablesMapping :: [(Variable, Val Inlines -> Endo Media)]
 variablesMapping =
   [ ("abstract", mpTxt medAbstract),
     ("doi", mpTxt' medDOI),
-    ("isbn", mpTxt' medISBN),
+    ("isbn", mp' parseISBN medISBN),
     ("issn", mpTxt' medISSN),
     ("title", mpTxt medTitle),
     ("author", \v -> Endo $ medAuthors %~ (++ parseAuthors v)),

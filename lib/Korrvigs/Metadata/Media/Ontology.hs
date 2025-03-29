@@ -5,6 +5,7 @@ import Control.Lens hiding ((.=))
 import Data.Aeson
 import Data.Aeson.Types (Parser)
 import Data.Default
+import Data.ISBN
 import Data.List (singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -51,7 +52,7 @@ data Media = Media
     _medAbstract :: Maybe Text,
     _medBibtex :: Maybe Text,
     _medDOI :: [Text],
-    _medISBN :: [Text],
+    _medISBN :: [ISBN],
     _medISSN :: [Text],
     _medTitle :: Maybe Text,
     _medAuthors :: [Text],
@@ -65,7 +66,7 @@ data Media = Media
     _medInstitution :: [Text],
     _medLicense :: [Text]
   }
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq)
 
 makeLenses ''MediaSource
 makeLenses ''MediaContainer

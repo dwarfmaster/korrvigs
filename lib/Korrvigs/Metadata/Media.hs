@@ -1,8 +1,11 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Korrvigs.Metadata.Media where
 
 import Control.Lens
 import Data.Aeson
 import Data.CaseInsensitive (CI)
+import Data.ISBN
 import Data.List (singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -14,11 +17,19 @@ import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 
+instance ToJSON ISBN where
+  toJSON = toJSON . renderISBN
+
+instance FromJSON ISBN where
+  parseJSON = withText "ISBN" $ \txt -> case validateISBN txt of
+    Left err -> fail $ show err
+    Right isbn -> pure isbn
+
 mkMtdt "MediaMtdt" "media" [t|MediaType|]
 mkMtdt "Abstract" "abstract" [t|Text|]
 mkMtdt "BibtexKey" "bibtex" [t|Text|]
 mkMtdt "DOI" "doi" [t|[Text]|]
-mkMtdt "ISBN" "isbn" [t|[Text]|]
+mkMtdt "ISBNMtdt" "isbn" [t|[ISBN]|]
 mkMtdt "ISSN" "issn" [t|[Text]|]
 mkMtdt "MedMonth" "month" [t|MonthOfYear|]
 mkMtdt "MedYear" "year" [t|Year|]
@@ -42,7 +53,7 @@ rSelectMedia i =
                 <$> rSelectMtdt BibtexKey (sqlId i)
                 <*> rSelectMtdt Abstract (sqlId i)
                 <*> rSelectListMtdt DOI (sqlId i)
-                <*> rSelectListMtdt ISBN (sqlId i)
+                <*> rSelectListMtdt ISBNMtdt (sqlId i)
                 <*> rSelectListMtdt ISSN (sqlId i)
                 <*> rSelectMtdt Title (sqlId i)
                 <*> rSelectListMtdt Authors (sqlId i)
@@ -65,7 +76,7 @@ mediaMetadata med =
         medRow Abstract medAbstract,
         medRow BibtexKey medBibtex,
         medLstRow DOI medDOI,
-        medLstRow ISBN medISBN,
+        medLstRow ISBNMtdt medISBN,
         medLstRow ISSN medISSN,
         medRow Title medTitle,
         medLstRow Authors medAuthors,

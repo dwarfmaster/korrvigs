@@ -13,6 +13,7 @@ import Data.Aeson.Types
 import Data.Conduit
 import Data.Conduit.Combinators (sinkLazy)
 import Data.Foldable (toList)
+import Data.ISBN
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -126,7 +127,7 @@ queryOpenLibrary q = case mkAPIUrl q of
                   _medAbstract = Just $ T.replace "\r\n" "\n" $ olr ^. olDescription,
                   _medBibtex = Nothing,
                   _medDOI = [],
-                  _medISBN = olr ^. olISBN10 <> olr ^. olISBN13,
+                  _medISBN = mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
                   _medISSN = [],
                   _medTitle = Just $ olr ^. olTitle,
                   _medAuthors = olr ^. olAuthors,
@@ -147,3 +148,8 @@ queryOpenLibrary q = case mkAPIUrl q of
                   _medInstitution = [],
                   _medLicense = []
                 }
+  where
+    parseISBN :: Text -> Maybe ISBN
+    parseISBN isbnT = case validateISBN isbnT of
+      Right isbn -> Just isbn
+      Left _ -> Nothing

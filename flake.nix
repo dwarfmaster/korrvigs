@@ -56,6 +56,7 @@
             hpkgs.password
             hpkgs.iconv
             hpkgs.clock
+            hpkgs.isbn
           ]);
 
           pre-commit.hooks = {

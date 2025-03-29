@@ -1,4 +1,9 @@
-module Korrvigs.Metadata.Media.OpenLibrary (OpenLibraryQuery (..), queryOpenLibrary) where
+module Korrvigs.Metadata.Media.OpenLibrary
+  ( OpenLibraryQuery (..),
+    queryOpenLibrary,
+    parseQuery,
+  )
+where
 
 import Citeproc.Types (readAsInt)
 import Conduit (runResourceT)
@@ -40,6 +45,10 @@ data OLResult = OLResult
   deriving (Ord, Eq, Show)
 
 makeLenses ''OLResult
+
+parseQuery :: Text -> Maybe OpenLibraryQuery
+parseQuery url | T.isPrefixOf openUrl url = Just $ OLUrl url
+parseQuery _ = Nothing
 
 parseAuthors :: Value -> Parser [Text]
 parseAuthors =

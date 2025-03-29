@@ -106,6 +106,7 @@ library korrvigs-lib
     Korrvigs.Metadata
     Korrvigs.Metadata.Collections
     Korrvigs.Metadata.Media
+    Korrvigs.Metadata.Media.New
     Korrvigs.Metadata.Media.Ontology
     Korrvigs.Metadata.Media.OpenLibrary
     Korrvigs.Metadata.Media.Pandoc

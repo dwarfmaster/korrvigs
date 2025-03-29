@@ -27,10 +27,10 @@ import Network.URI
 import System.FilePath
 
 data OpenLibraryQuery
-  = OLISBN Text
+  = OLISBN ISBN
   | OLKey Text
   | OLUrl Text
-  deriving (Ord, Eq, Show)
+  deriving (Eq, Show)
 
 data OLResult = OLResult
   { _olUrl :: Text,
@@ -49,7 +49,9 @@ makeLenses ''OLResult
 
 parseQuery :: Text -> Maybe OpenLibraryQuery
 parseQuery url | T.isPrefixOf openUrl url = Just $ OLUrl url
-parseQuery _ = Nothing
+parseQuery txt = case validateISBN txt of
+  Left _ -> Nothing
+  Right isbn -> Just $ OLISBN isbn
 
 parseAuthors :: Value -> Parser [Text]
 parseAuthors =
@@ -73,7 +75,7 @@ openUrl :: Text
 openUrl = "https://openlibrary.org"
 
 mkAPIBaseUrl :: OpenLibraryQuery -> Maybe Text
-mkAPIBaseUrl (OLISBN isbn) = Just $ openUrl <> "/api/books?bibkeys=ISBN:" <> isbn
+mkAPIBaseUrl (OLISBN isbn) = Just $ openUrl <> "/api/books?bibkeys=ISBN:" <> renderISBN isbn
 mkAPIBaseUrl (OLKey key) = Just $ openUrl <> "/api/books?bibkeys=OLID:" <> key
 mkAPIBaseUrl (OLUrl url) =
   case parseURI (T.unpack url) >>= (^? ix 2) . splitPath . uriPath of

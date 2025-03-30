@@ -285,7 +285,7 @@ renderToYAML _ Null = writeText "~"
 renderToYAML _ (Bool True) = writeText "true"
 renderToYAML _ (Bool False) = writeText "false"
 renderToYAML _ (Number num) = writeText . T.pack $ show num
-renderToYAML _ (String txt) = surrounded "'" $ writeText txt
+renderToYAML _ (String txt) = surrounded "\"" $ writeText $ T.replace "\"" "\\\"" txt
 renderToYAML _ (Array vals) | V.null vals = writeText "[]"
 renderToYAML _ (Array vals) = do
   newline

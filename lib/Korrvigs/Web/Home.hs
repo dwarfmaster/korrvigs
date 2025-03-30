@@ -1,6 +1,7 @@
 module Korrvigs.Web.Home (getHomeR, postHomeR, newForms, runNewForms) where
 
 import Conduit
+import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad
 import Data.Default
@@ -12,6 +13,8 @@ import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
 import Korrvigs.Metadata.Collections
+import qualified Korrvigs.Metadata.Media.New as NMedia
+import Korrvigs.Metadata.Media.Ontology (MediaType, displayMediaType)
 import qualified Korrvigs.Note.New as NNote
 import Korrvigs.Utils (firstJustM)
 import Korrvigs.Web.Backend
@@ -32,9 +35,12 @@ data NewLink = NewLink {_nlinkTitle :: Maybe Text, _nlinkUrl :: Text}
 
 data NewFile = NewFile {_nfileTitle :: Maybe Text, _nfileContent :: FileInfo}
 
+data NewMedia = NewMedia {_nmedInput :: Text, _nmedType :: Maybe MediaType}
+
 makeLenses ''NewNote
 makeLenses ''NewLink
 makeLenses ''NewFile
+makeLenses ''NewMedia
 
 newNoteForm :: Html -> MForm Handler (FormResult NewNote, Widget)
 newNoteForm = identifyForm "newnote" $ renderDivs $ NewNote <$> areq textField "Title" Nothing
@@ -55,6 +61,17 @@ newFileForm =
         <$> aopt textField "Title" Nothing
         <*> fileAFormReq ("" {fsLabel = "File"})
 
+newMediaForm :: Html -> MForm Handler (FormResult NewMedia, Widget)
+newMediaForm =
+  identifyForm "newmedia" $
+    renderDivs $
+      NewMedia
+        <$> areq textField "Input" Nothing
+        <*> areq (selectFieldList types) "Type" Nothing
+  where
+    types :: [(Text, Maybe MediaType)]
+    types = ("Auto", Nothing) : ((displayMediaType &&& Just) <$> [minBound .. maxBound])
+
 renderForm :: Route WebData -> Text -> (Html -> MForm Handler (FormResult a, Widget)) -> Handler Widget
 renderForm postUrl title form = do
   (widget, enctype) <- generateFormPost form
@@ -74,6 +91,7 @@ newForms postUrl prefix errMsgs = do
   newNote <- renderForm postUrl (prefix <> " new note") newNoteForm
   newLink <- renderForm postUrl (prefix <> " new link") newLinkForm
   newFile <- renderForm postUrl (prefix <> " new file") newFileForm
+  newMedia <- renderForm postUrl (prefix <> " new media") newMediaForm
   pure
     [whamlet|
     $if not (null errMsgs)
@@ -83,6 +101,7 @@ newForms postUrl prefix errMsgs = do
     ^{newNote}
     ^{newLink}
     ^{newFile}
+    ^{newMedia}
   |]
 
 displayHome :: [Text] -> Handler Html
@@ -121,7 +140,8 @@ runNewForms parent =
   firstJustM
     [ runForm parent newNoteForm runNewNote,
       runForm parent newLinkForm runNewLink,
-      runForm parent newFileForm runNewFile
+      runForm parent newFileForm runNewFile,
+      runForm parent newMediaForm runNewMedia
     ]
 
 runForm ::
@@ -166,3 +186,13 @@ runNewFile parent nfile =
                 & neTitle .~ nfile ^. nfileTitle
                 & neParents .~ maybeToList parent
       runIO $ NFile.new path settings
+
+runNewMedia :: Maybe Id -> NewMedia -> Handler Id
+runNewMedia parent nmedia =
+  let nmed =
+        NMedia.NewMedia
+          { NMedia._nmEntry = def & neParents %~ maybe id (:) parent,
+            NMedia._nmInput = nmedia ^. nmedInput,
+            NMedia._nmType = nmedia ^. nmedType
+          }
+   in NMedia.new nmed

@@ -1,7 +1,7 @@
 module Korrvigs.Metadata.Media.New
   ( NewMedia (..),
     nmEntry,
-    nmUrl,
+    nmInput,
     nmType,
     new,
   )
@@ -30,7 +30,7 @@ import qualified Korrvigs.Note.New as Note
 
 data NewMedia = NewMedia
   { _nmEntry :: NewEntry,
-    _nmUrl :: Text,
+    _nmInput :: Text,
     _nmType :: Maybe MediaType
   }
 
@@ -81,7 +81,7 @@ dispatchMedia nm = do
             _medAuthors = [],
             _medMonth = Nothing,
             _medYear = Nothing,
-            _medUrl = Just $ nm ^. nmUrl,
+            _medUrl = Just $ nm ^. nmInput,
             _medRSS = Nothing,
             _medSource = [],
             _medPublisher = [],
@@ -91,7 +91,7 @@ dispatchMedia nm = do
           }
   where
     dispatchers =
-      ($ (nm ^. nmUrl))
+      ($ (nm ^. nmInput))
         <$> [ mkDispatcher OL.parseQuery OL.queryOpenLibrary
             ]
 
@@ -116,9 +116,9 @@ prepareNewMedia nm = do
         mergeInto md (nm ^. nmEntry)
           & neMtdt %~ ((mtdtSqlName TaskMtdt, "todo") :)
           & neMtdt %~ insertCollection ["Captured"]
-  let title = fromMaybe (medTxt (md ^. medType) <> " " <> nm ^. nmUrl) $ ne ^. neTitle
+  let title = fromMaybe (medTxt (md ^. medType) <> " " <> nm ^. nmInput) $ ne ^. neTitle
   case md ^. medType of
-    Blogpost -> pure $ NewLinkMedia (nm ^. nmUrl) $ Link.NewLink ne False
+    Blogpost -> pure $ NewLinkMedia (nm ^. nmInput) $ Link.NewLink ne False
     _ -> pure $ NewNoteMedia $ Note.NewNote ne title
   where
     medTxt :: MediaType -> Text

@@ -7,6 +7,7 @@ module Korrvigs.Metadata.Media.New
   )
 where
 
+import Conduit (throwM)
 import Control.Arrow (first)
 import Control.Lens
 import Control.Monad.IO.Class
@@ -45,22 +46,22 @@ makeLenses ''NewMediaInternal
 data DispatcherData
   = DispatcherSuccess Media
   | DispatcherSkip
-  | DispatcherFail
+  | DispatcherFail Text
 
 instance Semigroup DispatcherData where
   DispatcherSkip <> m = m
-  DispatcherFail <> _ = DispatcherFail
+  DispatcherFail lbl <> _ = DispatcherFail lbl
   (DispatcherSuccess x) <> _ = DispatcherSuccess x
 
 instance Monoid DispatcherData where
   mempty = DispatcherSkip
 
-mkDispatcher :: (Text -> Maybe a) -> (a -> IO (Maybe Media)) -> Text -> IO DispatcherData
-mkDispatcher parser extractor txt = case parser txt of
+mkDispatcher :: Text -> (Text -> Maybe a) -> (a -> IO (Maybe Media)) -> Text -> IO DispatcherData
+mkDispatcher lbl parser extractor txt = case parser txt of
   Nothing -> pure DispatcherSkip
   Just parsed ->
     extractor parsed >>= \case
-      Nothing -> pure DispatcherFail
+      Nothing -> pure $ DispatcherFail lbl
       Just med -> pure $ DispatcherSuccess med
 
 dispatchMedia :: (MonadKorrvigs m) => NewMedia -> m Media
@@ -68,7 +69,7 @@ dispatchMedia nm = do
   dispatch <- liftIO $ sequence dispatchers
   case fold dispatch of
     DispatcherSuccess md -> pure md
-    _ ->
+    DispatcherSkip ->
       pure $
         Media
           { _medType = fromMaybe Blogpost $ nm ^. nmType,
@@ -89,10 +90,11 @@ dispatchMedia nm = do
             _medInstitution = [],
             _medLicense = []
           }
+    DispatcherFail lbl -> throwM $ KMiscError $ "Failed to import from " <> lbl
   where
     dispatchers =
       ($ (nm ^. nmInput))
-        <$> [ mkDispatcher OL.parseQuery OL.queryOpenLibrary
+        <$> [ mkDispatcher "OpenLibrary" OL.parseQuery OL.queryOpenLibrary
             ]
 
 mergeInto :: Media -> NewEntry -> NewEntry

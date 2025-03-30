@@ -40,7 +40,7 @@ data OLResult = OLResult
     _olPublisher :: [Text],
     _olAuthors :: [Text],
     _olPublishDate :: Text,
-    _olDescription :: Text,
+    _olDescription :: Maybe Text,
     _olSeries :: [Text]
   }
   deriving (Ord, Eq, Show)
@@ -58,6 +58,12 @@ parseAuthors =
   withArray "OLResult authors" $
     fmap toList . mapM (withObject "OLResult author" $ \obj -> obj .: "name")
 
+parseDescription :: Maybe Value -> Parser (Maybe Text)
+parseDescription Nothing = pure Nothing
+parseDescription (Just (String txt)) = pure $ Just txt
+parseDescription (Just (Object o)) = Just <$> o .: "value"
+parseDescription (Just x) = unexpected x
+
 instance FromJSON OLResult where
   parseJSON = withObject "OLResult" $ \obj ->
     OLResult
@@ -68,8 +74,8 @@ instance FromJSON OLResult where
       <*> ((obj .: "details") >>= (.: "publishers"))
       <*> ((obj .: "details") >>= (.: "authors") >>= parseAuthors)
       <*> ((obj .: "details") >>= (.: "publish_date"))
-      <*> ((obj .: "details") >>= (.: "description"))
-      <*> ((obj .: "details") >>= (.: "series"))
+      <*> ((obj .: "details") >>= (.:? "description") >>= parseDescription)
+      <*> ((obj .: "details") >>= (.:? "series") <&> fromMaybe [])
 
 openUrl :: Text
 openUrl = "https://openlibrary.org"
@@ -118,38 +124,39 @@ queryOpenLibrary q = case mkAPIUrl q of
       if scode == 200
         then fmap Just $ runConduit $ responseBody resp .| sinkLazy
         else pure Nothing
-    pure $ case eitherDecode <$> content of
-      Nothing -> Nothing
-      Just (Left _) -> Nothing
+    case eitherDecode <$> content of
+      Nothing -> pure Nothing
+      Just (Left _) -> pure Nothing
       Just (Right (olmap :: Map Text OLResult)) ->
         let olr = head $ M.elems olmap
-         in Just $
-              Media
-                { _medType = Book,
-                  _medAbstract = Just $ T.replace "\r\n" "\n" $ olr ^. olDescription,
-                  _medBibtex = Nothing,
-                  _medDOI = [],
-                  _medISBN = mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
-                  _medISSN = [],
-                  _medTitle = Just $ olr ^. olTitle,
-                  _medAuthors = olr ^. olAuthors,
-                  _medMonth = parsePublishMonth $ olr ^. olPublishDate,
-                  _medYear = parsePublishYear $ olr ^. olPublishDate,
-                  _medUrl = Just $ olr ^. olUrl,
-                  _medRSS = Nothing,
-                  _medSource = [],
-                  _medPublisher = olr ^. olPublisher,
-                  _medContainer =
-                    listToMaybe $
-                      MediaContainer
-                        <$> olr ^. olSeries
-                        <*> pure Nothing
-                        <*> pure Nothing
-                        <*> pure Nothing
-                        <*> pure Nothing,
-                  _medInstitution = [],
-                  _medLicense = []
-                }
+         in pure $
+              Just $
+                Media
+                  { _medType = Book,
+                    _medAbstract = T.replace "\r\n" "\n" <$> olr ^. olDescription,
+                    _medBibtex = Nothing,
+                    _medDOI = [],
+                    _medISBN = mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
+                    _medISSN = [],
+                    _medTitle = Just $ olr ^. olTitle,
+                    _medAuthors = olr ^. olAuthors,
+                    _medMonth = parsePublishMonth $ olr ^. olPublishDate,
+                    _medYear = parsePublishYear $ olr ^. olPublishDate,
+                    _medUrl = Just $ olr ^. olUrl,
+                    _medRSS = Nothing,
+                    _medSource = [],
+                    _medPublisher = olr ^. olPublisher,
+                    _medContainer =
+                      listToMaybe $
+                        MediaContainer
+                          <$> olr ^. olSeries
+                          <*> pure Nothing
+                          <*> pure Nothing
+                          <*> pure Nothing
+                          <*> pure Nothing,
+                    _medInstitution = [],
+                    _medLicense = []
+                  }
   where
     parseISBN :: Text -> Maybe ISBN
     parseISBN isbnT = case validateISBN isbnT of

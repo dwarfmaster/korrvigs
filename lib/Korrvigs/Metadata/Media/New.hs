@@ -25,6 +25,7 @@ import Korrvigs.Metadata.Collections
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.OpenLibrary as OL
+import qualified Korrvigs.Metadata.Media.Pandoc as Pd
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import qualified Korrvigs.Note.New as Note
@@ -56,13 +57,14 @@ instance Semigroup DispatcherData where
 instance Monoid DispatcherData where
   mempty = DispatcherSkip
 
-mkDispatcher :: Text -> (Text -> Maybe a) -> (a -> IO (Maybe Media)) -> Text -> IO DispatcherData
-mkDispatcher lbl parser extractor txt = case parser txt of
-  Nothing -> pure DispatcherSkip
-  Just parsed ->
-    extractor parsed >>= \case
-      Nothing -> pure $ DispatcherFail lbl
-      Just med -> pure $ DispatcherSuccess med
+mkDispatcher :: Text -> (Text -> IO (Maybe a)) -> (a -> IO (Maybe Media)) -> Text -> IO DispatcherData
+mkDispatcher lbl parser extractor txt =
+  parser txt >>= \case
+    Nothing -> pure DispatcherSkip
+    Just parsed ->
+      extractor parsed >>= \case
+        Nothing -> pure $ DispatcherFail lbl
+        Just med -> pure $ DispatcherSuccess med
 
 dispatchMedia :: (MonadKorrvigs m) => NewMedia -> m Media
 dispatchMedia nm = do
@@ -94,7 +96,8 @@ dispatchMedia nm = do
   where
     dispatchers =
       ($ (nm ^. nmInput))
-        <$> [ mkDispatcher "OpenLibrary" OL.parseQuery OL.queryOpenLibrary
+        <$> [ mkDispatcher "OpenLibrary" (pure . OL.parseQuery) OL.queryOpenLibrary,
+              mkDispatcher "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 
 mergeInto :: Media -> NewEntry -> NewEntry

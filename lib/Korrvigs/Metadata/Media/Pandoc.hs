@@ -1,4 +1,10 @@
-module Korrvigs.Metadata.Media.Pandoc (importReferences, importBibtex, importRIS) where
+module Korrvigs.Metadata.Media.Pandoc
+  ( importReferences,
+    importBibtex,
+    importRIS,
+    importRef,
+  )
+where
 
 import Citeproc.Types
 import Control.Arrow ((&&&))
@@ -187,3 +193,15 @@ importBibtex = importPandoc readBibLaTeX
 
 importRIS :: BSL.ByteString -> IO (Map Text Media)
 importRIS = importPandoc readRIS
+
+importRef :: Text -> IO (Maybe Media)
+importRef txt = do
+  let bsl = LEnc.encodeUtf8 $ LT.fromStrict txt
+  bib <- importBibtex bsl
+  case M.toList bib of
+    ((_, b) : _) -> pure $ Just b
+    [] -> do
+      ris <- importRIS bsl
+      case M.toList ris of
+        ((_, r) : _) -> pure $ Just r
+        [] -> pure Nothing

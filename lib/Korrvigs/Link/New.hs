@@ -25,6 +25,7 @@ import Korrvigs.Entry.New
 import Korrvigs.Kind
 import Korrvigs.Link.JSON
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Utils (joinNull)
 import Korrvigs.Utils.DateTree
@@ -108,6 +109,7 @@ new url options = case parseURI (T.unpack url) of
             M.fromList (first CI.mk <$> options ^. nlEntry . neMtdt)
               & at (mtdtName Title) .~ (toJSON <$> title)
               & at "meta" ?~ toJSON (foldr M.delete info ["day", "duration", "geometry", "textContent"])
+              & maybe id (at (mtdtName Abstract) ?~) (M.lookup "description" info)
     let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt
     let txt = if T.null textContent then Nothing else Just textContent
     let json = LinkJSON protocol link mtdtJson dt Nothing Nothing txt parents

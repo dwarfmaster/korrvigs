@@ -3,7 +3,7 @@
 module Korrvigs.Link.New (new, NewLink (..), nlEntry, nlOffline) where
 
 import Conduit (throwM)
-import Control.Arrow (first)
+import Control.Arrow (first, second)
 import Control.Exception
 import Control.Lens hiding (noneOf)
 import Control.Monad
@@ -13,6 +13,7 @@ import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
 import qualified Data.CaseInsensitive as CI
 import Data.Default
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -35,6 +36,7 @@ import Network.HTTP.Simple
 import Network.HTTP.Types.Status
 import Network.Mime
 import Network.URI
+import Text.HTML.TagSoup
 import Text.Pandoc hiding (Link, getCurrentTimeZone)
 import Text.Parsec
 
@@ -68,6 +70,21 @@ contentTypeP = do
 isHttpException :: SomeException -> Bool
 isHttpException e = isJust (fromException e :: Maybe HttpException)
 
+extractHTMLMeta :: Text -> Text -> Map Text Value
+extractHTMLMeta url txt = mconcat $ mapMaybe matchRSS html
+  where
+    html = parseTags txt
+    matchRSS :: Tag Text -> Maybe (Map Text Value)
+    matchRSS (TagOpen "link" attrs)
+      | any (\(k, v) -> k == "rel" && v == "alternate") attrs = do
+          tp <- find ((== "type") . fst) attrs
+          guard $ snd tp == "application/rss+xml" || snd tp == "application/atom+xml"
+          ref <- snd <$> find ((== "href") . fst) attrs
+          guard $ T.length ref > 0
+          let uri = if T.head ref == '/' then url <> T.tail ref else ref
+          pure $ M.singleton (mtdtSqlName Feed) $ toJSON uri
+    matchRSS _ = Nothing
+
 downloadInformation :: Text -> IO (Text, Map Text Value)
 downloadInformation uri = do
   req <- parseRequest $ T.unpack uri
@@ -84,9 +101,10 @@ downloadInformation uri = do
           case r of
             (Right ("text/html", decoder)) : _ -> case decoder (getResponseBody response) of
               Just content ->
-                runIO (readHtml def content) >>= \case
-                  Left _ -> pure ("", M.empty)
-                  Right pd -> pure $ pdExtractMtdt pd
+                let htmlMeta = extractHTMLMeta uri content
+                 in runIO (readHtml def content) >>= \case
+                      Left _ -> pure ("", htmlMeta)
+                      Right pd -> pure $ second (`M.union` htmlMeta) $ pdExtractMtdt pd
               Nothing -> pure ("", M.empty)
             _ -> pure ("", M.empty)
 
@@ -110,6 +128,7 @@ new url options = case parseURI (T.unpack url) of
               & at (mtdtName Title) .~ (toJSON <$> title)
               & at "meta" ?~ toJSON (foldr M.delete info ["day", "duration", "geometry", "textContent"])
               & maybe id (at (mtdtName Abstract) ?~) (M.lookup "description" info)
+              & maybe id (at (mtdtName Feed) ?~) (M.lookup (mtdtSqlName Feed) info)
     let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt
     let txt = if T.null textContent then Nothing else Just textContent
     let json = LinkJSON protocol link mtdtJson dt Nothing Nothing txt parents

@@ -158,3 +158,16 @@ inlInlines f (PlainLink (Just txt) uri) =
   PlainLink <$> (Just <$> each f txt) <*> pure uri
 inlInlines f (Sidenote bks) = Sidenote <$> each (bkInlines $ inlInlines f) bks
 inlInlines f i = f i
+
+-- Traversal over all blocks in block
+bkBlocks :: Traversal' Block Block
+bkBlocks f (BlockQuote bks) = BlockQuote <$> each (bkBlocks f) bks
+bkBlocks f (OrderedList bks) = OrderedList <$> each (each $ bkBlocks f) bks
+bkBlocks f (BulletList bks) = BulletList <$> each (each $ bkBlocks f) bks
+bkBlocks f (DefinitionList defs) = DefinitionList <$> each (defBlocks f) defs
+  where
+    defBlocks :: Traversal' ([Inline], [[Block]]) Block
+    defBlocks g (df, content) = (df,) <$> each (each $ bkBlocks g) content
+bkBlocks f (Figure attr caption content) =
+  Figure attr <$> each (bkBlocks f) caption <*> each (bkBlocks f) content
+bkBlocks f x = f x

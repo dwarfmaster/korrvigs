@@ -123,7 +123,7 @@ setSub :: SubLoc -> Document -> Header -> Document
 setSub loc doc hd = doc & sub loc .~ hd
 
 code :: (Applicative f) => CodeLoc -> (Text -> f Text) -> Document -> f Document
-code (CodeLoc sb off) = subContents sb . elementOf (each . _CodeBlock . _2) off
+code (CodeLoc sb off) = subContents sb . elementOf (each . bkBlocks . _CodeBlock . _2) off
 
 getCode :: CodeLoc -> Document -> Maybe Text
 getCode loc doc = doc ^? code loc

@@ -2,6 +2,8 @@ module Korrvigs.Metadata.Media.OpenLibrary
   ( OpenLibraryQuery (..),
     queryOpenLibrary,
     parseQuery,
+    parsePublishYear,
+    parsePublishMonth,
   )
 where
 

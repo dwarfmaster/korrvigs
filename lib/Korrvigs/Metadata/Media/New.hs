@@ -23,6 +23,7 @@ import qualified Korrvigs.Link.New as Link
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Collections
 import Korrvigs.Metadata.Media
+import qualified Korrvigs.Metadata.Media.MangaUpdates as MU
 import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.OpenLibrary as OL
 import qualified Korrvigs.Metadata.Media.Pandoc as Pd
@@ -97,6 +98,7 @@ dispatchMedia nm = do
     dispatchers =
       ($ (nm ^. nmInput))
         <$> [ mkDispatcher "OpenLibrary" (pure . OL.parseQuery) OL.queryOpenLibrary,
+              mkDispatcher "MangaUpdates" (pure . MU.isMangaUpdates) MU.queryMangaUpdates,
               mkDispatcher "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 
@@ -140,6 +142,7 @@ prepareNewMedia nm = do
     medTxt Software = "Logiciel"
     medTxt Webcollection = "Collection"
     medTxt Blogpost = "Poste de blog"
+    medTxt Manga = "Manga"
     medTxt Misc = "Misc"
 
 new :: (MonadKorrvigs m) => NewMedia -> m Id

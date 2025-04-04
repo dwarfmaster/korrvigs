@@ -27,6 +27,7 @@ data MediaType
   | Software
   | Webcollection
   | Blogpost
+  | Manga
   | Misc
   deriving (Show, Eq, Ord, Enum, Bounded)
 
@@ -86,6 +87,7 @@ displayMediaType Unpublished = "unpublished"
 displayMediaType Software = "software"
 displayMediaType Webcollection = "webcollection"
 displayMediaType Blogpost = "blogpost"
+displayMediaType Manga = "manga"
 displayMediaType Misc = "misc"
 
 mediaTypeMap :: Map Text MediaType

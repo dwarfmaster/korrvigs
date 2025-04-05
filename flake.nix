@@ -57,6 +57,7 @@
             hpkgs.iconv
             hpkgs.clock
             hpkgs.isbn
+            hpkgs.feed
           ]);
 
           pre-commit.hooks = {

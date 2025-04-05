@@ -23,6 +23,7 @@ import qualified Korrvigs.Link.New as Link
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Collections
 import Korrvigs.Metadata.Media
+import qualified Korrvigs.Metadata.Media.Arxiv as AR
 import qualified Korrvigs.Metadata.Media.MangaUpdates as MU
 import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.OpenLibrary as OL
@@ -99,6 +100,7 @@ dispatchMedia nm = do
       ($ (nm ^. nmInput))
         <$> [ mkDispatcher "OpenLibrary" (pure . OL.parseQuery) OL.queryOpenLibrary,
               mkDispatcher "MangaUpdates" (pure . MU.isMangaUpdates) MU.queryMangaUpdates,
+              mkDispatcher "Arxiv" (pure . AR.parseQuery) AR.queryArxiv,
               mkDispatcher "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 

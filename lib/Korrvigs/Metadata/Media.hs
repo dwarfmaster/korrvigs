@@ -82,6 +82,7 @@ mediaMetadata med =
         medLstRow Authors medAuthors,
         medRow MedMonth medMonth,
         medRow MedYear medYear,
+        medRow Url medUrl,
         medRow Feed medRSS,
         medLstRow Source medSource,
         medLstRow Publisher medPublisher,

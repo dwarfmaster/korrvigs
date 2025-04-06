@@ -46,6 +46,7 @@ splitLast c' = either id (view _2) . foldr go (Left [])
       | otherwise = Left (c : s)
 
 findMime :: FilePath -> IO MimeType
+findMime path | takeExtension path == ".gpx" = pure "application/gpx+xml"
 findMime path = do
   (_, Just out, _, _) <- createProcess file {std_out = CreatePipe}
   r <- hGetContents' out

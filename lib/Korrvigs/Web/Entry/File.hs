@@ -6,7 +6,10 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Enc
 import Korrvigs.Entry
+import qualified Korrvigs.File.Mtdt.GPX as GPX
+import Korrvigs.Geometry
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Leaflet
 import Korrvigs.Web.Routes (WebId (WId))
 import Yesod
 
@@ -30,36 +33,44 @@ sourceFor file =
    in let mime = Enc.decodeUtf8 $ file ^. fileMime
        in [whamlet|<source type=#{mime} src=@{EntryDownloadR $ WId i}>|]
 
-audioWidget :: File -> Widget
+audioWidget :: File -> Handler Widget
 audioWidget file =
-  [whamlet|<audio controls>^{sourceFor file}|]
+  pure [whamlet|<audio controls>^{sourceFor file}|]
 
-videoWidget :: File -> Widget
+videoWidget :: File -> Handler Widget
 videoWidget file =
-  [whamlet|<video controls width=100%>^{sourceFor file}|]
+  pure [whamlet|<video controls width=100%>^{sourceFor file}|]
 
-imgWidget :: File -> Widget
+imgWidget :: File -> Handler Widget
 imgWidget file =
   let i = file ^. fileEntry . name
    in let url = EntryDownloadR $ WId i
-       in [whamlet|
+       in pure
+            [whamlet|
     <a href=@{url}>
       <img src=@{url} width=100%>
   |]
 
-textWidget :: File -> Widget
+textWidget :: File -> Handler Widget
 textWidget file =
   let i = file ^. fileEntry . name
    in let mime = Enc.decodeUtf8 $ file ^. fileMime
-       in [whamlet|
+       in pure
+            [whamlet|
     <code>
       <object data=@{EntryDownloadR $ WId i} type=#{mime}>
   |]
 
-pdfWidget :: File -> Widget
+pdfWidget :: File -> Handler Widget
 pdfWidget file =
   let i = file ^. fileEntry . name
-   in [whamlet|<embed src=@{EntryDownloadR $ WId i} width=100% height=700 type="application/pdf">|]
+   in pure [whamlet|<embed src=@{EntryDownloadR $ WId i} width=100% height=700 type="application/pdf">|]
+
+gpxWidget :: File -> Handler Widget
+gpxWidget file = do
+  pts <- liftIO $ GPX.extractPoints $ file ^. filePath
+  i <- newIdent
+  pure $ leafletWidget i [MapItem (GeoPath pts) Nothing Nothing]
 
 embed :: Int -> File -> Handler Widget
 embed _ file
@@ -74,16 +85,17 @@ embed _ file
         <div ##{cid}>
           <code>#{file ^. filePath}
       |]
-embed _ file = pure $ do
+embed _ file = do
   let mime = file ^. fileMime
-  fromMaybe mempty $
+  fromMaybe (pure mempty) $
     lookup
       True
       [ (BS.isPrefixOf "audio/" mime, audioWidget file),
         (BS.isPrefixOf "video/" mime, videoWidget file),
         (BS.isPrefixOf "image/" mime, imgWidget file),
         (BS.isPrefixOf "text/" mime, textWidget file),
-        (mime == "application/pdf", pdfWidget file)
+        (mime == "application/pdf", pdfWidget file),
+        (mime == "application/gpx+xml", gpxWidget file)
       ]
 
 content :: File -> Handler Widget

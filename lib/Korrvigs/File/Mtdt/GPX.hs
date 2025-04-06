@@ -24,12 +24,16 @@ extractPt (XML.NodeElement elm) = maybeToList $ do
   pure $ V2 lonParsed latParsed
 extractPt _ = []
 
+extractPoints :: FilePath -> IO [Point]
+extractPoints path = do
+  xml <- XML.readFile def path
+  let cursors = fromDocument xml $// laxElement "trkpt"
+  pure $ cursors >>= extractPt . node
+
 extract :: FilePath -> MimeType -> IO (FileMetadata -> FileMetadata)
 extract path _
   | takeExtension path == ".gpx" = do
-      xml <- XML.readFile def path
-      let cursors = fromDocument xml $// laxElement "trkpt"
-      let pts = cursors >>= extractPt . node
+      pts <- extractPoints path
       pure $
         if null pts
           then id

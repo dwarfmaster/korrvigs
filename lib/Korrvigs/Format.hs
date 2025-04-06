@@ -5,7 +5,9 @@ import Control.Lens hiding (noneOf)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
+import Data.Aeson (FromJSON)
 import Data.Functor
+import Data.ISBN
 import Data.List (intersperse)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -19,6 +21,10 @@ import Data.Time.LocalTime
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Collections
+import Korrvigs.Metadata.Media
+import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Utils.Lens
 import Text.Builder (Builder)
@@ -27,12 +33,33 @@ import Text.Parsec hiding (parse)
 
 newtype FormatSpec m a = FmtSpec {unFmtSpec :: Map Text (a -> m [Builder])}
 
+class Buildable m a where
+  build :: a -> m [Builder]
+
+instance (Applicative m) => Buildable m Text where
+  build = pure . (: []) . Bld.text
+
+instance (Applicative m) => Buildable m Int where
+  build = pure . (: []) . Bld.decimal
+
+instance (Applicative m) => Buildable m Builder where
+  build = pure . (: [])
+
+instance (Applicative m) => Buildable m ZonedTime where
+  build = pure . (: []) . Bld.string . iso8601Show
+
+instance (Applicative m) => Buildable m ISBN where
+  build = pure . (: []) . Bld.text . renderISBN
+
+instance (Monad m, Buildable m a) => Buildable m [a] where
+  build l = mconcat <$> mapM build l
+
 liftSpec :: (Monad m) => ((b -> Const [b] b) -> a -> Const [b] a) -> FormatSpec m b -> FormatSpec m a
 liftSpec get =
   FmtSpec . fmap (\f -> fmap mconcat . mapM f . toMonoid (: []) get) . unFmtSpec
 
-fromLens :: ((Builder -> Const [Builder] Builder) -> a -> Const [Builder] a) -> (a -> [Builder])
-fromLens = toMonoid (: [])
+fromLens :: (Monad m, Buildable m b) => ((b -> Const [b] b) -> a -> Const [b] a) -> (a -> m [Builder])
+fromLens get = build . toMonoid (: []) get
 
 instance (Applicative m) => Semigroup (FormatSpec m a) where
   (FmtSpec mp1) <> (FmtSpec mp2) =
@@ -41,14 +68,11 @@ instance (Applicative m) => Semigroup (FormatSpec m a) where
 instance (Applicative m) => Monoid (FormatSpec m a) where
   mempty = FmtSpec M.empty
 
-fromListPure :: (Applicative m) => [(Text, a -> [Builder])] -> FormatSpec m a
-fromListPure = FmtSpec . fmap (pure .) . M.fromList
+fromList :: [(Text, a -> m [Builder])] -> FormatSpec m a
+fromList = FmtSpec . M.fromList
 
 singleton :: Text -> (a -> m [Builder]) -> FormatSpec m a
 singleton key = FmtSpec . M.singleton key
-
-singletonPure :: (Applicative m) => Text -> (a -> [Builder]) -> FormatSpec m a
-singletonPure key = FmtSpec . M.singleton key . (pure .)
 
 -- Assumes v is positive
 padded :: (Integral n) => Int -> n -> Builder
@@ -89,27 +113,27 @@ dayName Friday = (5, "Friday", "Fri")
 dayName Saturday = (6, "Saturday", "Sat")
 dayName Sunday = (7, "Sunday", "Sun")
 
-daySpec :: (Applicative m) => FormatSpec m Day
+daySpec :: (Monad m) => FormatSpec m Day
 daySpec =
-  fromListPure
+  fromList
     [ ("year", fromLens $ to toGregorian . _1 . to (padded 4)),
       ("month", fromLens $ to toGregorian . _2 . to (padded 2)),
       ("monthLong", fromLens $ to toGregorian . _2 . to monthName . _1),
       ("monthShort", fromLens $ to toGregorian . _2 . to monthName . _2),
       ("day", fromLens $ to toGregorian . _3 . to (padded 2)),
-      ("dayWeek", fromLens $ to dayOfWeek . to dayName . _1 . to Bld.decimal),
+      ("dayWeek", fromLens $ to dayOfWeek . to dayName . _1),
       ("dayWeekLong", fromLens $ to dayOfWeek . to dayName . _2),
       ("dayWeekShort", fromLens $ to dayOfWeek . to dayName . _3),
-      ("dayIso", fromLens $ to iso8601Show . to Bld.string)
+      ("dayIso", fromLens $ to iso8601Show . to T.pack)
     ]
 
-timeSpec :: (Applicative m) => FormatSpec m TimeOfDay
+timeSpec :: (Monad m) => FormatSpec m TimeOfDay
 timeSpec =
-  fromListPure
+  fromList
     [ ("hour", fromLens $ to todHour . to (padded 2)),
       ("minute", fromLens $ to todMin . to (padded 2)),
       ("second", fromLens $ to todSec . to toRational . to flr . to (padded 2)),
-      ("timeIso", fromLens $ to iso8601Show . to Bld.string)
+      ("timeIso", fromLens $ to iso8601Show . to T.pack)
     ]
   where
     flr :: Rational -> Int
@@ -117,47 +141,47 @@ timeSpec =
 
 dateSpec :: (Monad m) => FormatSpec m ZonedTime
 dateSpec =
-  fromListPure
+  fromList
     [ ("timezone", fromLens $ to zonedTimeZone . to timeZoneMinutes . to displayTZ),
-      ("dateIso", fromLens $ to iso8601Show . to Bld.string)
+      ("dateIso", fromLens $ to iso8601Show . to T.pack)
     ]
     <> liftSpec (to zonedTimeToLocalTime . to localDay) daySpec
     <> liftSpec (to zonedTimeToLocalTime . to localTimeOfDay) timeSpec
 
 linkSpec :: (MonadKorrvigs m) => FormatSpec m Link
 linkSpec =
-  fromListPure
-    [ ("protocol", fromLens $ linkProtocol . to Bld.text),
-      ("ref", fromLens $ linkRef . to Bld.text),
-      ("path", fromLens $ linkPath . to Bld.string)
+  fromList
+    [ ("protocol", fromLens linkProtocol),
+      ("ref", fromLens linkRef),
+      ("path", fromLens $ linkPath . to T.pack)
     ]
 
 noteSpec :: (MonadKorrvigs m) => FormatSpec m Note
-noteSpec = singletonPure "path" $ fromLens $ notePath . to Bld.string
+noteSpec = singleton "path" $ fromLens $ notePath . to T.pack
 
 fileSpec :: (MonadKorrvigs m) => FormatSpec m File
 fileSpec =
-  fromListPure
-    [ ("path", fromLens $ filePath . to Bld.string),
-      ("status", fromLens $ fileStatus . to displayFileStatus . to Bld.text),
-      ("mime", fromLens $ fileMime . to Enc.decodeUtf8 . to Bld.text)
+  fromList
+    [ ("path", fromLens $ filePath . to T.pack),
+      ("status", fromLens $ fileStatus . to displayFileStatus),
+      ("mime", fromLens $ fileMime . to Enc.decodeUtf8)
     ]
 
 eventSpec :: (MonadKorrvigs m) => FormatSpec m Event
 eventSpec =
-  fromListPure
-    [ ("path", fromLens $ eventFile . to Bld.string),
-      ("uid", fromLens $ eventUid . to Bld.text),
-      ("calendar", fromLens $ eventCalendar . to unId . to Bld.text)
+  fromList
+    [ ("path", fromLens $ eventFile . to T.pack),
+      ("uid", fromLens eventUid),
+      ("calendar", fromLens $ eventCalendar . to unId)
     ]
 
 calSpec :: (MonadKorrvigs m) => FormatSpec m Calendar
 calSpec =
   singleton "path" (fmap ((: []) . Bld.string) . Cal.calendarPath)
-    <> fromListPure
-      [ ("calname", fromLens $ calName . to Bld.text),
-        ("server", fromLens $ calServer . to Bld.text),
-        ("user", fromLens $ calUser . to Bld.text)
+    <> fromList
+      [ ("calname", fromLens calName),
+        ("server", fromLens calServer),
+        ("user", fromLens calUser)
       ]
 
 kindDataSpec :: (MonadKorrvigs m) => Kind -> FormatSpec m Entry
@@ -167,15 +191,50 @@ kindDataSpec File = liftSpec _File fileSpec
 kindDataSpec Event = liftSpec _Event eventSpec
 kindDataSpec Calendar = liftSpec _Calendar calSpec
 
--- TODO add specific metadata one the mecanism is here
+renderMtdt :: (MonadKorrvigs m, ExtraMetadata mtdt, Buildable m (MtdtType mtdt), FromJSON (MtdtType mtdt)) => mtdt -> Entry -> m [Builder]
+renderMtdt mtdt entry =
+  rSelectMtdt mtdt (sqlId $ entry ^. name) >>= \case
+    Nothing -> pure []
+    Just v -> build v
+
+mtdtSpec :: (MonadKorrvigs m, ExtraMetadata mtdt, Buildable m (MtdtType mtdt), FromJSON (MtdtType mtdt)) => mtdt -> FormatSpec m Entry
+mtdtSpec mtdt = FmtSpec $ M.singleton (mtdtSqlName mtdt) (renderMtdt mtdt)
+
 entrySpec :: (MonadKorrvigs m) => FormatSpec m Entry
 entrySpec =
-  fromListPure
-    [ ("name", fromLens $ name . to unId . to Bld.text),
-      ("kind", fromLens $ kind . to displayKind . to Bld.text)
+  fromList
+    [ ("name", fromLens $ name . to unId),
+      ("kind", fromLens $ kind . to displayKind)
     ]
     <> liftSpec (date . _Just) dateSpec
     <> foldMap kindDataSpec [minBound .. maxBound]
+    <> mtdtSpec Title
+    <> mtdtSpec Language
+    <> mtdtSpec Authors
+    <> mtdtSpec Pages
+    <> mtdtSpec Height
+    <> mtdtSpec Width
+    <> mtdtSpec Gallery
+    <> mtdtSpec TaskMtdt
+    <> mtdtSpec TaskDeadline
+    <> mtdtSpec TaskScheduled
+    <> mtdtSpec TaskStarted
+    <> mtdtSpec TaskFinished
+    <> mtdtSpec Favourite
+    <> mtdtSpec MiscCollection
+    <> mtdtSpec GalleryCollection
+    <> mtdtSpec TaskSet
+    <> mtdtSpec Abstract
+    <> mtdtSpec BibtexKey
+    <> mtdtSpec DOI
+    <> mtdtSpec ISBNMtdt
+    <> mtdtSpec ISSN
+    <> mtdtSpec Url
+    <> mtdtSpec Feed
+    <> mtdtSpec Publisher
+    <> mtdtSpec InCollection
+    <> mtdtSpec Institution
+    <> mtdtSpec License
 
 type FmtM m a = ReaderT a (MaybeT m)
 

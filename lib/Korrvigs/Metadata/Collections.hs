@@ -6,10 +6,7 @@ module Korrvigs.Metadata.Collections
     selectCol,
     colCatTree,
     nullTree,
-    Favourite (..),
     MiscCollection (..),
-    GalleryCollection (..),
-    TaskSet (..),
   )
 where
 
@@ -108,6 +105,8 @@ colCatTree mtdt prefix = do
   catsJS <- rSelect $ do
     col <- selectTable entriesMetadataTable
     where_ $ col ^. sqlKey .== sqlStrictText (mtdtSqlName mtdt)
+    val <- sqlJsonElements $ toNullable $ col ^. sqlValue
+    where_ $ matchPrefix prefix val
     sqlJsonElements $ toNullable $ col ^. sqlValue
   let cats = prepJSON <$> catsJS
   pure $ foldr (insertActOnTree id) emptyTree cats
@@ -117,7 +116,4 @@ colCatTree mtdt prefix = do
       Success cats -> drop (length prefix) cats
       Error _ -> []
 
-mkMtdt "Favourite" "favourite" [t|[[Text]]|]
 mkMtdt "MiscCollection" "collection" [t|[[Text]]|]
-mkMtdt "GalleryCollection" "ingallery" [t|[[Text]]|]
-mkMtdt "TaskSet" "taskset" [t|[[Text]]|]

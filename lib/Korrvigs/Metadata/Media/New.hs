@@ -110,13 +110,13 @@ mergeInto md =
     . (neMtdt %~ ((first CI.foldedCase <$> M.toList (M.delete (mtdtName Title) $ mediaMetadata md)) ++))
 
 insertCollection :: [Text] -> [(Text, Value)] -> [(Text, Value)]
-insertCollection col mtdts = case find (\m -> CI.mk (fst m) == mtdtName TaskSet) mtdts of
-  Nothing -> (mtdtSqlName TaskSet, toJSON [col]) : mtdts
+insertCollection col mtdts = case find (\m -> CI.mk (fst m) == mtdtName MiscCollection) mtdts of
+  Nothing -> (mtdtSqlName MiscCollection, toJSON [col]) : mtdts
   Just (_, v) -> case fromJSON v of
-    Error _ -> (mtdtSqlName TaskSet, toJSON [col]) : mtdts'
-    Success cols -> (mtdtSqlName TaskSet, toJSON $ col : cols) : mtdts'
+    Error _ -> (mtdtSqlName MiscCollection, toJSON [col]) : mtdts'
+    Success cols -> (mtdtSqlName MiscCollection, toJSON $ col : cols) : mtdts'
   where
-    mtdts' = filter ((/= mtdtName TaskSet) . CI.mk . fst) mtdts
+    mtdts' = filter ((/= mtdtName MiscCollection) . CI.mk . fst) mtdts
 
 prepareNewMedia :: (MonadKorrvigs m) => NewMedia -> m NewMediaInternal
 prepareNewMedia nm = do

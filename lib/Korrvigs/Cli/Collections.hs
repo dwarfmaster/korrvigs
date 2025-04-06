@@ -12,14 +12,11 @@ import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
-import Korrvigs.Metadata
 import Korrvigs.Metadata.Collections
 import Options.Applicative
 import Prelude hiding (putStrLn)
 
-data AnyCol = forall mtdt. (ExtraMetadata mtdt, MtdtType mtdt ~ [[Text]]) => AnyCol mtdt
-
-data Cmd'
+data Cmd
   = List
       { _listPrefix :: [Text]
       }
@@ -28,60 +25,32 @@ data Cmd'
         _showPrefix :: [Text]
       }
 
-makeLenses ''Cmd'
-
-type Cmd = (AnyCol, Cmd')
-
-colCmd :: (ExtraMetadata mtdt, MtdtType mtdt ~ [[Text]]) => mtdt -> Text -> Mod CommandFields Cmd
-colCmd mtdt mName =
-  command
-    (T.unpack mName)
-    ( info
-        (subparser (listCmd mtdt mName <> showCmd mtdt mName) <**> helper)
-        ( fullDesc
-            <> progDesc ("Deal with collection " <> T.unpack mName)
-            <> header ("korr collections " <> T.unpack mName)
-        )
-    )
-
-listCmd :: (ExtraMetadata mtdt, MtdtType mtdt ~ [[Text]]) => mtdt -> Text -> Mod CommandFields Cmd
-listCmd mtdt mName =
-  command
-    "list"
-    ( info
-        ( (AnyCol mtdt,)
-            <$> ( List
-                    <$> many (argument str (metavar "HEADER" <> help "Header in the collection to select for"))
-                )
-        )
-        ( progDesc ("List " <> T.unpack mName)
-            <> header ("korr collections " <> T.unpack mName <> " list")
-        )
-    )
-
-showCmd :: (ExtraMetadata mtdt, MtdtType mtdt ~ [[Text]]) => mtdt -> Text -> Mod CommandFields Cmd
-showCmd mtdt mName =
-  command
-    "show"
-    ( info
-        ( (AnyCol mtdt,)
-            <$> ( Show
-                    <$> switch (long "tree" <> help "Show collections")
-                    <*> many (argument str (metavar "HEADER" <> help "Header in the collection to select for"))
-                )
-        )
-        ( progDesc ("Show " <> T.unpack mName)
-            <> header ("korr collections " <> T.unpack mName <> " show")
-        )
-    )
+makeLenses ''Cmd
 
 parser' :: Parser Cmd
 parser' =
   subparser $
-    colCmd Favourite "favourite"
-      <> colCmd MiscCollection "misc"
-      <> colCmd GalleryCollection "gallery"
-      <> colCmd TaskSet "taskset"
+    command
+      "list"
+      ( info
+          ( List
+              <$> many (argument str (metavar "HEADER" <> help "Header in the collection to select for"))
+          )
+          ( progDesc "List elements"
+              <> header "korr collections list"
+          )
+      )
+      <> command
+        "show"
+        ( info
+            ( Show
+                <$> switch (long "tree" <> help "Show collections")
+                <*> many (argument str (metavar "HEADER" <> help "Header in the collection to select for"))
+            )
+            ( progDesc "Show elements"
+                <> header "korr collections show"
+            )
+        )
 
 parser :: ParserInfo Cmd
 parser =
@@ -110,9 +79,9 @@ displayTree showEntries prefixL isFirst hd tree = do
     prefix = T.replicate prefixL "| "
 
 run :: Cmd -> KorrM ()
-run (AnyCol col, List prefix) = do
-  tree <- colCatTree col prefix
+run (List prefix) = do
+  tree <- colCatTree MiscCollection prefix
   liftIO $ displayTree False 0 False "" tree
-run (AnyCol col, Show rec prefix) = do
-  tree <- colTree col prefix rec
+run (Show rec prefix) = do
+  tree <- colTree MiscCollection prefix rec
   liftIO $ displayTree True 0 False "" tree

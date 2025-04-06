@@ -44,21 +44,15 @@ hdIsEntry (PublicEntryDownloadR _ _) = True
 hdIsEntry _ = False
 
 hdIsCol :: Route WebData -> Bool
-hdIsCol ColR = True
-hdIsCol (ColFavouriteR _) = True
-hdIsCol (ColMiscR _) = True
-hdIsCol (ColGalR _) = True
-hdIsCol (ColTaskR _) = True
-hdIsCol (PublicColMiscR _ _) = True
-hdIsCol (PublicColGalR _ _) = True
-hdIsCol (PublicColTaskR _ _) = True
+hdIsCol (ColR _) = True
+hdIsCol (PublicColR _ _) = True
 hdIsCol _ = False
 
 headerContent :: [(Text, Route WebData, Route WebData -> Bool)]
 headerContent =
   [ ("Home", HomeR, (== HomeR)),
     ("Entry", SearchR, hdIsEntry),
-    ("Collection", ColR, hdIsCol),
+    ("Collection", ColR [], hdIsCol),
     ("Git", GitR, (== GitR))
   ]
 
@@ -80,9 +74,7 @@ isPublicRoute :: Route WebData -> Bool
 isPublicRoute PublicR = True
 isPublicRoute (PublicEntryR _ _) = True
 isPublicRoute (PublicEntryDownloadR _ _) = True
-isPublicRoute (PublicColMiscR _ _) = True
-isPublicRoute (PublicColGalR _ _) = True
-isPublicRoute (PublicColTaskR _ _) = True
+isPublicRoute (PublicColR _ _) = True
 isPublicRoute _ = False
 
 isPublic :: Handler Bool

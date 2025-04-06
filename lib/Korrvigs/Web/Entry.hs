@@ -45,7 +45,6 @@ titleWidget :: Entry -> Text -> Handler Widget
 titleWidget entry contentId = do
   public <- isPublic
   title <- rSelectTextMtdt Title $ sqlId $ entry ^. name
-  favourite <- rSelectMtdt Favourite $ sqlId $ entry ^. name
   taskW <- Wdgs.taskWidget (entry ^. name) (SubLoc []) =<< loadTask (entry ^. name)
   medit <- if public then pure mempty else editWidget
   downloadUrl <- Public.mkPublic $ EntryDownloadR $ WId $ entry ^. name
@@ -59,8 +58,6 @@ titleWidget entry contentId = do
       <a href=@{downloadUrl}>
         ⬇
     <h1>
-      $maybe _ <- favourite
-        ★
       ^{taskW}
       $maybe t <- title
         #{t}
@@ -320,33 +317,18 @@ contentWidget entry = case entry ^. kindData of
 colsWidget :: Entry -> Handler Widget
 colsWidget entry = do
   let i = entry ^. name
-  mfavs <- fromMaybe [] <$> rSelectMtdt Favourite (sqlId i)
-  mmisc <- fromMaybe [] <$> rSelectMtdt MiscCollection (sqlId i)
-  mgals <- fromMaybe [] <$> rSelectMtdt GalleryCollection (sqlId i)
-  mtsks <- fromMaybe [] <$> rSelectMtdt TaskSet (sqlId i)
-  let cols =
-        [ ("Favourites", ColFavouriteR, mfavs),
-          ("Miscellaneous", ColMiscR, mmisc),
-          ("Gallery", ColGalR, mgals),
-          ("Task Set", ColTaskR, mtsks)
-        ] ::
-          [(Text, [Text] -> Route WebData, [[Text]])]
+  cols <- fromMaybe [] <$> rSelectMtdt MiscCollection (sqlId i)
   pure $
     unless
-      (null mfavs && null mmisc && null mgals && null mtsks)
+      (null cols)
       [whamlet|
   <details .common-details>
     <summary>Collections
-    <ul>
-      $forall (title,lnk,subcols) <- cols
-        $if (not $ null subcols)
+      <ul>
+        $forall col <- cols
           <li>
-            <a href=@{lnk []}>#{title}
-            <ul>
-              $forall col <- subcols
-                <li>
-                  <a href=@{lnk col}>
-                    #{T.intercalate " > " col}
+            <a href=@{ColR col}>
+              #{T.intercalate " > " col}
   |]
 
 newFormWidget :: [Text] -> Entry -> Handler Widget

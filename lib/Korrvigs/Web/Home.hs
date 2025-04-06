@@ -109,8 +109,8 @@ displayHome errMsgs = do
   nw <- newForms HomeR "Create" errMsgs
   let nwHd = [whamlet|<h2> ^{Widgets.headerSymbol "⊕"} Create entry|]
   render <- getUrlRender
-  let hd = Html.a "Favourites" ! Attr.href (textValue $ render $ ColFavouriteR [])
-  favs <- Cols.displayFavTree 1 1 hd [] =<< colTree Favourite [] True
+  let hd = Html.a "Favourites" ! Attr.href (textValue $ render $ ColR ["Favourite"])
+  favs <- Cols.displayTree 1 1 hd ["Favourite"] =<< colTree MiscCollection ["Favourite"] True
   defaultLayout $ do
     setTitle "Korrvigs's Home"
     setDescriptionIdemp "Korrvigs home page"

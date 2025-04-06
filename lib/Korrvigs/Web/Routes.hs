@@ -40,11 +40,7 @@ korrvigsRoutes =
 /note/#WebId/sub/#WebAnyLoc NoteSubR GET POST
 
 -- Collections
-/collections ColR GET
-/collections/favourite/*[Text] ColFavouriteR GET
-/collections/misc/*[Text] ColMiscR GET
-/collections/gallery/*[Text] ColGalR GET
-/collections/taskset/*[Text] ColTaskR GET
+/collections/*[Text] ColR GET
 
 -- Git visualisation and manipulation
 /git GitR GET POST
@@ -58,9 +54,7 @@ korrvigsRoutes =
 /public/#Text/entry/#WebId PublicEntryR GET
 /public/#Text/entry/#WebId/download PublicEntryDownloadR GET
 /public/#Text/entry/#WebId/cache/#Text PublicEntryComputeR GET
-/public/#Text/collections/misc/*[Text] PublicColMiscR GET
-/public/#Text/collections/gallery/*[Text] PublicColGalR GET
-/public/#Text/collections/taskset/*[Text] PublicColTaskR GET
+/public/#Text/collections/*[Text] PublicColR GET
 
 -- Specific visualisations
 -- TODO Date

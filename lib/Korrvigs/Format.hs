@@ -220,10 +220,7 @@ entrySpec =
     <> mtdtSpec TaskScheduled
     <> mtdtSpec TaskStarted
     <> mtdtSpec TaskFinished
-    <> mtdtSpec Favourite
     <> mtdtSpec MiscCollection
-    <> mtdtSpec GalleryCollection
-    <> mtdtSpec TaskSet
     <> mtdtSpec Abstract
     <> mtdtSpec BibtexKey
     <> mtdtSpec DOI

@@ -28,34 +28,63 @@ import qualified Text.Blaze.Html5 as Html
 import qualified Text.Blaze.Html5.Attributes as Attr
 import Yesod
 
-getColR :: Handler Html
-getColR = do
-  render <- getUrlRender
-  let hdFav = Html.a "Favourites" ! Attr.href (textValue $ render $ ColFavouriteR [])
-  favs <- displayFavTree 1 0 hdFav [] =<< colCatTree Favourite []
-  let hdMisc = Html.a "Miscellaneous" ! Attr.href (textValue $ render $ ColMiscR [])
-  miscs <- displayMiscTree ColMiscR (const $ Widgets.headerSymbol "•") 1 0 hdMisc [] =<< colCatTree MiscCollection []
-  let hdGal = Html.a "Gallery" ! Attr.href (textValue $ render $ ColGalR [])
-  gals <- displayMiscTree ColGalR (const $ Widgets.headerSymbol "📷") 1 0 hdGal [] =<< colCatTree GalleryCollection []
-  let hdTask = Html.a "Task sets" ! Attr.href (textValue $ render $ ColTaskR [])
-  tsks <- displayMiscTree ColTaskR (const $ Widgets.headerSymbol "✔") 1 0 hdTask [] =<< colCatTree TaskSet []
+selectDisplay :: [Text] -> Maybe Text -> Handler Widget
+selectDisplay prefix disp = do
+  i <- newIdent
+  pure $ do
+    toWidget
+      [julius|
+      document.getElementById(#{i}).addEventListener("change", (event) => {
+        const url = `@{ColR prefix}?display=${event.target.value}`
+        window.location.replace(url)
+      })
+    |]
+    [whamlet|
+      <form>
+        <select ##{i}>
+          <option value="misc" *{mkSel "misc"}>Collection
+          <option value="gallery" *{mkSel "gallery"}>Gallery
+          <option value="todo" *{mkSel "todo"}>Todo
+    |]
+  where
+    sel = case disp of
+      Just "gallery" -> "gallery"
+      Just "todo" -> "todo"
+      _ -> "misc"
+    mkSel :: Text -> [(Text, Text)]
+    mkSel v = [("selected", "") | sel == v]
+
+getColR :: [Text] -> Handler Html
+getColR prefix = do
+  public <- Public.signRoute $ ColR prefix
+  pub <- isPublic
+  toDisp <- lookupGetParam "display"
+  disp <- case toDisp of
+    Just "gallery" -> displayGal prefix
+    Just "todo" -> displayTask prefix
+    _ -> displayMisc prefix
+  sel <- selectDisplay prefix toDisp
   defaultLayout $ do
-    setTitle "Collections"
+    setTitle $ toMarkup title
     Rcs.entryStyle
     Widgets.sectionLogic
-    [whamlet|
-      <h1>Collections
-      ^{favs}
-      ^{miscs}
-      ^{gals}
-      ^{tsks}
-    |]
+    unless pub $ do
+      Rcs.formsStyle
+      sel
+      [whamlet|
+        <p>
+          <a href=@{PublicColR public prefix}>
+            Share
+      |]
+    disp
+  where
+    rprefix = reverse prefix
+    title = case rprefix of
+      [] -> "Collections"
+      (lp : _) -> lp
 
-displayFavTree :: Int -> Int -> Html -> [Text] -> ColTree -> Handler Widget
-displayFavTree = displayMiscTree ColFavouriteR $ const $ Widget.headerSymbol "★"
-
-displayMiscTree :: ([Text] -> Route WebData) -> (Int -> Widget) -> Int -> Int -> Html -> [Text] -> ColTree -> Handler Widget
-displayMiscTree = displayTreeImpl mkLeafs
+displayTree :: Int -> Int -> Html -> [Text] -> ColTree -> Handler Widget
+displayTree = displayTreeImpl mkLeafs
   where
     mkLeafs :: Int -> [(Id, Maybe Text)] -> Handler Widget
     mkLeafs _ ents = do
@@ -72,26 +101,32 @@ displayMiscTree = displayTreeImpl mkLeafs
                   @#{unId i}
       |]
 
+symbols :: [Text] -> Widget
+symbols rprefix = case prefix of
+  "Favourite" : _ -> Widget.headerSymbol "★"
+  "Reading list" : _ -> Widget.headerSymbol "✓"
+  _ -> Widget.headerSymbol "•"
+  where
+    prefix = reverse rprefix
+
 displayTreeImpl ::
   (Int -> [(Id, Maybe Text)] -> Handler Widget) ->
-  ([Text] -> Route WebData) ->
-  (Int -> Widget) ->
   Int ->
   Int ->
   Html ->
   [Text] ->
   ColTree ->
   Handler Widget
-displayTreeImpl mkLeafs mkUrl symbols lvl threshold cat rprefix favs = do
+displayTreeImpl mkLeafs lvl threshold cat rprefix favs = do
   let entries = favs ^. colEntries
   subs <-
     isPublic >>= \case
       True -> pure []
       False -> forM (M.toList $ favs ^. colSubs) $ \(subHd, sb) -> do
         render <- getUrlRender
-        let url = mkUrl $ reverse $ subHd : rprefix
+        let url = ColR $ reverse $ subHd : rprefix
         let subH = Html.a (toMarkup subHd) ! Attr.href (textValue $ render url)
-        displayTreeImpl mkLeafs mkUrl symbols (lvl + 1) threshold subH (subHd : rprefix) sb
+        displayTreeImpl mkLeafs (lvl + 1) threshold subH (subHd : rprefix) sb
   leafs <- mkLeafs lvl entries
   let content =
         [whamlet|
@@ -102,28 +137,12 @@ displayTreeImpl mkLeafs mkUrl symbols lvl threshold cat rprefix favs = do
   pure $ void $ Widgets.mkSection lvl [("class", "collapsed") | lvl > threshold] [] (header lvl) content
   where
     header :: Int -> Widget
-    header 0 = [whamlet|<h1> ^{symbols 0} ^{cat}|]
-    header 1 = [whamlet|<h2> ^{symbols 1} ^{cat}|]
-    header 2 = [whamlet|<h3> ^{symbols 2} ^{cat}|]
-    header 3 = [whamlet|<h4> ^{symbols 3} ^{cat}|]
-    header 4 = [whamlet|<h5> ^{symbols 4} ^{cat}|]
-    header n = [whamlet|<h6> ^{symbols n} ^{cat}|]
-
-getColFavouriteR :: [Text] -> Handler Html
-getColFavouriteR prefix = do
-  render <- getUrlRender
-  titleH <- mkTitle (render . ColFavouriteR) "Favourites" rprefix
-  favs <- displayFavTree 0 0 titleH rprefix =<< colTree Favourite prefix True
-  defaultLayout $ do
-    setTitle $ toMarkup title
-    Rcs.entryStyle
-    Widgets.sectionLogic
-    favs
-  where
-    rprefix = reverse prefix
-    title = case rprefix of
-      [] -> "Favourites"
-      (hd : _) -> hd
+    header 0 = [whamlet|<h1> ^{symbols rprefix} ^{cat}|]
+    header 1 = [whamlet|<h2> ^{symbols rprefix} ^{cat}|]
+    header 2 = [whamlet|<h3> ^{symbols rprefix} ^{cat}|]
+    header 3 = [whamlet|<h4> ^{symbols rprefix} ^{cat}|]
+    header 4 = [whamlet|<h5> ^{symbols rprefix} ^{cat}|]
+    header _ = [whamlet|<h6> ^{symbols rprefix} ^{cat}|]
 
 mkTitle :: ([Text] -> Text) -> Text -> [Text] -> Handler Html
 mkTitle renderUrl base rprefix = do
@@ -139,58 +158,29 @@ mkTitle renderUrl base rprefix = do
        in let lnk = Html.a (toMarkup hd) ! Attr.href (textValue $ renderUrl $ reverse $ hd : rpr)
            in rec <> (if public then toMarkup hd else lnk) <> " > "
 
-getColMiscR :: [Text] -> Handler Html
-getColMiscR prefix = do
+displayMisc :: [Text] -> Handler Widget
+displayMisc prefix = do
   render <- getUrlRender
-  titleH <- mkTitle (render . ColMiscR) "Miscellaneous" rprefix
-  miscs <- displayMiscTree ColMiscR (const $ Widget.headerSymbol "•") 0 0 titleH rprefix =<< colTree MiscCollection prefix True
-  public <- Public.signRoute $ ColMiscR prefix
-  pub <- isPublic
-  defaultLayout $ do
-    setTitle $ toMarkup title
-    Rcs.entryStyle
-    Widgets.sectionLogic
-    unless
-      pub
-      [whamlet|
-      <p>
-        <a href=@{PublicColMiscR public prefix}>
-          Share
-    |]
-    miscs
+  titleH <- mkTitle (render . ColR) "Collections" rprefix
+  displayTree 0 0 titleH rprefix =<< colTree MiscCollection prefix True
   where
     rprefix = reverse prefix
-    title = case rprefix of
-      [] -> "Miscellaneous"
-      (lp : _) -> lp
 
-getColGalR :: [Text] -> Handler Html
-getColGalR prefix = do
-  render <- getUrlRender
-  titleH <- mkTitle (render . ColGalR) "Gallery" rprefix
-  subTree <- colCatTree GalleryCollection prefix
-  subs <- displayMiscTree ColGalR (const $ Widget.headerSymbol "📷") 1 0 "Sub galleries" rprefix subTree
+displayGal :: [Text] -> Handler Widget
+displayGal prefix = do
+  render <- getUrlRenderParams
+  titleH <- mkTitle (flip render [("display", "gallery")] . ColR) "Collections" rprefix
+  subTree <- colCatTree MiscCollection prefix
+  subs <- displayTree 1 0 "Sub galleries" rprefix subTree
   pictures <- rSelect $ orderBy (ascNullsFirst snd <> asc fst) $ do
-    (i, _) <- selectCol GalleryCollection prefix False
+    (i, _) <- selectCol MiscCollection prefix False
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryName .== i
     pure (i, entry ^. sqlEntryDate)
   entries <- mapM mkEntry pictures
   photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
-  public <- Public.signRoute $ ColGalR prefix
-  pub <- isPublic
-  defaultLayout $ do
-    setTitle $ toMarkup title
-    Rcs.entryStyle
-    Widgets.sectionLogic
+  pure $ do
     PhotoSwipe.photoswipeHeader
-    unless
-      pub
-      [whamlet|
-      <p>
-        <a href=@{PublicColGalR public prefix}>
-          Share
-    |]
     [whamlet|
       <h1>📷 ^{titleH}
       $if not (nullTree subTree)
@@ -200,9 +190,6 @@ getColGalR prefix = do
     |]
   where
     rprefix = reverse prefix
-    title = case rprefix of
-      [] -> "Gallery"
-      (lp : _) -> lp
     mkEntry :: (Id, Maybe ZonedTime) -> Handler (Maybe PhotoswipeEntry)
     mkEntry (i, dt) =
       PhotoSwipe.miniatureEntry (localDay . zonedTimeToLocalTime <$> dt) i >>= \case
@@ -214,32 +201,17 @@ getColGalR prefix = do
           let redir = if public then url else entry ^. swpRedirect
           pure . Just $ entry & swpUrl .~ url & swpMiniature .~ mini & swpRedirect .~ redir
 
-getColTaskR :: [Text] -> Handler Html
-getColTaskR prefix = do
-  tree <- colTree TaskSet prefix True
+displayTask :: [Text] -> Handler Widget
+displayTask prefix = do
+  tree <- colTree MiscCollection prefix True
   render <- getUrlRender
-  titleH <- mkTitle (render . ColTaskR) "Task sets" rprefix
-  widget <- displayTreeImpl mkLeafs ColTaskR (const $ Widgets.headerSymbol "✔") 0 0 titleH prefix tree
-  public <- Public.signRoute $ ColTaskR prefix
-  pub <- isPublic
-  defaultLayout $ do
-    setTitle $ toMarkup title
-    Rcs.entryStyle
-    Widgets.sectionLogic
+  titleH <- mkTitle (render . ColR) "Collection" rprefix
+  widget <- displayTreeImpl mkLeafs 0 0 titleH prefix tree
+  pure $ do
     Rcs.checkboxCode
-    unless
-      pub
-      [whamlet|
-      <p>
-        <a href=@{PublicColTaskR public prefix}>
-          Share
-    |]
     widget
   where
     rprefix = reverse prefix
-    title = case rprefix of
-      [] -> "Task sets"
-      (lp : _) -> lp
     mkLeafs :: Int -> [(Id, Maybe Text)] -> Handler Widget
     mkLeafs tlvl entries = do
       let lvl = tlvl + 1

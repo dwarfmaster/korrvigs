@@ -21,13 +21,26 @@ import Text.Builder (Builder)
 import qualified Text.Builder as Bld
 import Text.Parsec hiding (parse)
 
-type FormatSpec a = Map Text (a -> [Builder])
+newtype FormatSpec a = FmtSpec {unFmtSpec :: Map Text (a -> [Builder])}
 
 liftSpec :: ((b -> Const [b] b) -> a -> Const [b] a) -> FormatSpec b -> FormatSpec a
-liftSpec get = fmap (\f -> toMonoid (: []) get >=> f)
+liftSpec get = FmtSpec . fmap (\f -> toMonoid (: []) get >=> f) . unFmtSpec
 
 fromLens :: ((Builder -> Const [Builder] Builder) -> a -> Const [Builder] a) -> (a -> [Builder])
 fromLens = toMonoid (: [])
+
+instance Semigroup (FormatSpec a) where
+  (FmtSpec mp1) <> (FmtSpec mp2) =
+    FmtSpec $ M.unionWith (\f1 f2 x -> f1 x ++ f2 x) mp1 mp2
+
+instance Monoid (FormatSpec a) where
+  mempty = FmtSpec M.empty
+
+fromList :: [(Text, a -> [Builder])] -> FormatSpec a
+fromList = FmtSpec . M.fromList
+
+singleton :: Text -> (a -> [Builder]) -> FormatSpec a
+singleton key = FmtSpec . M.singleton key
 
 -- Assumes v is positive
 padded :: (Integral n) => Int -> n -> Builder
@@ -68,12 +81,9 @@ dayName Friday = (5, "Friday", "Fri")
 dayName Saturday = (6, "Saturday", "Sat")
 dayName Sunday = (7, "Sunday", "Sun")
 
-(<~>) :: FormatSpec a -> FormatSpec a -> FormatSpec a
-(<~>) = M.unionWith (\f1 f2 x -> f1 x ++ f2 x)
-
 daySpec :: FormatSpec Day
 daySpec =
-  M.fromList
+  fromList
     [ ("year", fromLens $ to toGregorian . _1 . to (padded 4)),
       ("month", fromLens $ to toGregorian . _2 . to (padded 2)),
       ("monthLong", fromLens $ to toGregorian . _2 . to monthName . _1),
@@ -87,7 +97,7 @@ daySpec =
 
 timeSpec :: FormatSpec TimeOfDay
 timeSpec =
-  M.fromList
+  fromList
     [ ("hour", fromLens $ to todHour . to (padded 2)),
       ("minute", fromLens $ to todMin . to (padded 2)),
       ("second", fromLens $ to todSec . to toRational . to flr . to (padded 2)),
@@ -99,27 +109,27 @@ timeSpec =
 
 dateSpec :: FormatSpec ZonedTime
 dateSpec =
-  M.fromList
+  fromList
     [ ("timezone", fromLens $ to zonedTimeZone . to timeZoneMinutes . to displayTZ),
       ("dateIso", fromLens $ to iso8601Show . to Bld.string)
     ]
-    <~> liftSpec (to zonedTimeToLocalTime . to localDay) daySpec
-    <~> liftSpec (to zonedTimeToLocalTime . to localTimeOfDay) timeSpec
+    <> liftSpec (to zonedTimeToLocalTime . to localDay) daySpec
+    <> liftSpec (to zonedTimeToLocalTime . to localTimeOfDay) timeSpec
 
 linkSpec :: FormatSpec Link
 linkSpec =
-  M.fromList
+  fromList
     [ ("protocol", fromLens $ linkProtocol . to Bld.text),
       ("ref", fromLens $ linkRef . to Bld.text),
       ("path", fromLens $ linkPath . to Bld.string)
     ]
 
 noteSpec :: FormatSpec Note
-noteSpec = M.singleton "path" $ fromLens $ notePath . to Bld.string
+noteSpec = singleton "path" $ fromLens $ notePath . to Bld.string
 
 fileSpec :: FormatSpec File
 fileSpec =
-  M.fromList
+  fromList
     [ ("path", fromLens $ filePath . to Bld.string),
       ("status", fromLens $ fileStatus . to displayFileStatus . to Bld.text),
       ("mime", fromLens $ fileMime . to Enc.decodeUtf8 . to Bld.text)
@@ -128,14 +138,14 @@ fileSpec =
 -- TODO add specific metadata one the mecanism is here
 entrySpec :: FormatSpec Entry
 entrySpec =
-  M.fromList
+  fromList
     [ ("name", fromLens $ name . to unId . to Bld.text),
       ("kind", fromLens $ kind . to displayKind . to Bld.text)
     ]
-    <~> liftSpec (date . _Just) dateSpec
-    <~> liftSpec _Link linkSpec
-    <~> liftSpec _Note noteSpec
-    <~> liftSpec _File fileSpec
+    <> liftSpec (date . _Just) dateSpec
+    <> liftSpec _Link linkSpec
+    <> liftSpec _Note noteSpec
+    <> liftSpec _File fileSpec
 
 newtype Formatter a = Fmt (ReaderT a Maybe Builder)
 
@@ -170,7 +180,7 @@ fmtSpecP = do
     r <- many $ noneOf "}"
     pure $ Just r
   specData <- getState
-  case M.lookup spec specData of
+  case M.lookup spec (unFmtSpec specData) of
     Just dat -> pure $ do
       let sp = Bld.string $ fromMaybe " " sep
       blds <- asks dat

@@ -135,6 +135,29 @@ fileSpec =
       ("mime", fromLens $ fileMime . to Enc.decodeUtf8 . to Bld.text)
     ]
 
+eventSpec :: FormatSpec Event
+eventSpec =
+  fromList
+    [ ("path", fromLens $ eventFile . to Bld.string),
+      ("uid", fromLens $ eventUid . to Bld.text),
+      ("calendar", fromLens $ eventCalendar . to unId . to Bld.text)
+    ]
+
+calSpec :: FormatSpec Calendar
+calSpec =
+  fromList
+    [ ("calname", fromLens $ calName . to Bld.text),
+      ("server", fromLens $ calServer . to Bld.text),
+      ("user", fromLens $ calUser . to Bld.text)
+    ]
+
+kindDataSpec :: Kind -> FormatSpec Entry
+kindDataSpec Link = liftSpec _Link linkSpec
+kindDataSpec Note = liftSpec _Note noteSpec
+kindDataSpec File = liftSpec _File fileSpec
+kindDataSpec Event = liftSpec _Event eventSpec
+kindDataSpec Calendar = liftSpec _Calendar calSpec
+
 -- TODO add specific metadata one the mecanism is here
 entrySpec :: FormatSpec Entry
 entrySpec =
@@ -143,9 +166,7 @@ entrySpec =
       ("kind", fromLens $ kind . to displayKind . to Bld.text)
     ]
     <> liftSpec (date . _Just) dateSpec
-    <> liftSpec _Link linkSpec
-    <> liftSpec _Note noteSpec
-    <> liftSpec _File fileSpec
+    <> foldMap kindDataSpec [minBound .. maxBound]
 
 newtype Formatter a = Fmt (ReaderT a Maybe Builder)
 

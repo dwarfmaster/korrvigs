@@ -1,8 +1,10 @@
 module Korrvigs.Format (Formatter, FormatSpec, run, parse, entrySpec) where
 
+import Control.Applicative (empty)
 import Control.Lens hiding (noneOf)
 import Control.Monad
 import Control.Monad.Reader
+import Control.Monad.Trans.Maybe
 import Data.Functor
 import Data.List (intersperse)
 import Data.Map (Map)
@@ -14,33 +16,39 @@ import qualified Data.Text.Encoding as Enc
 import Data.Time.Calendar
 import Data.Time.Format.ISO8601
 import Data.Time.LocalTime
+import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Monad
 import Korrvigs.Utils.Lens
 import Text.Builder (Builder)
 import qualified Text.Builder as Bld
 import Text.Parsec hiding (parse)
 
-newtype FormatSpec a = FmtSpec {unFmtSpec :: Map Text (a -> [Builder])}
+newtype FormatSpec m a = FmtSpec {unFmtSpec :: Map Text (a -> m [Builder])}
 
-liftSpec :: ((b -> Const [b] b) -> a -> Const [b] a) -> FormatSpec b -> FormatSpec a
-liftSpec get = FmtSpec . fmap (\f -> toMonoid (: []) get >=> f) . unFmtSpec
+liftSpec :: (Monad m) => ((b -> Const [b] b) -> a -> Const [b] a) -> FormatSpec m b -> FormatSpec m a
+liftSpec get =
+  FmtSpec . fmap (\f -> fmap mconcat . mapM f . toMonoid (: []) get) . unFmtSpec
 
 fromLens :: ((Builder -> Const [Builder] Builder) -> a -> Const [Builder] a) -> (a -> [Builder])
 fromLens = toMonoid (: [])
 
-instance Semigroup (FormatSpec a) where
+instance (Applicative m) => Semigroup (FormatSpec m a) where
   (FmtSpec mp1) <> (FmtSpec mp2) =
-    FmtSpec $ M.unionWith (\f1 f2 x -> f1 x ++ f2 x) mp1 mp2
+    FmtSpec $ M.unionWith (\f1 f2 x -> liftA2 (++) (f1 x) (f2 x)) mp1 mp2
 
-instance Monoid (FormatSpec a) where
+instance (Applicative m) => Monoid (FormatSpec m a) where
   mempty = FmtSpec M.empty
 
-fromList :: [(Text, a -> [Builder])] -> FormatSpec a
-fromList = FmtSpec . M.fromList
+fromListPure :: (Applicative m) => [(Text, a -> [Builder])] -> FormatSpec m a
+fromListPure = FmtSpec . fmap (pure .) . M.fromList
 
-singleton :: Text -> (a -> [Builder]) -> FormatSpec a
+singleton :: Text -> (a -> m [Builder]) -> FormatSpec m a
 singleton key = FmtSpec . M.singleton key
+
+singletonPure :: (Applicative m) => Text -> (a -> [Builder]) -> FormatSpec m a
+singletonPure key = FmtSpec . M.singleton key . (pure .)
 
 -- Assumes v is positive
 padded :: (Integral n) => Int -> n -> Builder
@@ -81,9 +89,9 @@ dayName Friday = (5, "Friday", "Fri")
 dayName Saturday = (6, "Saturday", "Sat")
 dayName Sunday = (7, "Sunday", "Sun")
 
-daySpec :: FormatSpec Day
+daySpec :: (Applicative m) => FormatSpec m Day
 daySpec =
-  fromList
+  fromListPure
     [ ("year", fromLens $ to toGregorian . _1 . to (padded 4)),
       ("month", fromLens $ to toGregorian . _2 . to (padded 2)),
       ("monthLong", fromLens $ to toGregorian . _2 . to monthName . _1),
@@ -95,9 +103,9 @@ daySpec =
       ("dayIso", fromLens $ to iso8601Show . to Bld.string)
     ]
 
-timeSpec :: FormatSpec TimeOfDay
+timeSpec :: (Applicative m) => FormatSpec m TimeOfDay
 timeSpec =
-  fromList
+  fromListPure
     [ ("hour", fromLens $ to todHour . to (padded 2)),
       ("minute", fromLens $ to todMin . to (padded 2)),
       ("second", fromLens $ to todSec . to toRational . to flr . to (padded 2)),
@@ -107,51 +115,52 @@ timeSpec =
     flr :: Rational -> Int
     flr = floor
 
-dateSpec :: FormatSpec ZonedTime
+dateSpec :: (Monad m) => FormatSpec m ZonedTime
 dateSpec =
-  fromList
+  fromListPure
     [ ("timezone", fromLens $ to zonedTimeZone . to timeZoneMinutes . to displayTZ),
       ("dateIso", fromLens $ to iso8601Show . to Bld.string)
     ]
     <> liftSpec (to zonedTimeToLocalTime . to localDay) daySpec
     <> liftSpec (to zonedTimeToLocalTime . to localTimeOfDay) timeSpec
 
-linkSpec :: FormatSpec Link
+linkSpec :: (MonadKorrvigs m) => FormatSpec m Link
 linkSpec =
-  fromList
+  fromListPure
     [ ("protocol", fromLens $ linkProtocol . to Bld.text),
       ("ref", fromLens $ linkRef . to Bld.text),
       ("path", fromLens $ linkPath . to Bld.string)
     ]
 
-noteSpec :: FormatSpec Note
-noteSpec = singleton "path" $ fromLens $ notePath . to Bld.string
+noteSpec :: (MonadKorrvigs m) => FormatSpec m Note
+noteSpec = singletonPure "path" $ fromLens $ notePath . to Bld.string
 
-fileSpec :: FormatSpec File
+fileSpec :: (MonadKorrvigs m) => FormatSpec m File
 fileSpec =
-  fromList
+  fromListPure
     [ ("path", fromLens $ filePath . to Bld.string),
       ("status", fromLens $ fileStatus . to displayFileStatus . to Bld.text),
       ("mime", fromLens $ fileMime . to Enc.decodeUtf8 . to Bld.text)
     ]
 
-eventSpec :: FormatSpec Event
+eventSpec :: (MonadKorrvigs m) => FormatSpec m Event
 eventSpec =
-  fromList
+  fromListPure
     [ ("path", fromLens $ eventFile . to Bld.string),
       ("uid", fromLens $ eventUid . to Bld.text),
       ("calendar", fromLens $ eventCalendar . to unId . to Bld.text)
     ]
 
-calSpec :: FormatSpec Calendar
+calSpec :: (MonadKorrvigs m) => FormatSpec m Calendar
 calSpec =
-  fromList
-    [ ("calname", fromLens $ calName . to Bld.text),
-      ("server", fromLens $ calServer . to Bld.text),
-      ("user", fromLens $ calUser . to Bld.text)
-    ]
+  singleton "path" (fmap ((: []) . Bld.string) . Cal.calendarPath)
+    <> fromListPure
+      [ ("calname", fromLens $ calName . to Bld.text),
+        ("server", fromLens $ calServer . to Bld.text),
+        ("user", fromLens $ calUser . to Bld.text)
+      ]
 
-kindDataSpec :: Kind -> FormatSpec Entry
+kindDataSpec :: (MonadKorrvigs m) => Kind -> FormatSpec m Entry
 kindDataSpec Link = liftSpec _Link linkSpec
 kindDataSpec Note = liftSpec _Note noteSpec
 kindDataSpec File = liftSpec _File fileSpec
@@ -159,37 +168,37 @@ kindDataSpec Event = liftSpec _Event eventSpec
 kindDataSpec Calendar = liftSpec _Calendar calSpec
 
 -- TODO add specific metadata one the mecanism is here
-entrySpec :: FormatSpec Entry
+entrySpec :: (MonadKorrvigs m) => FormatSpec m Entry
 entrySpec =
-  fromList
+  fromListPure
     [ ("name", fromLens $ name . to unId . to Bld.text),
       ("kind", fromLens $ kind . to displayKind . to Bld.text)
     ]
     <> liftSpec (date . _Just) dateSpec
     <> foldMap kindDataSpec [minBound .. maxBound]
 
-newtype Formatter a = Fmt (ReaderT a Maybe Builder)
+type FmtM m a = ReaderT a (MaybeT m)
 
-run :: Formatter a -> a -> Maybe Text
-run (Fmt monad) = fmap Bld.run . runReaderT monad
+newtype Formatter m a = Fmt (FmtM m a Builder)
 
-type FmtM a = ReaderT a Maybe
+run :: (Monad m) => Formatter m a -> a -> m (Maybe Text)
+run (Fmt monad) = fmap (fmap Bld.run) . runMaybeT . runReaderT monad
 
-type Parser a = Parsec Text (FormatSpec a)
+type Parser m a = Parsec Text (FormatSpec m a)
 
-parse :: FormatSpec a -> Text -> Either Text (Formatter a)
+parse :: (Monad m) => FormatSpec m a -> Text -> Either Text (Formatter m a)
 parse spec txt =
   case runParser formatP spec "" txt of
     Right fmt -> Right $ Fmt fmt
     Left err -> Left $ T.pack $ show err
 
-formatP :: Parser a (FmtM a Builder)
+formatP :: (Monad m) => Parser m a (FmtM m a Builder)
 formatP =
   eof $> pure mempty
     <|> fmtP
     <|> plainP
 
-fmtSpecP :: Parser a (FmtM a Builder)
+fmtSpecP :: (Monad m) => Parser m a (FmtM m a Builder)
 fmtSpecP = do
   spec <- T.pack <$> many (noneOf ":}")
   sep <- option Nothing $ try $ do
@@ -204,19 +213,19 @@ fmtSpecP = do
   case M.lookup spec (unFmtSpec specData) of
     Just dat -> pure $ do
       let sp = Bld.string $ fromMaybe " " sep
-      blds <- asks dat
+      blds <- asks dat >>= lift . lift
       case (blds, rep) of
-        ([], Nothing) -> lift Nothing
+        ([], Nothing) -> lift empty
         ([], Just r) -> pure $ Bld.string r
         _ -> pure . mconcat $ intersperse sp blds
     Nothing -> mzero
 
-fmtP :: Parser a (FmtM a Builder)
+fmtP :: (Monad m) => Parser m a (FmtM m a Builder)
 fmtP = do
   f <- between (char '{') (char '}') fmtSpecP
   liftA2 (<>) f <$> formatP
 
-plainP :: Parser a (FmtM a Builder)
+plainP :: (Monad m) => Parser m a (FmtM m a Builder)
 plainP = do
   w <- many $ noneOf "{"
   fmap (Bld.string w <>) <$> formatP

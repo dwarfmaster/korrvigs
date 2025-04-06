@@ -9,7 +9,6 @@ import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.Format.ISO8601
-import Data.Time.LocalTime
 import qualified Data.XML.Types as XML
 import Korrvigs.Metadata.Media.Ontology
 import Network.HTTP.Conduit
@@ -27,7 +26,7 @@ parseQuery = T.stripPrefix "https://arxiv.org/abs/"
 parseDate :: Date -> Maybe (Year, MonthOfYear)
 parseDate dt = case iso8601ParseM $ T.unpack dt of
   Nothing -> Nothing
-  Just utc -> let (yr, mth, _) = toGregorian $ utctDay utc in Just (yr, mth)
+  Just u -> let (yr, mth, _) = toGregorian $ utctDay u in Just (yr, mth)
 
 insertOnce :: (Eq a) => a -> [a] -> [a]
 insertOnce x xs = if x `elem` xs then xs else x : xs

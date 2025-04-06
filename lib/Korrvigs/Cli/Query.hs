@@ -1,11 +1,14 @@
 module Korrvigs.Cli.Query where
 
+import Control.Arrow ((&&&))
 import Control.Lens hiding (argument)
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson hiding (json)
 import qualified Data.Aeson.Encoding as JEnc
 import qualified Data.ByteString.Lazy.UTF8 as BSL8
+import Data.List (intercalate)
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -44,12 +47,20 @@ ftsQueryParser = eitherReader $ mapL T.unpack . FTS.parseQuery . T.pack
 mtdtQueryParser :: ReadM (Text, JsonQuery)
 mtdtQueryParser = eitherReader $ mapL T.unpack . parseMtdtQuery . T.pack
 
+kindNames :: Kind -> String
+kindNames Link = "link"
+kindNames Note = "note"
+kindNames File = "file"
+kindNames Event = "event"
+kindNames Calendar = "calendar"
+
 kindParser :: ReadM Kind
-kindParser = eitherReader $ \case
-  "link" -> Right Link
-  "note" -> Right Note
-  "file" -> Right File
-  _ -> Left "Kind must be one of link,note or file"
+kindParser = eitherReader $ \s -> case M.lookup s names of
+  Just kd -> pure kd
+  Nothing -> Left $ "Kind must be one of " <> intercalate ", " (kindNames <$> [minBound .. maxBound])
+  where
+    names =
+      M.fromList $ (kindNames &&& id) <$> [minBound .. maxBound]
 
 rectangleParser :: ReadM Polygon
 rectangleParser = eitherReader $ mapL show . parse rectangleP "<rectangle>"
@@ -112,9 +123,10 @@ run cmd = do
       Nothing -> liftIO $ TIO.putStrLn $ "Failed to load " <> unId i
       Just entry ->
         if not (cmd ^. json)
-          then case Fmt.run fmt entry of
-            Just render -> liftIO $ TIO.putStrLn render
-            Nothing -> pure ()
+          then
+            Fmt.run fmt entry >>= \case
+              Just render -> liftIO $ TIO.putStrLn render
+              Nothing -> pure ()
           else do
             mtdt <- loadMetadata i
             let mp = mconcat $ fmap (Info.buildInfoJSON entry mtdt) Info.entryInfoSpec

@@ -44,6 +44,7 @@ data OpenLibraryQuery
 data OLResult = OLResult
   { _olUrl :: Text,
     _olTitle :: Text,
+    _olSubtitle :: Maybe Text,
     _olISBN10 :: [Text],
     _olISBN13 :: [Text],
     _olPublisher :: [Text],
@@ -79,6 +80,7 @@ instance FromJSON OLResult where
     OLResult
       <$> obj .: "info_url"
       <*> ((obj .: "details") >>= (.: "title"))
+      <*> ((obj .: "details") >>= (.:? "subtitle"))
       <*> ((obj .: "details") >>= (.: "isbn_10"))
       <*> ((obj .: "details") >>= (.: "isbn_13"))
       <*> ((obj .: "details") >>= (.: "publishers"))
@@ -144,6 +146,7 @@ queryOpenLibrary q = case mkAPIUrl q of
           let coverUrl = "https://covers.openlibrary.org/b/id/" <> T.pack (show cov) <> "-L.jpg"
           let coverNew = NewDownloadedFile coverUrl $ def & neTitle ?~ title <> " cover"
           newFromUrl coverNew
+        let fullTitle = title <> maybe "" (" - " <>) (olr ^. olSubtitle)
         pure $
           Just
             ( Media
@@ -153,7 +156,7 @@ queryOpenLibrary q = case mkAPIUrl q of
                   _medDOI = [],
                   _medISBN = mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
                   _medISSN = [],
-                  _medTitle = Just title,
+                  _medTitle = Just fullTitle,
                   _medAuthors = olr ^. olAuthors,
                   _medMonth = parsePublishMonth $ olr ^. olPublishDate,
                   _medYear = parsePublishYear $ olr ^. olPublishDate,

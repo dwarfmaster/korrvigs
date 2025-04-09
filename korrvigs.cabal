@@ -113,6 +113,7 @@ library korrvigs-lib
     Korrvigs.Metadata.Media.Ontology
     Korrvigs.Metadata.Media.OpenLibrary
     Korrvigs.Metadata.Media.Pandoc
+    Korrvigs.Metadata.Media.Steam
     Korrvigs.Metadata.Task
     Korrvigs.Metadata.TH
     Korrvigs.Monad

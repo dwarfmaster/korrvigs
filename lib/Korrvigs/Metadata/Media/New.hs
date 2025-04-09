@@ -30,6 +30,7 @@ import qualified Korrvigs.Metadata.Media.MangaUpdates as MU
 import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.OpenLibrary as OL
 import qualified Korrvigs.Metadata.Media.Pandoc as Pd
+import qualified Korrvigs.Metadata.Media.Steam as Steam
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import qualified Korrvigs.Note.New as Note
@@ -110,6 +111,7 @@ dispatchMedia nm = do
         <$> [ mkDispatcher "OpenLibrary" (pure . OL.parseQuery) OL.queryOpenLibrary,
               mkDispatcherIO "MangaUpdates" (pure . MU.isMangaUpdates) MU.queryMangaUpdates,
               mkDispatcher "Arxiv" (pure . AR.parseQuery) AR.queryArxiv,
+              mkDispatcher "Steam" (pure . Steam.parseQuery) Steam.querySteam,
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 
@@ -154,6 +156,7 @@ prepareNewMedia nm = do
     medTxt Webcollection = "Collection"
     medTxt Blogpost = "Poste de blog"
     medTxt Manga = "Manga"
+    medTxt Game = "Game"
     medTxt Misc = "Misc"
 
 new :: (MonadKorrvigs m) => NewMedia -> m Id

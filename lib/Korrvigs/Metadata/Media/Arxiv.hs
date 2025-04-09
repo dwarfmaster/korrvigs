@@ -4,6 +4,7 @@ import Conduit
 import Control.Applicative
 import Control.Lens
 import Data.Conduit.Text
+import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
@@ -11,6 +12,7 @@ import Data.Time.Clock
 import Data.Time.Format.ISO8601
 import qualified Data.XML.Types as XML
 import Korrvigs.Metadata.Media.Ontology
+import qualified Korrvigs.Metadata.Media.Pandoc as Pandoc
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.URI
@@ -66,11 +68,30 @@ processArxivMtdts :: Entry -> Media -> Media
 processArxivMtdts entry =
   foldr (\el f -> processArxivMtdt el . f) id $ entryOther entry
 
+queryArxivBibtex :: Manager -> ArxivId -> IO (Maybe Media)
+queryArxivBibtex man i = do
+  let url = escapeURIString isUnescapedInURI $ "https://arxiv.org/bibtex/" <> T.unpack i
+  req <- parseRequest url
+  bibtex <- runResourceT $ do
+    resp <- http req man
+    let scode = statusCode (responseStatus resp)
+    if scode == 200
+      then fmap Just $ runConduit $ responseBody resp .| sinkLazy
+      else pure Nothing
+  case bibtex of
+    Nothing -> pure Nothing
+    Just bib -> do
+      meds <- Pandoc.importBibtex bib
+      case M.toList meds of
+        [] -> pure Nothing
+        ((_, med) : _) -> pure $ Just med
+
 queryArxiv :: ArxivId -> IO (Maybe Media)
 queryArxiv i = do
   let url = escapeURIString isUnescapedInURI $ "https://export.arxiv.org/api/query?id_list=" <> T.unpack i
   req <- parseRequest url
   man <- newManager tlsManagerSettings
+  med <- queryArxivBibtex man i
   content <- runResourceT $ do
     resp <- http req man
     let scode = statusCode (responseStatus resp)
@@ -82,28 +103,20 @@ queryArxiv i = do
     Just [] -> pure Nothing
     Just (entry : _) -> do
       pure $
-        Just $
-          Media
-            { _medType = Article,
-              _medAbstract = prepAbstract . T.pack . txtToString <$> entrySummary entry,
-              _medBibtex = Nothing,
-              _medDOI = ["10.48550/arXiv." <> i],
-              _medISBN = [],
-              _medISSN = [],
-              _medTitle = Just $ T.pack $ txtToString $ entryTitle entry,
-              _medAuthors = personName <$> entryAuthors entry,
-              _medMonth = entryPublished entry >>= parseDate <&> snd,
-              _medYear = entryPublished entry >>= parseDate <&> fst,
-              _medUrl = Just $ entryId entry,
-              _medRSS = Nothing,
-              _medSource = [],
-              _medPublisher = [],
-              _medContainer = Nothing,
-              _medInstitution = [],
-              _medLicense = []
-            }
-            & processLinks entry
-            & processArxivMtdts entry
+        fmap
+          ( foldr
+              (.)
+              id
+              [ medAbstract .~ (prepAbstract . T.pack . txtToString <$> entrySummary entry),
+                medDOI .~ ["10.48550/arXiv." <> i],
+                medMonth .~ (entryPublished entry >>= parseDate <&> snd),
+                medYear .~ (entryPublished entry >>= parseDate <&> fst),
+                medUrl ?~ entryId entry,
+                processLinks entry,
+                processArxivMtdts entry
+              ]
+          )
+          med
   where
     prepAbstract :: Text -> Text
     prepAbstract = T.strip . T.replace "\n" " " . T.replace "\\\"" "\""

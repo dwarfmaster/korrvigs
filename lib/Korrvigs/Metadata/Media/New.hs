@@ -10,6 +10,7 @@ where
 import Conduit (throwM)
 import Control.Arrow (first)
 import Control.Lens
+import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.CaseInsensitive as CI
@@ -17,6 +18,7 @@ import Data.Foldable
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
+import Korrvigs.Actions (load, updateParents)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import qualified Korrvigs.Link.New as Link
@@ -47,7 +49,7 @@ data NewMediaInternal
 makeLenses ''NewMediaInternal
 
 data DispatcherData
-  = DispatcherSuccess Media
+  = DispatcherSuccess (Media, [Id])
   | DispatcherSkip
   | DispatcherFail Text
 
@@ -59,7 +61,7 @@ instance Semigroup DispatcherData where
 instance Monoid DispatcherData where
   mempty = DispatcherSkip
 
-mkDispatcher :: Text -> (Text -> IO (Maybe a)) -> (a -> IO (Maybe Media)) -> Text -> IO DispatcherData
+mkDispatcher :: (MonadKorrvigs m) => Text -> (Text -> m (Maybe a)) -> (a -> m (Maybe (Media, [Id]))) -> Text -> m DispatcherData
 mkDispatcher lbl parser extractor txt =
   parser txt >>= \case
     Nothing -> pure DispatcherSkip
@@ -68,40 +70,46 @@ mkDispatcher lbl parser extractor txt =
         Nothing -> pure $ DispatcherFail lbl
         Just med -> pure $ DispatcherSuccess med
 
-dispatchMedia :: (MonadKorrvigs m) => NewMedia -> m Media
+mkDispatcherIO :: (MonadKorrvigs m) => Text -> (Text -> IO (Maybe a)) -> (a -> IO (Maybe Media)) -> Text -> m DispatcherData
+mkDispatcherIO lbl parser extractor =
+  mkDispatcher lbl (liftIO . parser) (liftIO . fmap (fmap (,[])) . extractor)
+
+dispatchMedia :: (MonadKorrvigs m) => NewMedia -> m (Media, [Id])
 dispatchMedia nm = do
-  dispatch <- liftIO $ sequence dispatchers
+  dispatch <- sequence dispatchers
   case fold dispatch of
     DispatcherSuccess md -> pure md
     DispatcherSkip ->
-      pure $
-        Media
-          { _medType = fromMaybe Blogpost $ nm ^. nmType,
-            _medAbstract = Nothing,
-            _medBibtex = Nothing,
-            _medDOI = [],
-            _medISBN = [],
-            _medISSN = [],
-            _medTitle = Nothing,
-            _medAuthors = [],
-            _medMonth = Nothing,
-            _medYear = Nothing,
-            _medUrl = Just $ nm ^. nmInput,
-            _medRSS = Nothing,
-            _medSource = [],
-            _medPublisher = [],
-            _medContainer = Nothing,
-            _medInstitution = [],
-            _medLicense = []
-          }
+      pure
+        ( Media
+            { _medType = fromMaybe Blogpost $ nm ^. nmType,
+              _medAbstract = Nothing,
+              _medBibtex = Nothing,
+              _medDOI = [],
+              _medISBN = [],
+              _medISSN = [],
+              _medTitle = Nothing,
+              _medAuthors = [],
+              _medMonth = Nothing,
+              _medYear = Nothing,
+              _medUrl = Just $ nm ^. nmInput,
+              _medRSS = Nothing,
+              _medSource = [],
+              _medPublisher = [],
+              _medContainer = Nothing,
+              _medInstitution = [],
+              _medLicense = []
+            },
+          []
+        )
     DispatcherFail lbl -> throwM $ KMiscError $ "Failed to import from " <> lbl
   where
     dispatchers =
       ($ (nm ^. nmInput))
-        <$> [ mkDispatcher "OpenLibrary" (pure . OL.parseQuery) OL.queryOpenLibrary,
-              mkDispatcher "MangaUpdates" (pure . MU.isMangaUpdates) MU.queryMangaUpdates,
-              mkDispatcher "Arxiv" (pure . AR.parseQuery) AR.queryArxiv,
-              mkDispatcher "BibTeX/RIS" Pd.importRef (pure . Just)
+        <$> [ mkDispatcherIO "OpenLibrary" (pure . OL.parseQuery) OL.queryOpenLibrary,
+              mkDispatcherIO "MangaUpdates" (pure . MU.isMangaUpdates) MU.queryMangaUpdates,
+              mkDispatcherIO "Arxiv" (pure . AR.parseQuery) AR.queryArxiv,
+              mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 
 mergeInto :: Media -> NewEntry -> NewEntry
@@ -118,17 +126,17 @@ insertCollection col mtdts = case find (\m -> CI.mk (fst m) == mtdtName MiscColl
   where
     mtdts' = filter ((/= mtdtName MiscCollection) . CI.mk . fst) mtdts
 
-prepareNewMedia :: (MonadKorrvigs m) => NewMedia -> m NewMediaInternal
+prepareNewMedia :: (MonadKorrvigs m) => NewMedia -> m (NewMediaInternal, [Id])
 prepareNewMedia nm = do
-  md <- dispatchMedia nm
+  (md, subs) <- dispatchMedia nm
   let ne =
         mergeInto md (nm ^. nmEntry)
           & neMtdt %~ ((mtdtSqlName TaskMtdt, "todo") :)
           & neMtdt %~ insertCollection ["Captured"]
   let title = fromMaybe (medTxt (md ^. medType) <> " " <> nm ^. nmInput) $ ne ^. neTitle
-  case md ^. medType of
-    Blogpost -> pure $ NewLinkMedia (nm ^. nmInput) $ Link.NewLink ne False
-    _ -> pure $ NewNoteMedia $ Note.NewNote ne title
+  pure . (,subs) $ case md ^. medType of
+    Blogpost -> NewLinkMedia (nm ^. nmInput) $ Link.NewLink ne False
+    _ -> NewNoteMedia $ Note.NewNote ne title
   where
     medTxt :: MediaType -> Text
     medTxt Article = "Article"
@@ -148,7 +156,13 @@ prepareNewMedia nm = do
     medTxt Misc = "Misc"
 
 new :: (MonadKorrvigs m) => NewMedia -> m Id
-new nm =
-  prepareNewMedia nm >>= \case
+new nm = do
+  (nmed, subs) <- prepareNewMedia nm
+  i <- case nmed of
     NewLinkMedia url nl -> Link.new url nl
     NewNoteMedia nn -> Note.new nn
+  forM_ subs $
+    load >=> \case
+      Nothing -> pure ()
+      Just subEntry -> updateParents subEntry [i] []
+  pure i

@@ -12,6 +12,7 @@ import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
+import Korrvigs.Entry
 
 data MediaType
   = Article
@@ -65,7 +66,8 @@ data Media = Media
     _medPublisher :: [Text],
     _medContainer :: Maybe MediaContainer,
     _medInstitution :: [Text],
-    _medLicense :: [Text]
+    _medLicense :: [Text],
+    _medCover :: Maybe Id
   }
   deriving (Show, Eq)
 

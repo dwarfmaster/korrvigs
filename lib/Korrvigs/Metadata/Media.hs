@@ -42,6 +42,7 @@ mkMtdt "InContainer" "inbook" [t|MediaContainer|]
 mkMtdt "InCollection" "incollection" [t|Text|]
 mkMtdt "Institution" "institution" [t|[Text]|]
 mkMtdt "License" "license" [t|[Text]|]
+mkMtdt "Cover" "cover" [t|Text|]
 
 rSelectMedia :: (MonadKorrvigs m) => Id -> m (Maybe Media)
 rSelectMedia i =
@@ -66,6 +67,7 @@ rSelectMedia i =
                 <*> rSelectMtdt InContainer (sqlId i)
                 <*> rSelectListMtdt Institution (sqlId i)
                 <*> rSelectListMtdt License (sqlId i)
+                <*> (fmap MkId <$> rSelectMtdt Cover (sqlId i))
             )
 
 mediaMetadata :: Media -> Map (CI Text) Value
@@ -88,7 +90,8 @@ mediaMetadata med =
         medLstRow Publisher medPublisher,
         medRow InContainer medContainer,
         medLstRow Institution medInstitution,
-        medLstRow License medLicense
+        medLstRow License medLicense,
+        medRow Cover (medCover . to (fmap unId))
       ]
   where
     medRow :: (ExtraMetadata mtdt, ToJSON a, MtdtType mtdt ~ a) => mtdt -> Getting (Maybe a) Media (Maybe a) -> [(CI Text, Value)]

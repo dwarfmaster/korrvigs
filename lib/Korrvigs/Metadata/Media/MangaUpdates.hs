@@ -84,7 +84,8 @@ queryMangaUpdates url = do
                 _medPublisher = muData ^. muPublishers,
                 _medContainer = Nothing,
                 _medInstitution = [],
-                _medLicense = []
+                _medLicense = [],
+                _medCover = Nothing
               }
     _ -> pure Nothing
   where

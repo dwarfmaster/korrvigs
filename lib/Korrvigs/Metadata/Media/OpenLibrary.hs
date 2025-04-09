@@ -10,10 +10,13 @@ where
 import Citeproc.Types (readAsInt)
 import Conduit (runResourceT)
 import Control.Lens
+import Control.Monad
+import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Conduit
 import Data.Conduit.Combinators (sinkLazy)
+import Data.Default
 import Data.Foldable (toList)
 import Data.ISBN
 import Data.Map (Map)
@@ -22,7 +25,11 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
+import Korrvigs.Entry
+import Korrvigs.Entry.New
+import Korrvigs.File.Download
 import Korrvigs.Metadata.Media.Ontology
+import Korrvigs.Monad
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.URI
@@ -43,7 +50,8 @@ data OLResult = OLResult
     _olAuthors :: [Text],
     _olPublishDate :: Text,
     _olDescription :: Maybe Text,
-    _olSeries :: [Text]
+    _olSeries :: [Text],
+    _olCovers :: [Int]
   }
   deriving (Ord, Eq, Show)
 
@@ -78,6 +86,7 @@ instance FromJSON OLResult where
       <*> ((obj .: "details") >>= (.: "publish_date"))
       <*> ((obj .: "details") >>= (.:? "description") >>= parseDescription)
       <*> ((obj .: "details") >>= (.:? "series") <&> fromMaybe [])
+      <*> ((obj .: "details") >>= (.:? "covers") <&> fromMaybe [])
 
 openUrl :: Text
 openUrl = "https://openlibrary.org"
@@ -114,53 +123,63 @@ parsePublishYear t = toInteger <$> readAsInt yr
   where
     yr = T.takeEnd 4 t
 
-queryOpenLibrary :: OpenLibraryQuery -> IO (Maybe Media)
+queryOpenLibrary :: (MonadKorrvigs m) => OpenLibraryQuery -> m (Maybe (Media, [Id]))
 queryOpenLibrary q = case mkAPIUrl q of
   Nothing -> pure Nothing
   Just url -> do
     req <- parseRequest $ T.unpack url
-    man <- newManager tlsManagerSettings
+    man <- liftIO $ newManager tlsManagerSettings
     content <- runResourceT $ do
       resp <- http req man
       let scode = statusCode (responseStatus resp)
       if scode == 200
         then fmap Just $ runConduit $ responseBody resp .| sinkLazy
         else pure Nothing
-    case eitherDecode <$> content of
+    case extract . eitherDecode <$> content of
       Nothing -> pure Nothing
-      Just (Left _) -> pure Nothing
-      Just (Right (olmap :: Map Text OLResult)) ->
-        let olr = head $ M.elems olmap
-         in pure $
-              Just $
-                Media
-                  { _medType = Book,
-                    _medAbstract = T.replace "\r\n" "\n" <$> olr ^. olDescription,
-                    _medBibtex = Nothing,
-                    _medDOI = [],
-                    _medISBN = mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
-                    _medISSN = [],
-                    _medTitle = Just $ olr ^. olTitle,
-                    _medAuthors = olr ^. olAuthors,
-                    _medMonth = parsePublishMonth $ olr ^. olPublishDate,
-                    _medYear = parsePublishYear $ olr ^. olPublishDate,
-                    _medUrl = Just $ olr ^. olUrl,
-                    _medRSS = Nothing,
-                    _medSource = [],
-                    _medPublisher = olr ^. olPublisher,
-                    _medContainer =
-                      listToMaybe $
-                        MediaContainer
-                          <$> olr ^. olSeries
-                          <*> pure Nothing
-                          <*> pure Nothing
-                          <*> pure Nothing
-                          <*> pure Nothing,
-                    _medInstitution = [],
-                    _medLicense = []
-                  }
+      Just [] -> pure Nothing
+      Just (olr : _) -> do
+        let title = olr ^. olTitle
+        dlCover <- fmap join $ forM (listToMaybe $ olr ^. olCovers) $ \cov -> do
+          let coverUrl = "https://covers.openlibrary.org/b/id/" <> T.pack (show cov) <> "-L.jpg"
+          let coverNew = NewDownloadedFile coverUrl $ def & neTitle ?~ title <> " cover"
+          newFromUrl coverNew
+        pure $
+          Just
+            ( Media
+                { _medType = Book,
+                  _medAbstract = T.replace "\r\n" "\n" <$> olr ^. olDescription,
+                  _medBibtex = Nothing,
+                  _medDOI = [],
+                  _medISBN = mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
+                  _medISSN = [],
+                  _medTitle = Just title,
+                  _medAuthors = olr ^. olAuthors,
+                  _medMonth = parsePublishMonth $ olr ^. olPublishDate,
+                  _medYear = parsePublishYear $ olr ^. olPublishDate,
+                  _medUrl = Just $ olr ^. olUrl,
+                  _medRSS = Nothing,
+                  _medSource = [],
+                  _medPublisher = olr ^. olPublisher,
+                  _medContainer =
+                    listToMaybe $
+                      MediaContainer
+                        <$> olr ^. olSeries
+                        <*> pure Nothing
+                        <*> pure Nothing
+                        <*> pure Nothing
+                        <*> pure Nothing,
+                  _medInstitution = [],
+                  _medLicense = [],
+                  _medCover = dlCover
+                },
+              toList dlCover
+            )
   where
     parseISBN :: Text -> Maybe ISBN
     parseISBN isbnT = case validateISBN isbnT of
       Right isbn -> Just isbn
       Left _ -> Nothing
+    extract :: Either a (Map Text c) -> [c]
+    extract (Left _) = []
+    extract (Right mp) = M.elems mp

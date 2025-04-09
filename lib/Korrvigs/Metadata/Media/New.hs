@@ -98,7 +98,8 @@ dispatchMedia nm = do
               _medPublisher = [],
               _medContainer = Nothing,
               _medInstitution = [],
-              _medLicense = []
+              _medLicense = [],
+              _medCover = Nothing
             },
           []
         )
@@ -106,7 +107,7 @@ dispatchMedia nm = do
   where
     dispatchers =
       ($ (nm ^. nmInput))
-        <$> [ mkDispatcherIO "OpenLibrary" (pure . OL.parseQuery) OL.queryOpenLibrary,
+        <$> [ mkDispatcher "OpenLibrary" (pure . OL.parseQuery) OL.queryOpenLibrary,
               mkDispatcherIO "MangaUpdates" (pure . MU.isMangaUpdates) MU.queryMangaUpdates,
               mkDispatcher "Arxiv" (pure . AR.parseQuery) AR.queryArxiv,
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)

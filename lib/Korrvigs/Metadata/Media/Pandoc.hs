@@ -165,7 +165,8 @@ importReference ref = appEndo endo med
           _medPublisher = [],
           _medContainer = Nothing,
           _medInstitution = [],
-          _medLicense = []
+          _medLicense = [],
+          _medCover = Nothing
         }
     handleVariable :: Variable -> Val Inlines -> Endo Media
     handleVariable var val =

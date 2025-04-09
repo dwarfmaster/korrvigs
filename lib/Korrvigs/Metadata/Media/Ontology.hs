@@ -30,6 +30,7 @@ data MediaType
   | Blogpost
   | Manga
   | Game
+  | Webcomic
   | Misc
   deriving (Show, Eq, Ord, Enum, Bounded)
 
@@ -92,6 +93,7 @@ displayMediaType Webcollection = "webcollection"
 displayMediaType Blogpost = "blogpost"
 displayMediaType Manga = "manga"
 displayMediaType Game = "game"
+displayMediaType Webcomic = "webcomic"
 displayMediaType Misc = "misc"
 
 mediaTypeMap :: Map Text MediaType

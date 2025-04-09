@@ -157,6 +157,7 @@ prepareNewMedia nm = do
     medTxt Blogpost = "Poste de blog"
     medTxt Manga = "Manga"
     medTxt Game = "Game"
+    medTxt Webcomic = "Webcomic"
     medTxt Misc = "Misc"
 
 new :: (MonadKorrvigs m) => NewMedia -> m Id

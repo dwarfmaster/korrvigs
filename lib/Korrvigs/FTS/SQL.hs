@@ -75,4 +75,4 @@ infix 4 @@?
 (@@?) = C.binOp (HPQ.OpOther "@@")
 
 tsRank :: Field SqlTSQuery -> Field SqlTSVector -> Field SqlFloat8
-tsRank = UOp.ap2 "ts_rank"
+tsRank = flip $ UOp.ap2 "ts_rank"

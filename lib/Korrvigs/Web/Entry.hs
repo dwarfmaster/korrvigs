@@ -324,11 +324,11 @@ colsWidget entry = do
       [whamlet|
   <details .common-details>
     <summary>Collections
-      <ul>
-        $forall col <- cols
-          <li>
-            <a href=@{ColR col}>
-              #{T.intercalate " > " col}
+    <ul>
+      $forall col <- cols
+        <li>
+          <a href=@{ColR col}>
+            #{T.intercalate " > " col}
   |]
 
 newFormWidget :: [Text] -> Entry -> Handler Widget

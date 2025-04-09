@@ -108,7 +108,7 @@ dispatchMedia nm = do
       ($ (nm ^. nmInput))
         <$> [ mkDispatcherIO "OpenLibrary" (pure . OL.parseQuery) OL.queryOpenLibrary,
               mkDispatcherIO "MangaUpdates" (pure . MU.isMangaUpdates) MU.queryMangaUpdates,
-              mkDispatcherIO "Arxiv" (pure . AR.parseQuery) AR.queryArxiv,
+              mkDispatcher "Arxiv" (pure . AR.parseQuery) AR.queryArxiv,
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 

@@ -2,17 +2,24 @@ module Korrvigs.Metadata.Media.Arxiv (parseQuery, queryArxiv) where
 
 import Conduit
 import Control.Applicative
+import Control.Arrow ((&&&))
 import Control.Lens
+import Control.Monad
 import Data.Conduit.Text
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.Format.ISO8601
 import qualified Data.XML.Types as XML
+import Korrvigs.Entry (Id)
+import Korrvigs.Entry.New
+import Korrvigs.File.Download
 import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.Pandoc as Pandoc
+import Korrvigs.Monad
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.URI
@@ -40,11 +47,17 @@ processLink lnk | linkTitle lnk == Just "doi" =
     Just doi -> medDOI %~ insertOnce doi
   where
     href = linkHref lnk
-processLink lnk | linkTitle lnk == Just "pdf" = id -- TODO download pdf
 processLink _ = id
 
 processLinks :: Entry -> Media -> Media
 processLinks entry = foldr (\lnk f -> processLink lnk . f) id $ entryLinks entry
+
+extractFile :: Link -> Maybe Text
+extractFile lnk | linkTitle lnk == Just "pdf" = Just $ linkHref lnk
+extractFile _ = Nothing
+
+extractFiles :: Entry -> [Text]
+extractFiles = mapMaybe extractFile . entryLinks
 
 elementTxt :: XML.Element -> Text
 elementTxt = T.strip . mconcat . fmap ndTxt . XML.elementNodes
@@ -86,13 +99,13 @@ queryArxivBibtex man i = do
         [] -> pure Nothing
         ((_, med) : _) -> pure $ Just med
 
-queryArxiv :: ArxivId -> IO (Maybe Media)
+queryArxiv :: (MonadKorrvigs m) => ArxivId -> m (Maybe (Media, [Id]))
 queryArxiv i = do
   let url = escapeURIString isUnescapedInURI $ "https://export.arxiv.org/api/query?id_list=" <> T.unpack i
   req <- parseRequest url
-  man <- newManager tlsManagerSettings
-  med <- queryArxivBibtex man i
-  content <- runResourceT $ do
+  man <- liftIO $ newManager tlsManagerSettings
+  med <- liftIO $ queryArxivBibtex man i
+  content <- liftIO $ runResourceT $ do
     resp <- http req man
     let scode = statusCode (responseStatus resp)
     if scode == 200
@@ -102,6 +115,10 @@ queryArxiv i = do
     Nothing -> pure Nothing
     Just [] -> pure Nothing
     Just (entry : _) -> do
+      let files = extractFiles entry
+      let title = T.pack $ txtToString $ entryTitle entry
+      dls <- fmap catMaybes $ forM files $ \f ->
+        newFromUrl $ NewDownloadedFile f $ def & neTitle ?~ title <> " PDF"
       pure $
         fmap
           ( foldr
@@ -115,6 +132,7 @@ queryArxiv i = do
                 processLinks entry,
                 processArxivMtdts entry
               ]
+              &&& const dls
           )
           med
   where

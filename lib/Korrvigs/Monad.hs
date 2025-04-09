@@ -2,7 +2,7 @@
 
 module Korrvigs.Monad where
 
-import Conduit (MonadThrow, throwM)
+import Conduit (MonadThrow, MonadUnliftIO, throwM)
 import Control.Exception
 import Control.Lens
 import Control.Monad
@@ -29,7 +29,7 @@ data KorrvigsError
 
 instance Exception KorrvigsError
 
-class (MonadIO m, MonadThrow m) => MonadKorrvigs m where
+class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
 

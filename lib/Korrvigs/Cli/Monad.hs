@@ -2,10 +2,9 @@
 
 module Korrvigs.Cli.Monad where
 
-import Conduit (MonadThrow, throwM)
+import Conduit (MonadThrow, MonadUnliftIO, throwM)
 import Control.Exception
 import Control.Lens hiding ((.=))
-import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Aeson
 import qualified Data.Aeson.Key as K
@@ -46,8 +45,8 @@ makeLenses ''KorrState
 makeLenses ''WebState
 makeLenses ''KorrConfig
 
-newtype KorrM a = KorrM (ExceptT SomeException (ReaderT KorrState IO) a)
-  deriving (Functor, Applicative, Monad, MonadIO, MonadReader KorrState, MonadThrow)
+newtype KorrM a = KorrM (ReaderT KorrState IO a)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadReader KorrState, MonadThrow, MonadUnliftIO)
 
 instance MonadKorrvigs KorrM where
   pgSQL = view korrConnection
@@ -69,7 +68,7 @@ runKorrM config act = do
                 }
           }
   let (KorrM action) = setupPsql >> act
-  r <- runReaderT (runExceptT action) state
+  r <- catch (Right <$> runReaderT action state) (pure . Left)
   close conn
   case r of
     Left some ->

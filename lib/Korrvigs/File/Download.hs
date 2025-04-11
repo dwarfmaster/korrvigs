@@ -40,6 +40,6 @@ newFromUrl dl =
       if not success
         then pure Nothing
         else do
-          let nfile = NewFile (dl ^. ndlEntry) & nfEntry . neMtdt %~ ((mtdtSqlName Url, toJSON url) :)
+          let nfile = NewFile (dl ^. ndlEntry) False & nfEntry . neMtdt %~ ((mtdtSqlName Url, toJSON url) :)
           i <- runIO $ new tmp nfile
           pure $ Just i

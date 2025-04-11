@@ -1,4 +1,4 @@
-module Korrvigs.File.New (new, NewFile (..), nfEntry) where
+module Korrvigs.File.New (new, NewFile (..), nfEntry, nfRemove) where
 
 import Conduit (throwM)
 import Control.Applicative ((<|>))
@@ -29,6 +29,7 @@ import Korrvigs.Monad
 import Korrvigs.Utils (joinNull, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
 import Korrvigs.Utils.Git.Annex
+import Korrvigs.Utils.Process
 import Korrvigs.Utils.Time (dayToZonedTime)
 import Network.Mime
 import System.Directory
@@ -55,6 +56,12 @@ findMime path = do
   where
     file = proc "file" ["--mime-type", path]
 
+inAnnex :: (MonadKorrvigs m) => FilePath -> m Bool
+inAnnex path = do
+  korrRoot <- root
+  gitRoot <- liftIO $ readCreateProcess ((proc "git" ["rev-parse", "--show-toplevel"]) {cwd = Just korrRoot}) ""
+  pure $ isRelative $ makeRelative gitRoot path
+
 shouldAnnex :: FilePath -> MimeType -> IO Bool
 shouldAnnex path mime =
   if BS.isPrefixOf "text/" mime
@@ -64,14 +71,15 @@ shouldAnnex path mime =
       pure $ size > 10 * 1024 * 1024
     else pure True
 
-newtype NewFile = NewFile
-  { _nfEntry :: NewEntry
+data NewFile = NewFile
+  { _nfEntry :: NewEntry,
+    _nfRemove :: Bool
   }
 
 makeLenses ''NewFile
 
 instance Default NewFile where
-  def = NewFile def
+  def = NewFile def False
 
 choosePrefix :: MimeType -> Text
 choosePrefix mime
@@ -98,7 +106,8 @@ applyNewOptions ne = do
 
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
 new path' options = do
-  path <- liftIO $ resolveSymbolicLink path'
+  alreadyAnnexed <- inAnnex path'
+  path <- if alreadyAnnexed then pure path' else liftIO $ resolveSymbolicLink path'
   ex <- liftIO $ doesFileExist path
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path
@@ -119,13 +128,18 @@ new path' options = do
   i <- newId idmk
   let ext = T.pack $ takeExtension path
   let nm = unId i <> ext
-  content <- liftIO $ BSL.readFile path
   dir <- filesDirectory
   let day = localDay . zonedTimeToLocalTime <$> mtdt ^. exDate
-  stored <- storeFile dir filesTreeType day nm $ FileLazy content
+  content <-
+    if alreadyAnnexed
+      then pure $ (if options ^. nfRemove then FileMove else FileCopy) path
+      else liftIO $ FileLazy <$> BSL.readFile path
+  stored <- storeFile dir filesTreeType day nm content
   let metapath = metaPath stored
   liftIO $ TLIO.writeFile metapath $ encodeToLazyText mtdt
   rt <- root
-  when annex $ annexAdd rt stored
+  when (annex && not alreadyAnnexed) $ annexAdd rt stored
+  when alreadyAnnexed $ void $ runSilentK (proc "git" ["annex", "fix", stored]) {cwd = Just rt}
   syncFileOfKind stored File
+  when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path
   pure i

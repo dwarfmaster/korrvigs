@@ -181,7 +181,7 @@ runNewFile parent nfile =
       let path = joinPath [dir, filename]
       fileMove (nfile ^. nfileContent) path
       let settings =
-            NFile.NewFile $
+            flip NFile.NewFile False $
               def
                 & neTitle .~ nfile ^. nfileTitle
                 & neParents .~ maybeToList parent

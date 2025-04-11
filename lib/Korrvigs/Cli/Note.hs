@@ -19,7 +19,6 @@ import Korrvigs.Note.New
 import Korrvigs.Note.SQL
 import Opaleye
 import Options.Applicative
-import System.Directory (removeFile)
 import System.IO hiding (putStrLn)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
@@ -167,11 +166,11 @@ run (Attach note isPath cmd) =
         forM_ files $ \file -> do
           let options =
                 NF.NewFile
-                  { NF._nfEntry = def & neParents .~ [i]
+                  { NF._nfEntry = def & neParents .~ [i],
+                    NF._nfRemove = delete
                   }
           ni <- NF.new file options
           liftIO $ putStrLn $ unId ni
-          when delete $ liftIO $ removeFile file
       AttachLinks links offline ->
         forM_ links $ \link -> do
           let options =

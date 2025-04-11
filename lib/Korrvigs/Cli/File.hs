@@ -1,7 +1,6 @@
 module Korrvigs.Cli.File where
 
 import Control.Lens hiding (argument)
-import Control.Monad
 import Control.Monad.IO.Class
 import qualified Data.Text as T
 import Korrvigs.Cli.Monad
@@ -9,9 +8,8 @@ import Korrvigs.Cli.New
 import Korrvigs.Entry
 import Korrvigs.File
 import Options.Applicative
-import System.Directory (removeFile)
 
-data Cmd = New {_nfFile :: FilePath, _nfOptions :: NewFile, _nfRemove :: Bool}
+data Cmd = New {_nfFile :: FilePath, _nfOptions :: NewFile}
 
 makeLenses ''Cmd
 
@@ -25,8 +23,8 @@ parser' =
                 <$> argument str (metavar "PATH")
                 <*> ( NewFile
                         <$> newEntryOptions
+                        <*> switch (long "delete" <> help "Delete original file after insertion")
                     )
-                <*> switch (long "delete" <> help "Delete original file after insertion")
             )
               <**> helper
           )
@@ -43,7 +41,6 @@ parser =
       <> header "korr file -- interface for files"
 
 run :: Cmd -> KorrM ()
-run (New path options remove) = do
+run (New path options) = do
   i <- new path options
-  when remove $ liftIO $ removeFile path
   liftIO $ putStrLn $ T.unpack $ unId i

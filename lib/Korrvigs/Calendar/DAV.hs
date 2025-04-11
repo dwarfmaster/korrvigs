@@ -111,7 +111,7 @@ downloadAndWrite cal pwd rt toinsert forbidden = do
         let basename = unId i <> "_" <> unId (cal ^. calEntry . name) <> ".ics"
         let start = resolveICalTime ical <$> ievent ^. iceStart
         let day = localDay . zonedTimeToLocalTime <$> start
-        stored <- lift $ storeFile rt Ev.eventTreeType day basename $ renderICalFile ical
+        stored <- lift $ storeFile rt Ev.eventTreeType day basename $ FileLazy $ renderICalFile ical
         pure $ Just (davR, makeRelative rt stored)
       Nothing ->
         throwM $ KMiscError $ "Received an event that was not asked for: \"" <> ievent ^. iceUid <> "\""

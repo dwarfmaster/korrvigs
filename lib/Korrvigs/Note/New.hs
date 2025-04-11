@@ -65,6 +65,6 @@ create note = do
           }
   let bs = writeNoteLazy doc
   rt <- noteDirectory
-  path <- storeFile rt noteTreeType Nothing (unId i <> ".md") bs
+  path <- storeFile rt noteTreeType Nothing (unId i <> ".md") $ FileLazy bs
   syncFileOfKind path Note
   pure i

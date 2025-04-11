@@ -1,4 +1,4 @@
-module Korrvigs.Utils.DateTree (DateTreeType, dtYear, dtMonth, dtDay, storeFile, listFiles) where
+module Korrvigs.Utils.DateTree (DateTreeType, dtYear, dtMonth, dtDay, FileContent (..), storeFile, listFiles) where
 
 -- Helper module to deal with files organised in date based trees
 
@@ -36,13 +36,18 @@ getCurrentDay = localDay <$> (utcToLocalTime <$> getCurrentTimeZone <*> getCurre
 
 type DayData = (Year, MonthOfYear, DayOfMonth)
 
+data FileContent
+  = FileLazy ByteString
+  | FileCopy FilePath
+  | FileMove FilePath
+
 storeFile ::
   (MonadIO m) =>
   FilePath ->
   DateTreeType ->
   Maybe Day ->
   Text ->
-  ByteString ->
+  FileContent ->
   m FilePath
 storeFile root tp mday name content = liftIO $ do
   createDirectoryIfMissing True root
@@ -57,7 +62,7 @@ storeFile root tp mday name content = liftIO $ do
             then storeFileDay root day name content
             else storeFilePlain root name content
 
-storeFileYear :: FilePath -> DateTreeType -> DayData -> Text -> ByteString -> IO FilePath
+storeFileYear :: FilePath -> DateTreeType -> DayData -> Text -> FileContent -> IO FilePath
 storeFileYear root tp day name content = do
   let dir = joinPath [root, printf "%04d" $ day ^. _1]
   createDirectoryIfMissing False dir
@@ -68,7 +73,7 @@ storeFileYear root tp day name content = do
         then storeFileDay dir day name content
         else storeFilePlain dir name content
 
-storeFileMonth :: FilePath -> DateTreeType -> DayData -> Text -> ByteString -> IO FilePath
+storeFileMonth :: FilePath -> DateTreeType -> DayData -> Text -> FileContent -> IO FilePath
 storeFileMonth root tp day name content = do
   let dir = joinPath [root, printf "%02d" $ day ^. _2]
   createDirectoryIfMissing False dir
@@ -76,16 +81,19 @@ storeFileMonth root tp day name content = do
     then storeFileDay dir day name content
     else storeFilePlain dir name content
 
-storeFileDay :: FilePath -> DayData -> Text -> ByteString -> IO FilePath
+storeFileDay :: FilePath -> DayData -> Text -> FileContent -> IO FilePath
 storeFileDay root day name content = do
   let dir = joinPath [root, printf "%02d" $ day ^. _3]
   createDirectoryIfMissing False dir
   storeFilePlain dir name content
 
-storeFilePlain :: FilePath -> Text -> ByteString -> IO FilePath
+storeFilePlain :: FilePath -> Text -> FileContent -> IO FilePath
 storeFilePlain root name content = do
   let path = joinPath [root, T.unpack name]
-  writeFile path content
+  case content of
+    FileLazy lbs -> writeFile path lbs
+    FileCopy file -> copyFile file path
+    FileMove file -> renameFile file path
   pure path
 
 type DateFile = (FilePath, Maybe Year, Maybe MonthOfYear, Maybe DayOfMonth)

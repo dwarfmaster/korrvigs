@@ -27,7 +27,7 @@ import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils (joinNull, resolveSymbolicLink)
-import Korrvigs.Utils.DateTree (storeFile)
+import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
 import Korrvigs.Utils.Git.Annex
 import Korrvigs.Utils.Time (dayToZonedTime)
 import Network.Mime
@@ -122,7 +122,7 @@ new path' options = do
   content <- liftIO $ BSL.readFile path
   dir <- filesDirectory
   let day = localDay . zonedTimeToLocalTime <$> mtdt ^. exDate
-  stored <- storeFile dir filesTreeType day nm content
+  stored <- storeFile dir filesTreeType day nm $ FileLazy content
   let metapath = metaPath stored
   liftIO $ TLIO.writeFile metapath $ encodeToLazyText mtdt
   rt <- root

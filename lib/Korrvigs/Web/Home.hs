@@ -110,7 +110,7 @@ displayHome errMsgs = do
   let nwHd = [whamlet|<h2> ^{Widgets.headerSymbol "⊕"} Create entry|]
   render <- getUrlRender
   let hd = Html.a "Favourites" ! Attr.href (textValue $ render $ ColR ["Favourite"])
-  favs <- Cols.displayTree 1 1 hd ["Favourite"] =<< colTree MiscCollection ["Favourite"] True
+  favs <- Cols.displayTree Nothing 1 1 hd ["Favourite"] =<< colTree MiscCollection ["Favourite"] True
   defaultLayout $ do
     setTitle "Korrvigs's Home"
     setDescriptionIdemp "Korrvigs home page"

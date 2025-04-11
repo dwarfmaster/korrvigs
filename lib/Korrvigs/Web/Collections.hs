@@ -2,6 +2,7 @@ module Korrvigs.Web.Collections where
 
 import Control.Lens
 import Control.Monad
+import Data.Foldable
 import Data.List (elemIndex, sortBy)
 import qualified Data.Map as M
 import Data.Maybe
@@ -83,7 +84,7 @@ getColR prefix = do
       [] -> "Collections"
       (lp : _) -> lp
 
-displayTree :: Int -> Int -> Html -> [Text] -> ColTree -> Handler Widget
+displayTree :: Maybe Text -> Int -> Int -> Html -> [Text] -> ColTree -> Handler Widget
 displayTree = displayTreeImpl mkLeafs
   where
     mkLeafs :: Int -> [(Id, Maybe Text)] -> Handler Widget
@@ -111,22 +112,23 @@ symbols rprefix = case prefix of
 
 displayTreeImpl ::
   (Int -> [(Id, Maybe Text)] -> Handler Widget) ->
+  Maybe Text ->
   Int ->
   Int ->
   Html ->
   [Text] ->
   ColTree ->
   Handler Widget
-displayTreeImpl mkLeafs lvl threshold cat rprefix favs = do
+displayTreeImpl mkLeafs disp lvl threshold cat rprefix favs = do
   let entries = favs ^. colEntries
   subs <-
     isPublic >>= \case
       True -> pure []
       False -> forM (M.toList $ favs ^. colSubs) $ \(subHd, sb) -> do
-        render <- getUrlRender
+        render <- getUrlRenderParams
         let url = ColR $ reverse $ subHd : rprefix
-        let subH = Html.a (toMarkup subHd) ! Attr.href (textValue $ render url)
-        displayTreeImpl mkLeafs (lvl + 1) threshold subH (subHd : rprefix) sb
+        let subH = Html.a (toMarkup subHd) ! Attr.href (textValue $ render url [("display", d) | d <- toList disp])
+        displayTreeImpl mkLeafs disp (lvl + 1) threshold subH (subHd : rprefix) sb
   leafs <- mkLeafs lvl entries
   let content =
         [whamlet|
@@ -162,7 +164,7 @@ displayMisc :: [Text] -> Handler Widget
 displayMisc prefix = do
   render <- getUrlRender
   titleH <- mkTitle (render . ColR) "Collections" rprefix
-  displayTree 0 0 titleH rprefix =<< colTree MiscCollection prefix True
+  displayTree Nothing 0 0 titleH rprefix =<< colTree MiscCollection prefix True
   where
     rprefix = reverse prefix
 
@@ -171,7 +173,7 @@ displayGal prefix = do
   render <- getUrlRenderParams
   titleH <- mkTitle (flip render [("display", "gallery")] . ColR) "Collections" rprefix
   subTree <- colCatTree MiscCollection prefix
-  subs <- displayTree 1 0 "Sub galleries" rprefix subTree
+  subs <- displayTree (Just "gallery") 1 0 "Sub galleries" rprefix subTree
   pictures <- rSelect $ orderBy (ascNullsFirst snd <> asc fst) $ do
     (i, _) <- selectCol MiscCollection prefix False
     entry <- selectTable entriesTable
@@ -206,7 +208,7 @@ displayTask prefix = do
   tree <- colTree MiscCollection prefix True
   render <- getUrlRender
   titleH <- mkTitle (render . ColR) "Collection" rprefix
-  widget <- displayTreeImpl mkLeafs 0 0 titleH prefix tree
+  widget <- displayTreeImpl mkLeafs (Just "todo") 0 0 titleH prefix tree
   pure $ do
     Rcs.checkboxCode
     widget

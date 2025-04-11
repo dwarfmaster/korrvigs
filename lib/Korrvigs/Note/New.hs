@@ -3,20 +3,26 @@ module Korrvigs.Note.New (new, NewNote (..), nnEntry, nnTitle) where
 import Control.Arrow (first)
 import Control.Lens
 import Data.Aeson
+import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
+import Data.Foldable
+import Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.Kind
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Note.Render
 import Korrvigs.Note.Sync
 import Korrvigs.Utils.DateTree
+import Network.URI (parseURI)
 import Opaleye hiding (not, null)
 
 data NewNote = NewNote
@@ -38,6 +44,17 @@ new note = do
     (i : _) -> pure i
     [] -> create note
 
+initContent :: Map (CI Text) Value -> [Block]
+initContent mtdt =
+  mconcat
+    [ [Para [PlainLink Nothing uri] | url <- get Url, uri <- toList (parseURI $ T.unpack url)],
+      [Embed (MkId i) | i <- get Cover],
+      [Para [Plain txt] | txt <- get Abstract]
+    ]
+  where
+    get :: (ExtraMetadata mt, MtdtType mt ~ a, FromJSON a) => mt -> [a]
+    get m = toList $ extractMtdt m mtdt
+
 create :: (MonadKorrvigs m) => NewNote -> m Id
 create note = do
   idmk' <- applyNewEntry (note ^. nnEntry) (imk "note")
@@ -55,7 +72,7 @@ create note = do
   let doc =
         Document
           { _docMtdt = mtdt,
-            _docContent = [],
+            _docContent = initContent mtdt,
             _docTitle = note ^. nnTitle,
             _docRefTo = S.empty,
             _docChecks = Checks 0 0 0 0 0,

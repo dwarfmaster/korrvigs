@@ -107,7 +107,7 @@ applyNewOptions ne = do
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
 new path' options = do
   alreadyAnnexed <- inAnnex path'
-  path <- if alreadyAnnexed then pure path' else liftIO $ resolveSymbolicLink path'
+  path <- liftIO $ resolveSymbolicLink path'
   ex <- liftIO $ doesFileExist path
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path
@@ -132,7 +132,7 @@ new path' options = do
   let day = localDay . zonedTimeToLocalTime <$> mtdt ^. exDate
   content <-
     if alreadyAnnexed
-      then pure $ (if options ^. nfRemove then FileMove else FileCopy) path
+      then pure $ (if options ^. nfRemove then FileMove else FileCopy) path'
       else liftIO $ FileLazy <$> BSL.readFile path
   stored <- storeFile dir filesTreeType day nm content
   let metapath = metaPath stored

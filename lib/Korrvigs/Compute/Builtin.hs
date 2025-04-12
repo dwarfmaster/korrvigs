@@ -20,7 +20,6 @@ import Text.Parsec.Number
 data Action
   = Miniature
   | Size
-  | CalDav
   deriving (Eq, Show)
 
 makePrisms ''Action
@@ -28,12 +27,10 @@ makePrisms ''Action
 instance ToJSON Action where
   toJSON Miniature = String "miniature"
   toJSON Size = String "size"
-  toJSON CalDav = String "caldav"
 
 instance FromJSON Action where
   parseJSON (String "miniature") = pure Miniature
   parseJSON (String "size") = pure Size
-  parseJSON (String "caldav") = pure CalDav
   parseJSON v = unexpected v
 
 isPrefix :: Text -> MimeType -> Bool
@@ -65,4 +62,3 @@ run Size entry tgt = case entry ^. kindData of
                  in writeJsonToFile tgt $ object ["width" .= toJSON w, "height" .= toJSON h]
           Left _ -> pure ()
   _ -> pure ()
-run CalDav _ _ = pure ()

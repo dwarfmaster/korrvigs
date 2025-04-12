@@ -22,7 +22,9 @@ import Korrvigs.Utils.JSON (writeJsonToFile)
 import System.Directory
 import System.FilePath
 
-newtype Action = Builtin Builtin.Action
+data Action
+  = Builtin Builtin.Action
+  | Cached
   deriving (Eq, Show)
 
 instance ToJSON Action where
@@ -31,12 +33,15 @@ instance ToJSON Action where
       [ "kind" .= String "builtin",
         "value" .= toJSON act
       ]
+  toJSON Cached =
+    object ["kind" .= String "cached"]
 
 instance FromJSON Action where
   parseJSON = withObject "Action" $ \act -> do
     kd <- act .: "kind"
     case kd of
       String "builtin" -> Builtin <$> (parseJSON =<< act .: "value")
+      String "cached" -> pure Cached
       String str -> fail $ T.unpack $ "\"" <> str <> "\" is not a valid computation kind name"
       obj -> unexpected obj
 
@@ -205,6 +210,7 @@ run cmp =
       tgt <- compFile cmp
       case cmp ^. cmpAction of
         Builtin act -> Builtin.run act entry tgt
+        Cached -> pure ()
       ex <- liftIO $ doesFileExist tgt
       rt <- root
       when (ex && shouldAnnex (cmp ^. cmpType)) $ annexAdd rt tgt

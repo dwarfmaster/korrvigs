@@ -137,11 +137,11 @@ doExtract i = do
 
 displayAction :: Action -> IO ()
 displayAction (Builtin blt) = putStr "[" >> displayBuiltin blt >> putStr "]"
+displayAction Cached = putStr "[]"
 
 displayBuiltin :: Builtin.Action -> IO ()
 displayBuiltin Builtin.Miniature = putStr "miniature"
 displayBuiltin Builtin.Size = putStr "size"
-displayBuiltin Builtin.CalDav = putStr "caldav"
 
 displayType :: CompType -> IO ()
 displayType ScalarImage = putStr "scalar"

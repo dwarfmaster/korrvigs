@@ -21,7 +21,6 @@ import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.LocalTime
 import Korrvigs.Actions (load, remove, syncFileOfKind)
 import Korrvigs.Compute
-import qualified Korrvigs.Compute.Builtin as Blt
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
@@ -159,7 +158,7 @@ pull cal pwd forbidden = do
   comps <- entryStoredComputations' i file
   cdata <- case M.lookup "dav" comps of
     Nothing -> pure $ CachedData Nothing M.empty
-    Just cached | cached ^. cmpAction /= Builtin Blt.CalDav -> throwM $ KMiscError "dav computation of calendar is already used"
+    Just cached | cached ^. cmpAction /= Cached -> throwM $ KMiscError "dav computation of calendar is already used"
     Just cached ->
       compFile cached >>= reroot >>= getJsonComp' >>= \case
         Nothing -> throwM $ KMiscError "Failed to load cached tags for calendar DAV"
@@ -170,7 +169,7 @@ pull cal pwd forbidden = do
   worktreeRoot <- reroot events
   (insertedPaths, nforbidden) <- doPull cal pwd worktreeRoot changes forbidden
   -- Cache tags
-  let cmp = Computation i "dav" (Builtin Blt.CalDav) Json
+  let cmp = Computation i "dav" Cached Json
   let ncomps = M.insert "dav" cmp comps
   storeComputations' ncomps file
   compPath <- compFile cmp >>= reroot
@@ -193,7 +192,7 @@ push cal pwd add rm = do
   comps <- entryStoredComputations i
   cdata <- case M.lookup "dav" comps of
     Nothing -> throwM $ KMiscError "No dav computation for calendar"
-    Just cached | cached ^. cmpAction /= Builtin Blt.CalDav -> throwM $ KMiscError "dav computation of calendar is already used"
+    Just cached | cached ^. cmpAction /= Cached -> throwM $ KMiscError "dav computation of calendar is already used"
     Just cached ->
       compFile cached >>= reroot >>= getJsonComp' >>= \case
         Nothing -> throwM $ KMiscError "Failed to load cached tags for calendar DAV"
@@ -221,7 +220,7 @@ push cal pwd add rm = do
         Right () -> pure ()
   -- Store new etags
   let ncData = foldr (\(rc, etg, pth) -> cachedEtags . at rc ?~ (etg, pth)) cdata r
-  let cmp = Computation i "dav" (Builtin Blt.CalDav) Json
+  let cmp = Computation i "dav" Cached Json
   compPath <- compFile cmp
   writeJsonToFile compPath ncData
   pure compPath

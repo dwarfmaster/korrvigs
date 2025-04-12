@@ -17,7 +17,6 @@ import Korrvigs.Actions.SQL
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.SQL
 import Korrvigs.Compute
-import Korrvigs.Compute.Builtin (Action (CalDav))
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
@@ -76,7 +75,7 @@ syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData CalRow, EntryComps)
 syncOne path = do
   dt <- syncCal path
   let i = calIdFromPath path
-  let cmps = M.singleton "dav" (Computation i "dav" (Builtin CalDav) Json)
+  let cmps = M.singleton "dav" (Computation i "dav" Cached Json)
   pure (dt, cmps)
 
 remove :: (MonadKorrvigs m) => Calendar -> m ()
@@ -107,4 +106,4 @@ updateParents cal toAdd toRm = updateImpl cal $ pure . updParents
 listCompute :: (MonadKorrvigs m) => Calendar -> m EntryComps
 listCompute cal =
   let i = cal ^. calEntry . name
-   in pure $ M.singleton "dav" $ Computation i "dav" (Builtin CalDav) Json
+   in pure $ M.singleton "dav" $ Computation i "dav" Cached Json

@@ -19,6 +19,7 @@ import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Time.LocalTime
 import Korrvigs.Actions
+import qualified Korrvigs.Compute as Cpt
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Mtdt
@@ -142,4 +143,6 @@ new path' options = do
   when alreadyAnnexed $ void $ runSilentK (proc "git" ["annex", "fix", stored]) {cwd = Just rt}
   syncFileOfKind stored File
   when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path
+  comps <- Cpt.entryStoredComputations i
+  forM_ comps Cpt.run
   pure i

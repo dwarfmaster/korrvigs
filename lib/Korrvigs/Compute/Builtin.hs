@@ -47,7 +47,7 @@ run Miniature entry tgt = case entry ^. kindData of
          in liftIO $ void $ runSilent magick
   FileD file
     | isPrefix "video/" (file ^. fileMime) ->
-        let ffmpeg = proc "ffmpeg" ["-i", file ^. filePath, "-vframes", "1", "-f", "image2", "-vf", "scale=200:-2", tgt]
+        let ffmpeg = proc "ffmpeg" ["-i", "file:" <> file ^. filePath, "-vframes", "1", "-f", "image2", "-vf", "scale=200:-2", tgt]
          in liftIO $ void $ runSilent ffmpeg
   _ -> pure ()
 run Size entry tgt = case entry ^. kindData of

@@ -14,6 +14,7 @@ import Data.Time.Clock
 import Data.Time.LocalTime
 import System.Directory
 import System.FilePath
+import System.Posix.Files (createSymbolicLink)
 import Text.Parsec
 import Text.Parsec.Number
 import Text.Printf
@@ -87,13 +88,26 @@ storeFileDay root day name content = do
   createDirectoryIfMissing False dir
   storeFilePlain dir name content
 
+copyLink :: FilePath -> FilePath -> IO ()
+copyLink src tgt = do
+  lnk <- getSymbolicLinkTarget src
+  createSymbolicLink lnk tgt
+
 storeFilePlain :: FilePath -> Text -> FileContent -> IO FilePath
 storeFilePlain root name content = do
   let path = joinPath [root, T.unpack name]
   case content of
     FileLazy lbs -> writeFile path lbs
-    FileCopy file -> copyFile file path
-    FileMove file -> renameFile file path
+    FileCopy file ->
+      pathIsSymbolicLink file >>= \sym ->
+        if sym
+          then copyLink file path
+          else copyFile file path
+    FileMove file ->
+      pathIsSymbolicLink file >>= \sym ->
+        if sym
+          then copyLink file path >> removeFile file
+          else renameFile file path
   pure path
 
 type DateFile = (FilePath, Maybe Year, Maybe MonthOfYear, Maybe DayOfMonth)

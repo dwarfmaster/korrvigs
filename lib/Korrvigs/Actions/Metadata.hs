@@ -7,7 +7,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Korrvigs.Calendar.Sync as Cal
-import Korrvigs.Compute
+import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
@@ -77,10 +77,10 @@ updateParents entry toAdd toRm = do
               iOnConflict = Just doNothing
             }
 
-listCompute :: (MonadKorrvigs m) => Entry -> m EntryComps
-listCompute entry = case entry ^. kindData of
-  LinkD link -> Link.listCompute link
-  FileD file -> File.listCompute file
-  NoteD note -> Note.listCompute note
-  EventD event -> Event.listCompute event
-  CalendarD cal -> Cal.listCompute cal
+listCompute :: (MonadKorrvigs m) => Id -> m (Map Text Action)
+listCompute i = do
+  acts <- rSelect $ do
+    cmp <- selectTable computationsTable
+    where_ $ cmp ^. sqlCompEntry .== sqlId i
+    pure (cmp ^. sqlCompName, cmp ^. sqlCompAction)
+  pure $ M.fromList acts

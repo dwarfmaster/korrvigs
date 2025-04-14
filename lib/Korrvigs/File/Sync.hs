@@ -18,7 +18,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time.LocalTime
 import Korrvigs.Actions.SQL
-import Korrvigs.Compute
+import qualified Korrvigs.Compute.Action as Act
 import Korrvigs.Compute.Builtin
 import Korrvigs.Entry
 import Korrvigs.File.SQL
@@ -114,33 +114,22 @@ computeStatus path = do
       pure $ if ex then FilePresent else FileAbsent
     else pure FilePlain
 
-computeFromMime :: Id -> MimeType -> EntryComps
+computeFromMime :: Id -> MimeType -> Map Text Act.Action
 computeFromMime i mime = cmp $ Enc.decodeASCII mime
   where
     cmp m
-      | S.member m scalars = miniature ScalarImage
       | T.isPrefixOf "image/" m =
-          miniature Picture
-            <> M.singleton "size" (Computation i "size" (Builtin Size) Json)
-      | T.isPrefixOf "video/" m = miniature Picture
+          miniature
+            <> M.singleton "size" (Act.Builtin i Size)
+      | T.isPrefixOf "video/" m = miniature
       | otherwise = M.empty
-    miniature = M.singleton "miniature" . Computation i "miniature" (Builtin Miniature)
-    scalars = S.fromList ["image/apng", "image/png", "image/bmp"]
+    miniature = M.singleton "miniature" $ Act.Builtin i Miniature
 
-listCompute :: (MonadKorrvigs m) => File -> m EntryComps
-listCompute file = do
-  let path = file ^. filePath
-  let i = file ^. fileEntry . name
-  let meta = metaPath path
-  json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
-  let mime = Enc.encodeUtf8 $ json ^. savedMime
-  pure $ computeFromMime i mime
-
-sync :: (MonadKorrvigs m) => m (Map Id (SyncData FileRow, EntryComps))
+sync :: (MonadKorrvigs m) => m (Map Id (SyncData FileRow))
 sync =
   M.fromList <$> (allFiles >>= mapM (sequence . (fileIdFromPath &&& syncOne)))
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData FileRow, EntryComps)
+syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData FileRow)
 syncOne path = do
   let i = fileIdFromPath path
   let meta = metaPath path
@@ -156,8 +145,8 @@ syncOne path = do
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let frow = FileRow i path (metaPath path) status mime :: FileRow
   let txt = json ^. exText
-  let sdt = SyncData erow frow mtdtrows txt (json ^. exParents) []
-  pure (sdt, cmps)
+  let sdt = SyncData erow frow mtdtrows txt (json ^. exParents) [] cmps
+  pure sdt
 
 updateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()
 updateImpl file f = do

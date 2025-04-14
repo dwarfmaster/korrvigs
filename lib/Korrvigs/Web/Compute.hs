@@ -1,31 +1,35 @@
 module Korrvigs.Web.Compute (getEntryCacheR, getEntryComputeR) where
 
 import Control.Lens
-import qualified Data.Map as M
 import Data.Text (Text)
 import Korrvigs.Compute
+import Korrvigs.Compute.Action
+import Korrvigs.Compute.Declare
+import Korrvigs.Entry
+import Korrvigs.Monad
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
-import System.Directory
+import Opaleye
 import Yesod
 
 getEntryCacheR :: WebId -> Handler Value
 getEntryCacheR (WId i) = do
-  comps <- entryStoredComputations i
-  pure $ toJSON $ fst <$> M.toList comps
+  comps :: [Text] <- rSelect $ do
+    cmp <- selectTable computationsTable
+    where_ $ cmp ^. sqlCompEntry .== sqlId i
+    pure $ cmp ^. sqlCompName
+  pure $ toJSON comps
 
 getEntryComputeR :: WebId -> Text -> Handler TypedContent
 getEntryComputeR (WId i) cmpName = do
-  comps <- entryStoredComputations i
-  cmp <- maybe notFound pure $ M.lookup cmpName comps
-  path <- compFile cmp
-  ex <- liftIO $ doesFileExist path
-  if ex
-    then serveCached path $ cmp ^. cmpType
-    else notFound
+  mcmp <- rSelectOne (view sqlCompAction <$> selComp i cmpName)
+  cmp <- maybe notFound pure mcmp
+  path <- view _2 <$> run cmp
+  let cmpType = actionData cmp ^. adatType
+  pure $ toTypedContent (serveType cmpType, ContentFile path Nothing)
 
-serveCached :: FilePath -> CompType -> Handler TypedContent
-serveCached path ScalarImage = pure $ toTypedContent (typeJpeg, ContentFile path Nothing)
-serveCached path Picture = pure $ toTypedContent (typePng, ContentFile path Nothing)
-serveCached path VectorImage = pure $ toTypedContent (typeSvg, ContentFile path Nothing)
-serveCached path Json = pure $ toTypedContent (typeJson, ContentFile path Nothing)
+serveType :: CompType -> ContentType
+serveType ScalarImage = typeJpeg
+serveType Picture = typePng
+serveType VectorImage = typeSvg
+serveType Json = typeJson

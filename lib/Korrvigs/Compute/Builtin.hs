@@ -5,9 +5,11 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Types
+import Data.Default
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
+import Korrvigs.Compute.Declare
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON
@@ -62,3 +64,7 @@ run Size entry tgt = case entry ^. kindData of
                  in writeJsonToFile tgt $ object ["width" .= toJSON w, "height" .= toJSON h]
           Left _ -> pure ()
   _ -> pure ()
+
+actionData :: Action -> ActionData
+actionData Miniature = ActionData Picture def Nothing
+actionData Size = ActionData Json def Nothing

@@ -19,7 +19,6 @@ import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.LocalTime
 import Korrvigs.Actions.SQL
-import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
@@ -94,16 +93,15 @@ syncEvent i calendar ics ifile ical = do
   let evrow = EventRow i calendar ics (ical ^. iceUid) :: EventRow
   let txt = T.intercalate " " $ catMaybes [ical ^. iceComment, ical ^. iceSummary, ical ^. iceDescription]
   let txt' = if T.null txt then Nothing else Just txt
-  pure $ SyncData erow evrow mrows txt' (calendar : ical ^. iceParents) []
+  pure $ SyncData erow evrow mrows txt' (calendar : ical ^. iceParents) [] M.empty
 
-syncOneEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m (SyncData EventRow, EntryComps)
+syncOneEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m (SyncData EventRow)
 syncOneEvent i calendar ics ifile ievent = do
   prev <- load i
   forM_ prev removeDB
-  sdt <- syncEvent i calendar ics ifile ievent
-  pure (sdt, M.empty)
+  syncEvent i calendar ics ifile ievent
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData EventRow, EntryComps)
+syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData EventRow)
 syncOne path = do
   let (i, calendar) = eventIdFromPath path
   liftIO (parseICalFile path) >>= \case
@@ -112,7 +110,7 @@ syncOne path = do
       Nothing -> throwM $ KMiscError $ "Ics file \"" <> T.pack path <> "\" has no VEVENT"
       Just ievent -> syncOneEvent i calendar path ifile ievent
 
-sync :: (MonadKorrvigs m) => m (Map Id (SyncData EventRow, EntryComps))
+sync :: (MonadKorrvigs m) => m (Map Id (SyncData EventRow))
 sync = do
   files <- allEvents
   rdata <- forM files $ \path -> do
@@ -153,6 +151,3 @@ updateParents event toAdd toRm =
   updateImpl event $ pure . (icEvent . _Just . iceParents %~ updParents)
   where
     updParents = (toAdd ++) . filter (not . flip elem toRm)
-
-listCompute :: (MonadKorrvigs m) => Event -> m EntryComps
-listCompute _ = pure M.empty

@@ -15,7 +15,6 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Actions.SQL
-import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
@@ -58,7 +57,7 @@ allNotes = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allNotes
 
-sync :: (MonadKorrvigs m) => m (Map Id (SyncData NoteRow, EntryComps))
+sync :: (MonadKorrvigs m) => m (Map Id (SyncData NoteRow))
 sync =
   M.fromList <$> (allNotes >>= mapM (sequence . (noteIdFromPath &&& syncOne)))
 
@@ -67,12 +66,11 @@ fromJSON' v = case fromJSON v of
   Success x -> Just x
   Error _ -> Nothing
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData NoteRow, EntryComps)
+syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData NoteRow)
 syncOne path = do
   let i = noteIdFromPath path
   doc <- readNote path >>= throwEither (KCantLoad i)
-  dt <- syncDocument i path doc
-  pure (dt, M.empty)
+  syncDocument i path doc
 
 syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Document -> m (SyncData NoteRow)
 syncDocument i path doc = do
@@ -84,7 +82,7 @@ syncDocument i path doc = do
   let mrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
   let nrow = NoteRow i path :: NoteRow
   let txt = renderDocument doc
-  pure $ SyncData erow nrow mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo)
+  pure $ SyncData erow nrow mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) M.empty
 
 updateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
 updateImpl note f = do
@@ -107,6 +105,3 @@ updateParents note toAdd toRm = updateImpl note $ pure . upd
   where
     updParents = foldr (.) id $ fmap S.insert toAdd ++ fmap S.delete toRm
     upd = docParents %~ updParents
-
-listCompute :: (MonadKorrvigs m) => Note -> m EntryComps
-listCompute _ = pure M.empty

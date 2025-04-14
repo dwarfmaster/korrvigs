@@ -1,5 +1,6 @@
 module Korrvigs.Cli.Compute where
 
+import Control.Arrow ((&&&))
 import Control.Lens hiding (List, argument)
 import Control.Monad
 import Control.Monad.IO.Class
@@ -7,14 +8,16 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Text.IO (putStr, putStrLn)
-import Korrvigs.Actions
+import Korrvigs.Actions.Metadata
 import Korrvigs.Cli.Monad
-import Korrvigs.Compute hiding (run)
 import qualified Korrvigs.Compute as Cmp
+import Korrvigs.Compute.Action
 import qualified Korrvigs.Compute.Builtin as Builtin
+import Korrvigs.Compute.Declare
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
+import Korrvigs.Utils.Crypto
 import Opaleye hiding (null)
 import Options.Applicative
 import Prelude hiding (putStr, putStrLn)
@@ -26,8 +29,7 @@ data CmpSelect = CmpSelect
 
 data Cmd
   = Run {_runSelect :: CmpSelect, _runCmps :: [Text]}
-  | List {_listEntry :: Id, _listExtract :: Bool}
-  | Extract {_exSelect :: CmpSelect}
+  | List {_listEntry :: Id}
 
 makeLenses ''CmpSelect
 makeLenses ''Cmd
@@ -67,20 +69,11 @@ parser' =
         ( info
             ( ( List
                   <$> fmap MkId (argument str (metavar "ID" <> help "Entry to list available computations for"))
-                  <*> switch (help "Extract actions before listing" <> long "extract")
               )
                 <**> helper
             )
             ( progDesc "List extracted computations for entry"
                 <> header "korr compute list -- list computations"
-            )
-        )
-      <> command
-        "extract"
-        ( info
-            ((Extract <$> selectParser) <**> helper)
-            ( progDesc "Extract available computations for entry, and store them"
-                <> header "korr compute extract -- extract computations"
             )
         )
 
@@ -102,42 +95,25 @@ selectEntries (CmpSelect kinds entries) = do
 run :: Cmd -> KorrM ()
 run (Run sel comps) = do
   toRunOn <- selectEntries sel
-  let idKorr :: KorrM () -> KorrM () = id
-  let runAll cmps act = forM_ (M.toList cmps) $ act . snd
-  let runSome cmps act =
-        idKorr $ forM_ comps $ \cmpName -> maybe (pure ()) act $ M.lookup cmpName cmps
-  let doRun = if null comps then runAll else runSome
+  let mcomps = M.fromList $ (id &&& const ()) <$> comps
+  let select cmps = if null comps then cmps else M.intersectionWith (const id) mcomps cmps
   forM_ toRunOn $ \i -> do
     liftIO $ putStrLn $ "=== " <> unId i <> " ==="
-    cmps <- entryStoredComputations i
-    doRun cmps $ \cmp -> do
-      liftIO $ putStrLn $ "> " <> cmp ^. cmpId
-      Cmp.run cmp
-run (List i extract) = do
-  when extract $ doExtract i
-  comps <- entryStoredComputations i
-  forM_ (view _2 <$> M.toList comps) $ \cmp -> liftIO $ do
-    putStr (cmp ^. cmpId)
+    cmps <- select <$> listCompute i
+    forM_ (M.toList cmps) $ \(nm, cmp) -> do
+      liftIO $ putStrLn $ "> " <> nm
+      (hash, _) <- Cmp.run cmp
+      liftIO $ putStrLn $ digestToHexa hash
+run (List i) = do
+  comps <- listCompute i
+  forM_ (M.toList comps) $ \(nm, act) -> liftIO $ do
+    putStr nm
     putStr " -> "
-    displayAction $ cmp ^. cmpAction
-    putStr " :: "
-    displayType $ cmp ^. cmpType
-    putStrLn ""
-run (Extract sel) = do
-  toRunOn <- selectEntries sel
-  forM_ toRunOn $ \i -> do
-    liftIO $ putStrLn $ "=== " <> unId i <> " ==="
-    doExtract i
-
-doExtract :: (MonadKorrvigs m) => Id -> m ()
-doExtract i = do
-  entry <- load i >>= throwMaybe (KCantLoad i "")
-  comps <- listCompute entry
-  syncComputations i comps
+    displayAction act
 
 displayAction :: Action -> IO ()
-displayAction (Builtin blt) = putStr "[" >> displayBuiltin blt >> putStr "]"
-displayAction Cached = putStr "[]"
+displayAction (Builtin _ blt) = putStr "[" >> displayBuiltin blt >> putStr "]"
+displayAction (Cached tp _) = putStr "{" >> displayType tp >> putStr "}"
 
 displayBuiltin :: Builtin.Action -> IO ()
 displayBuiltin Builtin.Miniature = putStr "miniature"

@@ -14,7 +14,6 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Actions.SQL
-import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Link.JSON
@@ -41,14 +40,13 @@ syncLinkJSON i path json = do
   let erow = EntryRow i Link tm dur geom Nothing :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let lrow = LinkRow i (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
-  pure $ SyncData erow lrow mtdtrows (json ^. lkjsText) (MkId <$> json ^. lkjsParents) []
+  pure $ SyncData erow lrow mtdtrows (json ^. lkjsText) (MkId <$> json ^. lkjsParents) [] M.empty
 
-syncLink :: (MonadKorrvigs m) => FilePath -> m (SyncData LinkRow, EntryComps)
+syncLink :: (MonadKorrvigs m) => FilePath -> m (SyncData LinkRow)
 syncLink path = do
   let i = linkIdFromPath path
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
-  dt <- syncLinkJSON i path json
-  pure (dt, M.empty)
+  syncLinkJSON i path json
 
 allJSONs :: (MonadKorrvigs m) => m [FilePath]
 allJSONs = do
@@ -60,11 +58,11 @@ allJSONs = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allJSONs
 
-sync :: (MonadKorrvigs m) => m (Map Id (SyncData LinkRow, EntryComps))
+sync :: (MonadKorrvigs m) => m (Map Id (SyncData LinkRow))
 sync =
   M.fromList <$> (allJSONs >>= mapM (sequence . (linkIdFromPath &&& syncLink)))
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData LinkRow, EntryComps)
+syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData LinkRow)
 syncOne = syncLink
 
 remove :: (MonadKorrvigs m) => Link -> m ()
@@ -93,6 +91,3 @@ updateParents link toAdd toRm = updateImpl link $ pure . updParents
     rmTxt = unId <$> toRm
     addTxt = unId <$> toAdd
     updParents = lkjsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)
-
-listCompute :: (MonadKorrvigs m) => Link -> m EntryComps
-listCompute _ = pure M.empty

@@ -1,7 +1,6 @@
 module Korrvigs.Web.PhotoSwipe where
 
 import Control.Lens
-import Control.Monad (void)
 import Data.List.NonEmpty (NonEmpty (..), groupBy)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -10,6 +9,7 @@ import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.Format
 import Korrvigs.Compute
+import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Web.Backend
@@ -32,23 +32,28 @@ makeLenses ''PhotoswipeEntry
 
 miniatureEntry :: (MonadKorrvigs m) => Maybe Day -> Id -> m (Maybe PhotoswipeEntry)
 miniatureEntry day i = do
-  comps <- entryStoredComputations i
-  szM <- maybe (pure Nothing) getJsonComp $ M.lookup "size" comps
-  pure $ do
-    void $ M.lookup "miniature" comps
-    sz <- szM :: Maybe (Map Text Int)
-    width <- M.lookup "width" sz
-    height <- M.lookup "height" sz
-    pure $
-      PhotoswipeEntry
-        { _swpUrl = EntryDownloadR (WId i),
-          _swpMiniature = EntryComputeR (WId i) "miniature",
-          _swpRedirect = EntryR (WId i),
-          _swpCaption = mempty,
-          _swpWidth = width,
-          _swpHeight = height,
-          _swpDate = day
-        }
+  query <- rSelectOne $ do
+    miniature <- selComp i "miniature"
+    size <- selComp i "size"
+    pure (miniature ^. sqlCompAction, size ^. sqlCompAction)
+  case query :: Maybe (Action, Action) of
+    Nothing -> pure Nothing
+    Just (_, sizeA) -> do
+      szM <- runJSON sizeA
+      pure $ do
+        sz :: Map Text Int <- szM
+        width <- M.lookup "width" sz
+        height <- M.lookup "height" sz
+        pure $
+          PhotoswipeEntry
+            { _swpUrl = EntryDownloadR (WId i),
+              _swpMiniature = EntryComputeR (WId i) "miniature",
+              _swpRedirect = EntryR (WId i),
+              _swpCaption = mempty,
+              _swpWidth = width,
+              _swpHeight = height,
+              _swpDate = day
+            }
 
 photoswipeHeader :: Widget
 photoswipeHeader = do

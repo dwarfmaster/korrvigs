@@ -56,7 +56,9 @@ library korrvigs-lib
     Korrvigs.Cli.Server
     Korrvigs.Cli.Sync
     Korrvigs.Compute
+    Korrvigs.Compute.Action
     Korrvigs.Compute.Builtin
+    Korrvigs.Compute.Declare
     Korrvigs.Entry
     Korrvigs.Entry.Def
     Korrvigs.Entry.Ident
@@ -131,6 +133,7 @@ library korrvigs-lib
     Korrvigs.Query
     Korrvigs.Utils
     Korrvigs.Utils.Base16
+    Korrvigs.Utils.Crypto
     Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateParser
     Korrvigs.Utils.DateTree

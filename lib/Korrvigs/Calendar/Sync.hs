@@ -16,7 +16,8 @@ import qualified Data.Text as T
 import Korrvigs.Actions.SQL
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.SQL
-import Korrvigs.Compute
+import Korrvigs.Compute.Action
+import Korrvigs.Compute.Declare
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
@@ -50,10 +51,11 @@ syncCalJSON i json = do
   let erow = EntryRow i Calendar tm dur geom Nothing :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let crow = CalRow i (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
-  pure $ SyncData erow crow mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) []
+  let cmps = M.singleton "dav" (Cached Json undefined)
+  pure $ SyncData erow crow mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) [] cmps
 
-syncCal :: (MonadKorrvigs m) => FilePath -> m (SyncData CalRow)
-syncCal path = do
+syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData CalRow)
+syncOne path = do
   let i = calIdFromPath path
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   syncCalJSON i json
@@ -67,16 +69,9 @@ allCalendars = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allCalendars
 
-sync :: (MonadKorrvigs m) => m (Map Id (SyncData CalRow, EntryComps))
+sync :: (MonadKorrvigs m) => m (Map Id (SyncData CalRow))
 sync =
   M.fromList <$> (allCalendars >>= mapM (sequence . (calIdFromPath &&& syncOne)))
-
-syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData CalRow, EntryComps)
-syncOne path = do
-  dt <- syncCal path
-  let i = calIdFromPath path
-  let cmps = M.singleton "dav" (Computation i "dav" Cached Json)
-  pure (dt, cmps)
 
 remove :: (MonadKorrvigs m) => Calendar -> m ()
 remove cal = do
@@ -102,8 +97,3 @@ updateParents cal toAdd toRm = updateImpl cal $ pure . updParents
     rmTxt = unId <$> toRm
     addTxt = unId <$> toAdd
     updParents = cljsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)
-
-listCompute :: (MonadKorrvigs m) => Calendar -> m EntryComps
-listCompute cal =
-  let i = cal ^. calEntry . name
-   in pure $ M.singleton "dav" $ Computation i "dav" Cached Json

@@ -17,12 +17,14 @@ where
 
 import Control.Lens
 import Control.Monad
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Profunctor.Product.Default
 import Data.Text (Text)
 import GHC.Int (Int64)
 import qualified Korrvigs.Calendar.SQL as Cal
+import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import qualified Korrvigs.Event.SQL as Event
 import Korrvigs.FTS
@@ -103,7 +105,8 @@ data SyncData drow = SyncData
     _syncMtdtRows :: [MetadataRow],
     _syncTextContent :: Maybe Text,
     _syncParents :: [Id],
-    _syncRefs :: [Id]
+    _syncRefs :: [Id],
+    _syncCompute :: Map Text Action
   }
 
 makeLenses ''SyncData
@@ -173,6 +176,23 @@ syncSQL tbl dt = atomicSQL $ \conn -> do
           uUpdateWith = sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText txt),
           uWhere = \row -> row ^. sqlEntryName .== sqlId i,
           uReturning = rCount
+        }
+  -- Update computations
+  let compRows = uncurry (CompRow i) <$> M.toList (dt ^. syncCompute)
+  void $
+    runDelete conn $
+      Delete
+        { dTable = computationsTable,
+          dWhere = \comp -> comp ^. sqlCompEntry .== sqlId i,
+          dReturning = rCount
+        }
+  void $
+    runInsert conn $
+      Insert
+        { iTable = computationsTable,
+          iRows = toFields <$> compRows,
+          iReturning = rCount,
+          iOnConflict = Just doNothing
         }
 
 syncRelsSQL :: (MonadKorrvigs m) => Id -> [Id] -> [Id] -> m ()

@@ -37,6 +37,14 @@ CREATE TABLE IF NOT EXISTS entries_ref_to (
     UNIQUE(referer,referee)
 );
 
+CREATE TABLE IF NOT EXISTS computations (
+  entry TEXT NOT NULL REFERENCES entries(name),
+  name TEXT NOT NULL,
+  action JSONB NOT NULL,
+  CONSTRAINT computations_ref_unique
+    UNIQUE(entry,name)
+);
+
 CREATE TABLE IF NOT EXISTS notes (
   name TEXT NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'note'),

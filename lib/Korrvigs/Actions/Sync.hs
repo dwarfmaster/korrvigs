@@ -20,7 +20,6 @@ import Korrvigs.Actions.Remove
 import Korrvigs.Actions.SQL
 import qualified Korrvigs.Calendar.SQL as CalS
 import qualified Korrvigs.Calendar.Sync as Cal
-import Korrvigs.Compute (EntryComps, run, syncComputations)
 import Korrvigs.Entry
 import qualified Korrvigs.Event.SQL as EventS
 import qualified Korrvigs.Event.Sync as Event
@@ -67,14 +66,14 @@ runSync ::
   (MonadKorrvigs m, Default ToFields r sql) =>
   Text ->
   Table sql sql ->
-  m (Map Id (SyncData r, EntryComps)) ->
-  m (Map Id ([Id], [Id], m (), EntryComps))
+  m (Map Id (SyncData r)) ->
+  m (Map Id ([Id], [Id], m ()))
 runSync kdTxt tbl dt = do
   (tm, r) <- measureTime dt
   liftIO $ putStrLn $ kdTxt <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
-  pure $ (\sdt -> (sdt ^. _1 . syncParents, sdt ^. _1 . syncRefs, syncSQL tbl $ sdt ^. _1, sdt ^. _2)) <$> r
+  pure $ (\sdt -> (sdt ^. syncParents, sdt ^. syncRefs, syncSQL tbl sdt)) <$> r
 
-runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id ([Id], [Id], m (), EntryComps))
+runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id ([Id], [Id], m ()))
 runSyncOn Link = runSync (displayKind Link) LinkS.linksTable Link.sync
 runSyncOn Note = runSync (displayKind Note) NoteS.notesTable Note.sync
 runSyncOn File = runSync (displayKind File) FileS.filesTable File.sync
@@ -96,8 +95,6 @@ sync = do
   liftIO $ putStrLn $ "Removed " <> T.pack (show $ length toRemove) <> " entries in " <> rmT
   allrels <- mapM runSyncOn [minBound .. maxBound]
   let rels = foldl' M.union M.empty allrels
-  cmpT <- measureTime_ $ forM_ (M.toList rels) $ \(i, (_, _, _, cmps)) -> syncComputations i cmps
-  liftIO $ putStrLn $ "Synced " <> T.pack (show $ M.size rels) <> " computations in " <> cmpT
   let checkRD = checkRelData $ \i -> isJust $ M.lookup i ids
   case foldr (firstJust . checkRD . (view _1 &&& view _2) . view _2) Nothing (M.toList rels) of
     Nothing -> pure ()
@@ -143,13 +140,11 @@ syncFileImpl ::
   (MonadKorrvigs m, Default ToFields hs sql) =>
   Id ->
   Table sql sql ->
-  (SyncData hs, EntryComps) ->
+  SyncData hs ->
   m ()
-syncFileImpl i tbl (sdt, cmps) = do
+syncFileImpl i tbl sdt = do
   syncSQL tbl sdt
   syncRelsSQL i (sdt ^. syncParents) (sdt ^. syncRefs)
-  syncComputations i cmps
-  forM_ cmps run
 
 syncFileOfKind :: (MonadKorrvigs m) => FilePath -> Kind -> m ()
 syncFileOfKind path Link =

@@ -158,12 +158,15 @@ reroot pth = do
   calsyncRt <- calsyncRoot
   pure $ joinPath [calsyncRt, rel]
 
+calsyncCache :: (MonadKorrvigs m) => m FilePath
+calsyncCache = cacheDir >>= reroot
+
 pull :: (MonadKorrvigs m) => Calendar -> Text -> Set Id -> m (Set Id)
 pull cal pwd forbidden = do
   let i = cal ^. calEntry . name
   -- Extract cached tags
   let act = Cached Json $ cal ^. calCache
-  calsyncRt <- calsyncRoot
+  calsyncRt <- calsyncCache
   cdata <- runJSON' calsyncRt act >>= throwMaybe (KMiscError $ "Failed to load cached data for calendar " <> unId i)
   -- Pull from CalDAV
   changes <- checkChanges cal pwd (cdata ^. cachedCtag) (cdata ^. cachedEtags)
@@ -190,7 +193,7 @@ push cal pwd add rm = do
   let i = cal ^. calEntry . name
   -- Extract cached etags
   let act = Cached Json $ cal ^. calCache
-  calsyncRt <- calsyncRoot
+  calsyncRt <- calsyncCache
   cdata <- runJSON' calsyncRt act >>= throwMaybe (KMiscError $ "Failed to load cached data for calendar " <> unId i)
   let pathToRC = M.fromList $ (\(rc, (etg, pth)) -> (pth, (etg, rc))) <$> M.toList (cdata ^. cachedEtags)
   evDir <- eventsDirectory

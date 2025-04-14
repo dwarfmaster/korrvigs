@@ -153,7 +153,7 @@ run' rt act = do
       Json -> False
 
 run :: (MonadKorrvigs m) => Action -> m (CompHash, FilePath)
-run act = root >>= \rt -> run' rt act
+run act = cacheDir >>= \rt -> run' rt act
 
 runJSON' :: (MonadKorrvigs m, FromJSON a) => FilePath -> Action -> m (Maybe a)
 runJSON' rt act = do
@@ -164,4 +164,4 @@ runJSON' rt act = do
     Left _ -> Nothing
 
 runJSON :: (MonadKorrvigs m, FromJSON a) => Action -> m (Maybe a)
-runJSON act = root >>= \rt -> runJSON' rt act
+runJSON act = cacheDir >>= \rt -> runJSON' rt act

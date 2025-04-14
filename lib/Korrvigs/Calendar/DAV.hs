@@ -1,4 +1,4 @@
-module Korrvigs.Calendar.DAV (pull, push, sync) where
+module Korrvigs.Calendar.DAV (pull, push, sync, CachedData (..)) where
 
 import Conduit (throwM)
 import Control.Lens hiding ((.=))
@@ -20,7 +20,10 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.LocalTime
 import Korrvigs.Actions (load, remove, syncFileOfKind)
+import Korrvigs.Calendar.Sync (calendarPath, updateCache)
 import Korrvigs.Compute
+import Korrvigs.Compute.Action
+import Korrvigs.Compute.Declare
 import Korrvigs.Entry
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.SQL
@@ -33,7 +36,6 @@ import qualified Korrvigs.Utils.DAV.Cal as DAV
 import Korrvigs.Utils.DAV.Web (DavRessource (..), DavTag (..))
 import Korrvigs.Utils.DateTree
 import qualified Korrvigs.Utils.Git.Status as St
-import Korrvigs.Utils.JSON (writeJsonToFile)
 import Korrvigs.Utils.Process
 import Network.HTTP.Client.TLS
 import Network.HTTP.Conduit
@@ -144,39 +146,37 @@ instance FromJSON CachedData where
   parseJSON = withObject "CachedData" $ \obj ->
     CachedData <$> obj .:? "ctag" <*> obj .: "etags"
 
+calsyncRoot :: (MonadKorrvigs m) => m FilePath
+calsyncRoot = do
+  rt <- root
+  pure $ joinPath [rt, "../../korrvigs-temp/calsync/korrvigs"]
+
 reroot :: (MonadKorrvigs m) => FilePath -> m FilePath
 reroot pth = do
   rt <- root
   let rel = makeRelative rt pth
-  pure $ joinPath [rt, "../../korrvigs-temp/calsync/korrvigs", rel]
+  calsyncRt <- calsyncRoot
+  pure $ joinPath [calsyncRt, rel]
 
 pull :: (MonadKorrvigs m) => Calendar -> Text -> Set Id -> m (Set Id)
 pull cal pwd forbidden = do
   let i = cal ^. calEntry . name
   -- Extract cached tags
-  file <- compsFile i >>= reroot
-  comps <- entryStoredComputations' i file
-  cdata <- case M.lookup "dav" comps of
-    Nothing -> pure $ CachedData Nothing M.empty
-    Just cached | cached ^. cmpAction /= Cached -> throwM $ KMiscError "dav computation of calendar is already used"
-    Just cached ->
-      compFile cached >>= reroot >>= getJsonComp' >>= \case
-        Nothing -> throwM $ KMiscError "Failed to load cached tags for calendar DAV"
-        Just js -> pure js
+  let act = Cached Json $ cal ^. calCache
+  calsyncRt <- calsyncRoot
+  cdata <- runJSON' calsyncRt act >>= throwMaybe (KMiscError $ "Failed to load cached data for calendar " <> unId i)
   -- Pull from CalDAV
   changes <- checkChanges cal pwd (cdata ^. cachedCtag) (cdata ^. cachedEtags)
   events <- eventsDirectory
   worktreeRoot <- reroot events
   (insertedPaths, nforbidden) <- doPull cal pwd worktreeRoot changes forbidden
   -- Cache tags
-  let cmp = Computation i "dav" Cached Json
-  let ncomps = M.insert "dav" cmp comps
-  storeComputations' ncomps file
-  compPath <- compFile cmp >>= reroot
   let etags = changes ^. calOnServer <> fmap (view _1) (changes ^. calDiff)
   let etagsWithPath = M.union (changes ^. calSame) $ M.intersectionWith (,) etags insertedPaths
   let ncached = CachedData (Just $ changes ^. calCTag) etagsWithPath
-  writeJsonToFile compPath ncached
+  (hash, _) <- storeCachedJson' calsyncRt ncached
+  calfile <- calendarPath cal >>= reroot
+  updateCache i calfile hash
   pure nforbidden
 
 syncMsg :: [Text] -> Text
@@ -189,14 +189,9 @@ push :: (MonadKorrvigs m) => Calendar -> Text -> [FilePath] -> [FilePath] -> m F
 push cal pwd add rm = do
   let i = cal ^. calEntry . name
   -- Extract cached etags
-  comps <- entryStoredComputations i
-  cdata <- case M.lookup "dav" comps of
-    Nothing -> throwM $ KMiscError "No dav computation for calendar"
-    Just cached | cached ^. cmpAction /= Cached -> throwM $ KMiscError "dav computation of calendar is already used"
-    Just cached ->
-      compFile cached >>= reroot >>= getJsonComp' >>= \case
-        Nothing -> throwM $ KMiscError "Failed to load cached tags for calendar DAV"
-        Just js -> pure js
+  let act = Cached Json $ cal ^. calCache
+  calsyncRt <- calsyncRoot
+  cdata <- runJSON' calsyncRt act >>= throwMaybe (KMiscError $ "Failed to load cached data for calendar " <> unId i)
   let pathToRC = M.fromList $ (\(rc, (etg, pth)) -> (pth, (etg, rc))) <$> M.toList (cdata ^. cachedEtags)
   evDir <- eventsDirectory
   -- Push each file one by one
@@ -220,9 +215,9 @@ push cal pwd add rm = do
         Right () -> pure ()
   -- Store new etags
   let ncData = foldr (\(rc, etg, pth) -> cachedEtags . at rc ?~ (etg, pth)) cdata r
-  let cmp = Computation i "dav" Cached Json
-  compPath <- compFile cmp
-  writeJsonToFile compPath ncData
+  (hash, compPath) <- storeCachedJson' calsyncRt ncData
+  calfile <- calendarPath cal >>= reroot
+  updateCache i calfile hash
   pure compPath
 
 sync :: (MonadKorrvigs m) => Bool -> [Calendar] -> Text -> m ()

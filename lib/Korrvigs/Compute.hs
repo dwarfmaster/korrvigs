@@ -52,24 +52,24 @@ compFile deps act = do
   pure $ compFile' dir deps act
 
 -- Store data of a specific type into a cached data
-storeCached' :: (MonadIO m) => FilePath -> CompType -> BSL.ByteString -> m CompHash
+storeCached' :: (MonadIO m) => FilePath -> CompType -> BSL.ByteString -> m (CompHash, FilePath)
 storeCached' rt tp dat = do
   let hash = Hash.hashlazy dat
   let file = compFile' rt [] $ Cached tp hash
   liftIO $ createDirectoryIfMissing True rt
   liftIO $ BSL.writeFile file dat
-  pure hash
+  pure (hash, file)
 
-storeCachedJson' :: (MonadIO m, ToJSON val) => FilePath -> val -> m CompHash
+storeCachedJson' :: (MonadIO m, ToJSON val) => FilePath -> val -> m (CompHash, FilePath)
 storeCachedJson' rt v =
   storeCached' rt Json $ LEnc.encodeUtf8 $ encodeToLazyText v
 
-storeCached :: (MonadKorrvigs m) => CompType -> BSL.ByteString -> m CompHash
+storeCached :: (MonadKorrvigs m) => CompType -> BSL.ByteString -> m (CompHash, FilePath)
 storeCached tp dat = do
   rt <- cacheDir
   storeCached' rt tp dat
 
-storeCachedJson :: (MonadKorrvigs m, ToJSON val) => val -> m CompHash
+storeCachedJson :: (MonadKorrvigs m, ToJSON val) => val -> m (CompHash, FilePath)
 storeCachedJson v = do
   rt <- cacheDir
   storeCachedJson' rt v
@@ -119,14 +119,13 @@ checkEntry i = do
       let dat = digestToHexa hash1 <> ":" <> digestToHexa hash2
       pure $ Hash.hash $ Enc.encodeUtf8 dat
 
-run :: (MonadKorrvigs m) => Action -> m (CompHash, FilePath)
-run act = do
-  rt <- cacheDir
+run' :: (MonadKorrvigs m) => FilePath -> Action -> m (CompHash, FilePath)
+run' rt act = do
   liftIO $ createDirectoryIfMissing True rt
   comps <- forM (dat ^. adatDeps . depComps) $ \(i, nm) ->
     lookupComp i nm >>= \case
       Nothing -> throwM $ KMiscError $ "Failed to load computation " <> unId i <> "#" <> nm
-      Just dact -> fst <$> run dact
+      Just dact -> fst <$> run' rt dact
   entries <- forM (dat ^. adatDeps . depEntries) checkEntry
   let deps = comps ++ entries
   let hash = hashAction deps act
@@ -150,10 +149,16 @@ run act = do
       VectorImage -> True
       Json -> False
 
-runJSON :: (MonadKorrvigs m, FromJSON a) => Action -> m (Maybe a)
-runJSON act = do
-  (_, file) <- run act
+run :: (MonadKorrvigs m) => Action -> m (CompHash, FilePath)
+run act = root >>= \rt -> run' rt act
+
+runJSON' :: (MonadKorrvigs m, FromJSON a) => FilePath -> Action -> m (Maybe a)
+runJSON' rt act = do
+  (_, file) <- run' rt act
   r <- liftIO $ eitherDecode <$> BSL.readFile file
   pure $ case r of
     Right v -> Just v
     Left _ -> Nothing
+
+runJSON :: (MonadKorrvigs m, FromJSON a) => Action -> m (Maybe a)
+runJSON act = root >>= \rt -> runJSON' rt act

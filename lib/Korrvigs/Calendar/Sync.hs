@@ -4,6 +4,7 @@ import Control.Arrow (first, (&&&))
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
+import Crypto.Hash
 import Data.Aeson hiding (json)
 import Data.ByteString.Lazy (readFile, writeFile)
 import qualified Data.CaseInsensitive as CI
@@ -21,6 +22,7 @@ import Korrvigs.Compute.Declare
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
+import Korrvigs.Utils.Crypto
 import System.Directory
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
@@ -50,8 +52,9 @@ syncCalJSON i json = do
   let geom = json ^. cljsGeo
   let erow = EntryRow i Calendar tm dur geom Nothing :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
-  let crow = CalRow i (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
-  let cmps = M.singleton "dav" (Cached Json undefined)
+  cache <- throwMaybe (KMiscError $ "Failed to parse cache for " <> unId i) $ digestFromHexa $ json ^. cljsCalCache
+  let crow = CalRow i (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) cache :: CalRow
+  let cmps = M.singleton "dav" (Cached Json cache)
   pure $ SyncData erow crow mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) [] cmps
 
 syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData CalRow)
@@ -79,13 +82,17 @@ remove cal = do
   exists <- liftIO $ doesFileExist path
   when exists $ liftIO $ removeFile path
 
+updateFile :: (MonadKorrvigs m) => Id -> FilePath -> (CalJSON -> m CalJSON) -> m ()
+updateFile i path f = do
+  json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
+  njson <- f json
+  liftIO $ writeFile path $ encode njson
+
 updateImpl :: (MonadKorrvigs m) => Calendar -> (CalJSON -> m CalJSON) -> m ()
 updateImpl cal f = do
   path <- calendarPath cal
   let i = cal ^. calEntry . name
-  json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
-  njson <- f json
-  liftIO $ writeFile path $ encode njson
+  updateFile i path f
 
 updateMetadata :: (MonadKorrvigs m) => Calendar -> Map Text Value -> [Text] -> m ()
 updateMetadata cal upd rm =
@@ -97,3 +104,6 @@ updateParents cal toAdd toRm = updateImpl cal $ pure . updParents
     rmTxt = unId <$> toRm
     addTxt = unId <$> toAdd
     updParents = cljsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)
+
+updateCache :: (MonadKorrvigs m) => Id -> FilePath -> Digest SHA256 -> m ()
+updateCache i path hsh = updateFile i path $ pure . (cljsCalCache .~ digestToHexa hsh)

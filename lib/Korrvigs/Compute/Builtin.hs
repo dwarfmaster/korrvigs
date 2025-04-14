@@ -40,7 +40,7 @@ isPrefix prefix mime = T.isPrefixOf prefix $ Enc.decodeASCII mime
 
 run :: (MonadKorrvigs m) => Action -> Entry -> FilePath -> m ()
 run Miniature entry tgt = case entry ^. kindData of
-  FileD file | file ^. fileStatus /= FilePresent -> pure ()
+  FileD file | file ^. fileStatus == FileAbsent -> pure ()
   FileD file
     | isPrefix "image/" (file ^. fileMime) ->
         let magick = proc "magick" [file ^. filePath, "-resize", "200x200", tgt]

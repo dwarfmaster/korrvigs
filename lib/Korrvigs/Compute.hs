@@ -35,7 +35,7 @@ cacheDir = do
   pure $ joinPath [rt, "cache"]
 
 compFile' :: FilePath -> [CompHash] -> Action -> FilePath
-compFile' dir deps act = joinPath [dir, T.unpack $ hash <> ext]
+compFile' dir deps act = joinPath [dir, T.unpack $ T.take 2 hash, T.unpack $ hash <> ext]
   where
     dat = actionData act
     ext :: Text
@@ -56,7 +56,8 @@ storeCached' :: (MonadIO m) => FilePath -> CompType -> BSL.ByteString -> m (Comp
 storeCached' rt tp dat = do
   let hash = Hash.hashlazy dat
   let file = compFile' rt [] $ Cached tp hash
-  liftIO $ createDirectoryIfMissing True rt
+  let dir = takeDirectory file
+  liftIO $ createDirectoryIfMissing True dir
   liftIO $ BSL.writeFile file dat
   pure (hash, file)
 
@@ -121,7 +122,6 @@ checkEntry i = do
 
 run' :: (MonadKorrvigs m) => FilePath -> Action -> m (CompHash, FilePath)
 run' rt act = do
-  liftIO $ createDirectoryIfMissing True rt
   comps <- forM (dat ^. adatDeps . depComps) $ \(i, nm) ->
     lookupComp i nm >>= \case
       Nothing -> throwM $ KMiscError $ "Failed to load computation " <> unId i <> "#" <> nm
@@ -136,7 +136,10 @@ run' rt act = do
     (False, Builtin i blt) ->
       load i >>= \case
         Nothing -> throwM $ KMiscError $ "Failed to load " <> unId i <> " when executing action"
-        Just entry -> Builtin.run blt entry file
+        Just entry -> do
+          let dir = takeDirectory file
+          liftIO $ createDirectoryIfMissing True dir
+          Builtin.run blt entry file
     (False, Cached _ _) -> pure ()
   when (shouldAnnex && not ex) $ flip annexAdd file =<< root
   pure (hash, file)

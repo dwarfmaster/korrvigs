@@ -51,7 +51,7 @@ run Miniature entry tgt = case entry ^. kindData of
          in liftIO $ void $ runSilent ffmpeg
   _ -> pure ()
 run Size entry tgt = case entry ^. kindData of
-  FileD file | file ^. fileStatus /= FilePresent -> pure ()
+  FileD file | file ^. fileStatus == FileAbsent -> pure ()
   FileD file
     | isPrefix "image/" (file ^. fileMime) -> do
         let magick = proc "magick" ["identify", "-auto-orient", "-format", "%w %h", file ^. filePath]

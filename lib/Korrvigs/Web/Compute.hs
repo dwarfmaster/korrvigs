@@ -22,7 +22,7 @@ getEntryCacheR (WId i) = do
 
 getEntryComputeR :: WebId -> Text -> Handler TypedContent
 getEntryComputeR (WId i) cmpName = do
-  mcmp <- rSelectOne (view sqlCompAction <$> selComp i cmpName)
+  mcmp <- rSelectOne (view sqlCompAction <$> selComp (sqlId i) cmpName)
   cmp <- maybe notFound pure mcmp
   path <- view _2 <$> run cmp
   let cmpType = actionData cmp ^. adatType

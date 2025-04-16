@@ -80,10 +80,10 @@ computationsTable =
         (tableField "name")
         (tableField "action")
 
-selComp :: Id -> Text -> Select CompRowSQL
+selComp :: Field SqlText -> Text -> Select CompRowSQL
 selComp i nm = do
   cmp <- selectTable computationsTable
-  where_ $ cmp ^. sqlCompEntry .== sqlId i
+  where_ $ cmp ^. sqlCompEntry .== i
   where_ $ cmp ^. sqlCompName .== sqlStrictText nm
   pure cmp
 

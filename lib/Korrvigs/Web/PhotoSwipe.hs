@@ -33,27 +33,30 @@ makeLenses ''PhotoswipeEntry
 miniatureEntry :: (MonadKorrvigs m) => Maybe Day -> Id -> m (Maybe PhotoswipeEntry)
 miniatureEntry day i = do
   query <- rSelectOne $ do
-    miniature <- selComp i "miniature"
-    size <- selComp i "size"
+    miniature <- selComp (sqlId i) "miniature"
+    size <- selComp (sqlId i) "size"
     pure (miniature ^. sqlCompAction, size ^. sqlCompAction)
   case query :: Maybe (Action, Action) of
     Nothing -> pure Nothing
-    Just (_, sizeA) -> do
-      szM <- runJSON sizeA
-      pure $ do
-        sz :: Map Text Int <- szM
-        width <- M.lookup "width" sz
-        height <- M.lookup "height" sz
-        pure $
-          PhotoswipeEntry
-            { _swpUrl = EntryDownloadR (WId i),
-              _swpMiniature = EntryComputeR (WId i) "miniature",
-              _swpRedirect = EntryR (WId i),
-              _swpCaption = mempty,
-              _swpWidth = width,
-              _swpHeight = height,
-              _swpDate = day
-            }
+    Just (_, sizeA) -> miniatureEntryCached day i sizeA
+
+miniatureEntryCached :: (MonadKorrvigs m) => Maybe Day -> Id -> Action -> m (Maybe PhotoswipeEntry)
+miniatureEntryCached day i sizeA = do
+  szM <- runJSON sizeA
+  pure $ do
+    sz :: Map Text Int <- szM
+    width <- M.lookup "width" sz
+    height <- M.lookup "height" sz
+    pure $
+      PhotoswipeEntry
+        { _swpUrl = EntryDownloadR (WId i),
+          _swpMiniature = EntryComputeR (WId i) "miniature",
+          _swpRedirect = EntryR (WId i),
+          _swpCaption = mempty,
+          _swpWidth = width,
+          _swpHeight = height,
+          _swpDate = day
+        }
 
 photoswipeHeader :: Widget
 photoswipeHeader = do

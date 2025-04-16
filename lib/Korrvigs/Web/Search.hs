@@ -1,13 +1,18 @@
+{-# LANGUAGE UndecidableInstances #-}
+
 module Korrvigs.Web.Search (getSearchR) where
 
+import Control.Arrow (second)
 import Control.Lens
-import Control.Monad (forM, join)
+import Control.Monad
 import Data.Default
 import Data.Maybe
+import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
+import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Geometry
@@ -397,9 +402,45 @@ displayEntry (entry, title) = do
   |]
     <$> getUrlRenderParams
 
-displayResults :: ResultDisplay -> [(EntryRow, Maybe Text)] -> Handler Widget
+data OptionalSQLDataImpl a b = OptionalSQLData
+  { _optTitle :: a,
+    _optSizeAction :: b
+  }
+
+makeLenses ''OptionalSQLDataImpl
+$(makeAdaptorAndInstanceInferrable "pOptSQLData" ''OptionalSQLDataImpl)
+
+type OptionalSQLData = OptionalSQLDataImpl (Maybe Text) (Maybe Action)
+
+type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlText) (FieldNullable SqlJsonb)
+
+instance Default OptionalSQLData where
+  def = OptionalSQLData Nothing Nothing
+
+instance Default OptionalSQLDataSQL where
+  def = OptionalSQLData O.null O.null
+
+optDef :: OptionalSQLDataSQL
+optDef = def
+
+runQuery :: ResultDisplay -> Query -> Handler [(EntryRow, OptionalSQLData)]
+runQuery display query = rSelect $ do
+  entry <- compile query
+  other <- case display of
+    DisplayGallery -> do
+      void $ selComp (entry ^. sqlEntryName) "miniature"
+      sz <- selComp (entry ^. sqlEntryName) "size"
+      pure $ optDef & optSizeAction .~ toNullable (sz ^. sqlCompAction)
+    DisplayGraph -> pure optDef
+    _ -> do
+      title <- selectTextMtdt Title $ entry ^. sqlEntryName
+      pure $ optDef & optTitle .~ title
+  pure (entry, other)
+
+displayResults :: ResultDisplay -> [(EntryRow, OptionalSQLData)] -> Handler Widget
 displayResults DisplayList entries = do
-  entriesH <- mapM displayEntry entries
+  let entriesWithTitle = second (view optTitle) <$> entries
+  entriesH <- mapM displayEntry entriesWithTitle
   pure
     [whamlet|
       <ul>
@@ -411,10 +452,10 @@ displayResults DisplayMap entries = do
   items <- mapM mkItem entries
   pure $ leafletWidget "resultmap" $ catMaybes items
   where
-    mkItem :: (EntryRow, Maybe Text) -> Handler (Maybe MapItem)
-    mkItem (entry, title) = case entry ^. sqlEntryGeo of
+    mkItem :: (EntryRow, OptionalSQLData) -> Handler (Maybe MapItem)
+    mkItem (entry, opt) = case entry ^. sqlEntryGeo of
       Just geom -> do
-        html <- displayEntry (entry, title)
+        html <- displayEntry (entry, opt ^. optTitle)
         pure $
           Just $
             MapItem
@@ -444,12 +485,12 @@ displayResults DisplayGraph entries = do
   where
     candidates :: O.Field (SqlArray SqlText)
     candidates = sqlArray sqlId $ view (_1 . sqlEntryName) <$> entries
-    mkNode :: (EntryRow, Maybe Text) -> Handler (Text, Text, Network.NodeStyle)
-    mkNode (entry, title) = do
+    mkNode :: (EntryRow, OptionalSQLData) -> Handler (Text, Text, Network.NodeStyle)
+    mkNode (entry, opt) = do
       style <- Network.defNodeStyle
       render <- getUrlRender
       base <- getBase
-      let caption = case title of
+      let caption = case opt ^. optTitle of
             Just t -> t
             Nothing -> "@" <> unId (entry ^. sqlEntryName)
       let color = base $ colorKind $ entry ^. sqlEntryKind
@@ -468,10 +509,10 @@ displayResults DisplayTimeline entries = do
   timelineId <- newIdent
   Timeline.timeline timelineId $ catMaybes items
   where
-    mkItem :: (EntryRow, Maybe Text) -> Handler (Maybe Timeline.Item)
-    mkItem (entry, title) = do
+    mkItem :: (EntryRow, OptionalSQLData) -> Handler (Maybe Timeline.Item)
+    mkItem (entry, opt) = do
       render <- getUrlRender
-      let caption = case title of
+      let caption = case opt ^. optTitle of
             Just t -> t
             Nothing -> "@" <> unId (entry ^. sqlEntryName)
       pure $ case entry ^. sqlEntryDate of
@@ -489,10 +530,13 @@ displayResults DisplayTimeline entries = do
                     Timeline._itemTarget = Just $ render $ EntryR $ WId $ entry ^. sqlEntryName
                   }
 displayResults DisplayGallery entries = do
-  items <- forM entries $ \e ->
-    PhotoSwipe.miniatureEntry
-      (e ^? _1 . sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
-      (e ^. _1 . sqlEntryName)
+  items <- forM entries $ \e -> case e ^. _2 . optSizeAction of
+    Just sizeA ->
+      PhotoSwipe.miniatureEntryCached
+        (e ^? _1 . sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
+        (e ^. _1 . sqlEntryName)
+        sizeA
+    Nothing -> pure Nothing
   gallery <- PhotoSwipe.photoswipe $ catMaybes items
   pure $ do
     PhotoSwipe.photoswipeHeader
@@ -546,18 +590,10 @@ getSearchR = do
   display <- runInputGet $ fromMaybe DisplayList <$> iopt displayResultsField "display"
   hasMaxResults <- isJust <$> lookupGetParam "maxresults"
   let q = displayFixQuery display $ (if hasMaxResults then id else fixMaxResults) $ fixOrder q'
-  r <- rSelect $ do
-    entry <- compile q
-    title <- selectTextMtdt Title $ entry ^. sqlEntryName
-    pure (entry, title)
   search <- searchForm q display
-  results <- displayResults display $ r & each . _2 %~ nullToNothing
+  results <- displayResults display =<< runQuery display q
   defaultLayout $ do
     setTitle "Korrvigs search"
     setDescriptionIdemp "Korrvigs search page"
     search
     [whamlet|<div .search-results> ^{results}|]
-  where
-    nullToNothing :: Maybe Text -> Maybe Text
-    nullToNothing (Just "") = Nothing
-    nullToNothing x = x

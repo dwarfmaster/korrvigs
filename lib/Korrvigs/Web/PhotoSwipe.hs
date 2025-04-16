@@ -30,18 +30,8 @@ data PhotoswipeEntry = PhotoswipeEntry
 
 makeLenses ''PhotoswipeEntry
 
-miniatureEntry :: (MonadKorrvigs m) => Maybe Day -> Id -> m (Maybe PhotoswipeEntry)
-miniatureEntry day i = do
-  query <- rSelectOne $ do
-    miniature <- selComp (sqlId i) "miniature"
-    size <- selComp (sqlId i) "size"
-    pure (miniature ^. sqlCompAction, size ^. sqlCompAction)
-  case query :: Maybe (Action, Action) of
-    Nothing -> pure Nothing
-    Just (_, sizeA) -> miniatureEntryCached day i sizeA
-
-miniatureEntryCached :: (MonadKorrvigs m) => Maybe Day -> Id -> Action -> m (Maybe PhotoswipeEntry)
-miniatureEntryCached day i sizeA = do
+miniatureEntry :: (MonadKorrvigs m) => Maybe Day -> Id -> Action -> m (Maybe PhotoswipeEntry)
+miniatureEntry day i sizeA = do
   szM <- runJSON sizeA
   pure $ do
     sz :: Map Text Int <- szM

@@ -532,7 +532,7 @@ displayResults DisplayTimeline entries = do
 displayResults DisplayGallery entries = do
   items <- forM entries $ \e -> case e ^. _2 . optSizeAction of
     Just sizeA ->
-      PhotoSwipe.miniatureEntryCached
+      PhotoSwipe.miniatureEntry
         (e ^? _1 . sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
         (e ^. _1 . sqlEntryName)
         sizeA

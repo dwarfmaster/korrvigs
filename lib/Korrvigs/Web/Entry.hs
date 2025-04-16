@@ -9,6 +9,7 @@ import qualified Data.Text as T
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
 import Korrvigs.Actions
+import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
@@ -265,12 +266,14 @@ galleryWidget entry =
     Nothing -> pure mempty
     Just gallery -> do
       let select = if gallery == "recursive" then selectRecSourcesFor else selectSourcesFor
-      childs <- rSelect $ orderBy (ascNullsFirst (^. sqlEntryDate)) $ do
+      childs <- rSelect $ orderBy (ascNullsFirst (^. _1 . sqlEntryDate)) $ do
         sub <- select entriesSubTable $ entry ^. name
         subEntry <- selectTable entriesTable
         where_ $ sub .== subEntry ^. sqlEntryName
         where_ $ subEntry ^. sqlEntryKind .== sqlKind File
-        pure subEntry
+        void $ selComp sub "miniature"
+        sz <- selComp sub "size"
+        pure (subEntry, sz ^. sqlCompAction)
       if null childs
         then pure mempty
         else do
@@ -284,11 +287,12 @@ galleryWidget entry =
               ^{photoswipe}
         |]
   where
-    mkEntry :: EntryRow -> Handler (Maybe PhotoSwipe.PhotoswipeEntry)
-    mkEntry e =
+    mkEntry :: (EntryRow, Action) -> Handler (Maybe PhotoSwipe.PhotoswipeEntry)
+    mkEntry (e, sizeA) =
       PhotoSwipe.miniatureEntry
         (e ^? sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
         (e ^. sqlEntryName)
+        sizeA
 
 shareWidget :: Entry -> Handler Widget
 shareWidget entry = do

@@ -8,6 +8,7 @@ import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import Data.Time.LocalTime
+import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import Korrvigs.Metadata.Collections
 import Korrvigs.Metadata.Task
@@ -174,11 +175,13 @@ displayGal prefix = do
   titleH <- mkTitle (flip render [("display", "gallery")] . ColR) "Collections" rprefix
   subTree <- colCatTree MiscCollection prefix
   subs <- displayTree (Just "gallery") 1 0 "Sub galleries" rprefix subTree
-  pictures <- rSelect $ orderBy (ascNullsFirst snd <> asc fst) $ do
+  pictures <- rSelect $ orderBy (ascNullsFirst (view _2) <> asc (view _1)) $ do
     (i, _) <- selectCol MiscCollection prefix False
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryName .== i
-    pure (i, entry ^. sqlEntryDate)
+    void $ selComp i "miniature"
+    size <- selComp i "size"
+    pure (i, entry ^. sqlEntryDate, size ^. sqlCompAction)
   entries <- mapM mkEntry pictures
   photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
   pure $ do
@@ -192,9 +195,9 @@ displayGal prefix = do
     |]
   where
     rprefix = reverse prefix
-    mkEntry :: (Id, Maybe ZonedTime) -> Handler (Maybe PhotoswipeEntry)
-    mkEntry (i, dt) =
-      PhotoSwipe.miniatureEntry (localDay . zonedTimeToLocalTime <$> dt) i >>= \case
+    mkEntry :: (Id, Maybe ZonedTime, Action) -> Handler (Maybe PhotoswipeEntry)
+    mkEntry (i, dt, sizeA) =
+      PhotoSwipe.miniatureEntry (localDay . zonedTimeToLocalTime <$> dt) i sizeA >>= \case
         Nothing -> pure Nothing
         Just entry -> do
           url <- mkPublic $ entry ^. swpUrl

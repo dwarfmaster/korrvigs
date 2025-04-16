@@ -33,7 +33,7 @@ data CmpSelect = CmpSelect
   }
 
 data Cmd
-  = Run {_runSelect :: CmpSelect, _runCmps :: [Text]}
+  = Run {_runSelect :: CmpSelect, _runCmps :: [Text], _runLazy :: Bool}
   | List {_listEntry :: Id}
   | Store
 
@@ -63,6 +63,7 @@ parser' =
           ( ( Run
                 <$> selectParser
                 <*> many (option str $ metavar "COMP" <> long "computation" <> short 'c' <> help "Computations to run")
+                <*> switch (long "lazy" <> help "Do not run if computation has already been computed (even if it is out of date)")
             )
               <**> helper
           )
@@ -108,7 +109,7 @@ selectEntries (CmpSelect kinds entries) = do
   pure $ S.fromList entries <> kdEntries
 
 run :: Cmd -> KorrM ()
-run (Run sel comps) = do
+run (Run sel comps lz) = do
   toRunOn <- selectEntries sel
   let mcomps = M.fromList $ (id &&& const ()) <$> comps
   let select cmps = if null comps then cmps else M.intersectionWith (const id) mcomps cmps
@@ -117,8 +118,8 @@ run (Run sel comps) = do
     cmps <- select <$> listCompute i
     forM_ (M.toList cmps) $ \(nm, cmp) -> do
       liftIO $ putStrLn $ "> " <> nm
-      (hash, _) <- Cmp.run cmp
-      liftIO $ putStrLn $ digestToHexa hash
+      file <- (if lz then Cmp.lazyRun else Cmp.register) i nm cmp
+      liftIO $ putStrLn $ T.pack file
 run (List i) = do
   comps <- listCompute i
   forM_ (M.toList comps) $ \(nm, act) -> liftIO $ do

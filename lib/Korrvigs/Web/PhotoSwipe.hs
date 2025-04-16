@@ -32,7 +32,7 @@ makeLenses ''PhotoswipeEntry
 
 miniatureEntry :: (MonadKorrvigs m) => Maybe Day -> Id -> Action -> m (Maybe PhotoswipeEntry)
 miniatureEntry day i sizeA = do
-  szM <- runJSON sizeA
+  szM <- lazyRunJSON i "size" sizeA
   pure $ do
     sz :: Map Text Int <- szM
     width <- M.lookup "width" sz

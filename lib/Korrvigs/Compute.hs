@@ -9,6 +9,9 @@ import Data.Aeson
 import Data.Aeson.Text (encodeToLazyText)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy as LBS
+import Data.Char (isUpper)
+import Data.List (find)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -27,6 +30,7 @@ import Opaleye hiding (not)
 import System.Directory
 import System.Exit
 import System.FilePath
+import System.Posix.Files (createSymbolicLink)
 import System.Process
 
 cacheDir :: (MonadKorrvigs m) => m FilePath
@@ -34,16 +38,17 @@ cacheDir = do
   rt <- root
   pure $ joinPath [rt, "cache", "store"]
 
+actionExt :: CompType -> Text
+actionExt = \case
+  ScalarImage -> ".png"
+  Picture -> ".jpg"
+  VectorImage -> ".svg"
+  Json -> ".json"
+
 compFile' :: FilePath -> [CompHash] -> Action -> FilePath
-compFile' dir deps act = joinPath [dir, T.unpack $ T.take 2 hash, T.unpack $ hash <> ext]
+compFile' dir deps act = joinPath [dir, T.unpack $ T.take 2 hash, T.unpack $ hash <> actionExt (dat ^. adatType)]
   where
     dat = actionData act
-    ext :: Text
-    ext = case dat ^. adatType of
-      ScalarImage -> ".png"
-      Picture -> ".jpg"
-      VectorImage -> ".svg"
-      Json -> ".json"
     hash = digestToHexa $ hashAction deps act
 
 compFile :: (MonadKorrvigs m) => [CompHash] -> Action -> m FilePath
@@ -155,6 +160,44 @@ run' rt act = do
 run :: (MonadKorrvigs m) => Action -> m (CompHash, FilePath)
 run act = cacheDir >>= \rt -> run' rt act
 
+rootDir :: (MonadKorrvigs m) => m FilePath
+rootDir = root <&> \rt -> joinPath [rt, "cache", "roots"]
+
+rootFile :: (MonadKorrvigs m) => Id -> Text -> Action -> m FilePath
+rootFile i nm act = do
+  rt <- rootDir
+  let dir = joinPath [rt, T.unpack (T.take 2 main), T.unpack (unId i)]
+  let dat = actionData act
+  let file = joinPath [dir, T.unpack (nm <> actionExt (dat ^. adatType))]
+  pure file
+  where
+    components = T.split (== ':') $ unId i
+    main = fromMaybe (unId i) $ find (isUpper . T.head) components
+
+register :: (MonadKorrvigs m) => Id -> Text -> Action -> m FilePath
+register i nm act = do
+  (_, path) <- run act
+  file <- rootFile i nm act
+  let dir = takeDirectory file
+  liftIO $ createDirectoryIfMissing True dir
+  ex <- liftIO $ doesFileExist file
+  rdir <- cacheDir
+  let tgt = joinPath ["../../../store", makeRelative rdir path]
+  when ex $ liftIO $ removeFile file
+  liftIO $ createSymbolicLink tgt file
+  pure file
+
+lazyRun :: (MonadKorrvigs m) => Id -> Text -> Action -> m FilePath
+lazyRun i nm act = do
+  file <- rootFile i nm act
+  ex <- liftIO $ doesFileExist file
+  if ex
+    then do
+      rdir <- takeDirectory <$> rootFile i nm act
+      tgt <- liftIO $ getSymbolicLinkTarget file
+      pure $ joinPath [rdir, tgt]
+    else register i nm act
+
 runJSON' :: (MonadKorrvigs m, FromJSON a) => FilePath -> Action -> m (Maybe a)
 runJSON' rt act = do
   (_, file) <- run' rt act
@@ -165,3 +208,19 @@ runJSON' rt act = do
 
 runJSON :: (MonadKorrvigs m, FromJSON a) => Action -> m (Maybe a)
 runJSON act = cacheDir >>= \rt -> runJSON' rt act
+
+registerJSON :: (MonadKorrvigs m, FromJSON a) => Id -> Text -> Action -> m (Maybe a)
+registerJSON i nm act = do
+  file <- register i nm act
+  r <- liftIO $ eitherDecode <$> BSL.readFile file
+  pure $ case r of
+    Right v -> Just v
+    Left _ -> Nothing
+
+lazyRunJSON :: (MonadKorrvigs m, FromJSON a) => Id -> Text -> Action -> m (Maybe a)
+lazyRunJSON i nm act = do
+  file <- lazyRun i nm act
+  r <- liftIO $ eitherDecode <$> BSL.readFile file
+  pure $ case r of
+    Right v -> Just v
+    Left _ -> Nothing

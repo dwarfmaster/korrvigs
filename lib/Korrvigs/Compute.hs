@@ -32,7 +32,7 @@ import System.Process
 cacheDir :: (MonadKorrvigs m) => m FilePath
 cacheDir = do
   rt <- root
-  pure $ joinPath [rt, "cache"]
+  pure $ joinPath [rt, "cache", "store"]
 
 compFile' :: FilePath -> [CompHash] -> Action -> FilePath
 compFile' dir deps act = joinPath [dir, T.unpack $ T.take 2 hash, T.unpack $ hash <> ext]

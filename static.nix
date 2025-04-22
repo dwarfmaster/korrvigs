@@ -73,6 +73,10 @@ in
     ${sed} 's/fill="#000000"/fill="${theme.base08}"/' ${./ressources/icons/checkbox-dont.svg} > $out/icons/checkbox-dont.svg
     ${sed} 's/fill="#0F0F0F"/fill="${theme.base01}"/' ${./ressources/icons/edit-save.svg} > $out/icons/edit-save.svg
     ${sed} 's/fill="#0D0D0D"/fill="${theme.base01}"/' ${./ressources/icons/edit-quit.svg} > $out/icons/edit-quit.svg
+    ln -s ${./ressources/icons/file.png} $out/icons/file.png
+    ln -s ${./ressources/icons/note.png} $out/icons/note.png
+    ln -s ${./ressources/icons/link.png} $out/icons/link.png
+    ln -s ${./ressources/icons/media.png} $out/icons/media.png
     mkdir -p $out/font
     cp ${charis}/web/*.woff2 $out/font
   ''

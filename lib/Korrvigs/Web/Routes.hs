@@ -24,11 +24,11 @@ korrvigsRoutes :: [ResourceTree String]
 korrvigsRoutes =
   [parseRoutes|
 -- Home and login
-/ HomeR GET POST
+/ HomeR GET
 
 -- Entry search and visualisation
 /entry SearchR GET
-/entry/#WebId EntryR GET POST
+/entry/#WebId EntryR GET
 /entry/#WebId/download EntryDownloadR GET
 /entry/#WebId/metadata EntryMtdtR GET POST
 /entry/#WebId/parents EntryParentsR GET POST
@@ -41,6 +41,11 @@ korrvigsRoutes =
 
 -- Collections
 /collections/*[Text] ColR GET
+
+-- Actions
+/action/#Text/entry/#WebId ActEntryR POST
+/action/#Text/home ActHomeR POST
+/action/#Text/collection/*[Text] ActColR POST
 
 -- Git visualisation and manipulation
 /git GitR GET POST

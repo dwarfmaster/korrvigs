@@ -1,4 +1,4 @@
-module Korrvigs.Web.Entry (getEntryR, postEntryR) where
+module Korrvigs.Web.Entry (getEntryR) where
 
 import Control.Lens hiding (children)
 import Control.Monad
@@ -19,6 +19,7 @@ import Korrvigs.Monad
 import Korrvigs.Note.Loc (SubLoc (SubLoc))
 import Korrvigs.Utils.Base16
 import Korrvigs.Utils.Opaleye (connectedComponentGraph)
+import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Calendar as Cal
 import qualified Korrvigs.Web.Entry.Event as Event
@@ -26,7 +27,6 @@ import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Entry.Metadata as Mtdt
 import qualified Korrvigs.Web.Entry.Note as Note
-import qualified Korrvigs.Web.Home as Home
 import Korrvigs.Web.Leaflet
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Public.Crypto as Public
@@ -38,7 +38,6 @@ import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye hiding (groupBy, not, null)
 import qualified Opaleye as O
 import Text.Blaze (toMarkup)
-import Text.Julius (rawJS)
 import Yesod hiding (Field)
 
 -- Takes the ID of the div containing the content
@@ -335,18 +334,18 @@ colsWidget entry = do
             #{T.intercalate " > " col}
   |]
 
-newFormWidget :: [Text] -> Entry -> Handler Widget
-newFormWidget errMsgs entry = do
-  nw <- Home.newForms (EntryR $ WId $ entry ^. name) "Attach" errMsgs
+actWidget :: Entry -> Handler Widget
+actWidget entry = do
+  actions <- actionsWidget $ TargetEntry $ entry ^. name
   pure
     [whamlet|
     <details .common-details>
-      <summary>Attach entry
-      ^{nw}
+      <summary>Actions
+      ^{actions}
   |]
 
-entryWidget :: [Text] -> Entry -> Handler Widget
-entryWidget errMsgs entry = do
+entryWidget :: Entry -> Handler Widget
+entryWidget entry = do
   public <- isPublic
   contentId <- newIdent
   title <- titleWidget entry contentId
@@ -359,7 +358,7 @@ entryWidget errMsgs entry = do
   gallery <- galleryWidget entry
   shr <- shareWidget entry
   content <- contentWidget entry
-  nw <- newFormWidget errMsgs entry
+  actions <- actWidget entry
   pure $ do
     Rcs.entryStyle
     Rcs.formsStyle
@@ -368,7 +367,7 @@ entryWidget errMsgs entry = do
     title
     unless public $ do
       dt
-      nw
+      actions
       shr
       geom
       mtdt
@@ -384,30 +383,5 @@ entryWidget errMsgs entry = do
 getEntryR :: WebId -> Handler Html
 getEntryR (WId i) =
   load i >>= \case
-    Just entry -> entryWidget [] entry >>= defaultLayout
+    Just entry -> entryWidget entry >>= defaultLayout
     Nothing -> notFound
-
-postEntryR :: WebId -> Handler Html
-postEntryR (WId i) =
-  load i >>= \case
-    Nothing -> notFound
-    Just entry -> do
-      (err, w) <-
-        Home.runNewForms (Just i) >>= \case
-          Nothing -> pure ([], mempty)
-          Just (Left err) -> pure (err, mempty)
-          Just (Right ni) -> pure ([], copyToClipboard ni)
-      entryW <- entryWidget err entry
-      defaultLayout $ w >> entryW
-  where
-    -- TODO find how to copy to clipboard
-    copyToClipboard :: Id -> Widget
-    copyToClipboard (MkId ni) = do
-      ident <- rawJS <$> newIdent
-      toWidget
-        [julius|
-        function #{ident}() {
-          alert("Created " + #{ni})
-        }
-        #{ident}()
-      |]

@@ -153,6 +153,9 @@ library korrvigs-lib
     Korrvigs.Utils.XML
     Korrvigs.Web
     Korrvigs.Web.Ace
+    Korrvigs.Web.Actions
+    Korrvigs.Web.Actions.Defs
+    Korrvigs.Web.Actions.New
     Korrvigs.Web.Backend
     Korrvigs.Web.Collections
     Korrvigs.Web.Compute

@@ -90,6 +90,10 @@ mtdtCode :: WidgetFor site ()
 mtdtCode =
   toWidget $ mkJs $(embedFile $ js "mtdt.js")
 
+actionsCode :: WidgetFor site ()
+actionsCode =
+  toWidget $ mkJs $(embedFile $ js "actions.js")
+
 checkboxCode :: WidgetFor site ()
 checkboxCode =
   toWidget $ mkJs $(embedFile $ js "checkbox.js")

@@ -14,6 +14,7 @@ import Data.Text (Text)
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Actions.New
+import Korrvigs.Web.Actions.Parent
 import Korrvigs.Web.Actions.Share
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -27,6 +28,8 @@ data ActionLabel
   | LabNewLink
   | LabNewMedia
   | LabShare
+  | LabParentAdd
+  | LabParentRm
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 mkIcon :: Text -> Base16Index -> (Route WebData, Base16Index)
@@ -38,6 +41,8 @@ actIcon LabNewNote = mkIcon "note" Base0B
 actIcon LabNewLink = mkIcon "link" Base0B
 actIcon LabNewMedia = mkIcon "media" Base0B
 actIcon LabShare = mkIcon "share" Base0E
+actIcon LabParentAdd = mkIcon "parent" Base0B
+actIcon LabParentRm = mkIcon "parent" Base08
 
 actName :: ActionLabel -> Text
 actName LabNewFile = "newfile"
@@ -45,6 +50,8 @@ actName LabNewNote = "newnote"
 actName LabNewLink = "newlink"
 actName LabNewMedia = "newmedia"
 actName LabShare = "share"
+actName LabParentAdd = "addparent"
+actName LabParentRm = "rmparent"
 
 actWidget :: Text -> ActionLabel -> Widget
 actWidget formId act = do
@@ -64,7 +71,7 @@ actWidget formId act = do
   |]
   [whamlet|
     <div .action style="background-color: var(--#{baseName $ snd $ actIcon act})" data-action-form=#{formId}>
-      <img .action-icon src=@{fst $ actIcon act} alt=#{actName act}>
+      <img .action-icon src=@{fst $ actIcon act} title=#{actName act}>
   |]
 
 generateForm :: Route WebData -> Text -> AForm Handler a -> Handler Widget
@@ -93,6 +100,8 @@ actForm l@LabNewNote = genForm newNoteForm newNoteTitle $ actUrl l
 actForm l@LabNewLink = genForm newLinkForm newLinkTitle $ actUrl l
 actForm l@LabNewMedia = genForm newMediaForm newMediaTitle $ actUrl l
 actForm l@LabShare = genForm shareForm shareTitle $ actUrl l
+actForm l@LabParentAdd = genForm parentForm parentAddTitle $ actUrl l
+actForm l@LabParentRm = genForm parentForm parentRmTitle $ actUrl l
 
 runPost :: AForm Handler a -> (a -> ActionTarget -> Handler ActionReaction) -> ActionTarget -> Handler ActionReaction
 runPost form runner tgt = do
@@ -109,6 +118,8 @@ actPost LabNewNote = runPost newNoteForm runNewNote
 actPost LabNewLink = runPost newLinkForm runNewLink
 actPost LabNewMedia = runPost newMediaForm runNewMedia
 actPost LabShare = runPost shareForm runShare
+actPost LabParentAdd = runPost parentForm runParentAdd
+actPost LabParentRm = runPost parentForm runParentRm
 
 actCond :: ActionLabel -> ActionTarget -> Bool
 actCond LabNewFile = newTarget
@@ -116,6 +127,8 @@ actCond LabNewNote = newTarget
 actCond LabNewLink = newTarget
 actCond LabNewMedia = newTarget
 actCond LabShare = shareTarget
+actCond LabParentAdd = parentTarget
+actCond LabParentRm = parentTarget
 
 postHandler :: ActionLabel -> ActionTarget -> Handler Value
 postHandler lbl tgt = toJSON <$> actPost lbl tgt

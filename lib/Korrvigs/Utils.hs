@@ -33,6 +33,16 @@ firstJustM = foldlM go Nothing
     go Nothing action = action
     go result _ = pure result
 
+findM :: (Monad m, Foldable f) => (a -> m Bool) -> f a -> m (Maybe a)
+findM check = foldlM go Nothing
+  where
+    go (Just v) _ = pure $ Just v
+    go Nothing a =
+      check a >>= \b ->
+        if b
+          then pure (Just a)
+          else pure Nothing
+
 partitionM :: (Monad m) => (a -> m Bool) -> [a] -> m ([a], [a])
 partitionM _ [] = pure ([], [])
 partitionM check (x : xs) = do

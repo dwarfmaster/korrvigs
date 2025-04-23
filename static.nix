@@ -77,6 +77,7 @@ in
     ln -s ${./ressources/icons/note.png} $out/icons/note.png
     ln -s ${./ressources/icons/link.png} $out/icons/link.png
     ln -s ${./ressources/icons/media.png} $out/icons/media.png
+    ln -s ${./ressources/icons/share.png} $out/icons/share.png
     mkdir -p $out/font
     cp ${charis}/web/*.woff2 $out/font
   ''

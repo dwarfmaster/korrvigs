@@ -20,7 +20,6 @@ import qualified Korrvigs.Web.Entry.Note as Note
 import Korrvigs.Web.PhotoSwipe (PhotoswipeEntry (..), swpMiniature, swpRedirect, swpUrl)
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import Korrvigs.Web.Public.Crypto (mkPublic)
-import qualified Korrvigs.Web.Public.Crypto as Public
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widget
@@ -59,7 +58,6 @@ selectDisplay prefix disp = do
 
 getColR :: [Text] -> Handler Html
 getColR prefix = do
-  public <- Public.signRoute $ ColR prefix
   pub <- isPublic
   toDisp <- lookupGetParam "display"
   disp <- case toDisp of
@@ -75,11 +73,6 @@ getColR prefix = do
     unless pub $ do
       Rcs.formsStyle
       sel
-      [whamlet|
-        <p>
-          <a href=@{PublicColR public prefix}>
-            Share
-      |]
       actions
     disp
   where

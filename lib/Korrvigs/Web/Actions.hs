@@ -14,6 +14,7 @@ import Data.Text (Text)
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Actions.New
+import Korrvigs.Web.Actions.Share
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
@@ -25,19 +26,25 @@ data ActionLabel
   | LabNewNote
   | LabNewLink
   | LabNewMedia
+  | LabShare
   deriving (Eq, Ord, Show, Enum, Bounded)
 
+mkIcon :: Text -> Base16Index -> (Route WebData, Base16Index)
+mkIcon icon color = (StaticR $ StaticRoute ["icons", icon <> ".png"] [], color)
+
 actIcon :: ActionLabel -> (Route WebData, Base16Index)
-actIcon LabNewFile = (StaticR $ StaticRoute ["icons", "file.png"] [], Base0B)
-actIcon LabNewNote = (StaticR $ StaticRoute ["icons", "note.png"] [], Base0B)
-actIcon LabNewLink = (StaticR $ StaticRoute ["icons", "link.png"] [], Base0B)
-actIcon LabNewMedia = (StaticR $ StaticRoute ["icons", "media.png"] [], Base0B)
+actIcon LabNewFile = mkIcon "file" Base0B
+actIcon LabNewNote = mkIcon "note" Base0B
+actIcon LabNewLink = mkIcon "link" Base0B
+actIcon LabNewMedia = mkIcon "media" Base0B
+actIcon LabShare = mkIcon "share" Base0E
 
 actName :: ActionLabel -> Text
 actName LabNewFile = "newfile"
 actName LabNewNote = "newnote"
 actName LabNewLink = "newlink"
 actName LabNewMedia = "newmedia"
+actName LabShare = "share"
 
 actWidget :: Text -> ActionLabel -> Widget
 actWidget formId act = do
@@ -85,6 +92,7 @@ actForm l@LabNewFile = genForm newFileForm newFileTitle $ actUrl l
 actForm l@LabNewNote = genForm newNoteForm newNoteTitle $ actUrl l
 actForm l@LabNewLink = genForm newLinkForm newLinkTitle $ actUrl l
 actForm l@LabNewMedia = genForm newMediaForm newMediaTitle $ actUrl l
+actForm l@LabShare = genForm shareForm shareTitle $ actUrl l
 
 runPost :: AForm Handler a -> (a -> ActionTarget -> Handler ActionReaction) -> ActionTarget -> Handler ActionReaction
 runPost form runner tgt = do
@@ -100,12 +108,14 @@ actPost LabNewFile = runPost newFileForm runNewFile
 actPost LabNewNote = runPost newNoteForm runNewNote
 actPost LabNewLink = runPost newLinkForm runNewLink
 actPost LabNewMedia = runPost newMediaForm runNewMedia
+actPost LabShare = runPost shareForm runShare
 
 actCond :: ActionLabel -> ActionTarget -> Bool
 actCond LabNewFile = newTarget
 actCond LabNewNote = newTarget
 actCond LabNewLink = newTarget
 actCond LabNewMedia = newTarget
+actCond LabShare = shareTarget
 
 postHandler :: ActionLabel -> ActionTarget -> Handler Value
 postHandler lbl tgt = toJSON <$> actPost lbl tgt

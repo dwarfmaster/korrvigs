@@ -293,22 +293,6 @@ galleryWidget entry =
         (e ^. sqlEntryName)
         sizeA
 
-shareWidget :: Entry -> Handler Widget
-shareWidget entry = do
-  let i = entry ^. name
-  public <- Public.signRoute $ EntryR $ WId i
-  publicDl <- Public.signRoute $ EntryDownloadR $ WId i
-  pure
-    [whamlet|
-    <details .common-details>
-      <summary>Share
-      <ul>
-        <li>
-          <a href=@{PublicEntryR public $ WId i}>Share this entry
-        <li>
-          <a href=@{PublicEntryDownloadR publicDl $ WId i}>Share the content of this entry
-  |]
-
 contentWidget :: Entry -> Handler Widget
 contentWidget entry = case entry ^. kindData of
   LinkD link -> Link.content link
@@ -356,7 +340,6 @@ entryWidget entry = do
   refs <- refsWidget entry
   subs <- subWidget entry
   gallery <- galleryWidget entry
-  shr <- shareWidget entry
   content <- contentWidget entry
   actions <- actWidget entry
   pure $ do
@@ -368,7 +351,6 @@ entryWidget entry = do
     unless public $ do
       dt
       actions
-      shr
       geom
       mtdt
       cols

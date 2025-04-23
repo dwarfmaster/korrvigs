@@ -156,6 +156,7 @@ library korrvigs-lib
     Korrvigs.Web.Actions
     Korrvigs.Web.Actions.Defs
     Korrvigs.Web.Actions.New
+    Korrvigs.Web.Actions.Share
     Korrvigs.Web.Backend
     Korrvigs.Web.Collections
     Korrvigs.Web.Compute

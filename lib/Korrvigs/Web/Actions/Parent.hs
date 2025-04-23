@@ -25,18 +25,15 @@ parentAddTitle = const "Add parent"
 parentRmTitle :: ActionTarget -> Text
 parentRmTitle = const "Remove parent"
 
-runParent :: Id -> [Id] -> [Id] -> Handler ActionReaction
-runParent i toAdd toRm =
-  load i >>= \case
-    Nothing -> notFound
-    Just entry ->
-      findM (fmap null . load) (toAdd ++ toRm) >>= \case
-        Nothing -> do
-          updateParents entry toAdd toRm
-          html <- htmlUrl <$> getUrlRenderParams
-          pure $ def & reactMsg ?~ html
-        Just parent ->
-          pure $ def & reactMsg ?~ [shamlet|<p>Could not find parent: #{unId parent}|]
+runParent :: Entry -> [Id] -> [Id] -> Handler ActionReaction
+runParent entry toAdd toRm =
+  findM (fmap null . load) (toAdd ++ toRm) >>= \case
+    Nothing -> do
+      updateParents entry toAdd toRm
+      html <- htmlUrl <$> getUrlRenderParams
+      pure $ def & reactMsg ?~ html
+    Just parent ->
+      pure $ def & reactMsg ?~ [shamlet|<p>Could not find parent: #{unId parent}|]
   where
     htmlUrl =
       [hamlet|

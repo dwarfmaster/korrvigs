@@ -3,6 +3,7 @@ module Korrvigs.Web.Actions.Share where
 import Control.Lens
 import Data.Default
 import Data.Text (Text)
+import Korrvigs.Entry
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Public.Crypto as Public
@@ -21,13 +22,14 @@ shareTitle :: ActionTarget -> Text
 shareTitle = const "Share"
 
 runShare :: () -> ActionTarget -> Handler ActionReaction
-runShare () (TargetEntry i) = do
+runShare () (TargetEntry entry) = do
   public <- Public.signRoute $ EntryR $ WId i
   publicDl <- Public.signRoute $ EntryDownloadR $ WId i
   render <- getUrlRenderParams
   let html = htmlUrl public publicDl render
   pure $ def & reactMsg ?~ html
   where
+    i = entry ^. name
     htmlUrl public publicDl =
       [hamlet|
       <ul>

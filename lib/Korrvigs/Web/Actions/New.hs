@@ -43,7 +43,7 @@ mkNewTitle suffix TargetHome = "Create " <> suffix
 mkNewTitle suffix _ = "Attach " <> suffix
 
 extractParent :: ActionTarget -> Maybe Id
-extractParent (TargetEntry i) = Just i
+extractParent (TargetEntry entry) = Just $ entry ^. name
 extractParent _ = Nothing
 
 mkReaction :: ActionTarget -> Text -> Id -> Handler ActionReaction

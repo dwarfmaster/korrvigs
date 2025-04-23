@@ -10,7 +10,7 @@ import Text.Blaze.Renderer.Text
 import Yesod
 
 data ActionTarget
-  = TargetEntry Id
+  = TargetEntry Entry
   | TargetHome
   | TargetCollection [Text]
 

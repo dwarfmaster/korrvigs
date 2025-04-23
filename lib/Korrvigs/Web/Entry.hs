@@ -284,7 +284,7 @@ colsWidget entry = do
 
 actWidget :: Entry -> Handler Widget
 actWidget entry = do
-  actions <- actionsWidget $ TargetEntry $ entry ^. name
+  actions <- actionsWidget $ TargetEntry entry
   pure
     [whamlet|
     <details .common-details>

@@ -8,9 +8,12 @@ module Korrvigs.Web.Actions
 where
 
 import Control.Arrow
+import Control.Lens
 import Control.Monad
 import qualified Data.Map as M
 import Data.Text (Text)
+import Korrvigs.Actions.SQL
+import Korrvigs.Entry
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Actions.New
@@ -90,7 +93,7 @@ genForm :: AForm Handler a -> (ActionTarget -> Text) -> (ActionTarget -> Route W
 genForm form title postUrl tgt = generateForm (postUrl tgt) (title tgt) form
 
 actUrl :: ActionLabel -> ActionTarget -> Route WebData
-actUrl lbl (TargetEntry i) = ActEntryR (actName lbl) (WId i)
+actUrl lbl (TargetEntry entry) = ActEntryR (actName lbl) (WId $ entry ^. name)
 actUrl lbl TargetHome = ActHomeR (actName lbl)
 actUrl lbl (TargetCollection col) = ActColR (actName lbl) col
 
@@ -139,9 +142,12 @@ parseActionName nm = maybe notFound pure $ M.lookup nm names
     names = M.fromList $ (actName &&& id) <$> [minBound .. maxBound]
 
 postActEntryR :: Text -> WebId -> Handler Value
-postActEntryR nm (WId i) = do
-  act <- parseActionName nm
-  postHandler act $ TargetEntry i
+postActEntryR nm (WId i) =
+  load i >>= \case
+    Nothing -> notFound
+    Just entry -> do
+      act <- parseActionName nm
+      postHandler act $ TargetEntry entry
 
 postActHomeR :: Text -> Handler Value
 postActHomeR nm = do

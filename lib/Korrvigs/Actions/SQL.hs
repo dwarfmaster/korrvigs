@@ -91,6 +91,20 @@ genRemoveDB i dels =
     void $
       runDelete conn $
         Delete
+          { dTable = entriesSubTable,
+            dWhere = \row -> row ^. source .== sqlId i,
+            dReturning = rCount
+          }
+    void $
+      runDelete conn $
+        Delete
+          { dTable = entriesRefTable,
+            dWhere = \row -> row ^. source .== sqlId i,
+            dReturning = rCount
+          }
+    void $
+      runDelete conn $
+        Delete
           { dTable = entriesTable,
             dWhere = \erow -> erow ^. sqlEntryName .== sqlId i,
             dReturning = rCount

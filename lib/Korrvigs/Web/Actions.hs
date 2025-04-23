@@ -18,6 +18,7 @@ import Korrvigs.Utils.Base16
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Actions.New
 import Korrvigs.Web.Actions.Parent
+import Korrvigs.Web.Actions.Remove
 import Korrvigs.Web.Actions.Share
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -26,7 +27,8 @@ import Yesod
 import Yesod.Static
 
 data ActionLabel
-  = LabNewFile
+  = LabRemove
+  | LabNewFile
   | LabNewNote
   | LabNewLink
   | LabNewMedia
@@ -39,6 +41,7 @@ mkIcon :: Text -> Base16Index -> (Route WebData, Base16Index)
 mkIcon icon color = (StaticR $ StaticRoute ["icons", icon <> ".png"] [], color)
 
 actIcon :: ActionLabel -> (Route WebData, Base16Index)
+actIcon LabRemove = mkIcon "remove" Base08
 actIcon LabNewFile = mkIcon "file" Base0B
 actIcon LabNewNote = mkIcon "note" Base0B
 actIcon LabNewLink = mkIcon "link" Base0B
@@ -48,6 +51,7 @@ actIcon LabParentAdd = mkIcon "parent" Base0B
 actIcon LabParentRm = mkIcon "parent" Base08
 
 actName :: ActionLabel -> Text
+actName LabRemove = "remove"
 actName LabNewFile = "newfile"
 actName LabNewNote = "newnote"
 actName LabNewLink = "newlink"
@@ -98,6 +102,7 @@ actUrl lbl TargetHome = ActHomeR (actName lbl)
 actUrl lbl (TargetCollection col) = ActColR (actName lbl) col
 
 actForm :: ActionLabel -> ActionTarget -> Handler Widget
+actForm l@LabRemove = genForm removeForm removeTitle $ actUrl l
 actForm l@LabNewFile = genForm newFileForm newFileTitle $ actUrl l
 actForm l@LabNewNote = genForm newNoteForm newNoteTitle $ actUrl l
 actForm l@LabNewLink = genForm newLinkForm newLinkTitle $ actUrl l
@@ -116,6 +121,7 @@ runPost form runner tgt = do
     FormMissing -> invalidArgs []
 
 actPost :: ActionLabel -> ActionTarget -> Handler ActionReaction
+actPost LabRemove = runPost removeForm runRemove
 actPost LabNewFile = runPost newFileForm runNewFile
 actPost LabNewNote = runPost newNoteForm runNewNote
 actPost LabNewLink = runPost newLinkForm runNewLink
@@ -125,6 +131,7 @@ actPost LabParentAdd = runPost parentForm runParentAdd
 actPost LabParentRm = runPost parentForm runParentRm
 
 actCond :: ActionLabel -> ActionTarget -> Bool
+actCond LabRemove = removeTarget
 actCond LabNewFile = newTarget
 actCond LabNewNote = newTarget
 actCond LabNewLink = newTarget

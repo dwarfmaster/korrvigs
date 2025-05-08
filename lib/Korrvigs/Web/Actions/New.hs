@@ -124,7 +124,7 @@ runNewFile nfile tgt =
 newMediaForm :: AForm Handler NewMedia
 newMediaForm =
   NewMedia
-    <$> areq textField "Input" Nothing
+    <$> (unTextarea <$> areq textareaField "Input" Nothing)
     <*> areq (selectFieldList types) "Type" Nothing
   where
     types :: [(Text, Maybe MediaType)]

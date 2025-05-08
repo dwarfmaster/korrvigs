@@ -17,6 +17,7 @@ import Korrvigs.FTS ((@@?))
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
+import Korrvigs.Metadata.Collections
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Opaleye
@@ -109,12 +110,13 @@ data Query = Query
     _queryDist :: Maybe (Point, Double),
     _queryKind :: Maybe Kind,
     _queryMtdt :: [(Text, JsonQuery)],
+    _queryInCollection :: [[Text]],
     _querySort :: (SortCriterion, SortOrder),
     _queryMaxResults :: Maybe Int
   }
 
 instance Default Query where
-  def = Query def def def def def def def def def
+  def = Query def def def def def def def def def def
 
 makeLenses ''Query
 
@@ -160,6 +162,10 @@ compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ do
     where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryName)
     where_ $ mtdt ^. sqlKey .== sqlStrictText (q ^. _1)
     where_ $ compileJsonQuery (q ^. _2) (toNullable $ mtdt ^. sqlValue)
+  -- Check collections
+  forM_ (query ^. queryInCollection) $ \col -> do
+    (colEntry, _) <- selectCol MiscCollection col False
+    where_ $ colEntry .== entry ^. sqlEntryName
   pure entry
   where
     dir :: (SqlOrd b) => SortOrder -> (a -> Field b) -> Order a

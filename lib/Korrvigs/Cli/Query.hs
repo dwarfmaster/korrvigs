@@ -81,6 +81,9 @@ sortParser =
     <$> option criterionParser (long "sort" <> help "Criterion to sort results by, default to id" <> value ById)
     <*> flag SortAsc SortDesc (long "descending" <> help "Invert sorting criterion")
 
+fromJsonParser :: (FromJSON a) => ReadM a
+fromJsonParser = eitherReader $ eitherDecode . BSL8.fromString
+
 queryParser :: Parser Query
 queryParser =
   Query
@@ -91,6 +94,7 @@ queryParser =
     <*> optional (option withinParser (long "within" <> help "Filter entries within a certain distance in meters from a point"))
     <*> optional (option kindParser (long "kind" <> help "Entry must be of provided kind"))
     <*> many (option mtdtQueryParser (long "mtdt" <> help "Add metadata conditions"))
+    <*> many (option fromJsonParser (long "incol" <> help "Add collection conditions"))
     <*> sortParser
     <*> optional (option auto (long "limit" <> help "Limit the number of results"))
 

@@ -95,6 +95,10 @@ queryParser =
     <*> optional (option kindParser (long "kind" <> help "Entry must be of provided kind"))
     <*> many (option mtdtQueryParser (long "mtdt" <> help "Add metadata conditions"))
     <*> many (option fromJsonParser (long "incol" <> help "Add collection conditions"))
+    <*> pure Nothing
+    <*> pure Nothing
+    <*> pure Nothing
+    <*> pure Nothing
     <*> sortParser
     <*> optional (option auto (long "limit" <> help "Limit the number of results"))
 

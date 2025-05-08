@@ -102,6 +102,11 @@ data SortOrder
 instance Default SortOrder where
   def = SortAsc
 
+data QueryRel = QueryRel
+  { _relOther :: Query,
+    _relRec :: Bool
+  }
+
 data Query = Query
   { _queryText :: Maybe FTS.Query,
     _queryBefore :: Maybe ZonedTime,
@@ -111,14 +116,30 @@ data Query = Query
     _queryKind :: Maybe Kind,
     _queryMtdt :: [(Text, JsonQuery)],
     _queryInCollection :: [[Text]],
+    _querySubOf :: Maybe QueryRel,
+    _queryParentOf :: Maybe QueryRel,
+    _queryMentioning :: Maybe QueryRel,
+    _queryMentionedBy :: Maybe QueryRel,
     _querySort :: (SortCriterion, SortOrder),
     _queryMaxResults :: Maybe Int
   }
 
 instance Default Query where
-  def = Query def def def def def def def def def def
+  def = Query def def def def def def def def def def def def def def
 
 makeLenses ''Query
+makeLenses ''QueryRel
+
+-- Match all that are related by the relation table to the result of the query
+compileRel :: EntryRowSQL -> Table a RelRowSQL -> Bool -> QueryRel -> Select ()
+compileRel entry tbl direct q = do
+  otherEntry <- compile $ q ^. relOther
+  candidate <- closure (selectTable tbl) src tgt $ otherEntry ^. sqlEntryName
+  where_ $ entry ^. sqlEntryName .== candidate
+  where
+    src = if direct then view source else view target
+    tgt = if direct then view target else view source
+    closure = if q ^. relRec then transitiveClosure else transitiveClosureStep
 
 -- Returns the IDs of the matched entries
 compile :: Query -> Select EntryRowSQL
@@ -166,6 +187,11 @@ compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ do
   forM_ (query ^. queryInCollection) $ \col -> do
     (colEntry, _) <- selectCol MiscCollection col False
     where_ $ colEntry .== entry ^. sqlEntryName
+  -- Relations
+  forM_ (query ^. querySubOf) $ compileRel entry entriesSubTable False
+  forM_ (query ^. queryParentOf) $ compileRel entry entriesSubTable True
+  forM_ (query ^. queryMentioning) $ compileRel entry entriesRefTable False
+  forM_ (query ^. queryMentionedBy) $ compileRel entry entriesRefTable True
   pure entry
   where
     dir :: (SqlOrd b) => SortOrder -> (a -> Field b) -> Order a

@@ -135,8 +135,8 @@ makeLenses ''QueryRel
 
 -- Match all that are related by the relation table to the result of the query
 compileRel :: EntryRowSQL -> Table a RelRowSQL -> Bool -> QueryRel -> Select ()
-compileRel entry tbl direct q = do
-  otherEntry <- compile $ q ^. relOther
+compileRel entry tbl direct q = limit 1 $ do
+  otherEntry <- compileQuery $ q ^. relOther
   candidate <- closure (selectTable tbl) src tgt $ otherEntry ^. sqlEntryName
   where_ $ entry ^. sqlEntryName .== candidate
   where
@@ -145,8 +145,8 @@ compileRel entry tbl direct q = do
     closure = if q ^. relRec then transitiveClosure else transitiveClosureStep
 
 -- Returns the IDs of the matched entries
-compile :: Query -> Select EntryRowSQL
-compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ do
+compileQuery :: Query -> Select EntryRowSQL
+compileQuery query = do
   entry <- selectTable entriesTable
   -- Id
   unless (null $ query ^. queryId) $
@@ -202,10 +202,15 @@ compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ do
   forM_ (query ^. queryMentioning) $ compileRel entry entriesRefTable False
   forM_ (query ^. queryMentionedBy) $ compileRel entry entriesRefTable True
   pure entry
+
+compile :: Query -> Select EntryRowSQL
+compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ compileQuery query
   where
     dir :: (SqlOrd b) => SortOrder -> (a -> Field b) -> Order a
     dir SortAsc = asc
     dir SortDesc = desc
+    largeTime :: ZonedTime
+    largeTime = ZonedTime (LocalTime (fromOrdinalDate 9999 1) (TimeOfDay 0 0 0)) utc
     sort :: (SortCriterion, SortOrder) -> Select EntryRowSQL -> Select EntryRowSQL
     sort (ById, ord) = orderBy $ dir ord $ \e -> e ^. sqlEntryName
     sort (ByTSRank q, ord) =
@@ -227,8 +232,6 @@ compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ do
           (e ^. sqlEntryDate)
     infinity :: Double
     infinity = 1 / 0
-    largeTime :: ZonedTime
-    largeTime = ZonedTime (LocalTime (fromOrdinalDate 9999 1) (TimeOfDay 0 0 0)) utc
     lmt :: Maybe Int -> Select EntryRowSQL -> Select EntryRowSQL
     lmt = maybe id limit
 

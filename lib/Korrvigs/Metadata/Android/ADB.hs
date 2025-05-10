@@ -8,6 +8,7 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Utils.Process
 import System.Exit
+import System.FilePath
 import System.Process
 
 startServer :: IO Bool
@@ -28,12 +29,14 @@ connectedDevice = do
 
 files :: Text -> IO (Maybe (Set Text))
 files dir = do
-  let cmd = "find \"" <> T.unpack dir <> "\" -maxdepth 1 -not -type d -printf \"%f\\n\""
+  let cmd = "find \"" <> T.unpack dir <> "\" -maxdepth 1 -not -type d"
   (exit, out) <- runStdout $ proc "adb" ["shell", cmd]
   pure $ case exit of
     ExitFailure _ -> Nothing
     ExitSuccess ->
-      Just $ S.fromList $ T.lines $ LT.toStrict $ LEnc.decodeUtf8 out
+      Just $ S.fromList $ fmap filename $ T.lines $ LT.toStrict $ LEnc.decodeUtf8 out
+  where
+    filename = T.pack . takeFileName . T.unpack
 
 pull :: FilePath -> FilePath -> IO Bool
 pull androidPath targetPath = do

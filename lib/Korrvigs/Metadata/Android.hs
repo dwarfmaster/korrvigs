@@ -109,6 +109,7 @@ importAndroidFiles = runMaybeT $ do
   liftIO $ putStrLn $ "Recognised device as @" <> T.unpack (unId $ phone ^. androidEntry)
   phoneFiles <- lift $ listFilesForPhone $ phone ^. androidEntry
   allFiles <- fmap (mconcat . catMaybes) $ forM (phone ^. androidWatched) $ \dir -> runMaybeT $ do
+    liftIO $ putStrLn $ ">>> Listing \"" <> T.unpack dir <> "\""
     filesOnPhone <- liftIO (ADB.files dir) >>= hoistMaybe
     let filesConsidered = S.difference filesOnPhone (phone ^. androidIgnored)
     let filesToImport = S.difference filesConsidered $ S.map (view androidFilePath) phoneFiles

@@ -23,8 +23,8 @@ shareTitle = const "Share"
 
 runShare :: () -> ActionTarget -> Handler ActionReaction
 runShare () (TargetEntry entry) = do
-  public <- Public.signRoute $ EntryR $ WId i
-  publicDl <- Public.signRoute $ EntryDownloadR $ WId i
+  public <- Public.signRoute (EntryR $ WId i) []
+  publicDl <- Public.signRoute (EntryDownloadR $ WId i) []
   render <- getUrlRenderParams
   let html = htmlUrl public publicDl render
   pure $ def & reactMsg ?~ html
@@ -40,14 +40,23 @@ runShare () (TargetEntry entry) = do
     |]
 runShare () TargetHome = pure def
 runShare () (TargetCollection col) = do
-  public <- Public.signRoute $ ColR col
+  public <- Public.signRoute (ColR col) []
+  publicGallery <- Public.signRoute (ColR col) [("display", "gallery")]
+  publicTodo <- Public.signRoute (ColR col) [("display", "todo")]
   render <- getUrlRenderParams
-  let html = htmlUrl public render
+  let html = htmlUrl public publicGallery publicTodo render render
   pure $ def & reactMsg ?~ html
   where
-    htmlUrl public =
+    htmlUrl public publicGallery publicTodo render =
       [hamlet|
-      <p>
-        <a href=@{PublicColR public col}>
-          Share
+      <ul>
+        <li>
+          <a href=@{PublicColR public col}>
+            Share
+        <li>
+          <a href=#{render (PublicColR publicGallery col) [("display", "gallery")]}>
+            Share gallery
+        <li>
+          <a href=#{render (PublicColR publicTodo col) [("display", "todo")]}>
+            Share todo
     |]

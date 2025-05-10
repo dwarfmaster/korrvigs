@@ -39,10 +39,10 @@ loadOrGenerateKey = do
       BS.writeFile file key
       pure key
 
-signRoute :: Route WebData -> Handler Text
-signRoute route = do
-  render <- getUrlRender
-  let url = render route
+signRoute :: Route WebData -> [(Text, Text)] -> Handler Text
+signRoute route params = do
+  render <- getUrlRenderParams
+  let url = render route params
   secret <- getsYesod web_mac_secret
   let cmac :: KeyedBlake2 Algo = keyedBlake2 secret $ Enc.encodeUtf8 url
   pure . B64.encodeBase64 . BS.pack . BA.unpack . keyedBlake2GetDigest $ cmac
@@ -50,8 +50,9 @@ signRoute route = do
 checkMac :: Text -> Route WebData -> Handler ()
 checkMac mac64 route = do
   secret <- getsYesod web_mac_secret
-  render <- getUrlRender
-  let troute = Enc.encodeUtf8 $ render route
+  render <- getUrlRenderParams
+  params <- reqGetParams <$> getRequest
+  let troute = Enc.encodeUtf8 $ render route params
   let cmac :: KeyedBlake2 Algo = keyedBlake2 secret troute
   let cmacBS = BS.pack . BA.unpack . keyedBlake2GetDigest $ cmac
   case (== cmacBS) <$> B64.decodeBase64 (Enc.encodeUtf8 mac64) of
@@ -60,10 +61,10 @@ checkMac mac64 route = do
     Right True -> pure ()
 
 mkPublicImpl :: Route WebData -> Handler (Route WebData)
-mkPublicImpl r@(EntryR i) = PublicEntryR <$> signRoute r <*> pure i
-mkPublicImpl r@(EntryDownloadR i) = PublicEntryDownloadR <$> signRoute r <*> pure i
-mkPublicImpl r@(EntryComputeR i cached) = PublicEntryComputeR <$> signRoute r <*> pure i <*> pure cached
-mkPublicImpl r@(ColR prefix) = PublicColR <$> signRoute r <*> pure prefix
+mkPublicImpl r@(EntryR i) = PublicEntryR <$> signRoute r [] <*> pure i
+mkPublicImpl r@(EntryDownloadR i) = PublicEntryDownloadR <$> signRoute r [] <*> pure i
+mkPublicImpl r@(EntryComputeR i cached) = PublicEntryComputeR <$> signRoute r [] <*> pure i <*> pure cached
+mkPublicImpl r@(ColR prefix) = PublicColR <$> signRoute r [] <*> pure prefix
 mkPublicImpl _ = pure PublicR
 
 mkPublic :: Route WebData -> Handler (Route WebData)

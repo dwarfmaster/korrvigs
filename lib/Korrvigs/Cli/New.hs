@@ -10,6 +10,7 @@ import qualified Data.Text.Encoding as Enc
 import Korrvigs.Entry.Ident
 import Korrvigs.Entry.New
 import Korrvigs.Utils.DateParser (dayParser)
+import Korrvigs.Utils.JSON
 import Options.Applicative
 import qualified Text.Parsec as P
 
@@ -21,7 +22,7 @@ newEntryOptions =
     <*> optional (option str $ metavar "TITLE" <> long "title")
     <*> optional (option str $ metavar "LANG" <> long "lang" <> help "Either fr or en, the language the entry will be interpreted as")
     <*> many (option mtdtParser $ long "mtdt" <> help "Pairs in the form key=json of metadata to add to the entry")
-    <*> pure S.empty
+    <*> (S.fromList <$> many (option fromJsonParser $ long "collection" <> help "Collection to create the entry in, in json form"))
 
 mtdtParser :: ReadM (Text, Value)
 mtdtParser = eitherReader $ \s -> case P.runParser mtdtP () "<mtdt>" s of

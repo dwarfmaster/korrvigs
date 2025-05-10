@@ -24,6 +24,7 @@ import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Query
 import Korrvigs.Utils.DateParser
+import Korrvigs.Utils.JSON
 import Options.Applicative
 import System.Exit
 import Text.Parsec (char, parse)
@@ -80,9 +81,6 @@ sortParser =
   (,)
     <$> option criterionParser (long "sort" <> help "Criterion to sort results by, default to id" <> value ById)
     <*> flag SortAsc SortDesc (long "descending" <> help "Invert sorting criterion")
-
-fromJsonParser :: (FromJSON a) => ReadM a
-fromJsonParser = eitherReader $ eitherDecode . BSL8.fromString
 
 queryParser :: Parser Query
 queryParser =

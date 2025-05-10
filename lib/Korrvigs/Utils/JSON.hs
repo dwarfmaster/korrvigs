@@ -4,11 +4,13 @@ import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Text (encodeToTextBuilder)
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString.Lazy.UTF8 as BSL8
 import Data.Text (Text)
 import qualified Data.Text.Lazy.Builder as Bld
 import qualified Data.Text.Lazy.Encoding as LEnc
 import qualified Korrvigs.Utils.Opaleye as UOp
 import Opaleye
+import Options.Applicative hiding (Success)
 
 writeJsonToFile :: (MonadIO m, ToJSON x) => FilePath -> x -> m ()
 writeJsonToFile path val =
@@ -18,6 +20,9 @@ fromJSONM :: (FromJSON a) => Value -> Maybe a
 fromJSONM v = case fromJSON v of
   Error _ -> Nothing
   Success x -> Just x
+
+fromJsonParser :: (FromJSON a) => ReadM a
+fromJsonParser = eitherReader $ eitherDecode . BSL8.fromString
 
 jsonAsText :: Value -> Maybe Text
 jsonAsText (String txt) = Just txt

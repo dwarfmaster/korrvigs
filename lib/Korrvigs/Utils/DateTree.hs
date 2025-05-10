@@ -14,7 +14,7 @@ import Data.Time.Clock
 import Data.Time.LocalTime
 import System.Directory
 import System.FilePath
-import System.Posix.Files (createSymbolicLink)
+import System.Posix.Files (createSymbolicLink, deviceID, getFileStatus)
 import Text.Parsec
 import Text.Parsec.Number
 import Text.Printf
@@ -93,6 +93,18 @@ copyLink src tgt = do
   lnk <- getSymbolicLinkTarget src
   createSymbolicLink lnk tgt
 
+renameIfPossible :: FilePath -> FilePath -> IO ()
+renameIfPossible src tgt = do
+  let dir1 = takeDirectory src
+  stat1 <- getFileStatus dir1
+  let dir2 = takeDirectory tgt
+  stat2 <- getFileStatus dir2
+  if deviceID stat1 == deviceID stat2
+    then renameFile src tgt
+    else do
+      copyFile src tgt
+      removeFile src
+
 storeFilePlain :: FilePath -> Text -> FileContent -> IO FilePath
 storeFilePlain root name content = do
   let path = joinPath [root, T.unpack name]
@@ -107,7 +119,7 @@ storeFilePlain root name content = do
       pathIsSymbolicLink file >>= \sym ->
         if sym
           then copyLink file path >> removeFile file
-          else renameFile file path
+          else renameIfPossible file path
   pure path
 
 type DateFile = (FilePath, Maybe Year, Maybe MonthOfYear, Maybe DayOfMonth)

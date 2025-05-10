@@ -5,6 +5,8 @@ import Control.Applicative ((<|>))
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Maybe
 import Data.Aeson (toJSON)
 import Data.Aeson.Lens
 import Data.Aeson.Text (encodeToLazyText)
@@ -27,6 +29,7 @@ import Korrvigs.File.SQL
 import Korrvigs.File.Sync
 import Korrvigs.Kind
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Android
 import Korrvigs.Monad
 import Korrvigs.Utils (joinNull, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
@@ -142,10 +145,23 @@ update file nfile = do
             uReturning = rCount
           }
 
+fromAndroid :: (MonadKorrvigs m) => (Text, FilePath) -> m (NewFile -> NewFile)
+fromAndroid (adb, rel) = fmap (fromMaybe id) $ runMaybeT $ do
+  let file = takeFileName rel
+  phones <- lift listPhones
+  phone <- hoistMaybe $ M.lookup adb phones
+  let addPhone = ((mtdtSqlName FromAndroid, toJSON $ unId $ phone ^. androidEntry) :)
+  let addFile = ((mtdtSqlName FromAndroidPath, toJSON file) :)
+  pure $
+    (nfEntry . neMtdt %~ addPhone . addFile)
+      . (nfRemove .~ True)
+
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
-new path' options = do
+new path' options' = do
   alreadyAnnexed <- inAnnex path'
   path <- liftIO $ resolveSymbolicLink path'
+  isFromAndroid <- recogniseCaptured path
+  options <- ($ options') <$> maybe (pure id) fromAndroid isFromAndroid
   ex <- liftIO $ doesFileExist path
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path

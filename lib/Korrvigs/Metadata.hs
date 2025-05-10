@@ -1,5 +1,6 @@
 module Korrvigs.Metadata where
 
+import Control.Arrow (first)
 import Control.Lens
 import Control.Monad (join)
 import Data.Aeson
@@ -23,6 +24,12 @@ class ExtraMetadata mtdt where
   mtdtName :: mtdt -> CI Text
   mtdtSqlName :: mtdt -> Text
   mtdtSqlName = CI.foldedCase . mtdtName
+
+unCIMtdt :: Metadata -> Map Text Value
+unCIMtdt = M.fromList . fmap (first CI.foldedCase) . M.toList
+
+reCIMtdt :: Map Text Value -> Metadata
+reCIMtdt = M.fromList . fmap (first CI.mk) . M.toList
 
 extractMtdt ::
   (ExtraMetadata mtdt, FromJSON (MtdtType mtdt)) =>

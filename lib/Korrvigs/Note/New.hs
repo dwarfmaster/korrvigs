@@ -1,6 +1,5 @@
 module Korrvigs.Note.New (new, NewNote (..), nnEntry, nnTitle) where
 
-import Control.Arrow (first)
 import Control.Lens
 import Data.Aeson
 import Data.CaseInsensitive (CI)
@@ -63,13 +62,13 @@ create note = do
   i <- newId idmk
   let parents = note ^. nnEntry . neParents
   let mtdt =
-        mconcat
-          [ M.fromList (first CI.mk <$> note ^. nnEntry . neMtdt),
-            M.singleton (mtdtName Title) (toJSON $ note ^. nnTitle),
-            maybe M.empty (M.singleton (mtdtName Language) . toJSON) (note ^. nnEntry . neLanguage),
-            if null parents then M.empty else M.singleton (CI.mk "parents") (toJSON $ unId <$> parents),
-            maybe M.empty (M.singleton (CI.mk "date") . toJSON) (note ^. nnEntry . neDate)
-          ]
+        useMtdt (note ^. nnEntry) $
+          mconcat
+            [ M.singleton (mtdtName Title) (toJSON $ note ^. nnTitle),
+              maybe M.empty (M.singleton (mtdtName Language) . toJSON) (note ^. nnEntry . neLanguage),
+              if null parents then M.empty else M.singleton (CI.mk "parents") (toJSON $ unId <$> parents),
+              maybe M.empty (M.singleton (CI.mk "date") . toJSON) (note ^. nnEntry . neDate)
+            ]
   let doc =
         Document
           { _docMtdt = mtdt,

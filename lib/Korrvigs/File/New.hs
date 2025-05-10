@@ -103,7 +103,7 @@ applyNewOptions ne = do
       pure $ maybe id (exDate ?~) dt
     title = maybe id ((annoted . at (mtdtSqlName Title) ?~) . toJSON) $ joinNull T.null $ ne ^. neTitle
     lang = maybe id ((annoted . at (mtdtSqlName Language) ?~) . toJSON) $ ne ^. neLanguage
-    mtdt = annoted %~ M.union (M.fromList $ ne ^. neMtdt)
+    mtdt = annoted %~ unCIMtdt . useMtdt ne . reCIMtdt
 
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
 new path' options = do

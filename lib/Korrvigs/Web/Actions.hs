@@ -20,6 +20,7 @@ import Korrvigs.Web.Actions.New
 import Korrvigs.Web.Actions.Parent
 import Korrvigs.Web.Actions.Remove
 import Korrvigs.Web.Actions.Share
+import Korrvigs.Web.Actions.Update
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
@@ -35,6 +36,7 @@ data ActionLabel
   | LabShare
   | LabParentAdd
   | LabParentRm
+  | LabUpdate
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 mkIcon :: Text -> Base16Index -> (Route WebData, Base16Index)
@@ -49,6 +51,7 @@ actIcon LabNewMedia = mkIcon "media" Base0B
 actIcon LabShare = mkIcon "share" Base0E
 actIcon LabParentAdd = mkIcon "parent" Base0B
 actIcon LabParentRm = mkIcon "parent" Base08
+actIcon LabUpdate = mkIcon "upload" Base0E
 
 actName :: ActionLabel -> Text
 actName LabRemove = "remove"
@@ -59,6 +62,7 @@ actName LabNewMedia = "newmedia"
 actName LabShare = "share"
 actName LabParentAdd = "addparent"
 actName LabParentRm = "rmparent"
+actName LabUpdate = "update"
 
 actWidget :: Text -> ActionLabel -> Widget
 actWidget formId act = do
@@ -110,6 +114,7 @@ actForm l@LabNewMedia = genForm newMediaForm newMediaTitle $ actUrl l
 actForm l@LabShare = genForm shareForm shareTitle $ actUrl l
 actForm l@LabParentAdd = genForm parentForm parentAddTitle $ actUrl l
 actForm l@LabParentRm = genForm parentForm parentRmTitle $ actUrl l
+actForm l@LabUpdate = genForm updateForm updateTitle $ actUrl l
 
 runPost :: AForm Handler a -> (a -> ActionTarget -> Handler ActionReaction) -> ActionTarget -> Handler ActionReaction
 runPost form runner tgt = do
@@ -129,6 +134,7 @@ actPost LabNewMedia = runPost newMediaForm runNewMedia
 actPost LabShare = runPost shareForm runShare
 actPost LabParentAdd = runPost parentForm runParentAdd
 actPost LabParentRm = runPost parentForm runParentRm
+actPost LabUpdate = runPost updateForm runUpdate
 
 actCond :: ActionLabel -> ActionTarget -> Bool
 actCond LabRemove = removeTarget
@@ -139,6 +145,7 @@ actCond LabNewMedia = newTarget
 actCond LabShare = shareTarget
 actCond LabParentAdd = parentTarget
 actCond LabParentRm = parentTarget
+actCond LabUpdate = updateTarget
 
 postHandler :: ActionLabel -> ActionTarget -> Handler Value
 postHandler lbl tgt = toJSON <$> actPost lbl tgt

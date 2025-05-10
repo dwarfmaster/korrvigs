@@ -1,4 +1,4 @@
-module Korrvigs.File.New (new, NewFile (..), nfEntry, nfRemove) where
+module Korrvigs.File.New (new, NewFile (..), nfEntry, nfRemove, update) where
 
 import Conduit (throwM)
 import Control.Applicative ((<|>))
@@ -23,6 +23,7 @@ import qualified Korrvigs.Compute as Cpt
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Mtdt
+import Korrvigs.File.SQL
 import Korrvigs.File.Sync
 import Korrvigs.Kind
 import Korrvigs.Metadata
@@ -33,6 +34,7 @@ import Korrvigs.Utils.Git.Annex
 import Korrvigs.Utils.Process
 import Korrvigs.Utils.Time (dayToZonedTime)
 import Network.Mime
+import Opaleye hiding (not, null)
 import System.Directory
 import System.FilePath
 import System.IO
@@ -104,6 +106,41 @@ applyNewOptions ne = do
     title = maybe id ((annoted . at (mtdtSqlName Title) ?~) . toJSON) $ joinNull T.null $ ne ^. neTitle
     lang = maybe id ((annoted . at (mtdtSqlName Language) ?~) . toJSON) $ ne ^. neLanguage
     mtdt = annoted %~ unCIMtdt . useMtdt ne . reCIMtdt
+
+update :: (MonadKorrvigs m) => File -> FilePath -> m ()
+update file nfile = do
+  let i = file ^. fileEntry . name
+  -- Replace file
+  let oldpath = file ^. filePath
+  liftIO $ removeFile oldpath
+  mime <- liftIO $ findMime nfile
+  let mimeTxt = Enc.decodeUtf8 mime
+  let ext = takeExtension nfile
+  let newpath = replaceExtension oldpath ext
+  liftIO $ copyFile nfile newpath
+  annex <- liftIO $ shouldAnnex newpath mime
+  rt <- root
+  when annex $ annexAdd rt newpath
+  -- Rename meta file
+  let oldmeta = file ^. fileMeta
+  let newmeta = addExtension (dropExtension (dropExtension oldmeta)) (ext <> ".meta")
+  liftIO $ renameFile oldmeta newmeta
+  -- Update SQL
+  let status = if annex then FilePresent else FilePlain
+  conn <- pgSQL
+  liftIO $
+    void $
+      runUpdate conn $
+        Update
+          { uTable = filesTable,
+            uUpdateWith =
+              (sqlFilePath .~ sqlString newpath)
+                . (sqlFileMeta .~ sqlString newmeta)
+                . (sqlFileStatus .~ sqlFS status)
+                . (sqlFileMime .~ sqlStrictText mimeTxt),
+            uWhere = \row -> row ^. sqlFileName .== sqlId i,
+            uReturning = rCount
+          }
 
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
 new path' options = do

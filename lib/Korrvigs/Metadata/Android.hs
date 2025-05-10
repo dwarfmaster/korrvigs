@@ -14,6 +14,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import qualified Korrvigs.Metadata.Android.ADB as ADB
@@ -107,7 +108,7 @@ importAndroidFiles = runMaybeT $ do
   phone <- hoistMaybe $ M.lookup device phones
   liftIO $ putStrLn $ "Recognised device as @" <> T.unpack (unId $ phone ^. androidEntry)
   phoneFiles <- lift $ listFilesForPhone $ phone ^. androidEntry
-  forM_ (phone ^. androidWatched) $ \dir -> runMaybeT $ do
+  allFiles <- fmap (mconcat . catMaybes) $ forM (phone ^. androidWatched) $ \dir -> runMaybeT $ do
     filesOnPhone <- liftIO (ADB.files dir) >>= hoistMaybe
     let filesConsidered = S.difference filesOnPhone (phone ^. androidIgnored)
     let filesToImport = S.difference filesConsidered $ S.map (view androidFilePath) phoneFiles
@@ -125,4 +126,10 @@ importAndroidFiles = runMaybeT $ do
           liftIO $ putStrLn file
           success <- liftIO $ ADB.pull androidPath tgt
           unless success $ liftIO $ putStrLn "Failed to import !"
+    pure filesOnPhone
+  let removedFiles = S.filter (\f -> S.member (f ^. androidFilePath) allFiles) phoneFiles
+  forM_ removedFiles $ \file ->
+    lift (load $ file ^. androidFileEntry) >>= \case
+      Just fEntry -> lift $ updateMetadata fEntry M.empty [mtdtSqlName FromAndroidPath]
+      Nothing -> pure ()
   pure phone

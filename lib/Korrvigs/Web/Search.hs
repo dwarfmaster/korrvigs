@@ -547,10 +547,10 @@ liftMaybe True (V2 (Just x) (Just y), Just d) = Just (V2 x y, d * 1000.0)
 liftMaybe _ _ = Nothing
 
 fixOrder :: Query -> Query
-fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
+fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
   Just (pt, _) -> q & querySort . _1 .~ ByDistanceTo pt
   Nothing -> q & querySort .~ def
-fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
+fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
   Just fts -> q & querySort . _1 .~ ByTSRank fts
   Nothing -> q & querySort .~ def
 fixOrder q = q
@@ -568,7 +568,7 @@ getSearchR = do
   let mktz = fmap $ flip ZonedTime tz
   q' <-
     runInputGet $
-      Query
+      Query []
         <$> (getOpt <$> ireq checkBoxField "checkfts" <*> iopt ftsField "fts")
         <*> (getOpt <$> ireq checkBoxField "checkdate" <*> (mktz <$> iopt datetimeLocalField "before"))
         <*> (getOpt <$> ireq checkBoxField "checkdate" <*> (mktz <$> iopt datetimeLocalField "after"))

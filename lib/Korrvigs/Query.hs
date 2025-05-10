@@ -20,7 +20,7 @@ import Korrvigs.Kind
 import Korrvigs.Metadata.Collections
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
-import Opaleye
+import Opaleye hiding (null)
 import Text.Parsec
 import Text.Parsec.Number
 import Prelude hiding (not)
@@ -108,7 +108,8 @@ data QueryRel = QueryRel
   }
 
 data Query = Query
-  { _queryText :: Maybe FTS.Query,
+  { _queryId :: [Id],
+    _queryText :: Maybe FTS.Query,
     _queryBefore :: Maybe ZonedTime,
     _queryAfter :: Maybe ZonedTime,
     _queryGeo :: Maybe Polygon,
@@ -125,7 +126,7 @@ data Query = Query
   }
 
 instance Default Query where
-  def = Query def def def def def def def def def def def def def def
+  def = Query def def def def def def def def def def def def def def def
 
 makeLenses ''Query
 makeLenses ''QueryRel
@@ -145,6 +146,12 @@ compileRel entry tbl direct q = do
 compile :: Query -> Select EntryRowSQL
 compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ do
   entry <- selectTable entriesTable
+  -- Id
+  unless (null $ query ^. queryId) $
+    where_ $
+      foldr1 (.||) $
+        fmap (\i -> sqlId i .== entry ^. sqlEntryName) $
+          query ^. queryId
   -- FTS search
   forM_ (query ^. queryText) $ \txt ->
     where_ $ FTS.sqlQuery txt @@? entry ^. sqlEntryText

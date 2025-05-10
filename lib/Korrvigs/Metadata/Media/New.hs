@@ -3,6 +3,7 @@ module Korrvigs.Metadata.Media.New
     nmEntry,
     nmInput,
     nmType,
+    nmCapture,
     new,
   )
 where
@@ -37,7 +38,8 @@ import qualified Korrvigs.Note.New as Note
 data NewMedia = NewMedia
   { _nmEntry :: NewEntry,
     _nmInput :: Text,
-    _nmType :: Maybe MediaType
+    _nmType :: Maybe MediaType,
+    _nmCapture :: Bool
   }
 
 makeLenses ''NewMedia
@@ -125,7 +127,7 @@ prepareNewMedia nm = do
   let ne =
         mergeInto md (nm ^. nmEntry)
           & neMtdt %~ ((mtdtSqlName TaskMtdt, "todo") :)
-          & neCollections %~ S.insert ["Captured"]
+          & neCollections %~ if nm ^. nmCapture then S.insert ["Captured"] else id
   let title = fromMaybe (medTxt (md ^. medType) <> " " <> nm ^. nmInput) $ ne ^. neTitle
   pure . (,subs) $ case md ^. medType of
     Blogpost -> NewLinkMedia (nm ^. nmInput) $ Link.NewLink ne False

@@ -4,6 +4,8 @@ import Control.Arrow
 import Control.Lens
 import Data.Default
 import Data.Maybe
+import Data.Set (Set)
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
@@ -36,7 +38,8 @@ makeLenses ''NewMedia
 newTarget :: ActionTarget -> Bool
 newTarget (TargetEntry _) = True
 newTarget TargetHome = True
-newTarget (TargetCollection _) = False -- TODO support creating entries directly in collections
+newTarget (TargetCollection []) = False
+newTarget (TargetCollection _) = True
 
 mkNewTitle :: Text -> ActionTarget -> Text
 mkNewTitle suffix TargetHome = "Create " <> suffix
@@ -46,11 +49,19 @@ extractParent :: ActionTarget -> Maybe Id
 extractParent (TargetEntry entry) = Just $ entry ^. name
 extractParent _ = Nothing
 
+isColTgt :: ActionTarget -> Bool
+isColTgt (TargetCollection _) = True
+isColTgt _ = False
+
+extractCollection :: ActionTarget -> Set [Text]
+extractCollection (TargetCollection col) = S.singleton col
+extractCollection _ = S.empty
+
 mkReaction :: ActionTarget -> Text -> Id -> Handler ActionReaction
 mkReaction TargetHome _ i = do
   render <- getUrlRender
   pure $ def & reactRedirect ?~ render (EntryR $ WId i)
-mkReaction _ suffix i = do
+mkReaction (TargetEntry _) suffix i = do
   let htmlUrl =
         [hamlet|
     <p>
@@ -60,7 +71,17 @@ mkReaction _ suffix i = do
           #{unId i}
   |]
   html <- htmlUrl <$> getUrlRenderParams
-  pure $ def & reactMsg ?~ html
+  pure $
+    def
+      & reactMsg ?~ html
+      & reactClipboard ?~ unId i
+mkReaction (TargetCollection col) suffix i = do
+  render <- getUrlRender
+  pure $
+    def
+      & reactClipboard ?~ unId i
+      & reactAlert ?~ "Created " <> suffix <> ": @" <> unId i
+      & reactRedirect ?~ render (ColR col)
 
 newNoteForm :: AForm Handler NewNote
 newNoteForm = NewNote <$> areq textField "Title" Nothing
@@ -72,7 +93,10 @@ runNewNote :: NewNote -> ActionTarget -> Handler ActionReaction
 runNewNote nnote tgt = do
   let settings =
         NNote.NewNote
-          (def & neParents .~ maybeToList (extractParent tgt))
+          ( def
+              & neParents .~ maybeToList (extractParent tgt)
+              & neCollections .~ extractCollection tgt
+          )
           (nnote ^. nnoteTitle)
   i <- NNote.new settings
   mkReaction tgt "new note" i
@@ -93,6 +117,7 @@ runNewLink nlink tgt = do
           & NLink.nlOffline .~ False
           & NLink.nlEntry . neTitle .~ nlink ^. nlinkTitle
           & NLink.nlEntry . neParents .~ maybeToList (extractParent tgt)
+          & NLink.nlEntry . neCollections .~ extractCollection tgt
   i <- NLink.new (nlink ^. nlinkUrl) settings
   mkReaction tgt "new link" i
 
@@ -117,6 +142,7 @@ runNewFile nfile tgt =
               def
                 & neTitle .~ nfile ^. nfileTitle
                 & neParents .~ maybeToList (extractParent tgt)
+                & neCollections .~ extractCollection tgt
       runIO $ do
         i <- NFile.new path settings
         mkReaction tgt "new file" i
@@ -137,9 +163,13 @@ runNewMedia :: NewMedia -> ActionTarget -> Handler ActionReaction
 runNewMedia nmedia tgt = do
   let nmed =
         NMedia.NewMedia
-          { NMedia._nmEntry = def & neParents %~ maybe id (:) (extractParent tgt),
+          { NMedia._nmEntry =
+              def
+                & neParents %~ maybe id (:) (extractParent tgt)
+                & neCollections .~ extractCollection tgt,
             NMedia._nmInput = nmedia ^. nmedInput,
-            NMedia._nmType = nmedia ^. nmedType
+            NMedia._nmType = nmedia ^. nmedType,
+            NMedia._nmCapture = not (isColTgt tgt)
           }
   i <- NMedia.new nmed
   mkReaction tgt "new media" i

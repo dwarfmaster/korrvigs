@@ -89,7 +89,7 @@ data SortCriterion
   | ByTSRank FTS.Query
   | ByDistanceTo Point
   | ById
-  deriving (Eq)
+  deriving (Eq, Show)
 
 instance Default SortCriterion where
   def = ById
@@ -97,7 +97,7 @@ instance Default SortCriterion where
 data SortOrder
   = SortAsc
   | SortDesc
-  deriving (Eq)
+  deriving (Eq, Show)
 
 instance Default SortOrder where
   def = SortAsc
@@ -106,6 +106,7 @@ data QueryRel = QueryRel
   { _relOther :: Query,
     _relRec :: Bool
   }
+  deriving (Show)
 
 data Query = Query
   { _queryId :: [Id],
@@ -124,6 +125,7 @@ data Query = Query
     _querySort :: (SortCriterion, SortOrder),
     _queryMaxResults :: Maybe Int
   }
+  deriving (Show)
 
 instance Default Query where
   def = Query def def def def def def def def def def def def def def def

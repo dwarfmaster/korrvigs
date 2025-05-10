@@ -3,6 +3,7 @@ module Korrvigs.Cli.New (newEntryOptions) where
 import Control.Monad
 import Data.Aeson
 import Data.Functor.Identity
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -20,6 +21,7 @@ newEntryOptions =
     <*> optional (option str $ metavar "TITLE" <> long "title")
     <*> optional (option str $ metavar "LANG" <> long "lang" <> help "Either fr or en, the language the entry will be interpreted as")
     <*> many (option mtdtParser $ long "mtdt" <> help "Pairs in the form key=json of metadata to add to the entry")
+    <*> pure S.empty
 
 mtdtParser :: ReadM (Text, Value)
 mtdtParser = eitherReader $ \s -> case P.runParser mtdtP () "<mtdt>" s of

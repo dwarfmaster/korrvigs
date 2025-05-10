@@ -12,18 +12,17 @@ import Control.Arrow (first)
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson
 import qualified Data.CaseInsensitive as CI
 import Data.Foldable
 import qualified Data.Map as M
 import Data.Maybe
+import qualified Data.Set as S
 import Data.Text (Text)
 import Korrvigs.Actions (load, updateParents)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import qualified Korrvigs.Link.New as Link
 import Korrvigs.Metadata
-import Korrvigs.Metadata.Collections
 import Korrvigs.Metadata.Media
 import qualified Korrvigs.Metadata.Media.Arxiv as AR
 import qualified Korrvigs.Metadata.Media.MangaUpdates as MU
@@ -120,22 +119,13 @@ mergeInto md =
   maybe id (neTitle ?~) (md ^. medTitle)
     . (neMtdt %~ ((first CI.foldedCase <$> M.toList (M.delete (mtdtName Title) $ mediaMetadata md)) ++))
 
-insertCollection :: [Text] -> [(Text, Value)] -> [(Text, Value)]
-insertCollection col mtdts = case find (\m -> CI.mk (fst m) == mtdtName MiscCollection) mtdts of
-  Nothing -> (mtdtSqlName MiscCollection, toJSON [col]) : mtdts
-  Just (_, v) -> case fromJSON v of
-    Error _ -> (mtdtSqlName MiscCollection, toJSON [col]) : mtdts'
-    Success cols -> (mtdtSqlName MiscCollection, toJSON $ col : cols) : mtdts'
-  where
-    mtdts' = filter ((/= mtdtName MiscCollection) . CI.mk . fst) mtdts
-
 prepareNewMedia :: (MonadKorrvigs m) => NewMedia -> m (NewMediaInternal, [Id])
 prepareNewMedia nm = do
   (md, subs) <- dispatchMedia nm
   let ne =
         mergeInto md (nm ^. nmEntry)
           & neMtdt %~ ((mtdtSqlName TaskMtdt, "todo") :)
-          & neMtdt %~ insertCollection ["Captured"]
+          & neCollections %~ S.insert ["Captured"]
   let title = fromMaybe (medTxt (md ^. medType) <> " " <> nm ^. nmInput) $ ne ^. neTitle
   pure . (,subs) $ case md ^. medType of
     Blogpost -> NewLinkMedia (nm ^. nmInput) $ Link.NewLink ne False

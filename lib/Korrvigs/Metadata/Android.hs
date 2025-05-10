@@ -84,6 +84,17 @@ listFilesForPhone phone = do
     extractFile (_, Nothing) = Nothing
     extractFile (i, Just path) = Just $ AndroidFile i path
 
+capturedDir :: (MonadKorrvigs m) => m FilePath
+capturedDir = (</> "captured") <$> root
+
+recogniseCaptured :: (MonadKorrvigs m) => FilePath -> m (Maybe (Text, FilePath))
+recogniseCaptured path = do
+  captured <- capturedDir
+  let rel = splitPath $ makeRelative captured path
+  pure $ case rel of
+    [] -> Nothing
+    (adb : pth) -> Just (T.dropWhileEnd (== '/') (T.pack adb), joinPath pth)
+
 importAndroidFiles :: (MonadKorrvigs m) => m (Maybe AndroidPhone)
 importAndroidFiles = runMaybeT $ do
   phones <- lift listPhones
@@ -91,8 +102,8 @@ importAndroidFiles = runMaybeT $ do
   guard server
   device <- liftIO ADB.connectedDevice >>= hoistMaybe
   liftIO $ putStrLn $ "Found device \"" <> T.unpack device <> "\""
-  rt <- lift root
-  let importDir = rt </> "captured" </> T.unpack device
+  captured <- lift capturedDir
+  let importDir = captured </> T.unpack device
   phone <- hoistMaybe $ M.lookup device phones
   liftIO $ putStrLn $ "Recognised device as @" <> T.unpack (unId $ phone ^. androidEntry)
   phoneFiles <- lift $ listFilesForPhone $ phone ^. androidEntry

@@ -122,6 +122,9 @@ new url options = case parseURI (T.unpack url) of
     liftIO $ print $ options ^. nlEntry . neTitle
     let title = mplus (joinNull T.null $ options ^. nlEntry . neTitle) (M.lookup (mtdtSqlName Title) info >>= jsonAsText)
     dt <- useDate (options ^. nlEntry) Nothing
+    let language :: Maybe Value = case uriAuthority uri of
+          Just auth | ".fr" `isSuffixOf` uriRegName auth -> Just "fr"
+          _ -> Nothing
     let mtdt =
           useMtdt (options ^. nlEntry) $
             M.fromList (first CI.mk <$> options ^. nlEntry . neMtdt)
@@ -129,6 +132,7 @@ new url options = case parseURI (T.unpack url) of
               & at "meta" ?~ toJSON (foldr M.delete info ["day", "duration", "geometry", "textContent"])
               & maybe id (at (mtdtName Abstract) ?~) (M.lookup "description" info)
               & maybe id (at (mtdtName Feed) ?~) (M.lookup (mtdtSqlName Feed) info)
+              & maybe id (at (mtdtName Language) ?~) language
     let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt
     let txt = if T.null textContent then Nothing else Just textContent
     let json = LinkJSON protocol link mtdtJson dt Nothing Nothing txt parents

@@ -14,6 +14,7 @@ import Korrvigs.Utils.JSON (fromJSONM)
 
 data TaskStatus
   = TaskTodo
+  | TaskImportant
   | TaskOngoing
   | TaskBlocked
   | TaskDone
@@ -37,6 +38,7 @@ makeLenses ''Task
 
 parseStatusName :: Text -> Maybe TaskStatus
 parseStatusName "todo" = Just TaskTodo
+parseStatusName "important" = Just TaskImportant
 parseStatusName "started" = Just TaskOngoing
 parseStatusName "blocked" = Just TaskBlocked
 parseStatusName "done" = Just TaskDone

@@ -5,6 +5,7 @@ import Control.Lens
 import Data.Aeson
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
+import Data.Default
 import Data.Foldable
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -75,7 +76,7 @@ create note = do
             _docContent = initContent mtdt,
             _docTitle = note ^. nnTitle,
             _docRefTo = S.empty,
-            _docChecks = Checks 0 0 0 0 0,
+            _docChecks = def,
             _docParents = S.fromList $ note ^. nnEntry . neParents,
             _docTask = Nothing,
             _docTasks = []

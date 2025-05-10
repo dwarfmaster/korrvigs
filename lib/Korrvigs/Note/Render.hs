@@ -253,6 +253,7 @@ renderInline (Sidenote note) = do
   num <- registerNote note
   writeText . T.pack $ "[^" <> show num <> "]"
 renderInline (Check TaskTodo) = writeText "[ ]"
+renderInline (Check TaskImportant) = writeText "[!]"
 renderInline (Check TaskOngoing) = writeText "[*]"
 renderInline (Check TaskBlocked) = writeText "[-]"
 renderInline (Check TaskDone) = writeText "[x]"

@@ -14,6 +14,7 @@ import Network.URI
 
 data Checks = Checks
   { _ckTodo :: Int,
+    _ckImportant :: Int,
     _ckOngoing :: Int,
     _ckBlocked :: Int,
     _ckDone :: Int,
@@ -22,7 +23,7 @@ data Checks = Checks
   deriving (Show, Eq)
 
 instance Default Checks where
-  def = Checks 0 0 0 0 0
+  def = Checks 0 0 0 0 0 0
 
 data Document = Document
   { _docMtdt :: Map (CI Text) Value,

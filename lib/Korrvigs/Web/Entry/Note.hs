@@ -275,6 +275,7 @@ compileBlock' (EmbedHeader i) = do
         let tkchecks =
               Checks
                 (if tk ^. tskStatus == TaskTodo then 1 else 0)
+                (if tk ^. tskStatus == TaskImportant then 1 else 0)
                 (if tk ^. tskStatus == TaskOngoing then 1 else 0)
                 (if tk ^. tskStatus == TaskBlocked then 1 else 0)
                 (if tk ^. tskStatus == TaskDone then 1 else 0)
@@ -328,12 +329,13 @@ propagateChecks _ cks | cks == def = mempty
 propagateChecks embedId cks =
   toWidget
     [julius|
-    propagateChecks(#{embedId}, [#{todo}, #{ongoing}, #{blocked}, #{done}, #{dont}])
+    propagateChecks(#{embedId}, [#{todo}, #{important}, #{ongoing}, #{blocked}, #{done}, #{dont}])
   |]
   where
     jsInt :: Int -> RawJavascript
     jsInt = rawJS . show
     todo = jsInt $ cks ^. ckTodo
+    important = jsInt $ cks ^. ckImportant
     ongoing = jsInt $ cks ^. ckOngoing
     blocked = jsInt $ cks ^. ckBlocked
     done = jsInt $ cks ^. ckDone
@@ -435,10 +437,10 @@ editButton entry i hdId edit subL = do
         else NoteSubR (WId entry) $ WLoc $ LocSub subL
 
 checksDisplay :: Checks -> Widget
-checksDisplay (Checks todo ongoing blocked done dont) =
+checksDisplay (Checks todo important ongoing blocked done dont) =
   [whamlet|
     <span .checks-count>
-      <span class=todo-count>#{show todo}</span>/<span class=ongoing-count>#{show ongoing}</span>/<span class=blocked-count>#{show blocked}</span>/<span class=done-count>#{show done}</span>/<span class=dont-count>#{show dont}</span>
+      <span class=important-count>#{show important}</span>/<span class=todo-count>#{show todo}</span>/<span class=ongoing-count>#{show ongoing}</span>/<span class=blocked-count>#{show blocked}</span>/<span class=done-count>#{show done}</span>/<span class=dont-count>#{show dont}</span>
   |]
 
 compileTable :: Int -> Int -> Array (Int, Int) Cell -> CompileM Widget
@@ -532,6 +534,7 @@ compileInline (Check ck) = do
   loc <- CheckLoc <$> use subLoc <*> use checkboxCount
   entry <- use currentEntry
   let todoUrl = render $ checkImg TaskTodo
+  let importantUrl = render $ checkImg TaskImportant
   let ongoingUrl = render $ checkImg TaskOngoing
   let blockedUrl = render $ checkImg TaskBlocked
   let doneUrl = render $ checkImg TaskDone
@@ -539,7 +542,7 @@ compileInline (Check ck) = do
   let postUrl = render $ NoteSubR (WId entry) $ WLoc $ LocCheck loc
   checkboxCount += 1
   cid <- newIdent
-  let w = toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{ongoingUrl}, #{blockedUrl}, #{doneUrl}, #{dontUrl}, #{cid});|]
+  let w = toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{importantUrl}, #{ongoingUrl}, #{blockedUrl}, #{doneUrl}, #{dontUrl}, #{cid});|]
   let h =
         applyAttr (Attr.id $ textValue cid) $
           applyAttr (Attr.src $ textValue $ render $ checkImg ck) $
@@ -549,6 +552,7 @@ compileInline (Check ck) = do
 
 checkImg :: TaskStatus -> Route WebData
 checkImg TaskTodo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []
+checkImg TaskImportant = StaticR $ StaticRoute ["icons", "checkbox-important.svg"] []
 checkImg TaskOngoing = StaticR $ StaticRoute ["icons", "checkbox-ongoing.svg"] []
 checkImg TaskBlocked = StaticR $ StaticRoute ["icons", "checkbox-blocked.svg"] []
 checkImg TaskDone = StaticR $ StaticRoute ["icons", "checkbox-done.svg"] []

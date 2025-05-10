@@ -236,7 +236,7 @@ displayTask prefix = do
     header _ content = [whamlet|<h6> ^{content}|]
     ordTaskStatus :: (a -> Maybe TaskStatus) -> a -> a -> Ordering
     ordTaskStatus f t1 t2 =
-      let ordered = Nothing : (Just <$> [TaskOngoing, TaskBlocked, TaskTodo, TaskDone, TaskDont])
+      let ordered = Nothing : (Just <$> [TaskOngoing, TaskImportant, TaskBlocked, TaskTodo, TaskDone, TaskDont])
        in let i1 = elemIndex (f t1) ordered
            in let i2 = elemIndex (f t2) ordered
                in compare i1 i2

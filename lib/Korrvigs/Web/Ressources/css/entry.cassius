@@ -1,5 +1,6 @@
 :root
   --base-todo: var(--base09)
+  --base-important: var(--base0A)
   --base-ongoing: var(--base0E)
   --base-blocked: var(--base0D)
   --base-done: var(--base0B)
@@ -240,6 +241,8 @@ mjx-container
   padding: 0.1em
 .todo-count
   color: var(--base-todo)
+.important-count
+  color: var(--base-important)
 .ongoing-count
   color: var(--base-ongoing)
 .blocked-count
@@ -258,6 +261,8 @@ mjx-container
   cursor: pointer
 .task-todo
   background-color: var(--base-todo)
+.task-important
+  background-color: var(--base-important)
 .task-ongoing
   background-color: var(--base-ongoing)
 .task-blocked

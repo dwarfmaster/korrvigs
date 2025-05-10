@@ -68,7 +68,7 @@ pushBlock :: WithParent A.Block -> ParseM ()
 pushBlock blk = stack . bszLeft %= (blk :)
 
 pushHeader :: Int -> A.Attr -> ParseM ()
-pushHeader lvl attr = stack %= BSZ lvl attr "" Nothing S.empty (A.Checks 0 0 0 0 0) [] [] . Just
+pushHeader lvl attr = stack %= BSZ lvl attr "" Nothing S.empty def [] [] . Just
 
 headerLvl :: ParseM Int
 headerLvl = use $ stack . bszLevel
@@ -107,12 +107,14 @@ propagateChecks bsz = case bsz ^. bszTask of
   Just task -> do
     let st = task ^. tskStatus
     when (st == TaskTodo) $ stack . bszChecks . A.ckTodo %= (+ 1)
+    when (st == TaskImportant) $ stack . bszChecks . A.ckImportant %= (+ 1)
     when (st == TaskOngoing) $ stack . bszChecks . A.ckOngoing %= (+ 1)
     when (st == TaskBlocked) $ stack . bszChecks . A.ckBlocked %= (+ 1)
     when (st == TaskDone) $ stack . bszChecks . A.ckDone %= (+ 1)
     when (st == TaskDont) $ stack . bszChecks . A.ckDont %= (+ 1)
   Nothing -> do
     stack . bszChecks . A.ckTodo %= (bsz ^. bszChecks . A.ckTodo +)
+    stack . bszChecks . A.ckImportant %= (bsz ^. bszChecks . A.ckImportant +)
     stack . bszChecks . A.ckOngoing %= (bsz ^. bszChecks . A.ckOngoing +)
     stack . bszChecks . A.ckBlocked %= (bsz ^. bszChecks . A.ckBlocked +)
     stack . bszChecks . A.ckDone %= (bsz ^. bszChecks . A.ckDone +)
@@ -157,7 +159,7 @@ run act mtdt bks =
     cimtdt = M.fromList $ first CI.mk <$> M.toList mtdt
     st =
       execState (act >> iterateWhile id popHeader) $
-        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty (A.Checks 0 0 0 0 0) [] [] Nothing)
+        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] [] Nothing)
 
 readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
 readNote pth = liftIO $ do
@@ -288,6 +290,9 @@ parseInlines (Str "[-]" : xs) = do
 parseInlines (Str "[X]" : xs) = do
   stack . bszChecks . A.ckDont %= (+ 1)
   (A.Check TaskDont :) <$> parseInlines xs
+parseInlines (Str "[!]" : xs) = do
+  stack . bszChecks . A.ckImportant %= (+ 1)
+  (A.Check TaskImportant :) <$> parseInlines xs
 parseInlines (Str "[" : Space : Str "]" : xs) = do
   stack . bszChecks . A.ckTodo %= (+ 1)
   (A.Check TaskTodo :) <$> parseInlines xs

@@ -77,6 +77,7 @@ taskWidget i subL (Just tsk) = do
     status :: Text
     status = case tsk ^. tskStatus of
       TaskTodo -> "task-todo"
+      TaskImportant -> "task-important"
       TaskOngoing -> "task-ongoing"
       TaskBlocked -> "task-blocked"
       TaskDone -> "task-done"

@@ -7,6 +7,7 @@ module Korrvigs.Note
     docChecks,
     Checks (..),
     ckTodo,
+    ckImportant,
     ckOngoing,
     ckBlocked,
     ckDone,

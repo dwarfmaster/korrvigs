@@ -26,6 +26,7 @@ import qualified Korrvigs.Link.New as Link
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import qualified Korrvigs.Metadata.Media.Arxiv as AR
+import qualified Korrvigs.Metadata.Media.GitHub as GH
 import qualified Korrvigs.Metadata.Media.MangaUpdates as MU
 import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.OpenLibrary as OL
@@ -113,6 +114,7 @@ dispatchMedia nm = do
               mkDispatcher "MangaUpdates" (pure . MU.isMangaUpdates) MU.queryMangaUpdates,
               mkDispatcher "Arxiv" (pure . AR.parseQuery) AR.queryArxiv,
               mkDispatcher "Steam" (pure . Steam.parseQuery) Steam.querySteam,
+              mkDispatcher "GitHub" (pure . GH.parseQuery) GH.queryGitHub,
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 

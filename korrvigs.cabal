@@ -113,6 +113,7 @@ library korrvigs-lib
     Korrvigs.Metadata.Collections
     Korrvigs.Metadata.Media
     Korrvigs.Metadata.Media.Arxiv
+    Korrvigs.Metadata.Media.GitHub
     Korrvigs.Metadata.Media.MangaUpdates
     Korrvigs.Metadata.Media.New
     Korrvigs.Metadata.Media.Ontology

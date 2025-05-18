@@ -82,6 +82,7 @@ in
     ln -s ${./ressources/icons/parent.png} $out/icons/parent.png
     ln -s ${./ressources/icons/remove.png} $out/icons/remove.png
     ln -s ${./ressources/icons/upload.png} $out/icons/upload.png
+    ln -s ${./ressources/icons/eventsync.png} $out/icons/eventsync.png
     mkdir -p $out/font
     cp ${charis}/web/*.woff2 $out/font
   ''

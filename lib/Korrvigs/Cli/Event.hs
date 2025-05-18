@@ -3,15 +3,13 @@ module Korrvigs.Cli.Event where
 import Conduit
 import Control.Lens hiding (argument)
 import Control.Monad
-import Data.Maybe
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
-import Korrvigs.Actions
+import Korrvigs.Calendar (listCalendars)
 import qualified Korrvigs.Calendar.DAV as DAV
 import qualified Korrvigs.Calendar.New as NC
-import Korrvigs.Calendar.SQL
 import Korrvigs.Cli.Monad
 import Korrvigs.Cli.New
 import Korrvigs.Entry
@@ -106,15 +104,6 @@ parser =
     fullDesc
       <> progDesc "Deal with event entries in Korrvigs"
       <> header "korr event -- interface for events"
-
-listCalendars :: KorrM [Calendar]
-listCalendars = do
-  calIds <- rSelect $ view sqlCalName <$> selectTable calendarsTable
-  calEntries <- mapM load calIds
-  let toCal entry = case entry ^. kindData of
-        CalendarD cal -> Just cal
-        _ -> Nothing
-  pure $ mapMaybe (>>= toCal) calEntries
 
 getPwd :: KorrM Text
 getPwd = do

@@ -12,10 +12,6 @@ local telstate = require "telescope.state"
 local builtin = require "telescope.builtin"
 local ts_utils = require "nvim-treesitter.ts_utils"
 
-function m.setup()
-  vim.g.korrvigs_root = os.execute('korr config root')
-end
-
 function m.jump_to_note(opts)
   local opts = opts or {}
   pickers.new(opts, {
@@ -179,6 +175,13 @@ function m.attach_file(dir)
   })
 end
 
-m.attach_file("/home/luc/downloads")
+function m.setup()
+  vim.g.korrvigs_root = os.execute('korr config root')
+  vim.filetype.add({
+    pattern = {
+      [ vim.g.korrvigs_root .. "/notes/.*\\.md" ] = "korrvigs-note"
+    }
+  })
+end
 
 return m

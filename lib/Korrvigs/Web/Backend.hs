@@ -21,7 +21,8 @@ data WebData = WebData
     web_theme :: Base16Index -> Text,
     web_static :: Static,
     web_static_redirect :: Maybe Text,
-    web_mac_secret :: ByteString
+    web_mac_secret :: ByteString,
+    web_calsync_root :: FilePath
   }
 
 getStaticR :: WebData -> Static
@@ -122,6 +123,7 @@ instance RenderMessage WebData FormMessage where
 instance MonadKorrvigs Handler where
   pgSQL = getsYesod web_connection
   root = getsYesod web_root
+  calsyncRoot = getsYesod web_calsync_root
 
 getFaviconR :: Handler TypedContent
 getFaviconR = redirect $ StaticR $ StaticRoute ["favicon.ico"] []

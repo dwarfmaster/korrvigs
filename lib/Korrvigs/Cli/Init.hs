@@ -84,7 +84,8 @@ run cmd = do
             _kconfigPort = cmd ^. port,
             _kconfigTheme = thm,
             _kconfigStaticDir = Nothing,
-            _kconfigStaticRedirect = Nothing
+            _kconfigStaticRedirect = Nothing,
+            _kconfigCalsyncRoot = rt <> "/../../korrvigs-temp/calsync/korrvigs"
           }
   -- Store config
   putStrLn ">>> Saving configuration"

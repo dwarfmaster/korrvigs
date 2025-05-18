@@ -146,11 +146,6 @@ instance FromJSON CachedData where
   parseJSON = withObject "CachedData" $ \obj ->
     CachedData <$> obj .:? "ctag" <*> obj .: "etags"
 
-calsyncRoot :: (MonadKorrvigs m) => m FilePath
-calsyncRoot = do
-  rt <- root
-  pure $ joinPath [rt, "../../korrvigs-temp/calsync/korrvigs"]
-
 reroot :: (MonadKorrvigs m) => FilePath -> m FilePath
 reroot pth = do
   rt <- root

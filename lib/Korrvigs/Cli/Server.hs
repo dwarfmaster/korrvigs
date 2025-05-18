@@ -48,6 +48,7 @@ run cmd = do
   stc <- liftIO $ staticDevel staticP
   staticRedirect <- view $ korrWeb . webStaticRedirect
   secret <- liftIO loadOrGenerateKey
+  calsyncRt <- calsyncRoot
   liftIO $
     warp prt $
       WebData
@@ -56,5 +57,6 @@ run cmd = do
           web_theme = theme16 theme,
           web_static = stc,
           web_static_redirect = staticRedirect,
-          web_mac_secret = secret
+          web_mac_secret = secret,
+          web_calsync_root = calsyncRt
         }

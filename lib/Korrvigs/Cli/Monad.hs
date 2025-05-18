@@ -29,6 +29,7 @@ data WebState = WState
 data KorrState = KState
   { _korrConnection :: Connection,
     _korrRoot :: FilePath,
+    _korrCalsyncRoot :: FilePath,
     _korrWeb :: WebState
   }
 
@@ -38,7 +39,8 @@ data KorrConfig = KConfig
     _kconfigPort :: Int,
     _kconfigTheme :: Base16Data,
     _kconfigStaticDir :: Maybe FilePath,
-    _kconfigStaticRedirect :: Maybe Text
+    _kconfigStaticRedirect :: Maybe Text,
+    _kconfigCalsyncRoot :: FilePath
   }
 
 makeLenses ''KorrState
@@ -51,6 +53,7 @@ newtype KorrM a = KorrM (ReaderT KorrState IO a)
 instance MonadKorrvigs KorrM where
   pgSQL = view korrConnection
   root = view korrRoot
+  calsyncRoot = view korrCalsyncRoot
 
 runKorrM :: KorrConfig -> KorrM a -> IO (Either KorrvigsError a)
 runKorrM config act = do
@@ -59,6 +62,7 @@ runKorrM config act = do
         KState
           { _korrConnection = conn,
             _korrRoot = config ^. kconfigRoot,
+            _korrCalsyncRoot = config ^. kconfigCalsyncRoot,
             _korrWeb =
               WState
                 { _webPort = config ^. kconfigPort,
@@ -87,7 +91,9 @@ instance FromJSON KorrConfig where
         <*> parseJSON (Object v)
         <*> v .:? "staticDir"
         <*> v .:? "staticRedirect"
+        <*> v .: "calsync"
 
+-- TODO remove
 instance ToJSON KorrConfig where
   toJSON cfg =
     object $

@@ -70,6 +70,9 @@ timeToICalSpec time file = case findTimeZone time file of
     stub = if timeZoneName tz == "" then "tz" else T.pack $ timeZoneName tz
     name :: Text
     name =
-      head $
-        dropWhile (flip M.member $ file ^. icTimezones) $
-          (\(n :: Int) -> stub <> T.pack (show n)) <$> [1 ..]
+      let names =
+            dropWhile (flip M.member $ file ^. icTimezones) $
+              (\(n :: Int) -> stub <> T.pack (show n)) <$> [1 ..]
+       in case names of
+            [] -> error "Impossible"
+            (h : _) -> h

@@ -4,6 +4,7 @@ module Korrvigs.Web.Public.Crypto where
 
 import Crypto.Hash.Algorithms
 import Crypto.MAC.KeyedBlake2
+import Data.Base64.Types
 import qualified Data.ByteArray as BA
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -45,7 +46,7 @@ signRoute route params = do
   let url = render route params
   secret <- getsYesod web_mac_secret
   let cmac :: KeyedBlake2 Algo = keyedBlake2 secret $ Enc.encodeUtf8 url
-  pure . B64.encodeBase64 . BS.pack . BA.unpack . keyedBlake2GetDigest $ cmac
+  pure . extractBase64 . B64.encodeBase64 . BS.pack . BA.unpack . keyedBlake2GetDigest $ cmac
 
 checkMac :: Text -> Route WebData -> Handler ()
 checkMac mac64 route = do
@@ -55,7 +56,7 @@ checkMac mac64 route = do
   let troute = Enc.encodeUtf8 $ render route params
   let cmac :: KeyedBlake2 Algo = keyedBlake2 secret troute
   let cmacBS = BS.pack . BA.unpack . keyedBlake2GetDigest $ cmac
-  case (== cmacBS) <$> B64.decodeBase64 (Enc.encodeUtf8 mac64) of
+  case (== cmacBS) <$> B64.decodeBase64Untyped (Enc.encodeUtf8 mac64) of
     Left _ -> notFound
     Right False -> permissionDenied "Invalid MAC"
     Right True -> pure ()

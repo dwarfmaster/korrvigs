@@ -62,7 +62,7 @@ makeLenses ''ParseState
 type ParseM = State ParseState
 
 getBlock :: ParseM (Maybe Block)
-getBlock = blks %%= (listToMaybe &&& tail)
+getBlock = blks %%= (listToMaybe &&& drop 1)
 
 pushBlock :: WithParent A.Block -> ParseM ()
 pushBlock blk = stack . bszLeft %= (blk :)

@@ -1,6 +1,7 @@
 module Korrvigs.Web.Git (getGitR, postGitR) where
 
 import Control.Lens
+import Data.Base64.Types
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -170,7 +171,7 @@ fileTreeCss base =
       background: var(--base00)
     summary::before
       z-index: 1
-      background: var(--base0D) url('data:image/svg+xml;base64,#{encodeBase64 svg}') 0 0
+      background: var(--base0D) url('data:image/svg+xml;base64,#{extractBase64 $ encodeBase64 svg}') 0 0
     details[open] > summary::before
       background-position: calc(-2 * var(--radius)) 0
 |]

@@ -3,6 +3,7 @@
 module Korrvigs.Utils.Crypto where
 
 import Crypto.Hash
+import Data.Base64.Types
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
@@ -15,7 +16,7 @@ import qualified Data.Text.Encoding as Enc
 import Opaleye
 
 digestToText :: Digest a -> Text
-digestToText = encodeBase64 . BS.pack . BA.unpack
+digestToText = extractBase64 . encodeBase64 . BS.pack . BA.unpack
 
 digestToHexa :: Digest a -> Text
 digestToHexa = Enc.decodeASCII . B16.encode . BS.pack . BA.unpack

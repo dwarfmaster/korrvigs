@@ -3,6 +3,7 @@ module Korrvigs.Web.Entry (getEntryR) where
 import Control.Lens hiding (children)
 import Control.Monad
 import Data.List
+import qualified Data.List.NonEmpty as NE
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -109,7 +110,7 @@ refsWidget :: Entry -> Handler Widget
 refsWidget entry = do
   graph <- filter (\(e1, e2, _) -> e1 ^. sqlEntryName /= e2 ^. sqlEntryName) <$> rSelect notesCC
   let rows = (view _1 <$> graph) ++ (view _2 <$> graph)
-  let entries = map head $ groupBy (\r1 r2 -> cmp r1 r2 == EQ) $ sortBy cmp rows
+  let entries = map NE.head $ NE.groupBy (\r1 r2 -> cmp r1 r2 == EQ) $ sortBy cmp rows
   nodes <- mapM mkNode entries
   edgeStyle <- Network.defEdgeStyle
   base <- getBase

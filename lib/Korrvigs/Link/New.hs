@@ -8,7 +8,7 @@ import Control.Exception
 import Control.Lens hiding (noneOf)
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson hiding (json)
+import Data.Aeson
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
 import qualified Data.CaseInsensitive as CI

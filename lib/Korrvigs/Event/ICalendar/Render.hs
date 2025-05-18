@@ -6,6 +6,7 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Data.Aeson
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
+import Data.Base64.Types
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64 as B64
 import Data.ByteString.Builder
@@ -100,7 +101,7 @@ bldGroup tp group = do
   bldLineDef "END" $ ICValue M.empty tp
 
 bldBinary :: BS.ByteString -> RenderM ()
-bldBinary = bldText . B64.encodeBase64
+bldBinary = bldText . extractBase64 . B64.encodeBase64
 
 bldBool :: Bool -> RenderM ()
 bldBool True = bldText "TRUE"

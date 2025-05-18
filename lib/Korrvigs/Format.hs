@@ -27,14 +27,14 @@ import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Utils.Lens
-import Text.Builder (Builder)
-import qualified Text.Builder as Bld
 import Text.Parsec hiding (parse)
+import TextBuilder (TextBuilder)
+import qualified TextBuilder as Bld
 
-newtype FormatSpec m a = FmtSpec {unFmtSpec :: Map Text (a -> m [Builder])}
+newtype FormatSpec m a = FmtSpec {unFmtSpec :: Map Text (a -> m [TextBuilder])}
 
 class Buildable m a where
-  build :: a -> m [Builder]
+  build :: a -> m [TextBuilder]
 
 instance (Applicative m) => Buildable m Text where
   build = pure . (: []) . Bld.text
@@ -42,7 +42,7 @@ instance (Applicative m) => Buildable m Text where
 instance (Applicative m) => Buildable m Int where
   build = pure . (: []) . Bld.decimal
 
-instance (Applicative m) => Buildable m Builder where
+instance (Applicative m) => Buildable m TextBuilder where
   build = pure . (: [])
 
 instance (Applicative m) => Buildable m ZonedTime where
@@ -58,7 +58,7 @@ liftSpec :: (Monad m) => ((b -> Const [b] b) -> a -> Const [b] a) -> FormatSpec 
 liftSpec get =
   FmtSpec . fmap (\f -> fmap mconcat . mapM f . toMonoid (: []) get) . unFmtSpec
 
-fromLens :: (Monad m, Buildable m b) => ((b -> Const [b] b) -> a -> Const [b] a) -> (a -> m [Builder])
+fromLens :: (Monad m, Buildable m b) => ((b -> Const [b] b) -> a -> Const [b] a) -> (a -> m [TextBuilder])
 fromLens get = build . toMonoid (: []) get
 
 instance (Applicative m) => Semigroup (FormatSpec m a) where
@@ -68,14 +68,14 @@ instance (Applicative m) => Semigroup (FormatSpec m a) where
 instance (Applicative m) => Monoid (FormatSpec m a) where
   mempty = FmtSpec M.empty
 
-fromList :: [(Text, a -> m [Builder])] -> FormatSpec m a
+fromList :: [(Text, a -> m [TextBuilder])] -> FormatSpec m a
 fromList = FmtSpec . M.fromList
 
-singleton :: Text -> (a -> m [Builder]) -> FormatSpec m a
+singleton :: Text -> (a -> m [TextBuilder]) -> FormatSpec m a
 singleton key = FmtSpec . M.singleton key
 
 -- Assumes v is positive
-padded :: (Integral n) => Int -> n -> Builder
+padded :: (Integral n) => Int -> n -> TextBuilder
 padded pad v = mconcat (replicate (pad - size) "0") <> Bld.decimal v
   where
     flr :: Double -> Int
@@ -83,13 +83,13 @@ padded pad v = mconcat (replicate (pad - size) "0") <> Bld.decimal v
     size :: Int
     size = 1 + flr (logBase 10 $ fromIntegral v)
 
-displayTZ :: Int -> Builder
+displayTZ :: Int -> TextBuilder
 displayTZ minutes = sign <> padded 2 hours <> padded 2 rest
   where
     sign = if minutes >= 0 then "+" else "-"
     (hours, rest) = divMod minutes 60
 
-monthName :: Int -> (Builder, Builder)
+monthName :: Int -> (TextBuilder, TextBuilder)
 monthName 1 = ("January", "Jan")
 monthName 2 = ("February", "Feb")
 monthName 3 = ("March", "Mar")
@@ -104,7 +104,7 @@ monthName 11 = ("November", "Nov")
 monthName 12 = ("December", "Dec")
 monthName _ = error "Invalid month number"
 
-dayName :: DayOfWeek -> (Int, Builder, Builder)
+dayName :: DayOfWeek -> (Int, TextBuilder, TextBuilder)
 dayName Monday = (1, "Monday", "Mon")
 dayName Tuesday = (2, "Tuesday", "Tue")
 dayName Wednesday = (3, "Wednesday", "Wed")
@@ -191,7 +191,7 @@ kindDataSpec File = liftSpec _File fileSpec
 kindDataSpec Event = liftSpec _Event eventSpec
 kindDataSpec Calendar = liftSpec _Calendar calSpec
 
-renderMtdt :: (MonadKorrvigs m, ExtraMetadata mtdt, Buildable m (MtdtType mtdt), FromJSON (MtdtType mtdt)) => mtdt -> Entry -> m [Builder]
+renderMtdt :: (MonadKorrvigs m, ExtraMetadata mtdt, Buildable m (MtdtType mtdt), FromJSON (MtdtType mtdt)) => mtdt -> Entry -> m [TextBuilder]
 renderMtdt mtdt entry =
   rSelectMtdt mtdt (sqlId $ entry ^. name) >>= \case
     Nothing -> pure []
@@ -235,10 +235,10 @@ entrySpec =
 
 type FmtM m a = ReaderT a (MaybeT m)
 
-newtype Formatter m a = Fmt (FmtM m a Builder)
+newtype Formatter m a = Fmt (FmtM m a TextBuilder)
 
 run :: (Monad m) => Formatter m a -> a -> m (Maybe Text)
-run (Fmt monad) = fmap (fmap Bld.run) . runMaybeT . runReaderT monad
+run (Fmt monad) = fmap (fmap Bld.toText) . runMaybeT . runReaderT monad
 
 type Parser m a = Parsec Text (FormatSpec m a)
 
@@ -248,13 +248,13 @@ parse spec txt =
     Right fmt -> Right $ Fmt fmt
     Left err -> Left $ T.pack $ show err
 
-formatP :: (Monad m) => Parser m a (FmtM m a Builder)
+formatP :: (Monad m) => Parser m a (FmtM m a TextBuilder)
 formatP =
   eof $> pure mempty
     <|> fmtP
     <|> plainP
 
-fmtSpecP :: (Monad m) => Parser m a (FmtM m a Builder)
+fmtSpecP :: (Monad m) => Parser m a (FmtM m a TextBuilder)
 fmtSpecP = do
   spec <- T.pack <$> many (noneOf ":}")
   sep <- option Nothing $ try $ do
@@ -276,12 +276,12 @@ fmtSpecP = do
         _ -> pure . mconcat $ intersperse sp blds
     Nothing -> mzero
 
-fmtP :: (Monad m) => Parser m a (FmtM m a Builder)
+fmtP :: (Monad m) => Parser m a (FmtM m a TextBuilder)
 fmtP = do
   f <- between (char '{') (char '}') fmtSpecP
   liftA2 (<>) f <$> formatP
 
-plainP :: (Monad m) => Parser m a (FmtM m a Builder)
+plainP :: (Monad m) => Parser m a (FmtM m a TextBuilder)
 plainP = do
   w <- many $ noneOf "{"
   fmap (Bld.string w <>) <$> formatP

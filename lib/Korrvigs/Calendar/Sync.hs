@@ -5,7 +5,7 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Crypto.Hash
-import Data.Aeson hiding (json)
+import Data.Aeson
 import Data.ByteString.Lazy (readFile, writeFile)
 import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)

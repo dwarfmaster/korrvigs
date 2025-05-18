@@ -4,7 +4,7 @@ import Control.Arrow ((&&&))
 import Control.Lens hiding (argument)
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson hiding (json)
+import Data.Aeson
 import qualified Data.Aeson.Encoding as JEnc
 import qualified Data.ByteString.Lazy.UTF8 as BSL8
 import Data.List (intercalate)

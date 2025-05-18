@@ -412,7 +412,7 @@ valuesField =
     }
 
 kindField :: Field Handler Kind
-kindField = radioField $ pure $ mkOptionList $ mkOption <$> [minBound .. maxBound]
+kindField = radioField' $ pure $ mkOptionList $ mkOption <$> [minBound .. maxBound]
   where
     mkOption kd =
       Option

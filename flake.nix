@@ -2,7 +2,7 @@
   description = "Intelligent knowledge database system";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     devenv.url = "github:cachix/devenv";
     nixvim.url = "github:nix-community/nixvim";
   };
@@ -60,7 +60,7 @@
             hpkgs.feed
           ]);
 
-          pre-commit.hooks = {
+          git-hooks.hooks = {
             alejandra.enable = true;
             alejandra.settings.exclude = ["default.nix"];
             deadnix.enable = true;

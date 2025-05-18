@@ -89,7 +89,7 @@ withPrefix prefix act = do
   prefixes %= (prefix :)
   prefixLen += T.length prefix
   r <- act
-  prefixes %= tail
+  prefixes %= drop 1
   prefixLen -= T.length prefix
   pure r
 

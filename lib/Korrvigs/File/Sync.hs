@@ -4,7 +4,7 @@ import Control.Arrow (first, (&&&))
 import Control.Lens hiding ((.=))
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
-import Data.Aeson hiding (json)
+import Data.Aeson
 import Data.Aeson.Types
 import Data.ByteString.Lazy (readFile, writeFile)
 import qualified Data.CaseInsensitive as CI

@@ -299,7 +299,7 @@ compileBlock' (Sub hd) = do
   oldCheckCount <- use checkboxCount
   checkboxCount .= 0
   contentW <- withLevel lvl $ compileBlocks $ hd ^. hdContent
-  subLoc . subOffsets %= tail
+  subLoc . subOffsets %= drop 1
   subCount .= subC + 1
   codeCount .= oldCodeCount
   checkboxCount .= oldCheckCount

@@ -25,8 +25,8 @@ import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Utils.Lens
 import Options.Applicative hiding (value)
-import Text.Builder (decimal, string, text)
-import qualified Text.Builder as Bld
+import TextBuilder (TextBuilder, decimal, string, text)
+import qualified TextBuilder as Bld
 import Prelude
 
 data Cmd = Cmd
@@ -57,7 +57,7 @@ run (Cmd js i) =
       mtdt <- loadMetadata i
       liftIO $ if js then displayEntryJSON entry mtdt else displayEntry entry mtdt
 
-entryInfoSpec :: (Contravariant f, Applicative f) => [(Text, (Bld.Builder -> f Bld.Builder) -> (Entry, Metadata) -> f (Entry, Metadata))]
+entryInfoSpec :: (Contravariant f, Applicative f) => [(Text, (TextBuilder -> f TextBuilder) -> (Entry, Metadata) -> f (Entry, Metadata))]
 entryInfoSpec =
   [ -- Generic info
     ("name", _1 . name . to unId . to text),
@@ -80,7 +80,7 @@ entryInfoSpec =
     ("mime", _1 . _File . fileMime . to Enc.decodeUtf8 . to text)
   ]
 
-buildInfoLine :: Entry -> Metadata -> (Text, (Bld.Builder -> Const [Bld.Builder] Bld.Builder) -> (Entry, Metadata) -> Const [Bld.Builder] (Entry, Metadata)) -> Bool -> Bld.Builder
+buildInfoLine :: Entry -> Metadata -> (Text, (TextBuilder -> Const [TextBuilder] TextBuilder) -> (Entry, Metadata) -> Const [TextBuilder] (Entry, Metadata)) -> Bool -> TextBuilder
 buildInfoLine entry mtdt (nm', getter) first = case lst of
   [] -> mempty
   _ -> nm <> mconcat (intersperse " " lst)
@@ -91,19 +91,19 @@ buildInfoLine entry mtdt (nm', getter) first = case lst of
 displayEntry :: Entry -> Metadata -> IO ()
 displayEntry entry mtdt =
   TIO.putStrLn $
-    Bld.run $
+    Bld.toText $
       mconcat $
         fmap (uncurry $ buildInfoLine entry mtdt) $
           zip entryInfoSpec $
             True : repeat False
 
-buildInfoJSON :: Entry -> Metadata -> (Text, (Bld.Builder -> Const [Value] Bld.Builder) -> (Entry, Metadata) -> Const [Value] (Entry, Metadata)) -> Map Text Value
+buildInfoJSON :: Entry -> Metadata -> (Text, (TextBuilder -> Const [Value] TextBuilder) -> (Entry, Metadata) -> Const [Value] (Entry, Metadata)) -> Map Text Value
 buildInfoJSON entry mtdt (nm, getter) = case lst of
   [] -> M.empty
   [v] -> M.singleton nm v
   _ -> M.singleton nm $ Array $ V.fromList lst
   where
-    lst = toMonoid ((: []) . String . Bld.run) getter (entry, mtdt)
+    lst = toMonoid ((: []) . String . Bld.toText) getter (entry, mtdt)
 
 displayEntryJSON :: Entry -> Metadata -> IO ()
 displayEntryJSON entry mtdt = putStrLn $ BSL8.toString obj

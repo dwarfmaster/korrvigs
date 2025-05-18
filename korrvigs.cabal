@@ -48,7 +48,6 @@ library korrvigs-lib
     Korrvigs.Cli.Event
     Korrvigs.Cli.File
     Korrvigs.Cli.Info
-    Korrvigs.Cli.Init
     Korrvigs.Cli.Link
     Korrvigs.Cli.Monad
     Korrvigs.Cli.New

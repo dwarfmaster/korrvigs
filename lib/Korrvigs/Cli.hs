@@ -7,7 +7,6 @@ import qualified Korrvigs.Cli.Config as Config
 import qualified Korrvigs.Cli.Event as Event
 import qualified Korrvigs.Cli.File as File
 import qualified Korrvigs.Cli.Info as Info
-import qualified Korrvigs.Cli.Init as Init
 import qualified Korrvigs.Cli.Link as Link
 import Korrvigs.Cli.Monad
 import qualified Korrvigs.Cli.Note as Note
@@ -16,7 +15,7 @@ import qualified Korrvigs.Cli.Server as Server
 import qualified Korrvigs.Cli.Sync as Sync
 import Options.Applicative
 
-data KorrCommand
+data Command
   = Info Info.Cmd
   | Link Link.Cmd
   | Note Note.Cmd
@@ -30,26 +29,21 @@ data KorrCommand
   | Collections Cols.Cmd
   | Adb Adb.Cmd
 
-data Command
-  = Init Init.Cmd
-  | KCmd KorrCommand
-
 parser' :: Parser Command
 parser' =
   subparser $
-    command "info" (KCmd . Info <$> Info.parser)
-      <> command "link" (KCmd . Link <$> Link.parser)
-      <> command "note" (KCmd . Note <$> Note.parser)
-      <> command "file" (KCmd . File <$> File.parser)
-      <> command "sync" (KCmd . Sync <$> Sync.parser)
-      <> command "query" (KCmd . Query <$> Query.parser)
-      <> command "config" (KCmd . Config <$> Config.parser)
-      <> command "server" (KCmd . Server <$> Server.parser)
-      <> command "event" (KCmd . Event <$> Event.parser)
-      <> command "compute" (KCmd . Compute <$> Compute.parser)
-      <> command "collections" (KCmd . Collections <$> Cols.parser)
-      <> command "adb" (KCmd . Adb <$> Adb.parser)
-      <> command "init" (Init <$> Init.parser)
+    command "info" (Info <$> Info.parser)
+      <> command "link" (Link <$> Link.parser)
+      <> command "note" (Note <$> Note.parser)
+      <> command "file" (File <$> File.parser)
+      <> command "sync" (Sync <$> Sync.parser)
+      <> command "query" (Query <$> Query.parser)
+      <> command "config" (Config <$> Config.parser)
+      <> command "server" (Server <$> Server.parser)
+      <> command "event" (Event <$> Event.parser)
+      <> command "compute" (Compute <$> Compute.parser)
+      <> command "collections" (Collections <$> Cols.parser)
+      <> command "adb" (Adb <$> Adb.parser)
 
 parser :: ParserInfo Command
 parser =
@@ -58,7 +52,7 @@ parser =
       <> progDesc "CLI interface for Korrvigs knowledge database"
       <> header "korr -- interface for Korrvigs"
 
-run :: KorrCommand -> KorrM ()
+run :: Command -> KorrM ()
 run (Info cmd) = Info.run cmd
 run (Link cmd) = Link.run cmd
 run (Note cmd) = Note.run cmd
@@ -75,10 +69,7 @@ run (Adb cmd) = Adb.run cmd
 main :: IO ()
 main = do
   cmd <- execParser parser
-  case cmd of
-    Init icmd -> Init.run icmd
-    KCmd kcmd -> do
-      r <- runKorrMWithConfig $ run kcmd
-      case r of
-        Left err -> print err
-        Right () -> pure ()
+  r <- runKorrMWithConfig $ run cmd
+  case r of
+    Left err -> print err
+    Right () -> pure ()

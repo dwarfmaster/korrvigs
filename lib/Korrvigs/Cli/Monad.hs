@@ -7,7 +7,6 @@ import Control.Exception
 import Control.Lens hiding ((.=))
 import Control.Monad.Reader
 import Data.Aeson
-import qualified Data.Aeson.Key as K
 import qualified Data.ByteString.Lazy as BSL
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -92,16 +91,6 @@ instance FromJSON KorrConfig where
         <*> v .:? "staticDir"
         <*> v .:? "staticRedirect"
         <*> v .: "calsync"
-
--- TODO remove
-instance ToJSON KorrConfig where
-  toJSON cfg =
-    object $
-      [ "root" .= (cfg ^. kconfigRoot),
-        "connectionSpec" .= (cfg ^. kconfigPsql),
-        "port" .= (cfg ^. kconfigPort)
-      ]
-        ++ fmap (\b -> K.fromText (baseName b) .= theme16 (cfg ^. kconfigTheme) b) [minBound .. maxBound]
 
 configPath :: IO FilePath
 configPath = do

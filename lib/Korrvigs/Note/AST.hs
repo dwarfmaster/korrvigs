@@ -10,6 +10,7 @@ import Data.Set (Set)
 import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Metadata.Task
+import Korrvigs.Utils
 import Network.URI
 
 data Checks = Checks
@@ -173,7 +174,7 @@ inlInlines f (PlainLink (Just txt) uri) =
 inlInlines f (Sidenote bks) = Sidenote <$> each (bkInlines $ inlInlines f) bks
 inlInlines f i = f i
 
--- Traversal over all blocks in block
+-- Traversal over all blocks in block, not descending into headers
 bkBlocks :: Traversal' Block Block
 bkBlocks f (BlockQuote bks) = BlockQuote <$> each (bkBlocks f) bks
 bkBlocks f (OrderedList bks) = OrderedList <$> each (each $ bkBlocks f) bks
@@ -185,3 +186,22 @@ bkBlocks f (DefinitionList defs) = DefinitionList <$> each (defBlocks f) defs
 bkBlocks f (Figure attr caption content) =
   Figure attr <$> each (bkBlocks f) caption <*> each (bkBlocks f) content
 bkBlocks f x = f x
+
+-- Traversal over all blocks in block, descending into subs
+bkSubBlocks :: Traversal' Block Block
+bkSubBlocks f (Sub sub) = Sub . setBks <$> each (bkSubBlocks f) (sub ^. hdContent)
+  where
+    setBks bks = sub & hdContent .~ bks
+bkSubBlocks f x = bkBlocks f x
+
+-- Traversal over collections
+bkCollections' :: Traversal' Block (Collection, Text, [Id])
+bkCollections' f (Collection col nm ids) = uncurry3 Collection <$> f (col, nm, ids)
+bkCollections' _ x = pure x
+
+bkCollections :: Traversal' Block (Collection, Text, [Id])
+bkCollections = bkSubBlocks . bkCollections'
+
+-- bkCollection :: Text -> Traversal' Block (Collection, Text, [Id])
+bkCollection :: (Applicative f) => Text -> ((Collection, Text, [Id]) -> f (Collection, Text, [Id])) -> Block -> f Block
+bkCollection nm = bkCollections . filtered ((== nm) . view _2)

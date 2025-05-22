@@ -1,5 +1,6 @@
 module Korrvigs.Cli.Note where
 
+import Conduit (throwM)
 import Control.Lens hiding (argument)
 import Control.Monad
 import Control.Monad.IO.Class
@@ -7,6 +8,7 @@ import Data.Default
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
+import Korrvigs.Actions
 import Korrvigs.Cli.Monad
 import Korrvigs.Cli.New
 import Korrvigs.Entry
@@ -15,9 +17,10 @@ import qualified Korrvigs.File.New as NF
 import qualified Korrvigs.Link.New as NL
 import Korrvigs.Monad
 import Korrvigs.Note
+import Korrvigs.Note.AST (bkCollection)
 import Korrvigs.Note.New
 import Korrvigs.Note.SQL
-import Opaleye
+import Opaleye hiding (optional)
 import Options.Applicative
 import System.IO hiding (putStrLn)
 import Prelude hiding (putStrLn, readFile, writeFile)
@@ -26,6 +29,7 @@ data Cmd
   = Format {_formatFile :: FilePath, _inplace :: Bool}
   | New {_newNote :: NewNote}
   | Attach {_attachRef :: Text, _attachIsPath :: Bool, _attachSub :: AttachCmd}
+  | Col {_colNote :: Text, _colName :: Maybe Text}
 
 data AttachCmd
   = AttachFiles [FilePath] Bool
@@ -77,6 +81,14 @@ parser' =
               )
               ( progDesc "Attach entries to a note"
                   <> header "korr note attach -- Attach entries"
+              )
+          )
+        <> command
+          "col"
+          ( info
+              ((Col <$> argument str (metavar "NOTE") <*> optional (argument str (metavar "COL"))) <**> helper)
+              ( progDesc "Deal with note collections"
+                  <> header "korr note col -- Deal with collections"
               )
           )
     )
@@ -188,3 +200,16 @@ run (Attach note isPath cmd) =
                   }
           ni <- new options
           liftIO $ putStrLn $ unId ni
+run (Col note mnm) =
+  load (MkId note) >>= \case
+    Nothing -> throwM $ KMiscError $ note <> " is not a valid entry"
+    Just entry -> case entry ^. kindData of
+      NoteD ne ->
+        readNote (ne ^. notePath) >>= \case
+          Left err -> throwM $ KMiscError $ "Failed to load " <> T.pack (ne ^. notePath) <> ": " <> err
+          Right md -> case mnm of
+            Nothing -> forM_ (md ^. docCollections) $ liftIO . putStrLn
+            Just nm -> case md ^? docContent . each . bkCollection nm . _3 of
+              Just ids -> forM_ ids $ liftIO . putStrLn . unId
+              Nothing -> throwM $ KMiscError $ note <> " note has no collection with name " <> nm
+      _ -> throwM $ KMiscError $ note <> " is not a note entry"

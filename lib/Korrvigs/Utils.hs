@@ -74,3 +74,6 @@ recursiveRemoveDir root dir = liftIO $ do
     when (null content) $ do
       removeDirectory dir
       recursiveRemoveDir root $ takeDirectory dir
+
+uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 f (a, b, c) = f a b c

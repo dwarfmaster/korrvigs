@@ -72,4 +72,3 @@ run (Ignore files) =
               let newIgnored = T.pack (takeFileName rel) : ignored
               updateMetadata phoneEntry (M.singleton (mtdtSqlName AndroidIgnored) $ toJSON newIgnored) []
               liftIO $ removeFile path
-              pure undefined

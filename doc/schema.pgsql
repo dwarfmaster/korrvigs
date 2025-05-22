@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS notes (
   name TEXT NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'note'),
   path TEXT NOT NULL,
+  collections TEXT[] NOT NULL,
   CONSTRAINT notes_entries
     FOREIGN KEY (name,kind) references entries(name,kind)
 );

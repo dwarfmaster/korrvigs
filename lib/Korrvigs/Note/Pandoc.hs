@@ -47,6 +47,7 @@ data BlockStackZipper = BSZ
     _bszChecks :: A.Checks,
     _bszLeft :: [WithParent A.Block],
     _bszTasks :: [Task],
+    _bszCollections :: Set Text,
     _bszParent :: Maybe BlockStackZipper
   }
 
@@ -68,7 +69,7 @@ pushBlock :: WithParent A.Block -> ParseM ()
 pushBlock blk = stack . bszLeft %= (blk :)
 
 pushHeader :: Int -> A.Attr -> ParseM ()
-pushHeader lvl attr = stack %= BSZ lvl attr "" Nothing S.empty def [] [] . Just
+pushHeader lvl attr = stack %= BSZ lvl attr "" Nothing S.empty def [] [] S.empty . Just
 
 headerLvl :: ParseM Int
 headerLvl = use $ stack . bszLevel
@@ -86,7 +87,8 @@ bszToHeader bsz doc parent =
             A._hdLevel = bsz ^. bszLevel,
             A._hdContent = reverse $ (bsz ^. bszLeft) <&> \blk -> blk doc (Just hd),
             A._hdParent = parent,
-            A._hdDocument = doc
+            A._hdDocument = doc,
+            A._hdCollections = bsz ^. bszCollections
           }
    in hd
 
@@ -128,6 +130,7 @@ popHeader = do
       stack .= parent
       stack . bszRefTo %= S.union (bsz ^. bszRefTo)
       stack . bszTasks %= (++ (toList (bsz ^. bszTask) ++ bsz ^. bszTasks))
+      stack . bszCollections %= S.union (bsz ^. bszCollections)
       propagateChecks bsz
       pushBlock $ \doc hd -> A.Sub (bszToHeader bsz doc hd)
       pure True
@@ -152,14 +155,15 @@ run act mtdt bks =
             A._docTask = st ^. stack . bszTask,
             A._docTasks = st ^. stack . bszTasks,
             A._docChecks = st ^. stack . bszChecks,
-            A._docParents = S.fromList $ fmap MkId $ join $ toList $ maybe (Success []) fromJSON $ M.lookup (CI.mk "parents") cimtdt
+            A._docParents = S.fromList $ fmap MkId $ join $ toList $ maybe (Success []) fromJSON $ M.lookup (CI.mk "parents") cimtdt,
+            A._docCollections = st ^. stack . bszCollections
           }
    in doc
   where
     cimtdt = M.fromList $ first CI.mk <$> M.toList mtdt
     st =
       execState (act >> iterateWhile id popHeader) $
-        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] [] Nothing)
+        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] [] S.empty Nothing)
 
 readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
 readNote pth = liftIO $ do
@@ -227,6 +231,22 @@ parseBlock (RawBlock (Format fmt) i)
   | CI.mk fmt == "embedhd" = do
       refTo $ MkId i
       pure . pure . A.EmbedHeader . MkId $ i
+  | CI.mk fmt == "collection" = case T.lines i of
+      [] -> pure $ pure $ A.Collection A.ColList "TODO" []
+      (hd : ids) -> do
+        let (coltype, rawColname) = T.break (== ' ') hd
+        let colname = T.dropWhile (== ' ') rawColname
+        col <- case coltype of
+          "list" -> pure A.ColList
+          "map" -> pure A.ColMap
+          "gallery" -> pure A.ColGallery
+          "embed" -> pure A.ColEmbed
+          "calendar" -> pure A.ColCalendar
+          "kanban" -> pure A.ColKanban
+          "biblio" -> pure A.ColBiblio
+          _ -> pure A.ColList
+        stack . bszCollections %= S.insert colname
+        pure . pure . A.Collection col colname . fmap MkId $ ids
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks
 parseBlock (OrderedList _ bks) =

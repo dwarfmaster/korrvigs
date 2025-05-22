@@ -78,7 +78,8 @@ create note = do
             _docChecks = def,
             _docParents = S.fromList $ note ^. nnEntry . neParents,
             _docTask = Nothing,
-            _docTasks = []
+            _docTasks = [],
+            _docCollections = S.empty
           }
   let bs = writeNoteLazy doc
   rt <- noteDirectory

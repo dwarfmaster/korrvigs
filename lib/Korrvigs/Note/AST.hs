@@ -33,7 +33,8 @@ data Document = Document
     _docTask :: Maybe Task,
     _docTasks :: [Task],
     _docChecks :: Checks,
-    _docParents :: Set Id
+    _docParents :: Set Id,
+    _docCollections :: Set Text
   }
   deriving (Show)
 
@@ -47,8 +48,19 @@ data Header = Header
     _hdLevel :: Int,
     _hdContent :: [Block],
     _hdParent :: Maybe Header,
-    _hdDocument :: Document
+    _hdDocument :: Document,
+    _hdCollections :: Set Text
   }
+  deriving (Show)
+
+data Collection
+  = ColList
+  | ColMap
+  | ColGallery
+  | ColEmbed
+  | ColCalendar
+  | ColBiblio
+  | ColKanban
   deriving (Show)
 
 data Block
@@ -62,6 +74,7 @@ data Block
   | Figure Attr [Block] [Block] -- The first block set is the caption
   | Embed Id -- Embed a document
   | EmbedHeader Id -- Embed a document as a sub header
+  | Collection Collection Text [Id]
   | Sub Header
   | Table Table
   deriving (Show)
@@ -156,7 +169,7 @@ inlInlines :: Traversal' Inline Inline
 inlInlines f (Styled st inls) = Styled st <$> each f inls
 inlInlines f (Link attr txt i) = Link attr <$> each f txt <*> pure i
 inlInlines f (PlainLink (Just txt) uri) =
-  PlainLink <$> (Just <$> each f txt) <*> pure uri
+  (PlainLink . Just <$> each f txt) <*> pure uri
 inlInlines f (Sidenote bks) = Sidenote <$> each (bkInlines $ inlInlines f) bks
 inlInlines f i = f i
 

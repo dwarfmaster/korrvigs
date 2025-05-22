@@ -50,6 +50,7 @@ blockToText (DefinitionList lst) =
 blockToText (Figure _ caption _) = blocksToText caption
 blockToText (Embed _) = mempty
 blockToText (EmbedHeader _) = mempty
+blockToText (Collection {}) = mempty
 blockToText (Sub hd) =
   fromText (hd ^. hdTitle) <> "\n" <> blocksToText (hd ^. hdContent)
 blockToText (Table tbl) =

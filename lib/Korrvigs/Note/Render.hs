@@ -188,6 +188,11 @@ renderBlock (EmbedHeader (MkId i)) = do
   writeText "```{=embedhd}" >> flush >> newline
   writeText i >> flush >> newline
   writeText "```"
+renderBlock (Collection col nm ids) = do
+  writeText "```{=collection}" >> flush >> newline
+  renderCollection col nm
+  forM_ ids $ \(MkId i) -> writeText i >> flush >> newline
+  writeText "```"
 renderBlock (Sub header) = do
   writeText $ mconcat $ replicate (header ^. hdLevel) "#"
   writeText " "
@@ -204,6 +209,19 @@ renderBlock (Sub header) = do
 renderBlock (Table tbl) = do
   width <- ask
   renderTable width (\w -> runRenderM w . renderTopLevel False) tbl
+
+renderCollection :: Collection -> Text -> RenderM ()
+renderCollection col nm =
+  writeText (colTxt <> " " <> nm) >> flush >> newline
+  where
+    colTxt = case col of
+      ColList -> "list"
+      ColMap -> "map"
+      ColGallery -> "gallery"
+      ColEmbed -> "embed"
+      ColCalendar -> "calendar"
+      ColKanban -> "kanban"
+      ColBiblio -> "biblio"
 
 surrounded :: Text -> RenderM a -> RenderM a
 surrounded del act = do

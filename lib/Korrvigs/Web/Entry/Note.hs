@@ -281,6 +281,7 @@ compileBlock' (EmbedHeader i) = do
                 (if tk ^. tskStatus == TaskDone then 1 else 0)
                 (if tk ^. tskStatus == TaskDont then 1 else 0)
         propagateChecks embedId tkchecks
+compileBlock' (Collection col _ ids) = undefined
 compileBlock' (Sub hd) = do
   -- Compute level shift
   rtLvl <- use hdRootLevel

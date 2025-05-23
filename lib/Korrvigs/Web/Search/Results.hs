@@ -57,19 +57,31 @@ instance Default OptionalSQLDataSQL where
 optDef :: OptionalSQLDataSQL
 optDef = def
 
+otherQuery :: ResultDisplay -> EntryRowSQL -> Select OptionalSQLDataSQL
+otherQuery display entry = case display of
+  DisplayGallery -> do
+    void $ selComp (entry ^. sqlEntryName) "miniature"
+    sz <- selComp (entry ^. sqlEntryName) "size"
+    pure $ optDef & optSizeAction .~ toNullable (sz ^. sqlCompAction)
+  DisplayGraph -> pure optDef
+  _ -> do
+    title <- selectTextMtdt Title $ entry ^. sqlEntryName
+    pure $ optDef & optTitle .~ title
+
 runQuery :: ResultDisplay -> Query -> Handler [(EntryRow, OptionalSQLData)]
 runQuery display query = rSelect $ do
   entry <- compile query
-  other <- case display of
-    DisplayGallery -> do
-      void $ selComp (entry ^. sqlEntryName) "miniature"
-      sz <- selComp (entry ^. sqlEntryName) "size"
-      pure $ optDef & optSizeAction .~ toNullable (sz ^. sqlCompAction)
-    DisplayGraph -> pure optDef
-    _ -> do
-      title <- selectTextMtdt Title $ entry ^. sqlEntryName
-      pure $ optDef & optTitle .~ title
+  other <- otherQuery display entry
   pure (entry, other)
+
+expandIDs :: ResultDisplay -> [Id] -> Handler [(EntryRow, OptionalSQLData)]
+expandIDs display ids = do
+  res <- forM ids $ \i -> rSelectOne $ do
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryName .== sqlId i
+    other <- otherQuery display entry
+    pure (entry, other)
+  pure $ catMaybes res
 
 displayEntry :: (EntryRow, Maybe Text) -> Handler Html
 displayEntry (entry, title) = do

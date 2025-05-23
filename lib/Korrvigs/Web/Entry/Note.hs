@@ -26,6 +26,7 @@ import qualified Korrvigs.Web.Entry.Link as Link
 import Korrvigs.Web.Public.Crypto (mkPublic)
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
+import Korrvigs.Web.Search.Results
 import qualified Korrvigs.Web.Widgets as Wdgs
 import Text.Blaze hiding ((!))
 import qualified Text.Blaze as Blz
@@ -281,8 +282,20 @@ compileBlock' (EmbedHeader i) = do
                 (if tk ^. tskStatus == TaskDone then 1 else 0)
                 (if tk ^. tskStatus == TaskDont then 1 else 0)
         propagateChecks embedId tkchecks
-compileBlock' (Collection col nm _) =
-  pure $ colWidget nm [whamlet|<p>#{show col} is not supported yet|]
+compileBlock' (Collection col nm ids) = do
+  wdg <- case display of
+    Just disp -> lift $ displayResults disp =<< expandIDs disp ids
+    Nothing -> pure [whamlet|<p>#{show col} is not supported yet|]
+  pure $ colWidget nm wdg
+  where
+    display = case col of
+      ColList -> Just DisplayList
+      ColMap -> Just DisplayMap
+      ColGallery -> Just DisplayGallery
+      ColEmbed -> Nothing
+      ColCalendar -> Nothing
+      ColBiblio -> Nothing
+      ColKanban -> Nothing
 compileBlock' (Sub hd) = do
   -- Compute level shift
   rtLvl <- use hdRootLevel

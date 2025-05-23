@@ -58,6 +58,9 @@ data Collection
   = ColList
   | ColMap
   | ColGallery
+  | ColTimeline
+  | ColNetwork
+  | ColFuzzy
   | ColEmbed
   | ColCalendar
   | ColBiblio

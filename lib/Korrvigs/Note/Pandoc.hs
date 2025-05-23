@@ -240,6 +240,9 @@ parseBlock (RawBlock (Format fmt) i)
           "list" -> pure A.ColList
           "map" -> pure A.ColMap
           "gallery" -> pure A.ColGallery
+          "timeline" -> pure A.ColTimeline
+          "network" -> pure A.ColNetwork
+          "fuzzy" -> pure A.ColFuzzy
           "embed" -> pure A.ColEmbed
           "calendar" -> pure A.ColCalendar
           "kanban" -> pure A.ColKanban

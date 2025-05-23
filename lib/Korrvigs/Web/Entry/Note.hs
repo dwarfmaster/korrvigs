@@ -292,6 +292,9 @@ compileBlock' (Collection col nm ids) = do
       ColList -> Just DisplayList
       ColMap -> Just DisplayMap
       ColGallery -> Just DisplayGallery
+      ColTimeline -> Just DisplayTimeline
+      ColNetwork -> Just DisplayGraph
+      ColFuzzy -> Nothing
       ColEmbed -> Nothing
       ColCalendar -> Nothing
       ColBiblio -> Nothing

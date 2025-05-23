@@ -2,7 +2,7 @@
 
 module Korrvigs.Web.Search.Results where
 
-import Control.Arrow (second)
+import Control.Arrow (second, (***))
 import Control.Lens
 import Control.Monad
 import Data.Default
@@ -18,6 +18,7 @@ import Korrvigs.Monad
 import Korrvigs.Query
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Fuse as Fuse
 import Korrvigs.Web.Leaflet
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import Korrvigs.Web.Routes
@@ -34,6 +35,7 @@ data ResultDisplay
   | DisplayGraph
   | DisplayTimeline
   | DisplayGallery
+  | DisplayFuzzy
   deriving (Eq, Ord, Enum, Bounded)
 
 data OptionalSQLDataImpl a b = OptionalSQLData
@@ -200,3 +202,9 @@ displayResults DisplayGallery entries = do
   pure $ do
     PhotoSwipe.photoswipeHeader
     gallery
+displayResults DisplayFuzzy entries = do
+  items <- forM entries $ Fuse.itemFromEntry . (view sqlEntryName *** view optTitle)
+  fuse <- Fuse.widget items
+  pure $ do
+    Fuse.header
+    fuse

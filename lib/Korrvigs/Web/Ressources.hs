@@ -101,3 +101,7 @@ checkboxCode =
 ace :: (Route Static -> Route site) -> WidgetFor site ()
 ace mkStatic =
   addScript $ mkStatic $ StaticRoute ["ace", "ace.js"] []
+
+fuse :: (Route Static -> Route site) -> WidgetFor site ()
+fuse mkStatic =
+  addScript $ mkStatic $ StaticRoute ["fuse", "fuse.js"] []

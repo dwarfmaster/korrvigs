@@ -36,6 +36,10 @@
     url = "https://unpkg.com/vis-timeline@7.7.4/standalone/umd/vis-timeline-graph2d.min.js";
     sha256 = "0k1xzb3rc3xkn9msgis9f1znkrwzrhmy4k7bmdlbraa6a7mil89x";
   };
+  fuse = fetchurl {
+    url = "https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.basic.min.js";
+    sha256 = "1x96hgn2mqrkf97jvksylhr8lb4wbwh64z60mf9dkxmqsjj79chs";
+  };
   ace = fetchFromGitHub {
     owner = "ajaxorg";
     repo = "ace-builds";
@@ -64,6 +68,8 @@ in
     cp ${vis-timeline} $out/vis/vis-timeline-graph2d.min.js
     cp -r ${ace}/src-min $out/ace
     cp -r ${photoswipe}/dist $out/photoswipe
+    mkdir -p $out/fuse
+    cp -r ${fuse} $out/fuse/fuse.js
     cp ${./ressources/favicon.ico} $out/favicon.ico
     mkdir $out/icons
     ${sed} 's/stroke="#000000"/stroke="${theme.base09}"/' ${./ressources/icons/checkbox-todo.svg} > $out/icons/checkbox-todo.svg

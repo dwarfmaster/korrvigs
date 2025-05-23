@@ -21,11 +21,11 @@ module Korrvigs.Web.Vis.Network
 where
 
 import Control.Lens hiding (from, to, (.=))
-import Data.Aeson.Text (encodeToTextBuilder)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import Korrvigs.Utils.Base16
+import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Text.Julius
@@ -90,9 +90,6 @@ defEdgeStyle = do
       { _edgeColor = base Base0D,
         _edgeDirected = True
       }
-
-rawJSON :: Value -> RawJavascript
-rawJSON = rawJS . encodeToTextBuilder
 
 mkNodeJS :: Int -> Text -> NodeStyle -> Value
 mkNodeJS i content style =

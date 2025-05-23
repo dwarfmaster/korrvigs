@@ -11,6 +11,7 @@ import qualified Data.Text.Lazy.Encoding as LEnc
 import qualified Korrvigs.Utils.Opaleye as UOp
 import Opaleye
 import Options.Applicative hiding (Success)
+import Text.Julius (RawJavascript, rawJS)
 
 writeJsonToFile :: (MonadIO m, ToJSON x) => FilePath -> x -> m ()
 writeJsonToFile path val =
@@ -27,6 +28,9 @@ fromJsonParser = eitherReader $ eitherDecode . BSL8.fromString
 jsonAsText :: Value -> Maybe Text
 jsonAsText (String txt) = Just txt
 jsonAsText _ = Nothing
+
+rawJSON :: (ToJSON v) => v -> RawJavascript
+rawJSON = rawJS . encodeToTextBuilder
 
 sqlJsonTypeof :: Field SqlJsonb -> Field SqlText
 sqlJsonTypeof = UOp.ap1 "jsonb_typeof"

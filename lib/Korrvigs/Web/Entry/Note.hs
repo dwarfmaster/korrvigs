@@ -294,7 +294,7 @@ compileBlock' (Collection col nm ids) = do
       ColGallery -> Just DisplayGallery
       ColTimeline -> Just DisplayTimeline
       ColNetwork -> Just DisplayGraph
-      ColFuzzy -> Nothing
+      ColFuzzy -> Just DisplayFuzzy
       ColEmbed -> Nothing
       ColCalendar -> Nothing
       ColBiblio -> Nothing

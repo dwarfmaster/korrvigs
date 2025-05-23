@@ -281,7 +281,8 @@ compileBlock' (EmbedHeader i) = do
                 (if tk ^. tskStatus == TaskDone then 1 else 0)
                 (if tk ^. tskStatus == TaskDont then 1 else 0)
         propagateChecks embedId tkchecks
-compileBlock' (Collection col _ ids) = undefined
+compileBlock' (Collection col nm _) =
+  pure $ colWidget nm [whamlet|<p>#{show col} is not supported yet|]
 compileBlock' (Sub hd) = do
   -- Compute level shift
   rtLvl <- use hdRootLevel
@@ -323,6 +324,14 @@ compileBlock' (Table tbl) = do
       ^{tableW}
     <figcaption>
       ^{captionW}
+  |]
+
+colWidget :: Text -> Widget -> Widget
+colWidget nm widget =
+  [whamlet|
+    <details .collection ##{nm}>
+      <summary> ##{nm}
+      ^{widget}
   |]
 
 propagateChecks :: Text -> Checks -> Widget

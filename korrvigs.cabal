@@ -187,6 +187,7 @@ library korrvigs-lib
     Korrvigs.Web.Ressources.Helpers
     Korrvigs.Web.Routes
     Korrvigs.Web.Search
+    Korrvigs.Web.Search.Results
     Korrvigs.Web.Utils
     Korrvigs.Web.Vis.Network
     Korrvigs.Web.Vis.Timeline

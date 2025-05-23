@@ -175,6 +175,7 @@ library korrvigs-lib
     Korrvigs.Web.Entry.Link
     Korrvigs.Web.Entry.Metadata
     Korrvigs.Web.Entry.Note
+    Korrvigs.Web.FullCalendar
     Korrvigs.Web.Fuse
     Korrvigs.Web.Git
     Korrvigs.Web.Home

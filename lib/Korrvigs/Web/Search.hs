@@ -286,6 +286,7 @@ displayResultOptions = mkOption <$> [minBound .. maxBound]
     mkOption DisplayTimeline = Option "timeline" DisplayTimeline "4"
     mkOption DisplayGallery = Option "gallery" DisplayGallery "5"
     mkOption DisplayFuzzy = Option "fuzzy" DisplayFuzzy "6"
+    mkOption DisplayCalendar = Option "calendar" DisplayCalendar "7"
 
 displayResultForm :: ResultDisplay -> Handler Widget
 displayResultForm display =

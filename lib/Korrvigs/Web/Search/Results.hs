@@ -18,6 +18,7 @@ import Korrvigs.Monad
 import Korrvigs.Query
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.FullCalendar as Cal
 import qualified Korrvigs.Web.Fuse as Fuse
 import Korrvigs.Web.Leaflet
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
@@ -36,6 +37,7 @@ data ResultDisplay
   | DisplayTimeline
   | DisplayGallery
   | DisplayFuzzy
+  | DisplayCalendar
   deriving (Eq, Ord, Enum, Bounded)
 
 data OptionalSQLDataImpl a b = OptionalSQLData
@@ -208,3 +210,9 @@ displayResults DisplayFuzzy entries = do
   pure $ do
     Fuse.header
     fuse
+displayResults DisplayCalendar entries = do
+  events <- forM entries $ Cal.entryToEvent . second (view optTitle)
+  cal <- Cal.widget $ catMaybes events
+  pure $ do
+    Cal.header
+    cal

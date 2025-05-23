@@ -105,3 +105,7 @@ ace mkStatic =
 fuse :: (Route Static -> Route site) -> WidgetFor site ()
 fuse mkStatic =
   addScript $ mkStatic $ StaticRoute ["fuse", "fuse.js"] []
+
+fullcalendar :: (Route Static -> Route site) -> WidgetFor site ()
+fullcalendar mkStatic =
+  addScript $ mkStatic $ StaticRoute ["fullcalendar", "index.global.min.js"] []

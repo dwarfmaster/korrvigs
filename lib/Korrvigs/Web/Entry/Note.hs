@@ -296,7 +296,7 @@ compileBlock' (Collection col nm ids) = do
       ColNetwork -> Just DisplayGraph
       ColFuzzy -> Just DisplayFuzzy
       ColEmbed -> Nothing
-      ColCalendar -> Nothing
+      ColCalendar -> Just DisplayCalendar
       ColBiblio -> Nothing
       ColKanban -> Nothing
 compileBlock' (Sub hd) = do

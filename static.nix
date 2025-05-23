@@ -52,6 +52,10 @@
     rev = "d80c32a62b169e776ad1c983d1fcdc6eea8b48e0";
     sha256 = "1a2rfvid8iqsnq582myjbbz3mjavwy7566lgfbds0badzf9l5srm";
   };
+  fullcalendar = fetchurl {
+    url = "https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js";
+    sha256 = "0x0hx6yazpp0qcqw103y14gr7pvd5r1g7638c6cpxa6yp3fimypr";
+  };
   sed = "${gnused}/bin/sed";
   charis = fetchzip {
     url = "https://software.sil.org/downloads/r/charis/CharisSIL-6.200.zip";
@@ -69,7 +73,9 @@ in
     cp -r ${ace}/src-min $out/ace
     cp -r ${photoswipe}/dist $out/photoswipe
     mkdir -p $out/fuse
-    cp -r ${fuse} $out/fuse/fuse.js
+    cp ${fuse} $out/fuse/fuse.js
+    mkdir -p $out/fullcalendar
+    cp -r ${fullcalendar} $out/fullcalendar/index.global.min.js
     cp ${./ressources/favicon.ico} $out/favicon.ico
     mkdir $out/icons
     ${sed} 's/stroke="#000000"/stroke="${theme.base09}"/' ${./ressources/icons/checkbox-todo.svg} > $out/icons/checkbox-todo.svg

@@ -29,12 +29,12 @@
     stripRoot = false;
   };
   vis-network = fetchurl {
-    url = "https://unpkg.com/vis-network/standalone/umd/vis-network.min.js";
-    sha256 = "1rd2l7l8vz4a9d5fkiwrk7ikk3z89xyn7c3bhpz7xycvvcyq6gzm";
+    url = "https://unpkg.com/vis-network@9.1.10/standalone/umd/vis-network.min.js";
+    sha256 = "1dq8iyahkz3yv1019zz98qm6lbab1bsiwm2fyq9jvcvsvdxl6sx0";
   };
   vis-timeline = fetchurl {
-    url = "https://unpkg.com/vis-timeline/standalone/umd/vis-timeline-graph2d.min.js";
-    sha256 = "1mk5x9fjnppv5l42m225qnplymbxn3565rn572jrcdhhaxsn5xam";
+    url = "https://unpkg.com/vis-timeline@7.7.4/standalone/umd/vis-timeline-graph2d.min.js";
+    sha256 = "0k1xzb3rc3xkn9msgis9f1znkrwzrhmy4k7bmdlbraa6a7mil89x";
   };
   ace = fetchFromGitHub {
     owner = "ajaxorg";

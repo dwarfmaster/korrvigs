@@ -18,7 +18,7 @@ syncEvTarget (TargetEntry entry) | entry ^. kind == Calendar = True
 syncEvTarget _ = False
 
 syncEvForm :: AForm Handler Text
-syncEvForm = pure undefined
+syncEvForm = areq passwordField "dav-password" Nothing
 
 syncEvTitle :: ActionTarget -> Text
 syncEvTitle = const "Sync Events"

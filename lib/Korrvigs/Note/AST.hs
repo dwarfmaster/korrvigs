@@ -10,6 +10,7 @@ import Data.Set (Set)
 import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Metadata.Task
+import Korrvigs.Query
 import Korrvigs.Utils
 import Network.URI
 
@@ -79,6 +80,7 @@ data Block
   | Embed Id -- Embed a document
   | EmbedHeader Id -- Embed a document as a sub header
   | Collection Collection Text [Id]
+  | EmbedQuery Collection Text Query
   | Sub Header
   | Table Table
   deriving (Show)

@@ -23,6 +23,8 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (readFile)
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Entry.Ident
 import Korrvigs.Metadata.Task
 import qualified Korrvigs.Note.AST as A
@@ -234,22 +236,17 @@ parseBlock (RawBlock (Format fmt) i)
   | CI.mk fmt == "collection" = case T.lines i of
       [] -> pure $ pure $ A.Collection A.ColList "TODO" []
       (hd : ids) -> do
-        let (coltype, rawColname) = T.break (== ' ') hd
-        let colname = T.dropWhile (== ' ') rawColname
-        col <- case coltype of
-          "list" -> pure A.ColList
-          "map" -> pure A.ColMap
-          "gallery" -> pure A.ColGallery
-          "timeline" -> pure A.ColTimeline
-          "network" -> pure A.ColNetwork
-          "fuzzy" -> pure A.ColFuzzy
-          "embed" -> pure A.ColEmbed
-          "calendar" -> pure A.ColCalendar
-          "kanban" -> pure A.ColKanban
-          "biblio" -> pure A.ColBiblio
-          _ -> pure A.ColList
+        (col, colname) <- parseColName hd
         stack . bszCollections %= S.insert colname
         pure . pure . A.Collection col colname . fmap MkId $ ids
+  | CI.mk fmt == "query" = case T.lines i of
+      [hd, q] -> do
+        (col, colname) <- parseColName hd
+        parsedQuery <- case eitherDecode (LEnc.encodeUtf8 $ LT.fromStrict q) of
+          Left _ -> pure def
+          Right pq -> pure pq
+        pure . pure . A.EmbedQuery col colname $ parsedQuery
+      _ -> pure $ pure $ A.EmbedQuery A.ColList "TODO" def
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks
 parseBlock (OrderedList _ bks) =
@@ -291,6 +288,24 @@ matchStatus txt
   | not (T.null txt) && T.head txt == '[' && T.last txt == ']' =
       Just $ fromMaybe TaskTodo $ parseStatusName $ T.init $ T.tail txt
 matchStatus _ = Nothing
+
+parseColName :: Text -> ParseM (A.Collection, Text)
+parseColName hd = do
+  let (coltype, rawColname) = T.break (== ' ') hd
+  let colname = T.dropWhile (== ' ') rawColname
+  col <- case coltype of
+    "list" -> pure A.ColList
+    "map" -> pure A.ColMap
+    "gallery" -> pure A.ColGallery
+    "timeline" -> pure A.ColTimeline
+    "network" -> pure A.ColNetwork
+    "fuzzy" -> pure A.ColFuzzy
+    "embed" -> pure A.ColEmbed
+    "calendar" -> pure A.ColCalendar
+    "kanban" -> pure A.ColKanban
+    "biblio" -> pure A.ColBiblio
+    _ -> pure A.ColList
+  pure (col, colname)
 
 parseTitleInlines :: [Inline] -> ParseM [A.Inline]
 parseTitleInlines (Str stname : xs) = case matchStatus stname of

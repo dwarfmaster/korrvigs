@@ -7,6 +7,7 @@ import Control.Monad.RWS
 import Data.Aeson (Value (..), toJSON)
 import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.KeyMap as KM
+import Data.Aeson.Text (encodeToLazyText)
 import Data.ByteString.Lazy (hPutStr)
 import qualified Data.ByteString.Lazy as BSL
 import Data.CaseInsensitive (CI)
@@ -17,6 +18,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as LT
 import qualified Data.Vector as V
 import Korrvigs.Entry.Ident
 import Korrvigs.Metadata
@@ -192,6 +194,11 @@ renderBlock (Collection col nm ids) = do
   writeText "```{=collection}" >> flush >> newline
   renderCollection col nm
   forM_ ids $ \(MkId i) -> writeText i >> flush >> newline
+  writeText "```"
+renderBlock (EmbedQuery col nm query) = do
+  writeText "```{=query}" >> flush >> newline
+  renderCollection col nm
+  writeText (LT.toStrict $ encodeToLazyText query) >> flush >> newline
   writeText "```"
 renderBlock (Sub header) = do
   writeText $ mconcat $ replicate (header ^. hdLevel) "#"

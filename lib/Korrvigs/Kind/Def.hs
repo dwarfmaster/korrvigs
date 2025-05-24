@@ -3,6 +3,8 @@
 module Korrvigs.Kind.Def where
 
 import Control.Lens.TH (makeLenses)
+import Data.Aeson
+import qualified Data.Text as T
 
 data Kind
   = Note
@@ -24,3 +26,20 @@ data EventK = EventK
 data CalendarK = CalendarK
 
 makeLenses ''Kind
+
+-- JSON
+instance ToJSON Kind where
+  toJSON Note = "note"
+  toJSON Link = "link"
+  toJSON File = "file"
+  toJSON Event = "event"
+  toJSON Calendar = "calendar"
+
+instance FromJSON Kind where
+  parseJSON = withText "Kind" $ \case
+    "note" -> pure Note
+    "link" -> pure Link
+    "file" -> pure File
+    "event" -> pure Event
+    "calendar" -> pure Calendar
+    s -> fail $ T.unpack s <> " is not a valid kind"

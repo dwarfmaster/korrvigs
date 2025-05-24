@@ -1,5 +1,6 @@
 module Korrvigs.FTS.Query (Query (..), sqlQuery, tests) where
 
+import Data.Aeson
 import Data.Text (Text)
 import Korrvigs.FTS.SQL
 import Opaleye
@@ -11,6 +12,21 @@ data Query
   | Or [Query]
   | Not Query
   deriving (Eq, Show)
+
+instance ToJSON Query where
+  toJSON (Phrase txts) = object ["kind" .= ("phrase" :: Text), "value" .= txts]
+  toJSON (And qs) = object ["kind" .= ("and" :: Text), "value" .= qs]
+  toJSON (Or qs) = object ["kind" .= ("or" :: Text), "value" .= qs]
+  toJSON (Not q) = object ["kind" .= ("not" :: Text), "value" .= q]
+
+instance FromJSON Query where
+  parseJSON = withObject "FTS Query" $ \obj ->
+    (obj .: "kind") >>= \case
+      "phrase" -> Phrase <$> obj .: "value"
+      "and" -> And <$> obj .: "value"
+      "or" -> Or <$> obj .: "value"
+      "not" -> Not <$> obj .: "value"
+      s -> fail $ s <> " is not a valid FTS query"
 
 sqlQuery :: Query -> Field SqlTSQuery
 sqlQuery = pgQuery . compile

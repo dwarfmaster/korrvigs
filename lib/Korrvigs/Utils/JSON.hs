@@ -29,6 +29,10 @@ jsonAsText :: Value -> Maybe Text
 jsonAsText (String txt) = Just txt
 jsonAsText _ = Nothing
 
+optKP :: (ToJSON v) => Key -> Maybe v -> [(Key, Value)]
+optKP _ Nothing = []
+optKP key v = [key .= v]
+
 rawJSON :: (ToJSON v) => v -> RawJavascript
 rawJSON = rawJS . encodeToTextBuilder
 

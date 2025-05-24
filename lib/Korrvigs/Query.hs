@@ -2,8 +2,9 @@
 
 module Korrvigs.Query where
 
-import Control.Lens hiding (noneOf, (.>))
+import Control.Lens hiding (noneOf, (.=), (.>))
 import Control.Monad
+import Data.Aeson
 import Data.Default
 import Data.Functor (($>))
 import Data.Text (Text)
@@ -132,6 +133,91 @@ instance Default Query where
 
 makeLenses ''Query
 makeLenses ''QueryRel
+
+instance ToJSON JsonQuery where
+  toJSON = toJSON . renderJSQuery
+
+instance FromJSON JsonQuery where
+  parseJSON = withText "JsonQuery" $ \txt -> case parseJSQuery txt of
+    Left err -> fail $ T.unpack err
+    Right jsq -> pure jsq
+
+instance ToJSON QueryRel where
+  toJSON rel =
+    object
+      [ "query" .= (rel ^. relOther),
+        "rec" .= (rel ^. relRec)
+      ]
+
+instance FromJSON QueryRel where
+  parseJSON = withObject "QueryRel" $ \obj ->
+    QueryRel
+      <$> obj .: "query"
+      <*> obj .: "rec"
+
+instance ToJSON SortCriterion where
+  toJSON ByDate = object ["criterion" .= ("date" :: Text)]
+  toJSON (ByTSRank q) = object ["criterion" .= ("tsrank" :: Text), "query" .= q]
+  toJSON (ByDistanceTo pt) = object ["criterion" .= ("distance" :: Text), "point" .= pt]
+  toJSON ById = object ["criterion" .= ("id" :: Text)]
+
+instance FromJSON SortCriterion where
+  parseJSON = withObject "SortCriterion" $ \obj ->
+    (obj .: "criterion") >>= \case
+      "date" -> pure ByDate
+      "tsrank" -> ByTSRank <$> obj .: "query"
+      "distance" -> ByDistanceTo <$> obj .: "point"
+      "id" -> pure ById
+      s -> fail $ s <> " is not a valid sort criterion"
+
+instance ToJSON SortOrder where
+  toJSON SortAsc = "ascending"
+  toJSON SortDesc = "descending"
+
+instance FromJSON SortOrder where
+  parseJSON = withText "SortOrder" $ \case
+    "ascending" -> pure SortAsc
+    "descending" -> pure SortDesc
+    s -> fail $ T.unpack s <> " is not a valid sort order"
+
+instance ToJSON Query where
+  toJSON q =
+    object $
+      [ "id" .= (unId <$> q ^. queryId),
+        "mtdt" .= (q ^. queryMtdt),
+        "collection" .= (q ^. queryInCollection),
+        "sort" .= (q ^. querySort)
+      ]
+        ++ optKP "text" (q ^. queryText)
+        ++ optKP "before" (q ^. queryBefore)
+        ++ optKP "after" (q ^. queryAfter)
+        ++ optKP "geo" (q ^. queryGeo)
+        ++ optKP "distance" (q ^. queryDist)
+        ++ optKP "kind" (q ^. queryKind)
+        ++ optKP "subof" (q ^. querySubOf)
+        ++ optKP "parentof" (q ^. queryParentOf)
+        ++ optKP "mentioning" (q ^. queryMentioning)
+        ++ optKP "mentionedby" (q ^. queryMentionedBy)
+        ++ optKP "maxresults" (q ^. queryMaxResults)
+
+instance FromJSON Query where
+  parseJSON = withObject "Query" $ \obj ->
+    Query . fmap MkId
+      <$> obj .: "id"
+      <*> obj .:? "text"
+      <*> obj .:? "before"
+      <*> obj .:? "after"
+      <*> obj .:? "geo"
+      <*> obj .:? "distance"
+      <*> obj .:? "kind"
+      <*> obj .: "mtdt"
+      <*> obj .: "collection"
+      <*> obj .:? "subof"
+      <*> obj .:? "parentof"
+      <*> obj .:? "mentioning"
+      <*> obj .:? "mentionedby"
+      <*> obj .: "sort"
+      <*> obj .:? "maxresults"
 
 -- Match all that are related by the relation table to the result of the query
 compileRel :: EntryRowSQL -> Table a RelRowSQL -> Bool -> QueryRel -> Select ()
@@ -313,8 +399,8 @@ parseMtdtQuery txt = case parse mtdtQueryP "<mtdtquery>" txt of
 
 mtdtQueryP :: (Stream s Identity Char) => Parsec s u (Text, JsonQuery)
 mtdtQueryP =
-  (,)
-    <$> (T.pack <$> many1 (noneOf "|?"))
+  (,) . T.pack
+    <$> many1 (noneOf "|?")
     <*> queryP
 
 queryP :: (Stream s Identity Char) => Parsec s u JsonQuery

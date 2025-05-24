@@ -45,6 +45,7 @@ korrvigsRoutes =
 /action/#Text/entry/#WebId ActEntryR POST
 /action/#Text/home ActHomeR POST
 /action/#Text/collection/*[Text] ActColR POST
+/action/#Text/search ActSearchR POST
 
 -- Git visualisation and manipulation
 /git GitR GET POST

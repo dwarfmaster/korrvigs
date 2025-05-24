@@ -2,6 +2,7 @@ module Korrvigs.Web.Actions
   ( postActColR,
     postActHomeR,
     postActEntryR,
+    postActSearchR,
     actionsWidget,
     module Korrvigs.Web.Actions.Defs,
   )
@@ -12,6 +13,7 @@ import Control.Lens
 import Control.Monad
 import qualified Data.Map as M
 import Data.Text (Text)
+import Data.Time.LocalTime
 import Korrvigs.Actions.SQL
 import Korrvigs.Entry
 import Korrvigs.Utils.Base16
@@ -25,6 +27,7 @@ import Korrvigs.Web.Actions.Update
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
+import Korrvigs.Web.Search.Form
 import Yesod
 import Yesod.Static
 
@@ -108,6 +111,7 @@ actUrl :: ActionLabel -> ActionTarget -> Route WebData
 actUrl lbl (TargetEntry entry) = ActEntryR (actName lbl) (WId $ entry ^. name)
 actUrl lbl TargetHome = ActHomeR (actName lbl)
 actUrl lbl (TargetCollection col) = ActColR (actName lbl) col
+actUrl lbl (TargetSearch _) = ActSearchR (actName lbl)
 
 actForm :: ActionLabel -> ActionTarget -> Handler Widget
 actForm l@LabRemove = genForm removeForm removeTitle $ actUrl l
@@ -180,6 +184,14 @@ postActColR nm col = do
   act <- parseActionName nm
   postHandler act $ TargetCollection col
 
+postActSearchR :: Text -> Handler Value
+postActSearchR nm = do
+  act <- parseActionName nm
+  tz <- liftIO getCurrentTimeZone
+  let mktz = fmap $ flip ZonedTime tz
+  query <- runInputPost $ queryForm mktz Nothing
+  postHandler act $ TargetSearch query
+
 actionsWidget :: ActionTarget -> Handler Widget
 actionsWidget tgt = do
   templatesId <- newIdent
@@ -199,7 +211,9 @@ actionsWidget tgt = do
       #actions-form-container
         width: 100%
     |]
-    toWidget [julius|setupActions();|]
+    toWidget $ case tgt of
+      TargetSearch _ -> [julius|setupActions("query-form");|]
+      _ -> [julius|setupActions();|]
     [whamlet|
       <div ##{templatesId}>
         $forall (i,widget,_) <- widgets

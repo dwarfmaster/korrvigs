@@ -14,6 +14,7 @@ shareTarget :: ActionTarget -> Bool
 shareTarget (TargetEntry _) = True
 shareTarget TargetHome = False
 shareTarget (TargetCollection _) = True
+shareTarget (TargetSearch _) = False
 
 shareForm :: AForm Handler ()
 shareForm = pure ()
@@ -60,3 +61,4 @@ runShare () (TargetCollection col) = do
           <a href=#{render (PublicColR publicTodo col) [("display", "todo")]}>
             Share todo
     |]
+runShare () (TargetSearch _) = pure def

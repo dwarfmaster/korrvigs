@@ -7,6 +7,7 @@ import Data.List
 import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Query
+import Korrvigs.Web.Search.Results
 import Text.Blaze.Renderer.Text
 import Yesod
 
@@ -14,7 +15,7 @@ data ActionTarget
   = TargetEntry Entry
   | TargetHome
   | TargetCollection [Text]
-  | TargetSearch Query
+  | TargetSearch Query ResultDisplay
 
 data ActionReaction = ActionReaction
   { _reactMsg :: Maybe Html,

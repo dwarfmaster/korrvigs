@@ -324,18 +324,20 @@ fixMaxResults = queryMaxResults %~ maybe (Just 10) Just
 
 getSearchR :: Handler Html
 getSearchR = do
+  public <- isPublic
   tz <- liftIO getCurrentTimeZone
   let mktz = fmap $ flip ZonedTime tz
   q' <- runInputGet $ queryForm mktz Nothing
-  display <- runInputGet $ fromMaybe DisplayList <$> iopt displayResultsField "display"
+  display <- runInputGet displayForm
   hasMaxResults <- isJust <$> lookupGetParam "maxresults"
   let q = displayFixQuery display $ (if hasMaxResults then id else fixMaxResults) $ fixOrder q'
   search <- searchForm q display
-  actions <- actionsWidget $ TargetSearch q
+  actions <- actionsWidget $ TargetSearch q display
   results <- displayResults display =<< runQuery display q
   defaultLayout $ do
     setTitle "Korrvigs search"
     setDescriptionIdemp "Korrvigs search page"
-    search
-    actions
+    unless public $ do
+      search
+      actions
     [whamlet|<div .search-results> ^{results}|]

@@ -8,6 +8,7 @@ import Korrvigs.Web.Download (getEntryDownloadR)
 import Korrvigs.Web.Entry (getEntryR)
 import Korrvigs.Web.Public.Crypto
 import Korrvigs.Web.Routes
+import Korrvigs.Web.Search (getSearchR)
 import Yesod hiding (cached, joinPath)
 
 getPublicR :: Handler Html
@@ -37,3 +38,8 @@ getPublicColR :: Text -> [Text] -> Handler Html
 getPublicColR mac prefix = do
   checkMac mac $ ColR prefix
   getColR prefix
+
+getPublicSearchR :: Text -> Handler Html
+getPublicSearchR mac = do
+  checkMac mac SearchR
+  getSearchR

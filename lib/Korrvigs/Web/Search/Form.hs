@@ -1,18 +1,23 @@
 module Korrvigs.Web.Search.Form
   ( queryForm,
+    displayForm,
     applyPrefix,
     sortOptions,
     maxResultsOptions,
     displayResultOptions,
-    displayResultsField,
+    getParameters,
   )
 where
 
+import Control.Arrow (first)
+import Control.Lens
 import Control.Monad
 import Data.Default
+import Data.List (find)
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.Format
 import Data.Time.LocalTime
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Kind
@@ -172,3 +177,33 @@ queryRelForm mktz prefix =
                     <*> ireq checkBoxField (applyPrefix (Just prefix) "rec")
                 )
         )
+
+displayForm :: FormInput Handler ResultDisplay
+displayForm = fromMaybe DisplayList <$> iopt displayResultsField "display"
+
+getParameters :: Maybe Text -> Query -> ResultDisplay -> [(Text, Text)]
+getParameters prefix q display =
+  (first (applyPrefix prefix) <$> basicAttrs)
+    ++ (if isJust prefix then resAttrs else subAttrs ++ parentAttrs)
+  where
+    displayTime :: ZonedTime -> Text
+    displayTime zt = T.pack $ formatTime defaultTimeLocale "%0Y-%m-%dT%H:%M" zt
+    displayBool :: Bool -> Text
+    displayBool True = "on"
+    displayBool False = "off"
+    mtdtAttrs :: (Text, JsonQuery) -> [(Text, Text)]
+    mtdtAttrs (key, jsq) = [("mtdtKey", key), ("mtdtVal", renderJSQuery jsq)]
+    basicAttrs =
+      maybe [] (\fts -> [("checkfts", "on"), ("fts", FTS.renderQuery fts)]) (q ^. queryText)
+        ++ maybe [] (\bf -> [("checkdate", "on"), ("before", displayTime bf)]) (q ^. queryBefore)
+        ++ maybe [] (\af -> maybe [("checkdate", "on")] (const []) (q ^. queryBefore) ++ [("after", displayTime af)]) (q ^. queryAfter)
+        ++ maybe [] (\(V2 lng lat, dist) -> [("checkgeo", "on"), ("geolng", T.pack $ show lng), ("geolat", T.pack $ show lat), ("geodist", T.pack $ show dist)]) (q ^. queryDist)
+        ++ maybe [] (\kd -> [("checkking", "on"), ("kind", displayKind kd)]) (q ^. queryKind)
+        ++ (if null (q ^. queryMtdt) then [] else ("checkmtdt", "on") : concatMap mtdtAttrs (q ^. queryMtdt))
+    relAttrs p = maybe [] (\r -> [(applyPrefix (Just p) "rec", displayBool $ r ^. relRec), (applyPrefix (Just p) "check", "on")] ++ getParameters (Just p) (r ^. relOther) display)
+    subAttrs = relAttrs "sub" $ q ^. querySubOf
+    parentAttrs = relAttrs "parent" $ q ^. queryParentOf
+    sortAttr = maybe "1" optionExternalValue $ find (\opt -> optionInternalValue opt == q ^. querySort) sortOptions
+    displayAttr = maybe "1" optionExternalValue $ find (\opt -> optionInternalValue opt == display) displayResultOptions
+    resAttrs =
+      [("sortopts", sortAttr), ("maxresults", maybe "nothing" (T.pack . show) (q ^. queryMaxResults)), ("display", displayAttr)]

@@ -75,7 +75,9 @@ isPublicRoute :: Route WebData -> Bool
 isPublicRoute PublicR = True
 isPublicRoute (PublicEntryR _ _) = True
 isPublicRoute (PublicEntryDownloadR _ _) = True
+isPublicRoute (PublicEntryComputeR {}) = True
 isPublicRoute (PublicColR _ _) = True
+isPublicRoute (PublicSearchR _) = True
 isPublicRoute _ = False
 
 isPublic :: Handler Bool

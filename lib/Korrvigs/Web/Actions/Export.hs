@@ -9,7 +9,7 @@ import Korrvigs.Web.Backend
 import Yesod
 
 exportTarget :: ActionTarget -> Bool
-exportTarget (TargetSearch _) = True
+exportTarget (TargetSearch _ _) = True
 exportTarget _ = False
 
 exportForm :: AForm Handler ()
@@ -19,7 +19,7 @@ exportTitle :: ActionTarget -> Text
 exportTitle = const "Export"
 
 runExport :: () -> ActionTarget -> Handler ActionReaction
-runExport () (TargetSearch query) = do
+runExport () (TargetSearch query _) = do
   render <- getUrlRenderParams
   let js = encodeToLazyText query
   let html = htmlUrl js render

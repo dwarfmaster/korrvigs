@@ -8,13 +8,14 @@ import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Public.Crypto as Public
 import Korrvigs.Web.Routes
+import qualified Korrvigs.Web.Search.Form as Search
 import Yesod
 
 shareTarget :: ActionTarget -> Bool
 shareTarget (TargetEntry _) = True
 shareTarget TargetHome = False
 shareTarget (TargetCollection _) = True
-shareTarget (TargetSearch _) = False
+shareTarget (TargetSearch _ _) = True
 
 shareForm :: AForm Handler ()
 shareForm = pure ()
@@ -61,4 +62,17 @@ runShare () (TargetCollection col) = do
           <a href=#{render (PublicColR publicTodo col) [("display", "todo")]}>
             Share todo
     |]
-runShare () (TargetSearch _) = pure def
+runShare () (TargetSearch q disp) = do
+  let params = Search.getParameters Nothing q disp
+  public <- Public.signRoute SearchR params
+  render <- getUrlRenderParams
+  let html = htmlUrl public params render render
+  pure $ def & reactMsg ?~ html
+  where
+    htmlUrl public params render =
+      [hamlet|
+        <ul>
+          <li>
+            <a href=#{render (PublicSearchR public) params}>
+              Share this query
+      |]

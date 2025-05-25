@@ -115,7 +115,7 @@ actUrl :: ActionLabel -> ActionTarget -> Route WebData
 actUrl lbl (TargetEntry entry) = ActEntryR (actName lbl) (WId $ entry ^. name)
 actUrl lbl TargetHome = ActHomeR (actName lbl)
 actUrl lbl (TargetCollection col) = ActColR (actName lbl) col
-actUrl lbl (TargetSearch _) = ActSearchR (actName lbl)
+actUrl lbl (TargetSearch _ _) = ActSearchR (actName lbl)
 
 actForm :: ActionLabel -> ActionTarget -> Handler Widget
 actForm l@LabRemove = genForm removeForm removeTitle $ actUrl l
@@ -197,7 +197,8 @@ postActSearchR nm = do
   tz <- liftIO getCurrentTimeZone
   let mktz = fmap $ flip ZonedTime tz
   query <- runInputPost $ queryForm mktz Nothing
-  postHandler act $ TargetSearch query
+  display <- runInputPost displayForm
+  postHandler act $ TargetSearch query display
 
 actionsWidget :: ActionTarget -> Handler Widget
 actionsWidget tgt = do
@@ -219,7 +220,7 @@ actionsWidget tgt = do
         width: 100%
     |]
     toWidget $ case tgt of
-      TargetSearch _ -> [julius|setupActions("query-form");|]
+      TargetSearch _ _ -> [julius|setupActions("query-form");|]
       _ -> [julius|setupActions();|]
     [whamlet|
       <div ##{templatesId}>

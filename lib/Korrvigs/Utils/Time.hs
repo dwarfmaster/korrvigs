@@ -2,6 +2,7 @@ module Korrvigs.Utils.Time
   ( addNominal,
     addCalendar,
     dayToZonedTime,
+    getCurrentZonedTime,
     measureTime,
     measureTime_,
   )
@@ -31,6 +32,12 @@ addMonths mths day = fromGregorian y' m' d
     (y, m, d) = toGregorian day
     m' = 1 + (m + mths - 1) `mod` 12
     y' = y + toInteger ((m + mths - 1) `div` 12)
+
+getCurrentZonedTime :: IO ZonedTime
+getCurrentZonedTime = do
+  tz <- getCurrentTimeZone
+  local <- utcToLocalTime tz <$> getCurrentTime
+  pure $ ZonedTime local tz
 
 measureTime :: (MonadIO m) => m a -> m (Text, a)
 measureTime act = do

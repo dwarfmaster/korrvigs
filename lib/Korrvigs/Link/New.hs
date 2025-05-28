@@ -6,20 +6,18 @@ module Korrvigs.Link.New
     nlEntry,
     nlOffline,
     ExtractedData (..),
-    exSubs,
+    exCover,
     exMtdt,
     exContent,
   )
 where
 
 import Conduit (throwM)
+import Control.Applicative
 import Control.Arrow (first)
 import Control.Exception hiding (try)
 import Control.Lens hiding (noneOf)
 import Control.Monad
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.Maybe
 import Data.Aeson
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
@@ -45,7 +43,7 @@ import Korrvigs.Link.JSON
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
-import Korrvigs.Utils (fromMaybeT, joinNull)
+import Korrvigs.Utils (joinNull)
 import Korrvigs.Utils.DateTree
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Pandoc (pdExtractMtdt)
@@ -55,7 +53,7 @@ import Network.Mime
 import Network.URI
 import Text.HTML.TagSoup
 import Text.Pandoc hiding (Link, getCurrentTimeZone)
-import Text.Parsec
+import Text.Parsec hiding ((<|>))
 
 data NewLink = NewLink
   { _nlEntry :: NewEntry,
@@ -89,15 +87,11 @@ contentTypeP = do
 isHttpException :: SomeException -> Bool
 isHttpException e = isJust (fromException e :: Maybe HttpException)
 
-extractImage :: (MonadKorrvigs m) => Text -> m (Maybe Id, Maybe Value)
-extractImage url = do
-  let imgNew = NewDownloadedFile url $ def & neTitle ?~ "Cover"
-  i <- newFromUrl imgNew
-  liftIO $ print i
-  pure (i, Nothing)
+extractImage :: Text -> (Maybe Text, Maybe Value)
+extractImage url = (Just url, Nothing)
 
 -- Map property name to metadata name and extractor
-htmlMetas :: forall m. (MonadKorrvigs m) => Map Text (Text, Text -> m (Maybe Id, Maybe Value))
+htmlMetas :: Map Text (Text, Text -> (Maybe Text, Maybe Value))
 htmlMetas =
   M.fromList
     [ -- Standard metadata
@@ -106,15 +100,15 @@ htmlMetas =
       -- OpenGraph
       ("og:title", extractText Title),
       ("og:description", extractText Abstract),
-      ("og:locale", (mtdtSqlName Language, pure . (Nothing,) . extractLanguage)),
+      ("og:locale", (mtdtSqlName Language, (Nothing,) . extractLanguage)),
       ("og:image", (mtdtSqlName Cover, extractImage)),
       -- Twitter
       ("twitter:title", extractText Title),
       ("twitter:description", extractText Abstract)
     ]
   where
-    extractText mtdt = (mtdtSqlName mtdt, pure . (Nothing,) . Just . String)
-    extractList mtdt = (mtdtSqlName mtdt, pure . (Nothing,) . Just . Array . V.singleton . String)
+    extractText mtdt = (mtdtSqlName mtdt, (Nothing,) . Just . String)
+    extractList mtdt = (mtdtSqlName mtdt, (Nothing,) . Just . Array . V.singleton . String)
     extractLanguage :: Text -> Maybe Value
     extractLanguage loc
       | "en_" `T.isPrefixOf` loc = Just "en"
@@ -144,20 +138,20 @@ instance FromJSON LDJsonData where
 data ExtractedData = ExtractedData
   { _exMtdt :: Map Text Value,
     _exContent :: Maybe Text,
-    _exSubs :: [Id]
+    _exCover :: Maybe Text
   }
 
 makeLenses ''ExtractedData
 
 instance Semigroup ExtractedData where
-  ExtractedData m1 t1 s1 <> ExtractedData m2 t2 s2 =
-    ExtractedData (m1 <> m2) (t1 <> t2) (s1 <> s2)
+  ExtractedData m1 t1 c1 <> ExtractedData m2 t2 c2 =
+    ExtractedData (m1 <> m2) (t1 <|> t2) (c1 <|> c2)
 
 instance Monoid ExtractedData where
-  mempty = ExtractedData M.empty Nothing []
+  mempty = ExtractedData M.empty Nothing Nothing
 
 fromMap :: Map Text Value -> ExtractedData
-fromMap mtdt = ExtractedData mtdt Nothing []
+fromMap mtdt = ExtractedData mtdt Nothing Nothing
 
 ldToMeta :: LDJsonData -> ExtractedData
 ldToMeta ld
@@ -170,16 +164,15 @@ ldToMeta ld
             ++ maybe [] (\abt -> [(mtdtSqlName Abstract, String abt)]) (ld ^. ldAbout)
 ldToMeta _ = mempty
 
-extractHTMLMeta :: forall m. (MonadKorrvigs m) => Text -> Text -> m ExtractedData
+extractHTMLMeta :: Text -> Text -> ExtractedData
 extractHTMLMeta url txt =
-  mconcat . mconcat
-    <$> sequence
-      [ pure $ matchTitle <$> divvy 2 1 html,
-        pure $ matchLD <$> divvy 2 1 html,
-        pure $ matchRSS <$> html,
-        mapM matchMeta html,
-        pure $ singleton matchLanguage
-      ]
+  mconcat . mconcat $
+    [ matchTitle <$> divvy 2 1 html,
+      matchLD <$> divvy 2 1 html,
+      matchRSS <$> html,
+      matchMeta <$> html,
+      singleton matchLanguage
+    ]
   where
     html = takeWhile (/= TagClose ("head" :: Text)) $ parseTags txt
     matchRSS :: Tag Text -> ExtractedData
@@ -192,16 +185,16 @@ extractHTMLMeta url txt =
           let uri = if T.head ref == '/' then url <> T.tail ref else ref
           pure $ fromMap $ M.singleton (mtdtSqlName Feed) $ toJSON uri
     matchRSS _ = mempty
-    matchMeta :: Tag Text -> m ExtractedData
-    matchMeta (TagOpen "meta" attrs) = fromMaybeT mempty $ do
-      (_, nm) <- hoistMaybe $ find (\(k, _) -> k == "property") attrs
-      (_, content) <- hoistMaybe $ find (\(k, _) -> k == "content") attrs
-      (mtdt, extractor) <- hoistMaybe $ M.lookup nm htmlMetas
-      (mcover, mval) <- lift $ extractor content
-      let excover = maybe mempty (\i -> ExtractedData M.empty Nothing [i]) mcover
+    matchMeta :: Tag Text -> ExtractedData
+    matchMeta (TagOpen "meta" attrs) = fromMaybe mempty $ do
+      (_, nm) <- find (\(k, _) -> k == "property") attrs
+      (_, content) <- find (\(k, _) -> k == "content") attrs
+      (mtdt, extractor) <- M.lookup nm htmlMetas
+      let (mcover, mval) = extractor content
+      let excover = maybe mempty (ExtractedData M.empty Nothing . Just) mcover
       let exval = maybe mempty (fromMap . M.singleton mtdt) mval
       pure $ excover <> exval
-    matchMeta _ = pure mempty
+    matchMeta _ = mempty
     matchTitle :: [Tag Text] -> ExtractedData
     matchTitle [TagOpen "title" _, TagText title] =
       fromMap $ M.singleton (mtdtSqlName Title) $ String title
@@ -240,10 +233,10 @@ extractPandocMtdt pd = setContent $ processPandocMtdt mtdt
     (content, mtdt) = pdExtractMtdt pd
     setContent = if T.null content then id else exContent ?~ content
 
-downloadInformation :: (MonadKorrvigs m) => Text -> m ExtractedData
+downloadInformation :: Text -> IO ExtractedData
 downloadInformation uri = do
   req <- parseRequest $ T.unpack uri
-  resp <- catchIO $ tryJust (guard . isHttpException) $ httpBS req
+  resp <- tryJust (guard . isHttpException) $ httpBS req
   case resp of
     Left _ -> pure mempty
     Right response -> do
@@ -256,11 +249,10 @@ downloadInformation uri = do
           case r of
             (Right ("text/html", decoder)) : _ -> case decoder (getResponseBody response) of
               Just content -> do
-                htmlMeta <- extractHTMLMeta uri content
-                catchIO $
-                  runIO (readHtml def content) >>= \case
-                    Left _ -> pure mempty
-                    Right pd -> pure $ htmlMeta <> extractPandocMtdt pd
+                let htmlMeta = extractHTMLMeta uri content
+                runIO (readHtml def content) >>= \case
+                  Left _ -> pure mempty
+                  Right pd -> pure $ htmlMeta <> extractPandocMtdt pd
               Nothing -> pure mempty
             _ -> pure mempty
 
@@ -274,7 +266,7 @@ new url options = case parseURI (T.unpack url) of
     extracted <-
       if options ^. nlOffline
         then pure mempty
-        else downloadInformation link
+        else catchIO $ downloadInformation link
     let info = extracted ^. exMtdt
     let title = mplus (joinNull T.null $ options ^. nlEntry . neTitle) (M.lookup (mtdtSqlName Title) info >>= jsonAsText)
     dt <- useDate (options ^. nlEntry) Nothing
@@ -295,7 +287,11 @@ new url options = case parseURI (T.unpack url) of
     let content = encodingToLazyByteString . value $ toJSON json
     pth <- storeFile rt jsonTT Nothing (unId i <> ".json") $ FileLazy content
     syncFileOfKind pth Link
-    forM_ (extracted ^. exSubs) $ \sub -> do
-      subEntry <- load sub
-      forM_ subEntry $ \subE -> updateParents subE [i] []
+    forM_ (extracted ^. exCover) $ \covUrl -> do
+      let imgNew =
+            NewDownloadedFile covUrl $
+              def
+                & neTitle .~ ((<> " cover") <$> title)
+                & neParents .~ [i]
+      void $ newFromUrl imgNew
     pure i

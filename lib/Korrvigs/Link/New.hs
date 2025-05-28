@@ -17,6 +17,7 @@ import Control.Arrow (first)
 import Control.Exception hiding (try)
 import Control.Lens hiding (noneOf)
 import Control.Monad
+import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Data.Aeson
@@ -38,6 +39,7 @@ import qualified Data.Vector as V
 import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Entry.New
+import Korrvigs.File.Download
 import Korrvigs.Kind
 import Korrvigs.Link.JSON
 import Korrvigs.Metadata
@@ -87,8 +89,15 @@ contentTypeP = do
 isHttpException :: SomeException -> Bool
 isHttpException e = isJust (fromException e :: Maybe HttpException)
 
+extractImage :: (MonadKorrvigs m) => Text -> m (Maybe Id, Maybe Value)
+extractImage url = do
+  let imgNew = NewDownloadedFile url $ def & neTitle ?~ "Cover"
+  i <- newFromUrl imgNew
+  liftIO $ print i
+  pure (i, Nothing)
+
 -- Map property name to metadata name and extractor
-htmlMetas :: forall m. (MonadKorrvigs m) => Map Text (Text, Text -> m (Maybe Value))
+htmlMetas :: forall m. (MonadKorrvigs m) => Map Text (Text, Text -> m (Maybe Id, Maybe Value))
 htmlMetas =
   M.fromList
     [ -- Standard metadata
@@ -97,17 +106,15 @@ htmlMetas =
       -- OpenGraph
       ("og:title", extractText Title),
       ("og:description", extractText Abstract),
-      ("og:locale", (mtdtSqlName Language, pure . extractLanguage)),
-      -- ("og:image", undefined),
+      ("og:locale", (mtdtSqlName Language, pure . (Nothing,) . extractLanguage)),
+      ("og:image", (mtdtSqlName Cover, extractImage)),
       -- Twitter
       ("twitter:title", extractText Title),
       ("twitter:description", extractText Abstract)
     ]
   where
-    extractText :: (ExtraMetadata mtdt) => mtdt -> (Text, Text -> m (Maybe Value))
-    extractText mtdt = (mtdtSqlName mtdt, pure . Just . String)
-    extractList :: (ExtraMetadata mtdt) => mtdt -> (Text, Text -> m (Maybe Value))
-    extractList mtdt = (mtdtSqlName mtdt, pure . Just . Array . V.singleton . String)
+    extractText mtdt = (mtdtSqlName mtdt, pure . (Nothing,) . Just . String)
+    extractList mtdt = (mtdtSqlName mtdt, pure . (Nothing,) . Just . Array . V.singleton . String)
     extractLanguage :: Text -> Maybe Value
     extractLanguage loc
       | "en_" `T.isPrefixOf` loc = Just "en"
@@ -187,11 +194,13 @@ extractHTMLMeta url txt =
     matchRSS _ = mempty
     matchMeta :: Tag Text -> m ExtractedData
     matchMeta (TagOpen "meta" attrs) = fromMaybeT mempty $ do
-      (_, nm) <- hoistMaybe $ find (\(k, _) -> k == "name") attrs
+      (_, nm) <- hoistMaybe $ find (\(k, _) -> k == "property") attrs
       (_, content) <- hoistMaybe $ find (\(k, _) -> k == "content") attrs
       (mtdt, extractor) <- hoistMaybe $ M.lookup nm htmlMetas
-      val <- lift (extractor content) >>= hoistMaybe
-      pure $ fromMap $ M.singleton mtdt val
+      (mcover, mval) <- lift $ extractor content
+      let excover = maybe mempty (\i -> ExtractedData M.empty Nothing [i]) mcover
+      let exval = maybe mempty (fromMap . M.singleton mtdt) mval
+      pure $ excover <> exval
     matchMeta _ = pure mempty
     matchTitle :: [Tag Text] -> ExtractedData
     matchTitle [TagOpen "title" _, TagText title] =

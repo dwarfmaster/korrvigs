@@ -2,7 +2,9 @@ module Korrvigs.Utils where
 
 import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Maybe
 import Data.Foldable
+import Data.Maybe
 import System.Directory
 import System.FilePath
 
@@ -77,3 +79,6 @@ recursiveRemoveDir root dir = liftIO $ do
 
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (a, b, c) = f a b c
+
+fromMaybeT :: (Monad m) => a -> MaybeT m a -> m a
+fromMaybeT d act = fromMaybe d <$> runMaybeT act

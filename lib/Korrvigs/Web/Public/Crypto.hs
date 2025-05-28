@@ -8,7 +8,7 @@ import Data.Base64.Types
 import qualified Data.ByteArray as BA
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Base64 as B64
+import qualified Data.ByteString.Base64.URL as B64
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Enc
 import Korrvigs.Web.Backend

@@ -7,7 +7,7 @@ import Data.Base64.Types
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
-import Data.ByteString.Base64
+import Data.ByteString.Base64.URL
 import Data.Maybe
 import Data.Profunctor
 import Data.Profunctor.Product.Default

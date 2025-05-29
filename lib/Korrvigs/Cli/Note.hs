@@ -31,7 +31,7 @@ data Cmd
   = Format {_formatFile :: FilePath, _inplace :: Bool}
   | New {_newNote :: NewNote}
   | Attach {_attachRef :: Text, _attachIsPath :: Bool, _attachSub :: AttachCmd}
-  | Col {_colNote :: Text, _colName :: Maybe Text, _colInsert :: Maybe Text}
+  | Col {_colNote :: Maybe Text, _colName :: Maybe Text, _colInsert :: Maybe Text}
 
 data AttachCmd
   = AttachFiles [FilePath] Bool
@@ -89,7 +89,7 @@ parser' =
           "col"
           ( info
               ( ( Col
-                    <$> argument str (metavar "NOTE")
+                    <$> optional (argument str (metavar "NOTE"))
                     <*> optional (argument str (metavar "COL"))
                     <*> optional (option str (long "insert" <> help "Insert new ID into collection"))
                 )
@@ -208,22 +208,26 @@ run (Attach note isPath cmd) =
                   }
           ni <- new options
           liftIO $ putStrLn $ unId ni
-run (Col note mnm Nothing) =
+run (Col Nothing _ _) = do
+  cols <- allCollections
+  forM_ cols $ \(MkId i, col) -> liftIO $ putStrLn $ i <> "#" <> col
+run (Col (Just note) Nothing _) = do
+  cols <- collectionsFor $ MkId note
+  forM_ cols $ liftIO . putStrLn
+run (Col (Just note) (Just nm) Nothing) =
   load (MkId note) >>= \case
     Nothing -> throwM $ KMiscError $ note <> " is not a valid entry"
     Just entry -> case entry ^. kindData of
       NoteD ne ->
         readNote (ne ^. notePath) >>= \case
           Left err -> throwM $ KMiscError $ "Failed to load " <> T.pack (ne ^. notePath) <> ": " <> err
-          Right md -> case mnm of
-            Nothing -> forM_ (md ^. docCollections) $ liftIO . putStrLn
-            Just nm -> case md ^? docContent . each . bkCollection nm of
-              Just (c, _, items) -> do
-                res <- loadCollection c items
-                forM_ res $ liftIO . putStrLn . unId . view (_1 . sqlEntryName)
-              Nothing -> throwM $ KMiscError $ note <> " note has no collection with name " <> nm
+          Right md -> case md ^? docContent . each . bkCollection nm of
+            Just (c, _, items) -> do
+              res <- loadCollection c items
+              forM_ res $ liftIO . putStrLn . unId . view (_1 . sqlEntryName)
+            Nothing -> throwM $ KMiscError $ note <> " note has no collection with name " <> nm
       _ -> throwM $ KMiscError $ note <> " is not a note entry"
-run (Col note mnm (Just toinsert)) = do
+run (Col (Just note) mnm (Just toinsert)) = do
   colNm <- throwMaybe (KMiscError "Cannot insert if the name of the collection is not specified") mnm
   r <- addToCollection (MkId note) colNm $ ColItemEntry $ MkId toinsert
   if r

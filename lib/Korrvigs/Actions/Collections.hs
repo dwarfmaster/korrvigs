@@ -21,8 +21,10 @@ import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note
 import Korrvigs.Note.AST
+import Korrvigs.Note.SQL
 import Korrvigs.Query
 import Korrvigs.Utils
+import Korrvigs.Utils.Opaleye
 import Opaleye hiding (Field)
 import qualified Opaleye as O
 import System.IO
@@ -99,3 +101,15 @@ addToCollection i col item = fromMaybeT False $ do
   file <- liftIO $ openFile (note ^. notePath) WriteMode
   r <- lift $ writeNote file md'
   pure $ isNothing r
+
+allCollections :: (MonadKorrvigs m) => m [(Id, Text)]
+allCollections = rSelect $ do
+  note <- selectTable notesTable
+  col <- sqlUnnest $ note ^. sqlNoteCollections
+  pure (note ^. sqlNoteName, col)
+
+collectionsFor :: (MonadKorrvigs m) => Id -> m [Text]
+collectionsFor i = fmap (fromMaybe []) $ rSelectOne $ do
+  note <- selectTable notesTable
+  where_ $ note ^. sqlNoteName .== sqlId i
+  pure $ note ^. sqlNoteCollections

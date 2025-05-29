@@ -14,7 +14,6 @@ import Korrvigs.Metadata.Collections
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Note.Loc hiding (subs)
-import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Note as Note
 import Korrvigs.Web.PhotoSwipe (PhotoswipeEntry (..), swpMiniature, swpRedirect, swpUrl)
@@ -65,7 +64,6 @@ getColR prefix = do
     Just "todo" -> displayTask prefix
     _ -> displayMisc prefix
   sel <- selectDisplay prefix toDisp
-  actions <- actionsWidget $ TargetCollection prefix
   defaultLayout $ do
     setTitle $ toMarkup title
     Rcs.entryStyle
@@ -73,7 +71,6 @@ getColR prefix = do
     unless pub $ do
       Rcs.formsStyle
       sel
-      actions
     disp
   where
     rprefix = reverse prefix

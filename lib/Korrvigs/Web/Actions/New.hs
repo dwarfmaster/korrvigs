@@ -5,8 +5,6 @@ import Control.Lens
 import Control.Monad
 import Data.Default
 import Data.Maybe
-import Data.Set (Set)
-import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Actions.Collections
@@ -41,8 +39,6 @@ makeLenses ''NewMedia
 newTarget :: ActionTarget -> Bool
 newTarget (TargetEntry _) = True
 newTarget TargetHome = True
-newTarget (TargetCollection []) = False
-newTarget (TargetCollection _) = True
 newTarget (TargetSearch _ _) = False
 newTarget (TargetNoteCollection _ _) = True
 
@@ -53,14 +49,6 @@ mkNewTitle suffix _ = "Attach " <> suffix
 extractParent :: ActionTarget -> Maybe Id
 extractParent (TargetEntry entry) = Just $ entry ^. name
 extractParent _ = Nothing
-
-isColTgt :: ActionTarget -> Bool
-isColTgt (TargetCollection _) = True
-isColTgt _ = False
-
-extractCollection :: ActionTarget -> Set [Text]
-extractCollection (TargetCollection col) = S.singleton col
-extractCollection _ = S.empty
 
 mkReaction :: ActionTarget -> Text -> Id -> Handler ActionReaction
 mkReaction TargetHome _ i = do
@@ -80,13 +68,6 @@ mkReaction (TargetEntry _) suffix i = do
     def
       & reactMsg ?~ html
       & reactClipboard ?~ unId i
-mkReaction (TargetCollection col) suffix i = do
-  render <- getUrlRender
-  pure $
-    def
-      & reactClipboard ?~ unId i
-      & reactAlert ?~ "Created " <> suffix <> ": @" <> unId i
-      & reactRedirect ?~ render (ColR col)
 mkReaction (TargetSearch _ _) _ _ = pure def
 mkReaction (TargetNoteCollection note col) suffix i = do
   void $ addToCollection (note ^. noteEntry . name) col (ColItemEntry i)
@@ -116,7 +97,6 @@ runNewNote nnote tgt = do
         NNote.NewNote
           ( def
               & neParents .~ maybeToList (extractParent tgt)
-              & neCollections .~ extractCollection tgt
           )
           (nnote ^. nnoteTitle)
   i <- NNote.new settings
@@ -138,7 +118,6 @@ runNewLink nlink tgt = do
           & NLink.nlOffline .~ False
           & NLink.nlEntry . neTitle .~ nlink ^. nlinkTitle
           & NLink.nlEntry . neParents .~ maybeToList (extractParent tgt)
-          & NLink.nlEntry . neCollections .~ extractCollection tgt
   i <- NLink.new (nlink ^. nlinkUrl) settings
   mkReaction tgt "new link" i
 
@@ -163,7 +142,6 @@ runNewFile nfile tgt =
               def
                 & neTitle .~ nfile ^. nfileTitle
                 & neParents .~ maybeToList (extractParent tgt)
-                & neCollections .~ extractCollection tgt
       runIO $ do
         i <- NFile.new path settings
         mkReaction tgt "new file" i
@@ -186,11 +164,10 @@ runNewMedia nmedia tgt = do
         NMedia.NewMedia
           { NMedia._nmEntry =
               def
-                & neParents %~ maybe id (:) (extractParent tgt)
-                & neCollections .~ extractCollection tgt,
+                & neParents %~ maybe id (:) (extractParent tgt),
             NMedia._nmInput = nmedia ^. nmedInput,
             NMedia._nmType = nmedia ^. nmedType,
-            NMedia._nmCapture = not (isColTgt tgt)
+            NMedia._nmCapture = True
           }
   i <- NMedia.new nmed
   mkReaction tgt "new media" i

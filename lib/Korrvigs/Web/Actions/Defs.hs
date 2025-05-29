@@ -14,7 +14,6 @@ import Yesod
 data ActionTarget
   = TargetEntry Entry
   | TargetHome
-  | TargetCollection [Text]
   | TargetSearch Query Collection
   | TargetNoteCollection Note Text
 

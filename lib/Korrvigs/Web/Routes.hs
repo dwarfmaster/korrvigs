@@ -45,7 +45,6 @@ korrvigsRoutes =
 -- Actions
 /action/#Text/entry/#WebId ActEntryR POST
 /action/#Text/home ActHomeR POST
-/action/#Text/collection/*[Text] ActColR POST
 /action/#Text/search ActSearchR POST
 /action/#Text/note/#WebId/col/#Text ActNoteColR POST
 

@@ -1,6 +1,5 @@
 module Korrvigs.Web.Actions
-  ( postActColR,
-    postActHomeR,
+  ( postActHomeR,
     postActEntryR,
     postActSearchR,
     postActNoteColR,
@@ -116,7 +115,6 @@ genForm form title postUrl tgt = generateForm (postUrl tgt) (title tgt) form
 actUrl :: ActionLabel -> ActionTarget -> Route WebData
 actUrl lbl (TargetEntry entry) = ActEntryR (actName lbl) (WId $ entry ^. name)
 actUrl lbl TargetHome = ActHomeR (actName lbl)
-actUrl lbl (TargetCollection col) = ActColR (actName lbl) col
 actUrl lbl (TargetSearch _ _) = ActSearchR (actName lbl)
 actUrl lbl (TargetNoteCollection note col) = ActNoteColR (actName lbl) (WId $ note ^. noteEntry . name) col
 
@@ -188,11 +186,6 @@ postActHomeR :: Text -> Handler Value
 postActHomeR nm = do
   act <- parseActionName nm
   postHandler act TargetHome
-
-postActColR :: Text -> [Text] -> Handler Value
-postActColR nm col = do
-  act <- parseActionName nm
-  postHandler act $ TargetCollection col
 
 postActSearchR :: Text -> Handler Value
 postActSearchR nm = do

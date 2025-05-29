@@ -285,7 +285,8 @@ compileBlock' (EmbedHeader i) = do
         propagateChecks embedId tkchecks
 compileBlock' (Collection col nm items) = do
   wdg <- lift $ displayResults col =<< loadCollection col items
-  pure $ colWidget nm wdg
+  i <- use currentEntry
+  lift $ colWidget i nm wdg
 compileBlock' (Sub hd) = do
   -- Compute level shift
   rtLvl <- use hdRootLevel
@@ -329,11 +330,15 @@ compileBlock' (Table tbl) = do
       ^{captionW}
   |]
 
-colWidget :: Text -> Widget -> Widget
-colWidget nm widget =
-  [whamlet|
+colWidget :: Id -> Text -> Widget -> Handler Widget
+colWidget i nm widget = do
+  pure
+    [whamlet|
     <details .collection ##{nm}>
-      <summary> ##{nm}
+      <summary>
+        ##{nm}
+        <a href=@{NoteColR (WId i) nm}>
+          <img width=16 height=16 style="display: inline; vertical-align: -10%;" src=@{StaticR $ StaticRoute ["icons", "open-white.png"] []}>
       ^{widget}
   |]
 

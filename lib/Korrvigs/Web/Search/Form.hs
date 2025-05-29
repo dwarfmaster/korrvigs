@@ -184,7 +184,7 @@ displayForm = fromMaybe DisplayList <$> iopt displayResultsField "display"
 getParameters :: Maybe Text -> Query -> ResultDisplay -> [(Text, Text)]
 getParameters prefix q display =
   (first (applyPrefix prefix) <$> basicAttrs)
-    ++ (if isJust prefix then resAttrs else subAttrs ++ parentAttrs)
+    ++ (if isJust prefix then [] else resAttrs ++ subAttrs ++ parentAttrs)
   where
     displayTime :: ZonedTime -> Text
     displayTime zt = T.pack $ formatTime defaultTimeLocale "%0Y-%m-%dT%H:%M" zt
@@ -197,7 +197,7 @@ getParameters prefix q display =
       maybe [] (\fts -> [("checkfts", "on"), ("fts", FTS.renderQuery fts)]) (q ^. queryText)
         ++ maybe [] (\bf -> [("checkdate", "on"), ("before", displayTime bf)]) (q ^. queryBefore)
         ++ maybe [] (\af -> maybe [("checkdate", "on")] (const []) (q ^. queryBefore) ++ [("after", displayTime af)]) (q ^. queryAfter)
-        ++ maybe [] (\(V2 lng lat, dist) -> [("checkgeo", "on"), ("geolng", T.pack $ show lng), ("geolat", T.pack $ show lat), ("geodist", T.pack $ show dist)]) (q ^. queryDist)
+        ++ maybe [] (\(V2 lng lat, dist) -> [("checkgeo", "on"), ("geolng", T.pack $ show lng), ("geolat", T.pack $ show lat), ("geodist", T.pack $ show $ dist / 1000.0)]) (q ^. queryDist)
         ++ maybe [] (\kd -> [("checkking", "on"), ("kind", displayKind kd)]) (q ^. queryKind)
         ++ (if null (q ^. queryMtdt) then [] else ("checkmtdt", "on") : concatMap mtdtAttrs (q ^. queryMtdt))
     relAttrs p = maybe [] (\r -> [(applyPrefix (Just p) "rec", displayBool $ r ^. relRec), (applyPrefix (Just p) "check", "on")] ++ getParameters (Just p) (r ^. relOther) display)

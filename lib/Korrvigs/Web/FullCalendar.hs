@@ -39,6 +39,7 @@ instance ToJSON CalendarEvent where
 entryToEvent :: (EntryRow, Maybe Text) -> Handler (Maybe CalendarEvent)
 entryToEvent (entry, title) = runMaybeT $ do
   render <- lift getUrlRender
+  public <- lift isPublic
   start <- hoistMaybe $ entry ^. sqlEntryDate
   let dur = fromMaybe noDuration $ entry ^. sqlEntryDuration
   let hasDur = isJust $ entry ^. sqlEntryDuration
@@ -50,7 +51,7 @@ entryToEvent (entry, title) = runMaybeT $ do
         _evStart = start,
         _evEnd = if hasDur then Just end else Nothing,
         _evAllDay = Just allDay,
-        _evUrl = Just $ render $ EntryR $ WId i,
+        _evUrl = if public then Nothing else Just $ render $ EntryR $ WId i,
         _evColor = Nothing
       }
   where

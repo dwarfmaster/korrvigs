@@ -199,8 +199,8 @@ displayGal prefix = do
           url <- mkPublic $ entry ^. swpUrl
           mini <- mkPublic $ entry ^. swpMiniature
           public <- isPublic
-          let redir = if public then url else entry ^. swpRedirect
-          pure . Just $ entry & swpUrl .~ url & swpMiniature .~ mini & swpRedirect .~ redir
+          let redir = if public then url else fromMaybe url (entry ^. swpRedirect)
+          pure . Just $ entry & swpUrl .~ url & swpMiniature .~ mini & swpRedirect ?~ redir
 
 displayTask :: [Text] -> Handler Widget
 displayTask prefix = do

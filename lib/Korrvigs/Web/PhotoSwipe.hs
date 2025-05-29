@@ -4,6 +4,7 @@ import Control.Lens
 import Data.List.NonEmpty (NonEmpty (..), groupBy)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
@@ -11,8 +12,8 @@ import Data.Time.Format
 import Korrvigs.Compute
 import Korrvigs.Compute.Action
 import Korrvigs.Entry
-import Korrvigs.Monad
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Public.Crypto as Public
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Yesod
@@ -20,8 +21,10 @@ import Yesod.Static
 
 data PhotoswipeEntry = PhotoswipeEntry
   { _swpUrl :: Route WebData,
+    _swpUrlPublic :: Route WebData,
     _swpMiniature :: Route WebData,
-    _swpRedirect :: Route WebData,
+    _swpMiniaturePublic :: Route WebData,
+    _swpRedirect :: Maybe (Route WebData),
     _swpCaption :: Widget,
     _swpWidth :: Int,
     _swpHeight :: Int,
@@ -30,18 +33,24 @@ data PhotoswipeEntry = PhotoswipeEntry
 
 makeLenses ''PhotoswipeEntry
 
-miniatureEntry :: (MonadKorrvigs m) => Maybe Day -> Id -> Action -> m (Maybe PhotoswipeEntry)
+miniatureEntry :: Maybe Day -> Id -> Action -> Handler (Maybe PhotoswipeEntry)
 miniatureEntry day i sizeA = do
   szM <- lazyRunJSON i "size" sizeA
+  let url = EntryDownloadR (WId i)
+  let miniatureUrl = EntryComputeR (WId i) "miniature"
+  urlSignature <- Public.signRoute url []
+  miniatureSignature <- Public.signRoute miniatureUrl []
   pure $ do
     sz :: Map Text Int <- szM
     width <- M.lookup "width" sz
     height <- M.lookup "height" sz
     pure $
       PhotoswipeEntry
-        { _swpUrl = EntryDownloadR (WId i),
-          _swpMiniature = EntryComputeR (WId i) "miniature",
-          _swpRedirect = EntryR (WId i),
+        { _swpUrl = url,
+          _swpUrlPublic = PublicEntryDownloadR urlSignature (WId i),
+          _swpMiniature = miniatureUrl,
+          _swpMiniaturePublic = PublicEntryComputeR miniatureSignature (WId i) "miniature",
+          _swpRedirect = Just $ EntryR (WId i),
           _swpCaption = mempty,
           _swpWidth = width,
           _swpHeight = height,
@@ -104,6 +113,9 @@ displayDateOfGroup (e :| _) = displayDate $ view swpDate e
 photoswipe :: [PhotoswipeEntry] -> Handler Widget
 photoswipe items = do
   i <- newIdent
+  public <- isPublic
+  let getUrl = if public then view swpUrlPublic else view swpUrl
+  let getMiniature = if public then view swpMiniaturePublic else view swpMiniature
   let grouped = groupEntries items
   pure $ do
     toWidget [julius|setupPhotoswipeFor(#{i})|]
@@ -123,7 +135,9 @@ photoswipe items = do
             <summary>
               #{displayDateOfGroup group}
             $forall item <- group 
-              <a href=@{_swpUrl item} data-pswp-width=#{_swpWidth item} data-pswp-height=#{_swpHeight item} data-korrvigs-target=@{_swpRedirect item} target="_blank">
-                <img loading=lazy src=@{_swpMiniature item} alt="">
+              <a href=@{getUrl item} data-pswp-width=#{_swpWidth item} data-pswp-height=#{_swpHeight item} data-korrvigs-target=@{itemTarget getUrl item} target="_blank">
+                <img loading=lazy src=@{getMiniature item} alt="">
                 ^{_swpCaption item}
     |]
+  where
+    itemTarget getUrl entry = fromMaybe (getUrl entry) (entry ^. swpRedirect)

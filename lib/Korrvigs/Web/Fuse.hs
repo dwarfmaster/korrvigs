@@ -30,20 +30,25 @@ instance ToJSON FuseItem where
 itemFromEntry :: (Id, Maybe Text) -> Handler FuseItem
 itemFromEntry (i, title) = do
   render <- getUrlRenderParams
+  public <- isPublic
   pure $
     FuseItem
       { _itDisplay =
           [hamlet|
-      <a href=@{EntryR $ WId i}>
-        $maybe t <- title
-          #{t}
-        $nothing
-          @#{unId i}
+      $if public
+        ^{plain}
+      $else
+        <a href=@{EntryR $ WId i}>
+          ^{plain}
     |]
             render,
         _itText = fromMaybe "" title,
         _itSubText = unId i
       }
+  where
+    plain = case title of
+      Nothing -> [hamlet|@#{unId i}|]
+      Just t -> [hamlet|#{t}|]
 
 logic :: JavascriptUrl url
 logic =

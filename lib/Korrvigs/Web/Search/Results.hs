@@ -5,6 +5,8 @@ module Korrvigs.Web.Search.Results where
 import Control.Arrow (second, (***))
 import Control.Lens
 import Control.Monad
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Maybe
 import Data.Default
 import Data.Maybe
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
@@ -89,19 +91,33 @@ expandIDs display ids = do
 
 displayEntry :: (EntryRow, Maybe Text) -> Handler Html
 displayEntry (entry, title) = do
+  public <- isPublic
   kd <- htmlKind' $ entry ^. sqlEntryKind
   [hamlet|
     #{kd}
-    <a href=@{EntryR $ WId $ entry ^. sqlEntryName}>
-      $maybe t <- title
-        #{t}
-      $nothing
-        @#{unId $ entry ^. sqlEntryName}
+    $if public
+      ^{plain}
+    $else
+      <a href=@{EntryR $ WId $ entry ^. sqlEntryName}>
+        ^{plain}
   |]
     <$> getUrlRenderParams
+  where
+    plain = case title of
+      Just t -> [hamlet|#{t}|]
+      Nothing -> [hamlet|@#{unId $ entry ^. sqlEntryName}|]
 
 displayResults :: ResultDisplay -> [(EntryRow, OptionalSQLData)] -> Handler Widget
-displayResults DisplayList entries = do
+displayResults DisplayList = displayList
+displayResults DisplayMap = displayMap
+displayResults DisplayGraph = displayGraph
+displayResults DisplayTimeline = displayTimeline
+displayResults DisplayGallery = displayGallery
+displayResults DisplayFuzzy = displayFuzzy
+displayResults DisplayCalendar = displayCalendar
+
+displayList :: [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayList entries = do
   let entriesWithTitle = second (view optTitle) <$> entries
   entriesH <- mapM displayEntry entriesWithTitle
   pure
@@ -111,7 +127,9 @@ displayResults DisplayList entries = do
           <li>
             #{entry}
     |]
-displayResults DisplayMap entries = do
+
+displayMap :: [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayMap entries = do
   items <- mapM mkItem entries
   pure $ leafletWidget "resultmap" $ catMaybes items
   where
@@ -127,7 +145,9 @@ displayResults DisplayMap entries = do
                 _mitVar = Nothing
               }
       Nothing -> pure Nothing
-displayResults DisplayGraph entries = do
+
+displayGraph :: [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayGraph entries = do
   nodes <- mapM mkNode entries
   subs <- rSelect $ do
     sub <- selectTable entriesSubTable
@@ -150,8 +170,10 @@ displayResults DisplayGraph entries = do
     candidates = sqlArray sqlId $ view (_1 . sqlEntryName) <$> entries
     mkNode :: (EntryRow, OptionalSQLData) -> Handler (Text, Text, Network.NodeStyle)
     mkNode (entry, opt) = do
+      public <- isPublic
       style <- Network.defNodeStyle
       render <- getUrlRender
+      let mrender url = if public then Nothing else Just (render url)
       base <- getBase
       let caption = case opt ^. optTitle of
             Just t -> t
@@ -163,18 +185,22 @@ displayResults DisplayGraph entries = do
           style
             & Network.nodeBorder .~ color
             & Network.nodeSelected .~ color
-            & Network.nodeLink ?~ render (EntryR $ WId $ entry ^. sqlEntryName)
+            & Network.nodeLink .~ mrender (EntryR $ WId $ entry ^. sqlEntryName)
         )
     mkEdge :: Network.EdgeStyle -> (Id, Id) -> (Text, Text, Network.EdgeStyle)
     mkEdge style (src, dst) = (unId src, unId dst, style)
-displayResults DisplayTimeline entries = do
+
+displayTimeline :: [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayTimeline entries = do
   items <- mapM mkItem entries
   timelineId <- newIdent
   Timeline.timeline timelineId $ catMaybes items
   where
     mkItem :: (EntryRow, OptionalSQLData) -> Handler (Maybe Timeline.Item)
     mkItem (entry, opt) = do
+      public <- isPublic
       render <- getUrlRender
+      let mrender url = if public then Nothing else Just (render url)
       let caption = case opt ^. optTitle of
             Just t -> t
             Nothing -> "@" <> unId (entry ^. sqlEntryName)
@@ -190,27 +216,39 @@ displayResults DisplayTimeline entries = do
                     Timeline._itemStart = start,
                     Timeline._itemEnd = end,
                     Timeline._itemGroup = displayKind $ entry ^. sqlEntryKind,
-                    Timeline._itemTarget = Just $ render $ EntryR $ WId $ entry ^. sqlEntryName
+                    Timeline._itemTarget = mrender $ EntryR $ WId $ entry ^. sqlEntryName
                   }
-displayResults DisplayGallery entries = do
+
+displayGallery :: [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayGallery entries = do
+  public <- isPublic
   items <- forM entries $ \e -> case e ^. _2 . optSizeAction of
-    Just sizeA ->
-      PhotoSwipe.miniatureEntry
-        (e ^? _1 . sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
-        (e ^. _1 . sqlEntryName)
-        sizeA
+    Just sizeA -> runMaybeT $ do
+      entry <-
+        lift
+          ( PhotoSwipe.miniatureEntry
+              (e ^? _1 . sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
+              (e ^. _1 . sqlEntryName)
+              sizeA
+          )
+          >>= hoistMaybe
+      pure $ if public then entry & PhotoSwipe.swpRedirect .~ Nothing else entry
     Nothing -> pure Nothing
   gallery <- PhotoSwipe.photoswipe $ catMaybes items
   pure $ do
     PhotoSwipe.photoswipeHeader
     gallery
-displayResults DisplayFuzzy entries = do
+
+displayFuzzy :: [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayFuzzy entries = do
   items <- forM entries $ Fuse.itemFromEntry . (view sqlEntryName *** view optTitle)
   fuse <- Fuse.widget items
   pure $ do
     Fuse.header
     fuse
-displayResults DisplayCalendar entries = do
+
+displayCalendar :: [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayCalendar entries = do
   events <- forM entries $ Cal.entryToEvent . second (view optTitle)
   cal <- Cal.widget $ catMaybes events
   pure $ do

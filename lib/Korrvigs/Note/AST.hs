@@ -66,7 +66,7 @@ data Collection
   | ColCalendar
   | ColBiblio
   | ColKanban
-  deriving (Show)
+  deriving (Show, Eq, Ord, Bounded, Enum)
 
 data Block
   = Para [Inline]

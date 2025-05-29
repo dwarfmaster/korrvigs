@@ -17,6 +17,7 @@ import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Monad
+import Korrvigs.Note (Collection (..))
 import Korrvigs.Query
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
@@ -31,16 +32,6 @@ import qualified Korrvigs.Web.Vis.Timeline as Timeline
 import Opaleye hiding (Field)
 import qualified Opaleye as O
 import Yesod
-
-data ResultDisplay
-  = DisplayList
-  | DisplayMap
-  | DisplayGraph
-  | DisplayTimeline
-  | DisplayGallery
-  | DisplayFuzzy
-  | DisplayCalendar
-  deriving (Eq, Ord, Enum, Bounded)
 
 data OptionalSQLDataImpl a b = OptionalSQLData
   { _optTitle :: a,
@@ -63,24 +54,24 @@ instance Default OptionalSQLDataSQL where
 optDef :: OptionalSQLDataSQL
 optDef = def
 
-otherQuery :: ResultDisplay -> EntryRowSQL -> Select OptionalSQLDataSQL
+otherQuery :: Collection -> EntryRowSQL -> Select OptionalSQLDataSQL
 otherQuery display entry = case display of
-  DisplayGallery -> do
+  ColGallery -> do
     void $ selComp (entry ^. sqlEntryName) "miniature"
     sz <- selComp (entry ^. sqlEntryName) "size"
     pure $ optDef & optSizeAction .~ toNullable (sz ^. sqlCompAction)
-  DisplayGraph -> pure optDef
+  ColNetwork -> pure optDef
   _ -> do
     title <- selectTextMtdt Title $ entry ^. sqlEntryName
     pure $ optDef & optTitle .~ title
 
-runQuery :: ResultDisplay -> Query -> Handler [(EntryRow, OptionalSQLData)]
+runQuery :: Collection -> Query -> Handler [(EntryRow, OptionalSQLData)]
 runQuery display query = rSelect $ do
   entry <- compile query
   other <- otherQuery display entry
   pure (entry, other)
 
-expandIDs :: ResultDisplay -> [Id] -> Handler [(EntryRow, OptionalSQLData)]
+expandIDs :: Collection -> [Id] -> Handler [(EntryRow, OptionalSQLData)]
 expandIDs display ids = do
   res <- forM ids $ \i -> rSelectOne $ do
     entry <- selectTable entriesTable
@@ -107,14 +98,21 @@ displayEntry (entry, title) = do
       Just t -> [hamlet|#{t}|]
       Nothing -> [hamlet|@#{unId $ entry ^. sqlEntryName}|]
 
-displayResults :: ResultDisplay -> [(EntryRow, OptionalSQLData)] -> Handler Widget
-displayResults DisplayList = displayList
-displayResults DisplayMap = displayMap
-displayResults DisplayGraph = displayGraph
-displayResults DisplayTimeline = displayTimeline
-displayResults DisplayGallery = displayGallery
-displayResults DisplayFuzzy = displayFuzzy
-displayResults DisplayCalendar = displayCalendar
+displayResults :: Collection -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayResults ColList = displayList
+displayResults ColMap = displayMap
+displayResults ColGallery = displayGallery
+displayResults ColTimeline = displayTimeline
+displayResults ColNetwork = displayGraph
+displayResults ColFuzzy = displayFuzzy
+displayResults ColEmbed = displayUnsupported ColEmbed
+displayResults ColCalendar = displayCalendar
+displayResults ColBiblio = displayUnsupported ColBiblio
+displayResults ColKanban = displayUnsupported ColKanban
+
+displayUnsupported :: Collection -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayUnsupported col _ =
+  pure [whamlet|<p>#{show col} is not supported yet|]
 
 displayList :: [(EntryRow, OptionalSQLData)] -> Handler Widget
 displayList entries = do

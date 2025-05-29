@@ -11,6 +11,7 @@ import Data.Time.LocalTime
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
+import Korrvigs.Note.AST (Collection (..))
 import Korrvigs.Query
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
@@ -238,7 +239,7 @@ maxResultsForm n =
             #{optionDisplay opt}
     |]
 
-displayResultForm :: ResultDisplay -> Handler Widget
+displayResultForm :: Collection -> Handler Widget
 displayResultForm display =
   pure
     [whamlet|
@@ -289,7 +290,7 @@ queryWidget prefix query = do
     subOf
     parentOf
 
-searchForm :: Query -> ResultDisplay -> Handler Widget
+searchForm :: Query -> Collection -> Handler Widget
 searchForm query display = do
   qform <- queryWidget Nothing query
   srt <- sortForm query
@@ -315,8 +316,8 @@ fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. query
   Nothing -> q & querySort .~ def
 fixOrder q = q
 
-displayFixQuery :: ResultDisplay -> Query -> Query
-displayFixQuery DisplayGallery = querySort .~ (ByDate, SortAsc)
+displayFixQuery :: Collection -> Query -> Query
+displayFixQuery ColGallery = querySort .~ (ByDate, SortAsc)
 displayFixQuery _ = id
 
 fixMaxResults :: Query -> Query

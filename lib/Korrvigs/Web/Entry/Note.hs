@@ -283,14 +283,10 @@ compileBlock' (EmbedHeader i) = do
                 (if tk ^. tskStatus == TaskDont then 1 else 0)
         propagateChecks embedId tkchecks
 compileBlock' (Collection col nm ids) = do
-  wdg <- case colToDisplay col of
-    Just disp -> lift $ displayResults disp =<< expandIDs disp ids
-    Nothing -> pure [whamlet|<p>#{show col} is not supported yet|]
+  wdg <- lift $ displayResults col =<< expandIDs col ids
   pure $ colWidget nm wdg
 compileBlock' (EmbedQuery col nm q) = do
-  wdg <- case colToDisplay col of
-    Just disp -> lift $ displayResults disp =<< runQuery disp q
-    Nothing -> pure [whamlet|<p>#{show col} is not supported yet|]
+  wdg <- lift $ displayResults col =<< runQuery col q
   pure $ colWidget nm wdg
 compileBlock' (Sub hd) = do
   -- Compute level shift
@@ -342,19 +338,6 @@ colWidget nm widget =
       <summary> ##{nm}
       ^{widget}
   |]
-
-colToDisplay :: Collection -> Maybe ResultDisplay
-colToDisplay = \case
-  ColList -> Just DisplayList
-  ColMap -> Just DisplayMap
-  ColGallery -> Just DisplayGallery
-  ColTimeline -> Just DisplayTimeline
-  ColNetwork -> Just DisplayGraph
-  ColFuzzy -> Just DisplayFuzzy
-  ColEmbed -> Nothing
-  ColCalendar -> Just DisplayCalendar
-  ColBiblio -> Nothing
-  ColKanban -> Nothing
 
 propagateChecks :: Text -> Checks -> Widget
 propagateChecks _ cks | cks == def = mempty

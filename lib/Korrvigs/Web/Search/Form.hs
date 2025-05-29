@@ -21,9 +21,9 @@ import Data.Time.Format
 import Data.Time.LocalTime
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Kind
+import Korrvigs.Note.AST (Collection (..))
 import Korrvigs.Query
 import Korrvigs.Web.Backend
-import Korrvigs.Web.Search.Results
 import Linear.V2
 import Yesod
 
@@ -117,19 +117,22 @@ maxResultsOptions = mkOption <$> opts
 maxResultsField :: Field Handler (Maybe Int)
 maxResultsField = selectField $ pure $ mkOptionList maxResultsOptions
 
-displayResultOptions :: [Option ResultDisplay]
+displayResultOptions :: [Option Collection]
 displayResultOptions = mkOption <$> [minBound .. maxBound]
   where
-    mkOption :: ResultDisplay -> Option ResultDisplay
-    mkOption DisplayList = Option "list" DisplayList "1"
-    mkOption DisplayMap = Option "map" DisplayMap "2"
-    mkOption DisplayGraph = Option "graph" DisplayGraph "3"
-    mkOption DisplayTimeline = Option "timeline" DisplayTimeline "4"
-    mkOption DisplayGallery = Option "gallery" DisplayGallery "5"
-    mkOption DisplayFuzzy = Option "fuzzy" DisplayFuzzy "6"
-    mkOption DisplayCalendar = Option "calendar" DisplayCalendar "7"
+    mkOption :: Collection -> Option Collection
+    mkOption ColList = Option "list" ColList "1"
+    mkOption ColMap = Option "map" ColMap "2"
+    mkOption ColGallery = Option "gallery" ColGallery "3"
+    mkOption ColTimeline = Option "timeline" ColTimeline "4"
+    mkOption ColNetwork = Option "network" ColNetwork "5"
+    mkOption ColFuzzy = Option "fuzzy" ColFuzzy "6"
+    mkOption ColEmbed = Option "embed" ColEmbed "7"
+    mkOption ColCalendar = Option "calendar" ColCalendar "8"
+    mkOption ColBiblio = Option "biblio" ColBiblio "9"
+    mkOption ColKanban = Option "kanban" ColKanban "10"
 
-displayResultsField :: Field Handler ResultDisplay
+displayResultsField :: Field Handler Collection
 displayResultsField = selectField $ pure $ mkOptionList displayResultOptions
 
 getOpt :: (Default a) => Bool -> a -> a
@@ -178,10 +181,10 @@ queryRelForm mktz prefix =
                 )
         )
 
-displayForm :: FormInput Handler ResultDisplay
-displayForm = fromMaybe DisplayList <$> iopt displayResultsField "display"
+displayForm :: FormInput Handler Collection
+displayForm = fromMaybe ColList <$> iopt displayResultsField "display"
 
-getParameters :: Maybe Text -> Query -> ResultDisplay -> [(Text, Text)]
+getParameters :: Maybe Text -> Query -> Collection -> [(Text, Text)]
 getParameters prefix q display =
   (first (applyPrefix prefix) <$> basicAttrs)
     ++ (if isJust prefix then [] else resAttrs ++ subAttrs ++ parentAttrs)

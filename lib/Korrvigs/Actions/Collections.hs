@@ -5,11 +5,14 @@ module Korrvigs.Actions.Collections where
 import Control.Lens
 import Control.Monad
 import Control.Monad.Extra
+import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Data.Default
 import Data.Foldable
+import Data.Maybe
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
+import qualified Data.Set as S
 import Data.Text (Text)
 import Korrvigs.Actions.SQL
 import Korrvigs.Compute.Action
@@ -22,6 +25,7 @@ import Korrvigs.Query
 import Korrvigs.Utils
 import Opaleye hiding (Field)
 import qualified Opaleye as O
+import System.IO
 
 data OptionalSQLDataImpl a b = OptionalSQLData
   { _optTitle :: a,
@@ -83,3 +87,15 @@ loadCollectionItem c (ColItemInclude i included) = fromMaybeT [] $ do
   lift $ loadCollection c col
 loadCollectionItem c (ColItemQuery q) = runQuery c q
 loadCollectionItem _ (ColItemComment _) = pure []
+
+-- Returns False is the item could not be added
+addToCollection :: (MonadKorrvigs m) => Id -> Text -> CollectionItem -> m Bool
+addToCollection i col item = fromMaybeT False $ do
+  entry <- hoistLift $ load i
+  note <- hoistMaybe $ entry ^? kindData . _NoteD
+  md <- hoistEitherLift $ readNote $ note ^. notePath
+  guard $ col `S.member` (md ^. docCollections)
+  let md' = md & docContent . each . bkCollection col . _3 %~ (++ [item])
+  file <- liftIO $ openFile (note ^. notePath) WriteMode
+  r <- lift $ writeNote file md'
+  pure $ isNothing r

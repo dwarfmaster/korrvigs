@@ -23,6 +23,7 @@ import Korrvigs.Note.New
 import Korrvigs.Note.SQL
 import Opaleye hiding (optional)
 import Options.Applicative
+import System.Exit
 import System.IO hiding (putStrLn)
 import Prelude hiding (putStrLn, readFile, writeFile)
 
@@ -30,7 +31,7 @@ data Cmd
   = Format {_formatFile :: FilePath, _inplace :: Bool}
   | New {_newNote :: NewNote}
   | Attach {_attachRef :: Text, _attachIsPath :: Bool, _attachSub :: AttachCmd}
-  | Col {_colNote :: Text, _colName :: Maybe Text}
+  | Col {_colNote :: Text, _colName :: Maybe Text, _colInsert :: Maybe Text}
 
 data AttachCmd
   = AttachFiles [FilePath] Bool
@@ -87,7 +88,13 @@ parser' =
         <> command
           "col"
           ( info
-              ((Col <$> argument str (metavar "NOTE") <*> optional (argument str (metavar "COL"))) <**> helper)
+              ( ( Col
+                    <$> argument str (metavar "NOTE")
+                    <*> optional (argument str (metavar "COL"))
+                    <*> optional (option str (long "insert" <> help "Insert new ID into collection"))
+                )
+                  <**> helper
+              )
               ( progDesc "Deal with note collections"
                   <> header "korr note col -- Deal with collections"
               )
@@ -201,7 +208,7 @@ run (Attach note isPath cmd) =
                   }
           ni <- new options
           liftIO $ putStrLn $ unId ni
-run (Col note mnm) =
+run (Col note mnm Nothing) =
   load (MkId note) >>= \case
     Nothing -> throwM $ KMiscError $ note <> " is not a valid entry"
     Just entry -> case entry ^. kindData of
@@ -216,3 +223,11 @@ run (Col note mnm) =
                 forM_ res $ liftIO . putStrLn . unId . view (_1 . sqlEntryName)
               Nothing -> throwM $ KMiscError $ note <> " note has no collection with name " <> nm
       _ -> throwM $ KMiscError $ note <> " is not a note entry"
+run (Col note mnm (Just toinsert)) = do
+  colNm <- throwMaybe (KMiscError "Cannot insert if the name of the collection is not specified") mnm
+  r <- addToCollection (MkId note) colNm $ ColItemEntry $ MkId toinsert
+  if r
+    then liftIO $ putStrLn "Inclusion succeeded"
+    else liftIO $ do
+      putStrLn "Inclusion failed"
+      exitFailure

@@ -6,6 +6,7 @@ import Korrvigs.Web.Collections (getColR)
 import Korrvigs.Web.Compute (getEntryComputeR)
 import Korrvigs.Web.Download (getEntryDownloadR)
 import Korrvigs.Web.Entry (getEntryR)
+import Korrvigs.Web.Note (getNoteColR)
 import Korrvigs.Web.Public.Crypto
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search (getSearchR)
@@ -43,3 +44,8 @@ getPublicSearchR :: Text -> Handler Html
 getPublicSearchR mac = do
   checkMac mac SearchR
   getSearchR
+
+getPublicNoteColR :: Text -> WebId -> Text -> Handler TypedContent
+getPublicNoteColR mac i col = do
+  checkMac mac $ NoteColR i col
+  getNoteColR i col

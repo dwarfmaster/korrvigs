@@ -166,13 +166,15 @@ getNoteWidget i col = do
   display <- runInputGet $ displayForm c
   entries <- displayResults display =<< loadCollection display items
   displayW <- displayResultForm display
+  public <- isPublic
   pure $ do
-    Rcs.formsStyle
-    [whamlet|
-      <form action=@{NoteColR (WId i) col} method=get>
-        ^{displayW}
-        <input type=submit value="Change display">
-    |]
+    unless public $ do
+      Rcs.formsStyle
+      [whamlet|
+        <form action=@{NoteColR (WId i) col} method=get>
+          ^{displayW}
+          <input type=submit value="Change display">
+      |]
     entries
 
 postNoteColR :: WebId -> Text -> Handler Value

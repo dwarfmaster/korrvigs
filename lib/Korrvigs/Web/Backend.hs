@@ -40,8 +40,7 @@ hdIsEntry (EntryDownloadR _) = True
 hdIsEntry (EntryMtdtR _) = True
 hdIsEntry (NoteR _) = True
 hdIsEntry (NoteSubR _ _) = True
-hdIsEntry (PublicEntryR _ _) = True
-hdIsEntry (PublicEntryDownloadR _ _) = True
+hdIsEntry (NoteColR _ _) = True
 hdIsEntry _ = False
 
 hdIsCol :: Route WebData -> Bool
@@ -78,6 +77,7 @@ isPublicRoute (PublicEntryDownloadR _ _) = True
 isPublicRoute (PublicEntryComputeR {}) = True
 isPublicRoute (PublicColR _ _) = True
 isPublicRoute (PublicSearchR _) = True
+isPublicRoute (PublicNoteColR {}) = True
 isPublicRoute _ = False
 
 isPublic :: Handler Bool

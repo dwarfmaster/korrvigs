@@ -98,6 +98,7 @@ in
     ln -s ${./ressources/icons/export.png} $out/icons/export.png
     ln -s ${./ressources/icons/open.png} $out/icons/open.png
     ln -s ${./ressources/icons/open-white.png} $out/icons/open-white.png
+    ln -s ${./ressources/icons/collection.png} $out/icons/collection.png
     mkdir -p $out/font
     cp ${charis}/web/*.woff2 $out/font
   ''

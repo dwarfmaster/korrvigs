@@ -158,6 +158,7 @@ library korrvigs-lib
     Korrvigs.Web
     Korrvigs.Web.Ace
     Korrvigs.Web.Actions
+    Korrvigs.Web.Actions.Collection
     Korrvigs.Web.Actions.Defs
     Korrvigs.Web.Actions.EventSync
     Korrvigs.Web.Actions.Export

@@ -1,13 +1,14 @@
 module Korrvigs.Note.AST where
 
-import Control.Lens
-import Data.Aeson (Value)
+import Control.Lens hiding ((.=))
+import Data.Aeson hiding (Array)
 import Data.Array
 import Data.CaseInsensitive (CI)
 import Data.Default
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Metadata.Task
 import Korrvigs.Query
@@ -74,6 +75,26 @@ data CollectionItem
   | ColItemQuery Query
   | ColItemComment Text
   deriving (Show)
+
+instance ToJSON CollectionItem where
+  toJSON (ColItemEntry i) =
+    object ["type" .= ("entry" :: Text), "entry" .= unId i]
+  toJSON (ColItemInclude i col) =
+    object ["type" .= ("include" :: Text), "entry" .= unId i, "col" .= col]
+  toJSON (ColItemQuery q) =
+    object ["type" .= ("query" :: Text), "query" .= q]
+  toJSON (ColItemComment c) =
+    object ["type" .= ("comment" :: Text), "comment" .= c]
+
+instance FromJSON CollectionItem where
+  parseJSON = withObject "CollectionItem" $ \obj -> do
+    tp <- obj .: "type"
+    case tp of
+      "entry" -> ColItemEntry . MkId <$> obj .: "entry"
+      "include" -> ColItemInclude . MkId <$> obj .: "entry" <*> obj .: "col"
+      "query" -> ColItemQuery <$> obj .: "query"
+      "comment" -> ColItemComment <$> obj .: "comment"
+      _ -> fail $ T.unpack tp <> " is not a valid collection item"
 
 data Block
   = Para [Inline]

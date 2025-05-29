@@ -37,6 +37,7 @@ korrvigsRoutes =
 -- Note getting
 /note/#WebId/sub NoteR GET POST
 /note/#WebId/sub/#WebAnyLoc NoteSubR GET POST
+/note/#WebId/col/#Text NoteColR GET POST
 
 -- Collections
 /collections/*[Text] ColR GET

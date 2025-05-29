@@ -3,25 +3,34 @@ module Korrvigs.Web.Note
     postNoteR,
     getNoteSubR,
     postNoteSubR,
+    getNoteColR,
+    postNoteColR,
   )
 where
 
 import Conduit
 import Control.Lens
+import Control.Monad
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.Conduit.Combinators (fold)
+import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Actions
+import Korrvigs.Actions.Collections
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata.Task
-import Korrvigs.Monad (KorrvigsError (KMiscError))
+import Korrvigs.Monad (KorrvigsError (KMiscError), throwEither)
 import Korrvigs.Note
+import Korrvigs.Note.AST
 import Korrvigs.Note.Pandoc
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
+import Korrvigs.Web.Search.Results
 import System.IO
 import Yesod hiding (check)
 
@@ -129,3 +138,33 @@ postNoteSubR (WId i) (WLoc loc) =
       _ -> notFound
   where
     parseTaskStatus txt = maybe (throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid task state") pure $ parseStatusName txt
+
+getNoteColR :: WebId -> Text -> Handler TypedContent
+getNoteColR (WId i) col = do
+  accept <- lookupHeader "accept"
+  if maybe False ("application/json" `BS.isPrefixOf`) accept
+    then toTypedContent <$> getNoteJson i col
+    else toTypedContent <$> (getNoteWidget i col >>= defaultLayout)
+
+getNoteJson :: Id -> Text -> Handler Value
+getNoteJson i col = do
+  entry <- load i >>= maybe notFound pure
+  note <- maybe notFound pure $ entry ^? kindData . _NoteD
+  md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
+  items <- maybe notFound pure $ md ^? docContent . each . bkCollection col . _3
+  pure $ toJSON items
+
+getNoteWidget :: Id -> Text -> Handler Widget
+getNoteWidget i col = do
+  entry <- load i >>= maybe notFound pure
+  note <- maybe notFound pure $ entry ^? kindData . _NoteD
+  md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
+  (c, _, items) <- maybe notFound pure $ md ^? docContent . each . bkCollection col
+  displayResults c =<< loadCollection c items
+
+postNoteColR :: WebId -> Text -> Handler Value
+postNoteColR (WId i) col = do
+  item <- requireCheckJsonBody
+  r <- addToCollection i col item
+  unless r $ throwM $ KMiscError "Failed to insert into collection"
+  pure $ toJSON ()

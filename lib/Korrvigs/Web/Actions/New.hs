@@ -41,6 +41,7 @@ newTarget TargetHome = True
 newTarget (TargetCollection []) = False
 newTarget (TargetCollection _) = True
 newTarget (TargetSearch _ _) = False
+newTarget (TargetNoteCollection _ _) = False
 
 mkNewTitle :: Text -> ActionTarget -> Text
 mkNewTitle suffix TargetHome = "Create " <> suffix
@@ -84,6 +85,7 @@ mkReaction (TargetCollection col) suffix i = do
       & reactAlert ?~ "Created " <> suffix <> ": @" <> unId i
       & reactRedirect ?~ render (ColR col)
 mkReaction (TargetSearch _ _) _ _ = pure def
+mkReaction (TargetNoteCollection _ _) _ _ = pure def
 
 newNoteForm :: AForm Handler NewNote
 newNoteForm = NewNote <$> areq textField "Title" Nothing

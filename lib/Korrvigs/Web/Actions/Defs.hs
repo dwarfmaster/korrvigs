@@ -16,6 +16,7 @@ data ActionTarget
   | TargetHome
   | TargetCollection [Text]
   | TargetSearch Query Collection
+  | TargetNoteCollection Note Text
 
 data ActionReaction = ActionReaction
   { _reactMsg :: Maybe Html,

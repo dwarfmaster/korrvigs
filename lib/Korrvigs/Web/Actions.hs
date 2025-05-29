@@ -3,6 +3,7 @@ module Korrvigs.Web.Actions
     postActHomeR,
     postActEntryR,
     postActSearchR,
+    postActNoteColR,
     actionsWidget,
     module Korrvigs.Web.Actions.Defs,
   )
@@ -117,6 +118,7 @@ actUrl lbl (TargetEntry entry) = ActEntryR (actName lbl) (WId $ entry ^. name)
 actUrl lbl TargetHome = ActHomeR (actName lbl)
 actUrl lbl (TargetCollection col) = ActColR (actName lbl) col
 actUrl lbl (TargetSearch _ _) = ActSearchR (actName lbl)
+actUrl lbl (TargetNoteCollection note col) = ActNoteColR (actName lbl) (WId $ note ^. noteEntry . name) col
 
 actForm :: ActionLabel -> ActionTarget -> Handler Widget
 actForm l@LabRemove = genForm removeForm removeTitle $ actUrl l
@@ -200,6 +202,16 @@ postActSearchR nm = do
   query <- runInputPost $ queryForm mktz Nothing
   display <- runInputPost $ displayForm ColList
   postHandler act $ TargetSearch query display
+
+postActNoteColR :: Text -> WebId -> Text -> Handler Value
+postActNoteColR nm (WId i) col =
+  load i >>= \case
+    Nothing -> notFound
+    Just entry -> case entry ^. kindData of
+      NoteD note -> do
+        act <- parseActionName nm
+        postHandler act $ TargetNoteCollection note col
+      _ -> notFound
 
 actionsWidget :: ActionTarget -> Handler Widget
 actionsWidget tgt = do

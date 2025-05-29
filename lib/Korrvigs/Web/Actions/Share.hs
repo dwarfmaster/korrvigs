@@ -16,6 +16,7 @@ shareTarget (TargetEntry _) = True
 shareTarget TargetHome = False
 shareTarget (TargetCollection _) = True
 shareTarget (TargetSearch _ _) = True
+shareTarget (TargetNoteCollection _ _) = True
 
 shareForm :: AForm Handler ()
 shareForm = pure ()
@@ -75,4 +76,18 @@ runShare () (TargetSearch q disp) = do
           <li>
             <a href=#{render (PublicSearchR public) params}>
               Share this query
+      |]
+runShare () (TargetNoteCollection note col) = do
+  public <- Public.signRoute (NoteColR (WId i) col) []
+  render <- getUrlRenderParams
+  let html = htmlUrl public render
+  pure $ def & reactMsg ?~ html
+  where
+    i = note ^. noteEntry . name
+    htmlUrl public =
+      [hamlet|
+        <ul>
+          <li>
+            <a href=@{PublicNoteColR public (WId i) col}>
+              Share this collection
       |]

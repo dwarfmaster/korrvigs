@@ -28,6 +28,7 @@ import Korrvigs.Monad (KorrvigsError (KMiscError), throwEither)
 import Korrvigs.Note
 import Korrvigs.Note.AST
 import Korrvigs.Note.Pandoc
+import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
@@ -167,8 +168,10 @@ getNoteWidget i col = do
   entries <- displayResults display =<< loadCollection display items
   displayW <- displayResultForm display
   public <- isPublic
+  actions <- actionsWidget $ TargetNoteCollection note col
   pure $ do
     unless public $ do
+      actions
       Rcs.formsStyle
       [whamlet|
         <form action=@{NoteColR (WId i) col} method=get>

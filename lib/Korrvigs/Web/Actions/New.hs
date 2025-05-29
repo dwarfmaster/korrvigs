@@ -2,18 +2,21 @@ module Korrvigs.Web.Actions.New where
 
 import Control.Arrow
 import Control.Lens
+import Control.Monad
 import Data.Default
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Korrvigs.Actions.Collections
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
 import qualified Korrvigs.Metadata.Media.New as NMedia
 import Korrvigs.Metadata.Media.Ontology
+import Korrvigs.Note.AST
 import qualified Korrvigs.Note.New as NNote
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
@@ -41,7 +44,7 @@ newTarget TargetHome = True
 newTarget (TargetCollection []) = False
 newTarget (TargetCollection _) = True
 newTarget (TargetSearch _ _) = False
-newTarget (TargetNoteCollection _ _) = False
+newTarget (TargetNoteCollection _ _) = True
 
 mkNewTitle :: Text -> ActionTarget -> Text
 mkNewTitle suffix TargetHome = "Create " <> suffix
@@ -85,7 +88,21 @@ mkReaction (TargetCollection col) suffix i = do
       & reactAlert ?~ "Created " <> suffix <> ": @" <> unId i
       & reactRedirect ?~ render (ColR col)
 mkReaction (TargetSearch _ _) _ _ = pure def
-mkReaction (TargetNoteCollection _ _) _ _ = pure def
+mkReaction (TargetNoteCollection note col) suffix i = do
+  void $ addToCollection (note ^. noteEntry . name) col (ColItemEntry i)
+  render <- getUrlRenderParams
+  let htmlUrl =
+        [hamlet|
+    <p>
+      Created #{suffix}:
+      <a href=@{EntryR $ WId i}>
+        <code>
+          #{unId i}
+  |]
+  pure $
+    def
+      & reactMsg ?~ htmlUrl render
+      & reactClipboard ?~ unId i
 
 newNoteForm :: AForm Handler NewNote
 newNoteForm = NewNote <$> areq textField "Title" Nothing

@@ -68,6 +68,13 @@ data Collection
   | ColKanban
   deriving (Show, Eq, Ord, Bounded, Enum)
 
+data CollectionItem
+  = ColItemEntry Id
+  | ColItemInclude Id Text
+  | ColItemQuery Query
+  | ColItemComment Text
+  deriving (Show)
+
 data Block
   = Para [Inline]
   | LineBlock [[Inline]]
@@ -79,8 +86,7 @@ data Block
   | Figure Attr [Block] [Block] -- The first block set is the caption
   | Embed Id -- Embed a document
   | EmbedHeader Id -- Embed a document as a sub header
-  | Collection Collection Text [Id]
-  | EmbedQuery Collection Text Query
+  | Collection Collection Text [CollectionItem]
   | Sub Header
   | Table Table
   deriving (Show)
@@ -200,13 +206,13 @@ bkSubBlocks f (Sub sub) = Sub . setBks <$> each (bkSubBlocks f) (sub ^. hdConten
 bkSubBlocks f x = bkBlocks f x
 
 -- Traversal over collections
-bkCollections' :: Traversal' Block (Collection, Text, [Id])
+bkCollections' :: Traversal' Block (Collection, Text, [CollectionItem])
 bkCollections' f (Collection col nm ids) = uncurry3 Collection <$> f (col, nm, ids)
 bkCollections' _ x = pure x
 
-bkCollections :: Traversal' Block (Collection, Text, [Id])
+bkCollections :: Traversal' Block (Collection, Text, [CollectionItem])
 bkCollections = bkSubBlocks . bkCollections'
 
--- bkCollection :: Text -> Traversal' Block (Collection, Text, [Id])
-bkCollection :: (Applicative f) => Text -> ((Collection, Text, [Id]) -> f (Collection, Text, [Id])) -> Block -> f Block
+-- bkCollection :: Text -> Traversal' Block (Collection, Text, [CollectionItem])
+bkCollection :: (Applicative f) => Text -> ((Collection, Text, [CollectionItem]) -> f (Collection, Text, [CollectionItem])) -> Block -> f Block
 bkCollection nm = bkCollections . filtered ((== nm) . view _2)

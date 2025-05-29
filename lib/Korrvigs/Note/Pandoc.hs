@@ -238,15 +238,7 @@ parseBlock (RawBlock (Format fmt) i)
       (hd : ids) -> do
         (col, colname) <- parseColName hd
         stack . bszCollections %= S.insert colname
-        pure . pure . A.Collection col colname . fmap MkId $ ids
-  | CI.mk fmt == "query" = case T.lines i of
-      [hd, q] -> do
-        (col, colname) <- parseColName hd
-        parsedQuery <- case eitherDecode (LEnc.encodeUtf8 $ LT.fromStrict q) of
-          Left _ -> pure def
-          Right pq -> pure pq
-        pure . pure . A.EmbedQuery col colname $ parsedQuery
-      _ -> pure $ pure $ A.EmbedQuery A.ColList "TODO" def
+        pure . pure . A.Collection col colname . fmap parseColItem $ ids
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks
 parseBlock (OrderedList _ bks) =
@@ -279,6 +271,19 @@ parseBlock (Figure attr (Caption _ caption) bks) = do
   let a = parseAttr attr
   pure . pure $ A.Figure a capt content
 parseBlock _ = pure []
+
+parseColItem :: Text -> A.CollectionItem
+parseColItem line = case prefix of
+  ". " -> A.ColItemEntry $ MkId suffix
+  "i " ->
+    let (i, col) = T.break (== ' ') suffix in A.ColItemInclude (MkId i) (T.strip col)
+  "q " -> case eitherDecode (LEnc.encodeUtf8 $ LT.fromStrict suffix) of
+    Left err -> A.ColItemComment $ suffix <> ": " <> T.pack err
+    Right q -> A.ColItemQuery q
+  "# " -> A.ColItemComment suffix
+  _ -> A.ColItemComment line
+  where
+    (prefix, suffix) = T.splitAt 2 line
 
 mkTask :: TaskStatus -> Text -> Task
 mkTask st stname = Task st stname "" Nothing Nothing Nothing Nothing

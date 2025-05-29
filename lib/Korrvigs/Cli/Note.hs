@@ -9,6 +9,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import Korrvigs.Actions
+import Korrvigs.Actions.Collections
 import Korrvigs.Cli.Monad
 import Korrvigs.Cli.New
 import Korrvigs.Entry
@@ -209,7 +210,9 @@ run (Col note mnm) =
           Left err -> throwM $ KMiscError $ "Failed to load " <> T.pack (ne ^. notePath) <> ": " <> err
           Right md -> case mnm of
             Nothing -> forM_ (md ^. docCollections) $ liftIO . putStrLn
-            Just nm -> case md ^? docContent . each . bkCollection nm . _3 of
-              Just ids -> forM_ ids $ liftIO . putStrLn . unId
+            Just nm -> case md ^? docContent . each . bkCollection nm of
+              Just (c, _, items) -> do
+                res <- loadCollection c items
+                forM_ res $ liftIO . putStrLn . unId . view (_1 . sqlEntryName)
               Nothing -> throwM $ KMiscError $ note <> " note has no collection with name " <> nm
       _ -> throwM $ KMiscError $ note <> " is not a note entry"

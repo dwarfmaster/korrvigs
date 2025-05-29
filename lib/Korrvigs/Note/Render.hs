@@ -193,12 +193,7 @@ renderBlock (EmbedHeader (MkId i)) = do
 renderBlock (Collection col nm ids) = do
   writeText "```{=collection}" >> flush >> newline
   renderCollection col nm
-  forM_ ids $ \(MkId i) -> writeText i >> flush >> newline
-  writeText "```"
-renderBlock (EmbedQuery col nm query) = do
-  writeText "```{=query}" >> flush >> newline
-  renderCollection col nm
-  writeText (LT.toStrict $ encodeToLazyText query) >> flush >> newline
+  forM_ ids $ \colItem -> renderColItem colItem >> flush >> newline
   writeText "```"
 renderBlock (Sub header) = do
   writeText $ mconcat $ replicate (header ^. hdLevel) "#"
@@ -216,6 +211,15 @@ renderBlock (Sub header) = do
 renderBlock (Table tbl) = do
   width <- ask
   renderTable width (\w -> runRenderM w . renderTopLevel False) tbl
+
+renderColItem :: CollectionItem -> RenderM ()
+renderColItem (ColItemEntry i) = writeText ". " >> writeText (unId i)
+renderColItem (ColItemInclude i c) =
+  writeText "i " >> writeText (unId i) >> writeText " " >> writeText c
+renderColItem (ColItemQuery q) =
+  writeText "q " >> writeText (LT.toStrict $ encodeToLazyText q)
+renderColItem (ColItemComment comment) =
+  writeText "# " >> writeText comment
 
 renderCollection :: Collection -> Text -> RenderM ()
 renderCollection col nm =

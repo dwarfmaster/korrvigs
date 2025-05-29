@@ -2,6 +2,7 @@ module Korrvigs.Utils where
 
 import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Data.Foldable
 import Data.Maybe
@@ -82,3 +83,13 @@ uncurry3 f (a, b, c) = f a b c
 
 fromMaybeT :: (Monad m) => a -> MaybeT m a -> m a
 fromMaybeT d act = fromMaybe d <$> runMaybeT act
+
+hoistLift :: (Monad m) => m (Maybe a) -> MaybeT m a
+hoistLift act = lift act >>= hoistMaybe
+
+hoistEither :: (Monad m) => Either a b -> MaybeT m b
+hoistEither (Left _) = mzero
+hoistEither (Right v) = pure v
+
+hoistEitherLift :: (Monad m) => m (Either e a) -> MaybeT m a
+hoistEitherLift act = lift act >>= hoistEither

@@ -28,6 +28,7 @@ module Korrvigs.Note
     Block (..),
     Inline (..),
     Collection (..),
+    CollectionItem (..),
     Style (..),
     Attr (..),
     attrId,

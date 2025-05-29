@@ -7,18 +7,14 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
-import Data.Default
 import Data.Maybe
-import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
 import Data.Time.LocalTime
-import Korrvigs.Compute.Action
+import Korrvigs.Actions.Collections
 import Korrvigs.Entry
 import Korrvigs.Kind
-import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note (Collection (..))
-import Korrvigs.Query
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.FullCalendar as Cal
@@ -32,53 +28,6 @@ import qualified Korrvigs.Web.Vis.Timeline as Timeline
 import Opaleye hiding (Field)
 import qualified Opaleye as O
 import Yesod
-
-data OptionalSQLDataImpl a b = OptionalSQLData
-  { _optTitle :: a,
-    _optSizeAction :: b
-  }
-
-makeLenses ''OptionalSQLDataImpl
-$(makeAdaptorAndInstanceInferrable "pOptSQLData" ''OptionalSQLDataImpl)
-
-type OptionalSQLData = OptionalSQLDataImpl (Maybe Text) (Maybe Action)
-
-type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlText) (FieldNullable SqlJsonb)
-
-instance Default OptionalSQLData where
-  def = OptionalSQLData Nothing Nothing
-
-instance Default OptionalSQLDataSQL where
-  def = OptionalSQLData O.null O.null
-
-optDef :: OptionalSQLDataSQL
-optDef = def
-
-otherQuery :: Collection -> EntryRowSQL -> Select OptionalSQLDataSQL
-otherQuery display entry = case display of
-  ColGallery -> do
-    void $ selComp (entry ^. sqlEntryName) "miniature"
-    sz <- selComp (entry ^. sqlEntryName) "size"
-    pure $ optDef & optSizeAction .~ toNullable (sz ^. sqlCompAction)
-  ColNetwork -> pure optDef
-  _ -> do
-    title <- selectTextMtdt Title $ entry ^. sqlEntryName
-    pure $ optDef & optTitle .~ title
-
-runQuery :: Collection -> Query -> Handler [(EntryRow, OptionalSQLData)]
-runQuery display query = rSelect $ do
-  entry <- compile query
-  other <- otherQuery display entry
-  pure (entry, other)
-
-expandIDs :: Collection -> [Id] -> Handler [(EntryRow, OptionalSQLData)]
-expandIDs display ids = do
-  res <- forM ids $ \i -> rSelectOne $ do
-    entry <- selectTable entriesTable
-    where_ $ entry ^. sqlEntryName .== sqlId i
-    other <- otherQuery display entry
-    pure (entry, other)
-  pure $ catMaybes res
 
 displayEntry :: (EntryRow, Maybe Text) -> Handler Html
 displayEntry (entry, title) = do

@@ -13,6 +13,7 @@ import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Actions
+import Korrvigs.Actions.Collections
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Task
@@ -282,11 +283,8 @@ compileBlock' (EmbedHeader i) = do
                 (if tk ^. tskStatus == TaskDone then 1 else 0)
                 (if tk ^. tskStatus == TaskDont then 1 else 0)
         propagateChecks embedId tkchecks
-compileBlock' (Collection col nm ids) = do
-  wdg <- lift $ displayResults col =<< expandIDs col ids
-  pure $ colWidget nm wdg
-compileBlock' (EmbedQuery col nm q) = do
-  wdg <- lift $ displayResults col =<< runQuery col q
+compileBlock' (Collection col nm items) = do
+  wdg <- lift $ displayResults col =<< loadCollection col items
   pure $ colWidget nm wdg
 compileBlock' (Sub hd) = do
   -- Compute level shift

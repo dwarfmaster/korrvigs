@@ -181,8 +181,8 @@ queryRelForm mktz prefix =
                 )
         )
 
-displayForm :: FormInput Handler Collection
-displayForm = fromMaybe ColList <$> iopt displayResultsField "display"
+displayForm :: Collection -> FormInput Handler Collection
+displayForm c = fromMaybe c <$> iopt displayResultsField "display"
 
 getParameters :: Maybe Text -> Query -> Collection -> [(Text, Text)]
 getParameters prefix q display =

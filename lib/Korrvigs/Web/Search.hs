@@ -1,4 +1,4 @@
-module Korrvigs.Web.Search (getSearchR, queryForm) where
+module Korrvigs.Web.Search (getSearchR, queryForm, displayResultForm) where
 
 import Control.Lens
 import Control.Monad
@@ -330,7 +330,7 @@ getSearchR = do
   tz <- liftIO getCurrentTimeZone
   let mktz = fmap $ flip ZonedTime tz
   q' <- runInputGet $ queryForm mktz Nothing
-  display <- runInputGet displayForm
+  display <- runInputGet $ displayForm ColList
   hasMaxResults <- isJust <$> lookupGetParam "maxresults"
   let q = displayFixQuery display $ (if hasMaxResults then id else fixMaxResults) $ fixOrder q'
   search <- searchForm q display

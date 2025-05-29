@@ -29,7 +29,10 @@ import Korrvigs.Note
 import Korrvigs.Note.AST
 import Korrvigs.Note.Pandoc
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
+import Korrvigs.Web.Search
+import Korrvigs.Web.Search.Form
 import Korrvigs.Web.Search.Results
 import System.IO
 import Yesod hiding (check)
@@ -160,7 +163,17 @@ getNoteWidget i col = do
   note <- maybe notFound pure $ entry ^? kindData . _NoteD
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   (c, _, items) <- maybe notFound pure $ md ^? docContent . each . bkCollection col
-  displayResults c =<< loadCollection c items
+  display <- runInputGet $ displayForm c
+  entries <- displayResults display =<< loadCollection display items
+  displayW <- displayResultForm display
+  pure $ do
+    Rcs.formsStyle
+    [whamlet|
+      <form action=@{NoteColR (WId i) col} method=get>
+        ^{displayW}
+        <input type=submit value="Change display">
+    |]
+    entries
 
 postNoteColR :: WebId -> Text -> Handler Value
 postNoteColR (WId i) col = do

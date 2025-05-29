@@ -16,6 +16,7 @@ import Data.Text (Text)
 import Data.Time.LocalTime
 import Korrvigs.Actions.SQL
 import Korrvigs.Entry
+import Korrvigs.Note.AST
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Actions.EventSync
@@ -197,7 +198,7 @@ postActSearchR nm = do
   tz <- liftIO getCurrentTimeZone
   let mktz = fmap $ flip ZonedTime tz
   query <- runInputPost $ queryForm mktz Nothing
-  display <- runInputPost displayForm
+  display <- runInputPost $ displayForm ColList
   postHandler act $ TargetSearch query display
 
 actionsWidget :: ActionTarget -> Handler Widget

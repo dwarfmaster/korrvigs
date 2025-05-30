@@ -113,3 +113,6 @@ collectionsFor i = fmap (fromMaybe []) $ rSelectOne $ do
   note <- selectTable notesTable
   where_ $ note ^. sqlNoteName .== sqlId i
   pure $ note ^. sqlNoteCollections
+
+capture :: (MonadKorrvigs m) => Id -> m Bool
+capture = addToCollection (MkId "Favourites") "captured" . ColItemEntry

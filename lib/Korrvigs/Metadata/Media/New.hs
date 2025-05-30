@@ -33,6 +33,7 @@ import qualified Korrvigs.Metadata.Media.Pandoc as Pd
 import qualified Korrvigs.Metadata.Media.Steam as Steam
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
+import Korrvigs.Monad.Collections (capture)
 import Korrvigs.Monad.Metadata (updateParents)
 import qualified Korrvigs.Note.New as Note
 
@@ -160,6 +161,7 @@ new nm = do
   i <- case nmed of
     NewLinkMedia url nl -> Link.new url nl
     NewNoteMedia nn -> Note.new nn
+  void $ capture i
   forM_ subs $
     load >=> \case
       Nothing -> pure ()

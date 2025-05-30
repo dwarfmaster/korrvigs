@@ -334,7 +334,7 @@ colWidget :: Id -> Text -> Widget -> Handler Widget
 colWidget i nm widget = do
   pure
     [whamlet|
-    <details .collection ##{nm}>
+    <details .collection ##{nm} open="true">
       <summary>
         ##{nm}
         <a href=@{NoteColR (WId i) nm}>

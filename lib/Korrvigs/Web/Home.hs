@@ -2,6 +2,8 @@ module Korrvigs.Web.Home (getHomeR) where
 
 import Control.Lens
 import Control.Monad
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Maybe
 import Data.Default
 import Data.Maybe
 import Data.Text (Text)
@@ -10,19 +12,17 @@ import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
-import Korrvigs.Metadata.Collections
 import Korrvigs.Monad
 import Korrvigs.Query
+import Korrvigs.Utils
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
-import qualified Korrvigs.Web.Collections as Cols
+import qualified Korrvigs.Web.Entry.Note as Note
 import qualified Korrvigs.Web.FullCalendar as FC
 import qualified Korrvigs.Web.Ressources as Rcs
+import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widgets
-import Text.Blaze (textValue, (!))
-import qualified Text.Blaze.Html5 as Html
-import qualified Text.Blaze.Html5.Attributes as Attr
 import Yesod hiding (joinPath)
 
 getEvents :: Handler [(EntryRow, Maybe Text)]
@@ -53,13 +53,23 @@ eventsWidget = do
     FC.header
     widget
 
+favouritesWidget :: Handler Widget
+favouritesWidget = fromMaybeT notFoundWidget $ do
+  let i = MkId "Favourites"
+  entry <- hoistLift $ load i
+  note <- hoistMaybe $ entry ^? kindData . _NoteD
+  (widget, _) <- lift $ Note.embed 1 note
+  pure widget
+  where
+    notFoundWidget :: Widget
+    notFoundWidget = [whamlet|<p>No entry with id Favourites|]
+
 displayHome :: Handler Html
 displayHome = do
   let actionsHd = [whamlet|<h2> ^{Widgets.headerSymbol "⊕"} Actions|]
   actions <- actionsWidget TargetHome
-  render <- getUrlRender
-  let hd = Html.a "Favourites" ! Attr.href (textValue $ render $ ColR ["Favourite"])
-  favs <- Cols.displayTree Nothing 1 1 hd ["Favourite"] =<< colTree MiscCollection ["Favourite"] True
+  let favsHd = [whamlet|<h2> ^{Widgets.headerSymbol "★"} <a href=@{EntryR $ WId $ MkId "Favourites"}>Favourites|]
+  favs <- favouritesWidget
   let eventsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🕑"} Calendar|]
   evs <- eventsWidget
   defaultLayout $ do
@@ -68,10 +78,12 @@ displayHome = do
     Rcs.entryStyle
     Rcs.formsStyle
     Widgets.sectionLogic
+    Rcs.checkboxCode
+    toWidget [julius|checkboxCleanSpans();|]
     [whamlet|
     <h1>Welcome to Korrvigs
     ^{void $ Widgets.mkSection 1 [] [] actionsHd actions}
-    ^{favs}
+    ^{void $ Widgets.mkSection 1 [] [] favsHd favs}
     ^{void $ Widgets.mkSection 1 [] [] eventsHd evs}
   |]
 

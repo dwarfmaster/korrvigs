@@ -196,7 +196,7 @@ new path' options' = do
   when (annex && not alreadyAnnexed) $ annexAdd rt stored
   when alreadyAnnexed $ void $ runSilentK (proc "git" ["annex", "fix", stored]) {cwd = Just rt}
   syncFileOfKind stored File
-  when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path
+  when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path'
   comps <- listCompute i
   forM_ comps Cpt.run
   pure i

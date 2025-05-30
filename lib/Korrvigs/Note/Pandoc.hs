@@ -238,7 +238,10 @@ parseBlock (RawBlock (Format fmt) i)
       (hd : ids) -> do
         (col, colname) <- parseColName hd
         stack . bszCollections %= S.insert colname
-        pure . pure . A.Collection col colname . fmap parseColItem $ ids
+        let items = parseColItem <$> ids
+        let directItems = mapMaybe extractItem items
+        forM_ directItems refTo
+        pure . pure . A.Collection col colname $ items
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks
 parseBlock (OrderedList _ bks) =
@@ -284,6 +287,10 @@ parseColItem line = case prefix of
   _ -> A.ColItemComment line
   where
     (prefix, suffix) = T.splitAt 2 line
+
+extractItem :: A.CollectionItem -> Maybe Id
+extractItem (A.ColItemEntry i) = Just i
+extractItem _ = Nothing
 
 mkTask :: TaskStatus -> Text -> Task
 mkTask st stname = Task st stname "" Nothing Nothing Nothing Nothing

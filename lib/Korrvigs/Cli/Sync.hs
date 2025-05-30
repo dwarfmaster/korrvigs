@@ -1,8 +1,8 @@
 module Korrvigs.Cli.Sync where
 
 import Control.Lens
-import qualified Korrvigs.Actions as A
 import Korrvigs.Cli.Monad
+import qualified Korrvigs.Monad.Sync as A
 import Options.Applicative
 
 newtype Cmd = Cmd

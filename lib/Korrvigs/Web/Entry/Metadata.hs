@@ -7,8 +7,8 @@ import qualified Data.CaseInsensitive as CI
 import qualified Data.Map as M
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as Enc
-import Korrvigs.Actions (loadMetadata)
 import Korrvigs.Entry
+import Korrvigs.Monad (loadMetadata)
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Yesod

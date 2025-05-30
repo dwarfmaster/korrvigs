@@ -7,10 +7,10 @@ import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
 import GHC.Int (Int64)
-import Korrvigs.Actions.Utils
 import Korrvigs.Entry
 import Korrvigs.Kind
-import Korrvigs.Monad
+import Korrvigs.Monad.Class
+import Korrvigs.Monad.Utils
 import Opaleye
 
 data EventRowImpl a b c d = EventRow

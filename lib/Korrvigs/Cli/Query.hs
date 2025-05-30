@@ -13,7 +13,6 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Korrvigs.Actions
 import qualified Korrvigs.Cli.Info as Info
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry

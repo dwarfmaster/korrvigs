@@ -20,7 +20,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy.IO as TLIO
 import Data.Time.LocalTime
-import Korrvigs.Actions
 import qualified Korrvigs.Compute as Cpt
 import Korrvigs.Entry
 import Korrvigs.Entry.New
@@ -31,6 +30,8 @@ import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Android
 import Korrvigs.Monad
+import Korrvigs.Monad.Metadata (listCompute)
+import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils (joinNull, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
 import Korrvigs.Utils.Git.Annex

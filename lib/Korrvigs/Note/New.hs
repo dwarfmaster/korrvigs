@@ -11,13 +11,13 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
+import Korrvigs.Monad.Sync
 import Korrvigs.Note.AST
 import Korrvigs.Note.Render
 import Korrvigs.Note.Sync

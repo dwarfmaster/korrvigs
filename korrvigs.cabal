@@ -28,13 +28,6 @@ library korrvigs-lib
   ghc-options:        -Wall -Werror=incomplete-patterns -fwrite-ide-info
   exposed-modules:
     Korrvigs
-    Korrvigs.Actions
-    Korrvigs.Actions.Collections
-    Korrvigs.Actions.Metadata
-    Korrvigs.Actions.Remove
-    Korrvigs.Actions.SQL
-    Korrvigs.Actions.Sync
-    Korrvigs.Actions.Utils
     Korrvigs.Calendar
     Korrvigs.Calendar.DAV
     Korrvigs.Calendar.JSON
@@ -123,6 +116,13 @@ library korrvigs-lib
     Korrvigs.Metadata.Task
     Korrvigs.Metadata.TH
     Korrvigs.Monad
+    Korrvigs.Monad.Class
+    Korrvigs.Monad.Collections
+    Korrvigs.Monad.Metadata
+    Korrvigs.Monad.Remove
+    Korrvigs.Monad.SQL
+    Korrvigs.Monad.Sync
+    Korrvigs.Monad.Utils
     Korrvigs.Note
     Korrvigs.Note.AST
     Korrvigs.Note.Helpers

@@ -12,11 +12,11 @@ import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Actions
-import Korrvigs.Actions.Collections
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Task
+import Korrvigs.Monad
+import Korrvigs.Monad.Collections
 import Korrvigs.Note hiding (code, task)
 import qualified Korrvigs.Web.Ace as Ace
 import Korrvigs.Web.Backend

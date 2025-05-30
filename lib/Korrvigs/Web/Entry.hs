@@ -9,7 +9,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
-import Korrvigs.Actions
 import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import Korrvigs.Kind

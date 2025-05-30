@@ -7,13 +7,13 @@ import Data.Default
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Actions.Collections
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
 import qualified Korrvigs.Metadata.Media.New as NMedia
 import Korrvigs.Metadata.Media.Ontology
+import Korrvigs.Monad.Collections
 import Korrvigs.Note.AST
 import qualified Korrvigs.Note.New as NNote
 import Korrvigs.Web.Actions.Defs

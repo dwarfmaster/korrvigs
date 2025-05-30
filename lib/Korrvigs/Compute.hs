@@ -16,7 +16,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy.Encoding as LEnc
-import Korrvigs.Actions.SQL
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Compute.Action
 import qualified Korrvigs.Compute.Builtin as Builtin

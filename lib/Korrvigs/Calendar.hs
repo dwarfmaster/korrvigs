@@ -2,7 +2,6 @@ module Korrvigs.Calendar (calendarPath, listCalendars) where
 
 import Control.Lens
 import Data.Maybe
-import Korrvigs.Actions
 import Korrvigs.Calendar.SQL
 import Korrvigs.Calendar.Sync
 import Korrvigs.Entry

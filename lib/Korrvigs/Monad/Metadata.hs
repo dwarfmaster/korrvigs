@@ -1,4 +1,4 @@
-module Korrvigs.Actions.Metadata (updateMetadata, updateParents, listCompute) where
+module Korrvigs.Monad.Metadata (updateMetadata, updateParents, listCompute) where
 
 import Control.Lens
 import Control.Monad
@@ -12,7 +12,7 @@ import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
 import qualified Korrvigs.Link.Sync as Link
-import Korrvigs.Monad
+import Korrvigs.Monad.Class
 import qualified Korrvigs.Note.Sync as Note
 import Opaleye hiding (not, null)
 

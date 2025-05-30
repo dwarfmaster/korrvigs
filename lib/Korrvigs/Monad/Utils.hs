@@ -1,9 +1,9 @@
-module Korrvigs.Actions.Utils where
+module Korrvigs.Monad.Utils where
 
 import Data.Profunctor.Product.Default
 import GHC.Int (Int64)
 import Korrvigs.Entry
-import Korrvigs.Monad
+import Korrvigs.Monad.Class
 import Opaleye
 
 genSqlLoad :: forall w sql hs kd m. (Default FromFields sql hs, Default Unpackspec sql sql, MonadKorrvigs m) => Table w sql -> (sql -> Field SqlText) -> (hs -> Entry -> kd) -> Id -> ((Entry -> kd) -> Entry) -> m (Maybe Entry)

@@ -8,8 +8,6 @@ import Data.Default
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
-import Korrvigs.Actions
-import Korrvigs.Actions.Collections
 import Korrvigs.Cli.Monad
 import Korrvigs.Cli.New
 import Korrvigs.Entry
@@ -17,6 +15,7 @@ import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NF
 import qualified Korrvigs.Link.New as NL
 import Korrvigs.Monad
+import Korrvigs.Monad.Collections
 import Korrvigs.Note
 import Korrvigs.Note.AST (bkCollection)
 import Korrvigs.Note.New

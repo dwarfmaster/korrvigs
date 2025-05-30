@@ -19,7 +19,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.LocalTime
-import Korrvigs.Actions (load, remove, syncFileOfKind)
 import Korrvigs.Calendar.Sync (calendarPath, updateCache)
 import Korrvigs.Compute
 import Korrvigs.Compute.Action
@@ -31,6 +30,8 @@ import Korrvigs.Event.Sync (eventIdFromPath, eventsDirectory)
 import qualified Korrvigs.Event.Sync as Ev
 import Korrvigs.Kind
 import Korrvigs.Monad
+import Korrvigs.Monad.Remove (remove)
+import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils (partitionM)
 import qualified Korrvigs.Utils.DAV.Cal as DAV
 import Korrvigs.Utils.DAV.Web (DavRessource (..), DavTag (..))

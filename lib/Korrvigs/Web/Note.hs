@@ -19,12 +19,12 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
-import Korrvigs.Actions
-import Korrvigs.Actions.Collections
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata.Task
-import Korrvigs.Monad (KorrvigsError (KMiscError), throwEither)
+import Korrvigs.Monad
+import Korrvigs.Monad.Collections
+import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Note
 import Korrvigs.Note.AST
 import Korrvigs.Note.Pandoc

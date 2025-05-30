@@ -3,8 +3,8 @@ module Korrvigs.Web.Actions.Collection where
 import Control.Lens
 import Data.Default
 import Data.Text (Text)
-import Korrvigs.Actions.Collections
 import Korrvigs.Entry
+import Korrvigs.Monad.Collections
 import Korrvigs.Note.AST
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend

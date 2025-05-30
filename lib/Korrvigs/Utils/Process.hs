@@ -2,7 +2,7 @@ module Korrvigs.Utils.Process where
 
 import Control.Monad.IO.Class
 import qualified Data.ByteString.Lazy as LBS
-import Korrvigs.Monad
+import Korrvigs.Monad.Class
 import System.Exit
 import System.IO
 import System.Process

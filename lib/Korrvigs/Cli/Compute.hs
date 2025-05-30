@@ -11,7 +11,6 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStr, putStrLn)
-import Korrvigs.Actions.Metadata
 import Korrvigs.Cli.Monad
 import Korrvigs.Compute
 import qualified Korrvigs.Compute as Cmp
@@ -21,6 +20,7 @@ import Korrvigs.Compute.Declare
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
+import Korrvigs.Monad.Metadata
 import Korrvigs.Utils.Crypto
 import Opaleye hiding (null)
 import Options.Applicative

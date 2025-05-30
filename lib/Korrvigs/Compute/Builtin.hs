@@ -11,7 +11,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Korrvigs.Compute.Declare
 import Korrvigs.Entry
-import Korrvigs.Monad
+import Korrvigs.Monad.Class
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Process
 import Network.Mime (MimeType)

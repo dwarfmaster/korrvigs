@@ -1,6 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module Korrvigs.Actions.Collections where
+module Korrvigs.Monad.Collections where
 
 import Control.Lens
 import Control.Monad
@@ -14,11 +14,11 @@ import Data.Maybe
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import qualified Data.Set as S
 import Data.Text (Text)
-import Korrvigs.Actions.SQL
 import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import Korrvigs.Metadata
-import Korrvigs.Monad
+import Korrvigs.Monad.Class
+import Korrvigs.Monad.SQL
 import Korrvigs.Note
 import Korrvigs.Note.AST
 import Korrvigs.Note.SQL

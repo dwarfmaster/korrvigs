@@ -10,10 +10,10 @@ import Control.Monad.Trans.Maybe
 import Data.Maybe
 import Data.Text (Text)
 import Data.Time.LocalTime
-import Korrvigs.Actions.Collections
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
+import Korrvigs.Monad.Collections
 import Korrvigs.Note (Collection (..))
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend

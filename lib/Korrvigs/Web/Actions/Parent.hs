@@ -3,9 +3,9 @@ module Korrvigs.Web.Actions.Parent where
 import Control.Lens
 import Data.Default
 import Data.Text (Text)
-import Korrvigs.Actions.Metadata
-import Korrvigs.Actions.SQL
 import Korrvigs.Entry
+import Korrvigs.Monad.Metadata
+import Korrvigs.Monad.SQL
 import Korrvigs.Utils
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend

@@ -14,8 +14,8 @@ import Control.Monad
 import qualified Data.Map as M
 import Data.Text (Text)
 import Data.Time.LocalTime
-import Korrvigs.Actions.SQL
 import Korrvigs.Entry
+import Korrvigs.Monad.SQL
 import Korrvigs.Note.AST
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Actions.Collection

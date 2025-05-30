@@ -8,7 +8,6 @@ import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
-import Korrvigs.Actions
 import Korrvigs.Calendar.DAV
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.Sync
@@ -17,6 +16,7 @@ import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.Kind
 import Korrvigs.Monad
+import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils.Crypto
 import Korrvigs.Utils.JSON (writeJsonToFile)
 import System.Directory

@@ -19,7 +19,6 @@ import qualified Data.Map as M
 import Data.Maybe
 import qualified Data.Set as S
 import Data.Text (Text)
-import Korrvigs.Actions (load, updateParents)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import qualified Korrvigs.Link.New as Link
@@ -34,6 +33,7 @@ import qualified Korrvigs.Metadata.Media.Pandoc as Pd
 import qualified Korrvigs.Metadata.Media.Steam as Steam
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
+import Korrvigs.Monad.Metadata (updateParents)
 import qualified Korrvigs.Note.New as Note
 
 data NewMedia = NewMedia

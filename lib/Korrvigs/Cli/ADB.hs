@@ -6,11 +6,12 @@ import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.Map as M
 import qualified Data.Text as T
-import Korrvigs.Actions
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Android
+import Korrvigs.Monad
+import Korrvigs.Monad.Metadata
 import Options.Applicative
 import System.Directory
 import System.FilePath

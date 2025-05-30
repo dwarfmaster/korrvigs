@@ -17,7 +17,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time.LocalTime
-import Korrvigs.Actions.SQL
 import qualified Korrvigs.Compute.Action as Act
 import Korrvigs.Compute.Builtin
 import Korrvigs.Entry

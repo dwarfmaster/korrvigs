@@ -1,4 +1,4 @@
-module Korrvigs.Actions.SQL
+module Korrvigs.Monad.SQL
   ( load,
     loadMetadata,
     removeKindDB,
@@ -31,7 +31,7 @@ import Korrvigs.FTS
 import qualified Korrvigs.File.SQL as File
 import Korrvigs.Kind
 import qualified Korrvigs.Link.SQL as Link
-import Korrvigs.Monad
+import Korrvigs.Monad.Class
 import qualified Korrvigs.Note.SQL as Note
 import Opaleye hiding (null)
 

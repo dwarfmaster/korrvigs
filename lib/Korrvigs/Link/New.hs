@@ -34,7 +34,6 @@ import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import qualified Data.Vector as V
-import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Download
@@ -43,6 +42,7 @@ import Korrvigs.Link.JSON
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
+import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils (joinNull)
 import Korrvigs.Utils.DateTree
 import Korrvigs.Utils.JSON

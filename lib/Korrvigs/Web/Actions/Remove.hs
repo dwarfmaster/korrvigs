@@ -3,7 +3,7 @@ module Korrvigs.Web.Actions.Remove where
 import Control.Lens
 import Data.Default
 import Data.Text (Text)
-import Korrvigs.Actions.Remove
+import Korrvigs.Monad.Remove
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import Yesod

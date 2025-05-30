@@ -1,4 +1,4 @@
-module Korrvigs.Actions.Sync (sync, syncFile, syncFileOfKind) where
+module Korrvigs.Monad.Sync (sync, syncFile, syncFileOfKind) where
 
 import Conduit (throwM)
 import Control.Arrow ((&&&))
@@ -16,8 +16,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
-import Korrvigs.Actions.Remove
-import Korrvigs.Actions.SQL
 import qualified Korrvigs.Calendar.SQL as CalS
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Entry
@@ -28,7 +26,9 @@ import qualified Korrvigs.File.Sync as File
 import Korrvigs.Kind
 import qualified Korrvigs.Link.SQL as LinkS
 import qualified Korrvigs.Link.Sync as Link
-import Korrvigs.Monad
+import Korrvigs.Monad.Class
+import Korrvigs.Monad.Remove
+import Korrvigs.Monad.SQL
 import qualified Korrvigs.Note.SQL as NoteS
 import qualified Korrvigs.Note.Sync as Note
 import Korrvigs.Utils.Cycle

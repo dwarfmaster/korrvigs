@@ -14,12 +14,12 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Actions
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import qualified Korrvigs.Metadata.Android.ADB as ADB
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad
+import Korrvigs.Monad.Metadata
 import Korrvigs.Utils.JSON
 import Opaleye
 import System.Directory

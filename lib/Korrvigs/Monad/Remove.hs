@@ -1,13 +1,13 @@
-module Korrvigs.Actions.Remove where
+module Korrvigs.Monad.Remove where
 
 import Control.Lens
-import Korrvigs.Actions.SQL
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
 import qualified Korrvigs.Link.Sync as Link
-import Korrvigs.Monad
+import Korrvigs.Monad.Class
+import Korrvigs.Monad.SQL
 import qualified Korrvigs.Note.Sync as Note
 
 remove :: (MonadKorrvigs m) => Entry -> m ()

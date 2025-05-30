@@ -28,9 +28,9 @@ import Korrvigs.Web.Public.Crypto (mkPublic)
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search.Results
+import Korrvigs.Web.Widgets (applyAttr)
 import qualified Korrvigs.Web.Widgets as Wdgs
 import Text.Blaze hiding ((!))
-import qualified Text.Blaze as Blz
 import qualified Text.Blaze.Html5 as Html
 import qualified Text.Blaze.Html5.Attributes as Attr
 import Text.Julius hiding (js)
@@ -390,9 +390,6 @@ compileAttrWithClasses cls attr =
 compileAttr :: Attr -> [(Text, Text)]
 compileAttr = compileAttrWithClasses []
 
-applyAttr :: Attribute -> Html -> Html
-applyAttr attr html = html Blz.! attr
-
 compileAttr' :: Attr -> Html -> Html
 compileAttr' (MkAttr i clss misc) = applyId . applyClasses . applyMisc
   where
@@ -551,27 +548,10 @@ compileInline (Check ck) = do
   render <- getUrlRender
   loc <- CheckLoc <$> use subLoc <*> use checkboxCount
   entry <- use currentEntry
-  let todoUrl = render $ checkImg TaskTodo
-  let importantUrl = render $ checkImg TaskImportant
-  let ongoingUrl = render $ checkImg TaskOngoing
-  let blockedUrl = render $ checkImg TaskBlocked
-  let doneUrl = render $ checkImg TaskDone
-  let dontUrl = render $ checkImg TaskDont
   let postUrl = render $ NoteSubR (WId entry) $ WLoc $ LocCheck loc
   checkboxCount += 1
-  cid <- newIdent
-  let w = toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{importantUrl}, #{ongoingUrl}, #{blockedUrl}, #{doneUrl}, #{dontUrl}, #{cid});|]
-  let h =
-        applyAttr (Attr.id $ textValue cid) $
-          applyAttr (Attr.src $ textValue $ render $ checkImg ck) $
-            applyAttr (Attr.class_ "checkBox") Html.img
+  let setup todoUrl importantUrl ongoingUrl blockedUrl doneUrl dontUrl cid =
+        toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{importantUrl}, #{ongoingUrl}, #{blockedUrl}, #{doneUrl}, #{dontUrl}, #{cid});|]
+  (h, w, _) <- lift $ Wdgs.checkBox ck setup
   public <- lift isPublic
   pure (h, if public then mempty else w)
-
-checkImg :: TaskStatus -> Route WebData
-checkImg TaskTodo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []
-checkImg TaskImportant = StaticR $ StaticRoute ["icons", "checkbox-important.svg"] []
-checkImg TaskOngoing = StaticR $ StaticRoute ["icons", "checkbox-ongoing.svg"] []
-checkImg TaskBlocked = StaticR $ StaticRoute ["icons", "checkbox-blocked.svg"] []
-checkImg TaskDone = StaticR $ StaticRoute ["icons", "checkbox-done.svg"] []
-checkImg TaskDont = StaticR $ StaticRoute ["icons", "checkbox-dont.svg"] []

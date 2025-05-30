@@ -11,7 +11,12 @@ import Korrvigs.Metadata.Task
 import Korrvigs.Note.Loc
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
+import Text.Blaze hiding ((!))
+import qualified Text.Blaze as Blz
+import qualified Text.Blaze.Html5 as Html
+import qualified Text.Blaze.Html5.Attributes as Attr
 import Yesod
+import Yesod.Static
 
 headerSymbol :: Text -> Widget
 headerSymbol s = [whamlet|<span .section-symbol>#{s}|]
@@ -82,3 +87,31 @@ taskWidget i subL (Just tsk) = do
       TaskBlocked -> "task-blocked"
       TaskDone -> "task-done"
       TaskDont -> "task-dont"
+
+checkBox :: TaskStatus -> (Text -> Text -> Text -> Text -> Text -> Text -> Text -> Widget) -> Handler (Html, Widget, Text)
+checkBox ck setup = do
+  render <- getUrlRender
+  cid <- newIdent
+  let todoUrl = render $ checkImg TaskTodo
+  let importantUrl = render $ checkImg TaskImportant
+  let ongoingUrl = render $ checkImg TaskOngoing
+  let blockedUrl = render $ checkImg TaskBlocked
+  let doneUrl = render $ checkImg TaskDone
+  let dontUrl = render $ checkImg TaskDont
+  let h =
+        applyAttr (Attr.id $ textValue cid) $
+          applyAttr (Attr.src $ textValue $ render $ checkImg ck) $
+            applyAttr (Attr.class_ "checkBox") Html.img
+  let w = setup todoUrl importantUrl ongoingUrl blockedUrl doneUrl dontUrl cid
+  pure (h, w, cid)
+  where
+    checkImg :: TaskStatus -> Route WebData
+    checkImg TaskTodo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []
+    checkImg TaskImportant = StaticR $ StaticRoute ["icons", "checkbox-important.svg"] []
+    checkImg TaskOngoing = StaticR $ StaticRoute ["icons", "checkbox-ongoing.svg"] []
+    checkImg TaskBlocked = StaticR $ StaticRoute ["icons", "checkbox-blocked.svg"] []
+    checkImg TaskDone = StaticR $ StaticRoute ["icons", "checkbox-done.svg"] []
+    checkImg TaskDont = StaticR $ StaticRoute ["icons", "checkbox-dont.svg"] []
+
+applyAttr :: Attribute -> Html -> Html
+applyAttr attr html = html Blz.! attr

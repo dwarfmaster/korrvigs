@@ -2,7 +2,6 @@ module Korrvigs.Web.Public where
 
 import Data.Text (Text)
 import Korrvigs.Web.Backend
-import Korrvigs.Web.Collections (getColR)
 import Korrvigs.Web.Compute (getEntryComputeR)
 import Korrvigs.Web.Download (getEntryDownloadR)
 import Korrvigs.Web.Entry (getEntryR)
@@ -34,11 +33,6 @@ getPublicEntryComputeR :: Text -> WebId -> Text -> Handler TypedContent
 getPublicEntryComputeR mac i cached = do
   checkMac mac $ EntryComputeR i cached
   getEntryComputeR i cached
-
-getPublicColR :: Text -> [Text] -> Handler Html
-getPublicColR mac prefix = do
-  checkMac mac $ ColR prefix
-  getColR prefix
 
 getPublicSearchR :: Text -> Handler Html
 getPublicSearchR mac = do

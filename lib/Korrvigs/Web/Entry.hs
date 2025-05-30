@@ -6,14 +6,12 @@ import Data.List
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe
 import Data.Text (Text)
-import qualified Data.Text as T
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
 import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
-import Korrvigs.Metadata.Collections
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Note.Loc (SubLoc (SubLoc))
@@ -265,23 +263,6 @@ contentWidget entry = case entry ^. kindData of
   EventD event -> Event.content event
   CalendarD cal -> Cal.content cal
 
-colsWidget :: Entry -> Handler Widget
-colsWidget entry = do
-  let i = entry ^. name
-  cols <- fromMaybe [] <$> rSelectMtdt MiscCollection (sqlId i)
-  pure $
-    unless
-      (null cols)
-      [whamlet|
-  <details .common-details>
-    <summary>Collections
-    <ul>
-      $forall col <- cols
-        <li>
-          <a href=@{ColR col}>
-            #{T.intercalate " > " col}
-  |]
-
 actWidget :: Entry -> Handler Widget
 actWidget entry = do
   actions <- actionsWidget $ TargetEntry entry
@@ -300,7 +281,6 @@ entryWidget entry = do
   dt <- dateWidget entry
   geom <- geometryWidget entry
   mtdt <- Mtdt.widget entry
-  cols <- colsWidget entry
   refs <- refsWidget entry
   subs <- subWidget entry
   gallery <- galleryWidget entry
@@ -317,7 +297,6 @@ entryWidget entry = do
       actions
       geom
       mtdt
-      cols
       refs
       subs
       gallery

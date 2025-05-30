@@ -65,7 +65,6 @@ mkPublicImpl :: Route WebData -> Handler (Route WebData)
 mkPublicImpl r@(EntryR i) = PublicEntryR <$> signRoute r [] <*> pure i
 mkPublicImpl r@(EntryDownloadR i) = PublicEntryDownloadR <$> signRoute r [] <*> pure i
 mkPublicImpl r@(EntryComputeR i cached) = PublicEntryComputeR <$> signRoute r [] <*> pure i <*> pure cached
-mkPublicImpl r@(ColR prefix) = PublicColR <$> signRoute r [] <*> pure prefix
 mkPublicImpl _ = pure PublicR
 
 mkPublic :: Route WebData -> Handler (Route WebData)

@@ -162,7 +162,6 @@ queryForm mktz prefix =
             <$> ireq checkBoxField (applyPrefix prefix "checkmtdt")
             <*> (zip <$> ireq keysField (applyPrefix prefix "mtdtKey") <*> ireq valuesField (applyPrefix prefix "mtdtVal"))
         )
-    <*> pure []
     <*> maybe (queryRelForm mktz "sub") (const $ pure Nothing) prefix
     <*> maybe (queryRelForm mktz "parent") (const $ pure Nothing) prefix
     <*> pure Nothing

@@ -23,7 +23,6 @@ import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Query
 import Korrvigs.Utils.DateParser
-import Korrvigs.Utils.JSON
 import Options.Applicative
 import System.Exit
 import Text.Parsec (char, parse)
@@ -92,7 +91,6 @@ queryParser =
     <*> optional (option withinParser (long "within" <> help "Filter entries within a certain distance in meters from a point"))
     <*> optional (option kindParser (long "kind" <> help "Entry must be of provided kind"))
     <*> many (option mtdtQueryParser (long "mtdt" <> help "Add metadata conditions"))
-    <*> many (option fromJsonParser (long "incol" <> help "Add collection conditions"))
     <*> pure Nothing
     <*> pure Nothing
     <*> pure Nothing

@@ -309,10 +309,10 @@ searchForm query display = do
     |]
 
 fixOrder :: Query -> Query
-fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
+fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
   Just (pt, _) -> q & querySort . _1 .~ ByDistanceTo pt
   Nothing -> q & querySort .~ def
-fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
+fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
   Just fts -> q & querySort . _1 .~ ByTSRank fts
   Nothing -> q & querySort .~ def
 fixOrder q = q

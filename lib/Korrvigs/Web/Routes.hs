@@ -39,9 +39,6 @@ korrvigsRoutes =
 /note/#WebId/sub/#WebAnyLoc NoteSubR GET POST
 /note/#WebId/col/#Text NoteColR GET POST
 
--- Collections
-/collections/*[Text] ColR GET
-
 -- Actions
 /action/#Text/entry/#WebId ActEntryR POST
 /action/#Text/home ActHomeR POST
@@ -60,7 +57,6 @@ korrvigsRoutes =
 /public/#Text/entry/#WebId PublicEntryR GET
 /public/#Text/entry/#WebId/download PublicEntryDownloadR GET
 /public/#Text/entry/#WebId/cache/#Text PublicEntryComputeR GET
-/public/#Text/collections/*[Text] PublicColR GET
 /public/#Text/entry PublicSearchR GET
 /public/#Text/note/#WebId/col/#Text PublicNoteColR GET
 

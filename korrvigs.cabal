@@ -36,7 +36,6 @@ library korrvigs-lib
     Korrvigs.Calendar.Sync
     Korrvigs.Cli
     Korrvigs.Cli.ADB
-    Korrvigs.Cli.Collections
     Korrvigs.Cli.Compute
     Korrvigs.Cli.Config
     Korrvigs.Cli.Event
@@ -103,7 +102,6 @@ library korrvigs-lib
     Korrvigs.Metadata
     Korrvigs.Metadata.Android
     Korrvigs.Metadata.Android.ADB
-    Korrvigs.Metadata.Collections
     Korrvigs.Metadata.Media
     Korrvigs.Metadata.Media.Arxiv
     Korrvigs.Metadata.Media.GitHub
@@ -168,7 +166,6 @@ library korrvigs-lib
     Korrvigs.Web.Actions.Share
     Korrvigs.Web.Actions.Update
     Korrvigs.Web.Backend
-    Korrvigs.Web.Collections
     Korrvigs.Web.Compute
     Korrvigs.Web.Download
     Korrvigs.Web.Entry

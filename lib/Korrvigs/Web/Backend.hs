@@ -43,16 +43,10 @@ hdIsEntry (NoteSubR _ _) = True
 hdIsEntry (NoteColR _ _) = True
 hdIsEntry _ = False
 
-hdIsCol :: Route WebData -> Bool
-hdIsCol (ColR _) = True
-hdIsCol (PublicColR _ _) = True
-hdIsCol _ = False
-
 headerContent :: [(Text, Route WebData, Route WebData -> Bool)]
 headerContent =
   [ ("Home", HomeR, (== HomeR)),
     ("Entry", SearchR, hdIsEntry),
-    ("Collection", ColR [], hdIsCol),
     ("Git", GitR, (== GitR))
   ]
 
@@ -75,7 +69,6 @@ isPublicRoute PublicR = True
 isPublicRoute (PublicEntryR _ _) = True
 isPublicRoute (PublicEntryDownloadR _ _) = True
 isPublicRoute (PublicEntryComputeR {}) = True
-isPublicRoute (PublicColR _ _) = True
 isPublicRoute (PublicSearchR _) = True
 isPublicRoute (PublicNoteColR {}) = True
 isPublicRoute _ = False

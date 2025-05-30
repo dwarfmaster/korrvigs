@@ -1,13 +1,10 @@
 module Korrvigs.Cli.Note where
 
 import Conduit (throwM)
-import Control.Concurrent (threadDelay)
 import Control.Lens hiding (argument)
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Default
-import Data.Map (Map)
-import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -18,11 +15,8 @@ import Korrvigs.Entry
 import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NF
 import qualified Korrvigs.Link.New as NL
-import Korrvigs.Metadata
-import Korrvigs.Metadata.Collections
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
-import Korrvigs.Monad.Metadata
 import Korrvigs.Note
 import Korrvigs.Note.AST (bkCollection)
 import Korrvigs.Note.New
@@ -38,7 +32,6 @@ data Cmd
   | New {_newNote :: NewNote}
   | Attach {_attachRef :: Text, _attachIsPath :: Bool, _attachSub :: AttachCmd}
   | Col {_colNote :: Maybe Text, _colName :: Maybe Text, _colInsert :: Maybe Text}
-  | MigrateCol
 
 data AttachCmd
   = AttachFiles [FilePath] Bool
@@ -105,12 +98,6 @@ parser' =
               ( progDesc "Deal with note collections"
                   <> header "korr note col -- Deal with collections"
               )
-          )
-        <> command
-          "migrate"
-          ( info
-              (pure MigrateCol <**> helper)
-              (progDesc "Migrate old collections to new system" <> header "korr note migrate")
           )
     )
 
@@ -248,47 +235,3 @@ run (Col (Just note) mnm (Just toinsert)) = do
     else liftIO $ do
       putStrLn "Inclusion failed"
       exitFailure
-run MigrateCol = do
-  let guide :: Map [Text] (Text, Text) =
-        M.fromList
-          [ (["Captured"], ("Favourites", "captured")),
-            (["Devices", "Phones"], ("Setup", "devices")),
-            (["Favourite"], ("Favourites", "main")),
-            (["Favourite", "Activités"], ("Favourites", "activities")),
-            (["Favourite", "Clearsy"], ("Favourites", "clearsy")),
-            (["Favourite", "Clearsy", "Alstom"], ("Clearsy:1", "alstom")),
-            (["Favourite", "Clearsy", "Misc"], ("Clearsy:1", "misc")),
-            (["Favourite", "Clearsy", "SNCF"], ("Clearsy:1", "sncf")),
-            (["Genre", "Fantasy"], ("Genres", "fantasy-pictures")),
-            (["Genre", "Science fiction"], ("Genres", "sf-pictures")),
-            (["Genre", "Meme"], ("Memes", "memes")),
-            (["Hobbies", "Electronics"], ("Activites", "electronics-pictures")),
-            (["Hobbies", "Games"], ("Activites", "games-pictures")),
-            (["Hobbies", "Lego"], ("Activites", "lego-pictures")),
-            (["Sport", "Bikepacking"], ("Activites", "bikepacking")),
-            (["Sport", "Parkour"], ("Activites", "parkour-pictures")),
-            (["Sport", "Parkour", "Bercy"], ("Activites", "parkour-pictures")),
-            (["Sport", "Parkour", "Tour Essor"], ("Activites", "parkour-pictures")),
-            (["Sport", "Tree climbing"], ("Activites", "tree-pictures")),
-            (["Places", "Earthporn"], ("Activites", "earthporn")),
-            (["Places", "Home"], ("Activites", "home-pictures")),
-            (["Places", "Nans"], ("Activites", "nans-pictures")),
-            (["Places", "Nans", "Crèche"], ("Diy", "creche"))
-          ]
-  entries <- rSelect $ do
-    entry <- selectTable entriesTable
-    mtdt <- selectTable entriesMetadataTable
-    where_ $ mtdt ^. sqlEntry .== (entry ^. sqlEntryName)
-    where_ $ mtdt ^. sqlKey .== sqlStrictText (mtdtSqlName MiscCollection)
-    pure $ entry ^. sqlEntryName
-  forM_ entries $ \i ->
-    load i >>= \case
-      Nothing -> liftIO $ putStrLn $ "Failed to load " <> unId i
-      Just entry -> do
-        cols <- fromMaybe [] <$> rSelectMtdt MiscCollection (sqlId i)
-        forM_ cols $ \col -> do
-          let (nColId, nColNm) = fromJust $ M.lookup col guide
-          r <- addToCollection (MkId nColId) nColNm $ ColItemEntry i
-          liftIO $ threadDelay 500000
-          liftIO $ putStrLn $ unId i <> ": " <> T.pack (show col) <> " -> " <> nColId <> "#" <> nColNm <> " :: " <> T.pack (show r)
-        updateMetadata entry M.empty [mtdtSqlName MiscCollection]

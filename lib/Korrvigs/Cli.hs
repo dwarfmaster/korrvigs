@@ -1,7 +1,6 @@
 module Korrvigs.Cli (main) where
 
 import qualified Korrvigs.Cli.ADB as Adb
-import qualified Korrvigs.Cli.Collections as Cols
 import qualified Korrvigs.Cli.Compute as Compute
 import qualified Korrvigs.Cli.Config as Config
 import qualified Korrvigs.Cli.Event as Event
@@ -26,7 +25,6 @@ data Command
   | Server Server.Cmd
   | Event Event.Cmd
   | Compute Compute.Cmd
-  | Collections Cols.Cmd
   | Adb Adb.Cmd
 
 parser' :: Parser Command
@@ -42,7 +40,6 @@ parser' =
       <> command "server" (Server <$> Server.parser)
       <> command "event" (Event <$> Event.parser)
       <> command "compute" (Compute <$> Compute.parser)
-      <> command "collections" (Collections <$> Cols.parser)
       <> command "adb" (Adb <$> Adb.parser)
 
 parser :: ParserInfo Command
@@ -63,7 +60,6 @@ run (Config cmd) = Config.run cmd
 run (Server cmd) = Server.run cmd
 run (Event cmd) = Event.run cmd
 run (Compute cmd) = Compute.run cmd
-run (Collections cmd) = Cols.run cmd
 run (Adb cmd) = Adb.run cmd
 
 main :: IO ()

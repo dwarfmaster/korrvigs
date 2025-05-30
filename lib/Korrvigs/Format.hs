@@ -22,7 +22,6 @@ import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
-import Korrvigs.Metadata.Collections
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
@@ -220,7 +219,6 @@ entrySpec =
     <> mtdtSpec TaskScheduled
     <> mtdtSpec TaskStarted
     <> mtdtSpec TaskFinished
-    <> mtdtSpec MiscCollection
     <> mtdtSpec Abstract
     <> mtdtSpec BibtexKey
     <> mtdtSpec DOI

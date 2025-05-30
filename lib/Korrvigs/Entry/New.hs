@@ -5,7 +5,6 @@ module Korrvigs.Entry.New
     neTitle,
     neLanguage,
     neMtdt,
-    neCollections,
     useDate,
     useMtdt,
     applyNewEntry,
@@ -17,35 +16,28 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
-import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
-import Data.List (find)
 import qualified Data.Map as M
 import Data.Maybe
-import Data.Set (Set)
-import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
-import Korrvigs.Metadata
-import Korrvigs.Metadata.Collections
 
 data NewEntry = NewEntry
   { _neParents :: [Id],
     _neDate :: Maybe Day,
     _neTitle :: Maybe Text,
     _neLanguage :: Maybe Text,
-    _neMtdt :: [(Text, Value)],
-    _neCollections :: Set [Text]
+    _neMtdt :: [(Text, Value)]
   }
 
 makeLenses ''NewEntry
 
 instance Default NewEntry where
-  def = NewEntry [] Nothing Nothing Nothing [] S.empty
+  def = NewEntry [] Nothing Nothing Nothing []
 
 zonedTimeFromDay :: TimeZone -> Day -> ZonedTime
 zonedTimeFromDay tz day =
@@ -56,21 +48,8 @@ useDate ne dt = do
   tz <- liftIO getCurrentTimeZone
   pure $ mplus (zonedTimeFromDay tz <$> ne ^. neDate) dt
 
-insertCollections :: [[Text]] -> [(CI Text, Value)] -> [(CI Text, Value)]
-insertCollections cols mtdts = case find (\m -> fst m == mtdtName MiscCollection) mtdts of
-  Nothing -> (mtdtName MiscCollection, toJSON cols) : mtdts
-  Just (_, v) -> case fromJSON v of
-    Error _ -> (mtdtName MiscCollection, toJSON cols) : mtdts'
-    Success pcols -> (mtdtName MiscCollection, toJSON $ S.toList $ S.fromList $ cols <> pcols) : mtdts'
-  where
-    mtdts' = filter ((/= mtdtName MiscCollection) . fst) mtdts
-
 useMtdt :: NewEntry -> Metadata -> Metadata
-useMtdt ne = M.union $ M.fromList $ addCols $ first CI.mk <$> ne ^. neMtdt
-  where
-    addCols = case S.toList (ne ^. neCollections) of
-      [] -> id
-      cols -> insertCollections cols
+useMtdt ne = M.union $ M.fromList $ first CI.mk <$> ne ^. neMtdt
 
 maybeOrNull :: (b -> Bool) -> a -> (b -> a) -> Maybe b -> a
 maybeOrNull _ d _ Nothing = d

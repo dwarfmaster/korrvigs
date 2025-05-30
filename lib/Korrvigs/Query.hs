@@ -18,7 +18,6 @@ import Korrvigs.FTS ((@@?))
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
-import Korrvigs.Metadata.Collections
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Opaleye hiding (null)
@@ -118,7 +117,6 @@ data Query = Query
     _queryDist :: Maybe (Point, Double),
     _queryKind :: Maybe Kind,
     _queryMtdt :: [(Text, JsonQuery)],
-    _queryInCollection :: [[Text]],
     _querySubOf :: Maybe QueryRel,
     _queryParentOf :: Maybe QueryRel,
     _queryMentioning :: Maybe QueryRel,
@@ -129,7 +127,7 @@ data Query = Query
   deriving (Show)
 
 instance Default Query where
-  def = Query def def def def def def def def def def def def def def def
+  def = Query def def def def def def def def def def def def def def
 
 makeLenses ''Query
 makeLenses ''QueryRel
@@ -185,7 +183,6 @@ instance ToJSON Query where
     object $
       [ "id" .= (unId <$> q ^. queryId),
         "mtdt" .= (q ^. queryMtdt),
-        "collection" .= (q ^. queryInCollection),
         "sort" .= (q ^. querySort)
       ]
         ++ optKP "text" (q ^. queryText)
@@ -211,7 +208,6 @@ instance FromJSON Query where
       <*> obj .:? "distance"
       <*> obj .:? "kind"
       <*> obj .: "mtdt"
-      <*> obj .: "collection"
       <*> obj .:? "subof"
       <*> obj .:? "parentof"
       <*> obj .:? "mentioning"
@@ -278,10 +274,6 @@ compileQuery query = do
     where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryName)
     where_ $ mtdt ^. sqlKey .== sqlStrictText (q ^. _1)
     where_ $ compileJsonQuery (q ^. _2) (toNullable $ mtdt ^. sqlValue)
-  -- Check collections
-  forM_ (query ^. queryInCollection) $ \col -> do
-    (colEntry, _) <- selectCol MiscCollection col False
-    where_ $ colEntry .== entry ^. sqlEntryName
   -- Relations
   forM_ (query ^. querySubOf) $ compileRel entry entriesSubTable False
   forM_ (query ^. queryParentOf) $ compileRel entry entriesSubTable True

@@ -17,7 +17,6 @@ import qualified Data.CaseInsensitive as CI
 import Data.Foldable
 import qualified Data.Map as M
 import Data.Maybe
-import qualified Data.Set as S
 import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
@@ -130,7 +129,6 @@ prepareNewMedia nm = do
   let ne =
         mergeInto md (nm ^. nmEntry)
           & neMtdt %~ ((mtdtSqlName TaskMtdt, "todo") :)
-          & neCollections %~ if nm ^. nmCapture then S.insert ["Captured"] else id
   let title = fromMaybe (medTxt (md ^. medType) <> " " <> nm ^. nmInput) $ ne ^. neTitle
   pure . (,subs) $ case md ^. medType of
     Blogpost -> NewLinkMedia (nm ^. nmInput) $ Link.NewLink ne False

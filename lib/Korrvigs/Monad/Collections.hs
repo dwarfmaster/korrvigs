@@ -17,6 +17,7 @@ import Data.Text (Text)
 import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Task
 import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL
 import Korrvigs.Note
@@ -29,23 +30,24 @@ import Opaleye hiding (Field)
 import qualified Opaleye as O
 import System.IO
 
-data OptionalSQLDataImpl a b = OptionalSQLData
+data OptionalSQLDataImpl a b c = OptionalSQLData
   { _optTitle :: a,
-    _optSizeAction :: b
+    _optSizeAction :: b,
+    _optTask :: c
   }
 
 makeLenses ''OptionalSQLDataImpl
 $(makeAdaptorAndInstanceInferrable "pOptSQLData" ''OptionalSQLDataImpl)
 
-type OptionalSQLData = OptionalSQLDataImpl (Maybe Text) (Maybe Action)
+type OptionalSQLData = OptionalSQLDataImpl (Maybe Text) (Maybe Action) (Maybe Text)
 
-type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlText) (FieldNullable SqlJsonb)
+type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlText) (FieldNullable SqlJsonb) (FieldNullable SqlText)
 
 instance Default OptionalSQLData where
-  def = OptionalSQLData Nothing Nothing
+  def = OptionalSQLData Nothing Nothing Nothing
 
 instance Default OptionalSQLDataSQL where
-  def = OptionalSQLData O.null O.null
+  def = OptionalSQLData O.null O.null O.null
 
 optDef :: OptionalSQLDataSQL
 optDef = def
@@ -57,6 +59,10 @@ otherQuery display entry = case display of
     sz <- selComp (entry ^. sqlEntryName) "size"
     pure $ optDef & optSizeAction .~ toNullable (sz ^. sqlCompAction)
   ColNetwork -> pure optDef
+  ColTaskList -> do
+    title <- selectTextMtdt Title $ entry ^. sqlEntryName
+    tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryName
+    pure $ optDef & optTitle .~ title & optTask .~ tsk
   _ -> do
     title <- selectTextMtdt Title $ entry ^. sqlEntryName
     pure $ optDef & optTitle .~ title

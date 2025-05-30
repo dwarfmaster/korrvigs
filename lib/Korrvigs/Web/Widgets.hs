@@ -88,9 +88,10 @@ taskWidget i subL (Just tsk) = do
       TaskDone -> "task-done"
       TaskDont -> "task-dont"
 
-checkBox :: TaskStatus -> (Text -> Text -> Text -> Text -> Text -> Text -> Text -> Widget) -> Handler (Html, Widget, Text)
-checkBox ck setup = do
+checkBox :: TaskStatus -> Route WebData -> Handler (Html, Widget, Text)
+checkBox ck postRoute = do
   render <- getUrlRender
+  public <- isPublic
   cid <- newIdent
   let todoUrl = render $ checkImg TaskTodo
   let importantUrl = render $ checkImg TaskImportant
@@ -98,12 +99,13 @@ checkBox ck setup = do
   let blockedUrl = render $ checkImg TaskBlocked
   let doneUrl = render $ checkImg TaskDone
   let dontUrl = render $ checkImg TaskDont
+  let postUrl = render postRoute
   let h =
         applyAttr (Attr.id $ textValue cid) $
           applyAttr (Attr.src $ textValue $ render $ checkImg ck) $
             applyAttr (Attr.class_ "checkBox") Html.img
-  let w = setup todoUrl importantUrl ongoingUrl blockedUrl doneUrl dontUrl cid
-  pure (h, w, cid)
+  let w = toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{importantUrl}, #{ongoingUrl}, #{blockedUrl}, #{doneUrl}, #{dontUrl}, #{cid});|]
+  pure (h, if public then mempty else w, cid)
   where
     checkImg :: TaskStatus -> Route WebData
     checkImg TaskTodo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []

@@ -545,13 +545,9 @@ compileInline (Sidenote side) = do
   note <- pushSide side
   pure (applyAttr (Attr.class_ "sidenote-ref") $ Html.span $ toMarkup $ show note, mempty)
 compileInline (Check ck) = do
-  render <- getUrlRender
   loc <- CheckLoc <$> use subLoc <*> use checkboxCount
   entry <- use currentEntry
-  let postUrl = render $ NoteSubR (WId entry) $ WLoc $ LocCheck loc
   checkboxCount += 1
-  let setup todoUrl importantUrl ongoingUrl blockedUrl doneUrl dontUrl cid =
-        toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{importantUrl}, #{ongoingUrl}, #{blockedUrl}, #{doneUrl}, #{dontUrl}, #{cid});|]
-  (h, w, _) <- lift $ Wdgs.checkBox ck setup
+  (h, w, _) <- lift $ Wdgs.checkBox ck $ NoteSubR (WId entry) $ WLoc $ LocCheck loc
   public <- lift isPublic
   pure (h, if public then mempty else w)

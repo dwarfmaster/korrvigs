@@ -316,6 +316,7 @@ parseColName hd = do
     "calendar" -> pure A.ColCalendar
     "kanban" -> pure A.ColKanban
     "biblio" -> pure A.ColBiblio
+    "tasklist" -> pure A.ColTaskList
     _ -> pure A.ColList
   pure (col, colname)
 

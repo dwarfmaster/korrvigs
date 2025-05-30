@@ -58,7 +58,6 @@ displayResults ColGallery = displayGallery
 displayResults ColTimeline = displayTimeline
 displayResults ColNetwork = displayGraph
 displayResults ColFuzzy = displayFuzzy
-displayResults ColEmbed = displayUnsupported ColEmbed
 displayResults ColCalendar = displayCalendar
 displayResults ColBiblio = displayUnsupported ColBiblio
 displayResults ColKanban = displayUnsupported ColKanban

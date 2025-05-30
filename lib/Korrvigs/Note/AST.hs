@@ -63,7 +63,6 @@ data Collection
   | ColTimeline
   | ColNetwork
   | ColFuzzy
-  | ColEmbed
   | ColCalendar
   | ColBiblio
   | ColKanban

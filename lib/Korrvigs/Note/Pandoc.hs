@@ -312,7 +312,6 @@ parseColName hd = do
     "timeline" -> pure A.ColTimeline
     "network" -> pure A.ColNetwork
     "fuzzy" -> pure A.ColFuzzy
-    "embed" -> pure A.ColEmbed
     "calendar" -> pure A.ColCalendar
     "kanban" -> pure A.ColKanban
     "biblio" -> pure A.ColBiblio

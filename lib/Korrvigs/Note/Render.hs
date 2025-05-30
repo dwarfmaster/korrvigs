@@ -232,7 +232,6 @@ renderCollection col nm =
       ColTimeline -> "timeline"
       ColNetwork -> "network"
       ColFuzzy -> "fuzzy"
-      ColEmbed -> "embed"
       ColCalendar -> "calendar"
       ColKanban -> "kanban"
       ColBiblio -> "biblio"

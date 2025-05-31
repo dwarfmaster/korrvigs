@@ -129,16 +129,28 @@ photoswipe togroup (item : items) = do
           background-color: var(--base0F)
           color: var(--base00)
     |]
-    [whamlet|
-      <div ##{i} .pswp-gallery>
-        $forall group <- grouped
-          <details>
-            <summary>
-              #{displayDateOfGroup group}
-            $forall item <- group 
-              <a href=@{getUrl item} data-pswp-width=#{_swpWidth item} data-pswp-height=#{_swpHeight item} data-korrvigs-target=@{itemTarget getUrl item} target="_blank">
-                <img loading=lazy src=@{getMiniature item} alt="">
-                ^{_swpCaption item}
-    |]
+    case grouped of
+      [group] ->
+        [whamlet|
+        <div ##{i} .pswp-gallery>
+          $forall item <- group 
+            ^{itemWidget getUrl getMiniature item}
+      |]
+      _ ->
+        [whamlet|
+        <div ##{i} .pswp-gallery>
+          $forall group <- grouped
+            <details>
+              <summary>
+                #{displayDateOfGroup group}
+              $forall item <- group 
+                ^{itemWidget getUrl getMiniature item}
+      |]
   where
     itemTarget getUrl entry = fromMaybe (getUrl entry) (entry ^. swpRedirect)
+    itemWidget getUrl getMiniature it =
+      [whamlet|
+      <a href=@{getUrl it} data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-korrvigs-target=@{itemTarget getUrl it} target="_blank">
+        <img loading=lazy src=@{getMiniature it} alt="">
+        ^{_swpCaption it}
+    |]

@@ -335,7 +335,7 @@ getSearchR = do
   let q = displayFixQuery display $ (if hasMaxResults then id else fixMaxResults) $ fixOrder q'
   search <- searchForm q display
   actions <- actionsWidget $ TargetSearch q display
-  results <- displayResults display =<< runQuery display q
+  results <- displayResults display False =<< runQuery display q
   defaultLayout $ do
     setTitle "Korrvigs search"
     setDescriptionIdemp "Korrvigs search page"

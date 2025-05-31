@@ -284,7 +284,7 @@ compileBlock' (EmbedHeader i) = do
                 (if tk ^. tskStatus == TaskDont then 1 else 0)
         propagateChecks embedId tkchecks
 compileBlock' (Collection col nm items) = do
-  wdg <- lift $ displayResults col =<< loadCollection col items
+  wdg <- lift $ displayResults col True =<< loadCollection col items
   i <- use currentEntry
   lift $ colWidget i nm wdg
 compileBlock' (Sub hd) = do

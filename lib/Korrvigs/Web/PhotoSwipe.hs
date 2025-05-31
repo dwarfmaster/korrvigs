@@ -110,13 +110,14 @@ displayDate (Just d) = T.pack $ formatTime defaultTimeLocale "%e %B %0Y - %A" d
 displayDateOfGroup :: NonEmpty PhotoswipeEntry -> Text
 displayDateOfGroup (e :| _) = displayDate $ view swpDate e
 
-photoswipe :: [PhotoswipeEntry] -> Handler Widget
-photoswipe items = do
+photoswipe :: Bool -> [PhotoswipeEntry] -> Handler Widget
+photoswipe _ [] = pure mempty
+photoswipe togroup (item : items) = do
   i <- newIdent
   public <- isPublic
   let getUrl = if public then view swpUrlPublic else view swpUrl
   let getMiniature = if public then view swpMiniaturePublic else view swpMiniature
-  let grouped = groupEntries items
+  let grouped = if togroup then groupEntries (item : items) else [item :| items]
   pure $ do
     toWidget [julius|setupPhotoswipeFor(#{i})|]
     toWidget

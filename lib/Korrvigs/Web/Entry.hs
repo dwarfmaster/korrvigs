@@ -239,7 +239,7 @@ galleryWidget entry =
         then pure mempty
         else do
           entries <- mapM mkEntry childs
-          photoswipe <- PhotoSwipe.photoswipe $ catMaybes entries
+          photoswipe <- PhotoSwipe.photoswipe False $ catMaybes entries
           pure
             [whamlet|
           <details .common-details>

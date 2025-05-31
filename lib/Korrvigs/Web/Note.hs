@@ -165,7 +165,7 @@ getNoteWidget i col = do
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   (c, _, items) <- maybe notFound pure $ md ^? docContent . each . bkCollection col
   display <- runInputGet $ displayForm c
-  entries <- displayResults display =<< loadCollection display items
+  entries <- displayResults display True =<< loadCollection display items
   displayW <- displayResultForm display
   public <- isPublic
   actions <- actionsWidget $ TargetNoteCollection note col

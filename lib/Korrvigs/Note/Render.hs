@@ -218,6 +218,7 @@ renderColItem (ColItemInclude i c) =
   writeText "i " >> writeText (unId i) >> writeText " " >> writeText c
 renderColItem (ColItemQuery q) =
   writeText "q " >> writeText (LT.toStrict $ encodeToLazyText q)
+renderColItem (ColItemSubOf i) = writeText "s " >> writeText (unId i)
 renderColItem (ColItemComment comment) =
   writeText "# " >> writeText comment
 

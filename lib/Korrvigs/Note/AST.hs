@@ -73,6 +73,7 @@ data CollectionItem
   = ColItemEntry Id
   | ColItemInclude Id Text
   | ColItemQuery Query
+  | ColItemSubOf Id
   | ColItemComment Text
   deriving (Show)
 
@@ -83,6 +84,8 @@ instance ToJSON CollectionItem where
     object ["type" .= ("include" :: Text), "entry" .= unId i, "col" .= col]
   toJSON (ColItemQuery q) =
     object ["type" .= ("query" :: Text), "query" .= q]
+  toJSON (ColItemSubOf i) =
+    object ["type" .= ("subof" :: Text), "entry" .= unId i]
   toJSON (ColItemComment c) =
     object ["type" .= ("comment" :: Text), "comment" .= c]
 
@@ -93,6 +96,7 @@ instance FromJSON CollectionItem where
       "entry" -> ColItemEntry . MkId <$> obj .: "entry"
       "include" -> ColItemInclude . MkId <$> obj .: "entry" <*> obj .: "col"
       "query" -> ColItemQuery <$> obj .: "query"
+      "subof" -> ColItemSubOf . MkId <$> obj .: "entry"
       "comment" -> ColItemComment <$> obj .: "comment"
       _ -> fail $ T.unpack tp <> " is not a valid collection item"
 

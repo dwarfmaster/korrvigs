@@ -94,6 +94,8 @@ loadCollectionItem c (ColItemInclude i included) = fromMaybeT [] $ do
   col <- hoistMaybe $ md ^? docContent . each . bkCollection included . _3
   lift $ loadCollection c col
 loadCollectionItem c (ColItemQuery q) = runQuery c q
+loadCollectionItem c (ColItemSubOf i) =
+  runQuery c $ def & querySubOf ?~ QueryRel (def & queryId .~ [i]) False
 loadCollectionItem _ (ColItemComment _) = pure []
 
 -- Returns False is the item could not be added

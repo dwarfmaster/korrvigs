@@ -63,4 +63,5 @@ new nc = do
   writeJsonToFile path json
   -- Sync
   syncFileOfKind path Calendar
+  applyCollections (nc ^. ncEntry) i
   pure i

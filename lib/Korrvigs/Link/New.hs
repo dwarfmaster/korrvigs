@@ -287,6 +287,7 @@ new url options = case parseURI (T.unpack url) of
     let content = encodingToLazyByteString . value $ toJSON json
     pth <- storeFile rt jsonTT Nothing (unId i <> ".json") $ FileLazy content
     syncFileOfKind pth Link
+    applyCollections (options ^. nlEntry) i
     forM_ (extracted ^. exCover) $ \covUrl -> do
       let imgNew =
             NewDownloadedFile covUrl $

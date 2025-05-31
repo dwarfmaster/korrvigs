@@ -5,9 +5,11 @@ module Korrvigs.Entry.New
     neTitle,
     neLanguage,
     neMtdt,
+    neCollections,
     useDate,
     useMtdt,
     applyNewEntry,
+    applyCollections,
   )
 where
 
@@ -25,19 +27,23 @@ import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
+import Korrvigs.Monad
+import Korrvigs.Monad.Collections
+import Korrvigs.Note.AST
 
 data NewEntry = NewEntry
   { _neParents :: [Id],
     _neDate :: Maybe Day,
     _neTitle :: Maybe Text,
     _neLanguage :: Maybe Text,
-    _neMtdt :: [(Text, Value)]
+    _neMtdt :: [(Text, Value)],
+    _neCollections :: [(Id, Text)]
   }
 
 makeLenses ''NewEntry
 
 instance Default NewEntry where
-  def = NewEntry [] Nothing Nothing Nothing []
+  def = NewEntry [] Nothing Nothing Nothing [] []
 
 zonedTimeFromDay :: TimeZone -> Day -> ZonedTime
 zonedTimeFromDay tz day =
@@ -67,3 +73,8 @@ applyNewEntry ne idmk = do
     setDate tz = maybe id ((idDate ?~) . zonedTimeFromDay tz) $ ne ^. neDate
     setParent = maybe id (idParent ?~) $ listToMaybe $ ne ^. neParents
     setLanguage = maybeOrNull T.null id (idLanguage ?~) $ ne ^. neLanguage
+
+applyCollections :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
+applyCollections ne i =
+  forM_ (ne ^. neCollections) $ \(entry, colName) ->
+    addToCollection entry colName (ColItemEntry i)

@@ -85,4 +85,5 @@ create note = do
   rt <- noteDirectory
   path <- storeFile rt noteTreeType Nothing (unId i <> ".md") $ FileLazy bs
   syncFileOfKind path Note
+  applyCollections (note ^. nnEntry) i
   pure i

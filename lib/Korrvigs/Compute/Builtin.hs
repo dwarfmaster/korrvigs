@@ -43,7 +43,7 @@ run Miniature entry tgt = case entry ^. kindData of
   FileD file | file ^. fileStatus == FileAbsent -> pure ()
   FileD file
     | isPrefix "image/" (file ^. fileMime) ->
-        let magick = proc "magick" [file ^. filePath, "-resize", "200x200", tgt]
+        let magick = proc "magick" [file ^. filePath <> "[0]", "-resize", "200x200", tgt]
          in liftIO $ void $ runSilent magick
   FileD file
     | isPrefix "video/" (file ^. fileMime) ->
@@ -54,13 +54,13 @@ run Size entry tgt = case entry ^. kindData of
   FileD file | file ^. fileStatus == FileAbsent -> pure ()
   FileD file
     | isPrefix "image/" (file ^. fileMime) -> do
-        let magick = proc "magick" ["identify", "-auto-orient", "-format", "%w %h", file ^. filePath]
+        let magick = proc "magick" ["identify", "-auto-orient", "-format", "%w %h\n", file ^. filePath]
         (_, content) <- liftIO $ runStdout magick
-        let parser = (,) <$> decimal <*> (char ' ' *> decimal)
+        let parser = sepEndBy ((,) <$> decimal <*> (char ' ' *> decimal)) (void newline)
         case runParser parser () "" content of
-          Right (width, height) ->
-            let w = width :: Int
-             in let h = height :: Int
+          Right (dimensions :: [(Int, Int)]) ->
+            let w = maximum $ fst <$> dimensions
+             in let h = maximum $ snd <$> dimensions
                  in writeJsonToFile tgt $ object ["width" .= toJSON w, "height" .= toJSON h]
           Left _ -> pure ()
   _ -> pure ()

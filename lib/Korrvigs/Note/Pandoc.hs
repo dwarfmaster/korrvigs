@@ -277,17 +277,18 @@ parseBlock _ = pure []
 
 parseColItem :: Text -> A.CollectionItem
 parseColItem line = case prefix of
-  ". " -> A.ColItemEntry $ MkId suffix
+  ". " -> A.ColItemEntry $ suffixId suffix
   "i " ->
     let (i, col) = T.break (== ' ') suffix in A.ColItemInclude (MkId i) (T.strip col)
   "q " -> case eitherDecode (LEnc.encodeUtf8 $ LT.fromStrict suffix) of
     Left err -> A.ColItemComment $ suffix <> ": " <> T.pack err
     Right q -> A.ColItemQuery q
-  "s " -> A.ColItemSubOf $ MkId suffix
+  "s " -> A.ColItemSubOf $ suffixId suffix
   "# " -> A.ColItemComment suffix
   _ -> A.ColItemComment line
   where
     (prefix, suffix) = T.splitAt 2 line
+    suffixId = MkId . T.strip
 
 extractItem :: A.CollectionItem -> Maybe Id
 extractItem (A.ColItemEntry i) = Just i

@@ -29,6 +29,7 @@ data KorrState = KState
   { _korrConnection :: Connection,
     _korrRoot :: FilePath,
     _korrCalsyncRoot :: FilePath,
+    _korrCaptureRoot :: FilePath,
     _korrWeb :: WebState
   }
 
@@ -39,7 +40,8 @@ data KorrConfig = KConfig
     _kconfigTheme :: Base16Data,
     _kconfigStaticDir :: Maybe FilePath,
     _kconfigStaticRedirect :: Maybe Text,
-    _kconfigCalsyncRoot :: FilePath
+    _kconfigCalsyncRoot :: FilePath,
+    _kconfigCaptureRoot :: FilePath
   }
 
 makeLenses ''KorrState
@@ -53,6 +55,7 @@ instance MonadKorrvigs KorrM where
   pgSQL = view korrConnection
   root = view korrRoot
   calsyncRoot = view korrCalsyncRoot
+  captureRoot = view korrCaptureRoot
 
 runKorrM :: KorrConfig -> KorrM a -> IO (Either KorrvigsError a)
 runKorrM config act = do
@@ -62,6 +65,7 @@ runKorrM config act = do
           { _korrConnection = conn,
             _korrRoot = config ^. kconfigRoot,
             _korrCalsyncRoot = config ^. kconfigCalsyncRoot,
+            _korrCaptureRoot = config ^. kconfigCaptureRoot,
             _korrWeb =
               WState
                 { _webPort = config ^. kconfigPort,
@@ -91,6 +95,7 @@ instance FromJSON KorrConfig where
         <*> v .:? "staticDir"
         <*> v .:? "staticRedirect"
         <*> v .: "calsync"
+        <*> v .: "capture"
 
 configPath :: IO FilePath
 configPath = do

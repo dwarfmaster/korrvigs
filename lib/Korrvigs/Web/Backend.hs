@@ -22,7 +22,8 @@ data WebData = WebData
     web_static :: Static,
     web_static_redirect :: Maybe Text,
     web_mac_secret :: ByteString,
-    web_calsync_root :: FilePath
+    web_calsync_root :: FilePath,
+    web_capture_root :: FilePath
   }
 
 getStaticR :: WebData -> Static
@@ -119,6 +120,7 @@ instance MonadKorrvigs Handler where
   pgSQL = getsYesod web_connection
   root = getsYesod web_root
   calsyncRoot = getsYesod web_calsync_root
+  captureRoot = getsYesod web_capture_root
 
 getFaviconR :: Handler TypedContent
 getFaviconR = redirect $ StaticR $ StaticRoute ["favicon.ico"] []

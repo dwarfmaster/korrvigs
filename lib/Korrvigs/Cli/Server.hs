@@ -49,6 +49,7 @@ run cmd = do
   staticRedirect <- view $ korrWeb . webStaticRedirect
   secret <- liftIO loadOrGenerateKey
   calsyncRt <- calsyncRoot
+  captureRt <- captureRoot
   liftIO $
     warp prt $
       WebData
@@ -58,5 +59,6 @@ run cmd = do
           web_static = stc,
           web_static_redirect = staticRedirect,
           web_mac_secret = secret,
-          web_calsync_root = calsyncRt
+          web_calsync_root = calsyncRt,
+          web_capture_root = captureRt
         }

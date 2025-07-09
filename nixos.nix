@@ -38,7 +38,7 @@ overlay: {
         base0E
         base0F
         ;
-      inherit (cfg) connectionSpec root calsync;
+      inherit (cfg) connectionSpec root calsync capture;
       inherit (server) port;
       staticDir = "${pkgs.korrvigs-static.override {inherit (cfg) theme;}}";
     }
@@ -76,6 +76,10 @@ in {
     calsync = mkOption {
       type = types.str;
       description = "Path to the calsync worktree root";
+    };
+    capture = mkOption {
+      type = types.str;
+      description = "Path to the capture directory";
     };
     connectionSpec = mkOption {
       type = types.str;

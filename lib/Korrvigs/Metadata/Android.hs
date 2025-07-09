@@ -86,7 +86,7 @@ listFilesForPhone phone = do
     extractFile (i, Just path) = Just $ AndroidFile i path
 
 capturedDir :: (MonadKorrvigs m) => m FilePath
-capturedDir = (</> "captured") <$> root
+capturedDir = (</> "android") <$> captureRoot
 
 recogniseCaptured :: (MonadKorrvigs m) => FilePath -> m (Maybe (Text, FilePath))
 recogniseCaptured path = do

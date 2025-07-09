@@ -33,6 +33,7 @@ class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
   calsyncRoot :: m FilePath
+  captureRoot :: m FilePath
 
 setupPsql :: (MonadKorrvigs m) => m ()
 setupPsql = do

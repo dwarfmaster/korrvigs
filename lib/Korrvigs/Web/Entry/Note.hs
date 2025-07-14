@@ -13,6 +13,7 @@ import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
+import Korrvigs.File.SQL
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
@@ -30,6 +31,7 @@ import Korrvigs.Web.Routes
 import Korrvigs.Web.Search.Results
 import Korrvigs.Web.Widgets (applyAttr)
 import qualified Korrvigs.Web.Widgets as Wdgs
+import Opaleye hiding (min, not, null)
 import Text.Blaze hiding ((!))
 import qualified Text.Blaze.Html5 as Html
 import qualified Text.Blaze.Html5.Attributes as Attr
@@ -524,7 +526,17 @@ compileInline (Link attr inls tgt) = do
   let link = textValue $ render $ EntryR $ WId tgt
   lift isPublic >>= \case
     False -> pure (applyAttr (Attr.href link) $ compileAttr' attr $ Html.a inlsH, inlsW)
-    True -> pure (inlsH, inlsW)
+    True -> do
+      isFile <- lift $ rSelectOne $ do
+        file <- selectTable filesTable
+        where_ $ file ^. sqlFileName .== sqlId tgt
+        pure ()
+      case isFile of
+        Nothing -> pure (inlsH, inlsW)
+        Just () -> do
+          route <- lift $ mkPublic $ EntryDownloadR $ WId tgt
+          let pubLink = textValue $ render route
+          pure (applyAttr (Attr.href pubLink) $ compileAttr' attr $ Html.a inlsH, inlsW)
 compileInline (Cite i) = do
   render <- getUrlRender
   let link = textValue $ render $ EntryR $ WId i

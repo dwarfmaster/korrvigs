@@ -64,10 +64,14 @@ run Size entry tgt = case entry ^. kindData of
                  in writeJsonToFile tgt $ object ["width" .= toJSON w, "height" .= toJSON h]
           Left _ -> pure ()
   FileD file | isPrefix "video/" (file ^. fileMime) -> do
-    let ffprobe = proc "ffprobe" [file ^. filePath, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0"]
+    let ffprobe = proc "ffprobe" [file ^. filePath, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-show_entries", "stream_side_data=rotation", "-of", "csv=s=x:p=0"]
     (_, content) <- liftIO $ runStdout ffprobe
-    let parser = sepEndBy decimal (char 'x')
+    let parser = sepEndBy int (char 'x')
     case runParser parser () "" content of
+      Right ([w, h, r] :: [Int]) ->
+        let rotated = r == 90 || r == -90
+         in let (width, height) = if rotated then (h, w) else (w, h)
+             in writeJsonToFile tgt $ object ["width" .= toJSON width, "height" .= toJSON height]
       Right ([w, h] :: [Int]) ->
         writeJsonToFile tgt $ object ["width" .= toJSON w, "height" .= toJSON h]
       _ -> pure ()

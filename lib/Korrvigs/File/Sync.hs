@@ -117,10 +117,9 @@ computeFromMime :: Id -> MimeType -> Map Text Act.Action
 computeFromMime i mime = cmp $ Enc.decodeASCII mime
   where
     cmp m
-      | T.isPrefixOf "image/" m =
+      | T.isPrefixOf "image/" m || T.isPrefixOf "video/" m =
           miniature
             <> M.singleton "size" (Act.Builtin i Size)
-      | T.isPrefixOf "video/" m = miniature
       | otherwise = M.empty
     miniature = M.singleton "miniature" $ Act.Builtin i Miniature
 

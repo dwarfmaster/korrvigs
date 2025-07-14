@@ -10,6 +10,7 @@ import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
 import Korrvigs.Compute.Action
 import Korrvigs.Entry
+import Korrvigs.File.SQL
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Task
@@ -234,7 +235,11 @@ galleryWidget entry =
         where_ $ subEntry ^. sqlEntryKind .== sqlKind File
         void $ selComp sub "miniature"
         sz <- selComp sub "size"
-        pure (subEntry, sz ^. sqlCompAction)
+        mime <- optional $ do
+          file <- selectTable filesTable
+          where_ $ file ^. sqlFileName .== sub
+          pure $ file ^. sqlFileMime
+        pure (subEntry, mime, sz ^. sqlCompAction)
       if null childs
         then pure mempty
         else do
@@ -248,9 +253,10 @@ galleryWidget entry =
               ^{photoswipe}
         |]
   where
-    mkEntry :: (EntryRow, Action) -> Handler (Maybe PhotoSwipe.PhotoswipeEntry)
-    mkEntry (e, sizeA) =
+    mkEntry :: (EntryRow, Maybe Text, Action) -> Handler (Maybe PhotoSwipe.PhotoswipeEntry)
+    mkEntry (e, mime, sizeA) =
       PhotoSwipe.miniatureEntry
+        mime
         (e ^? sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
         (e ^. sqlEntryName)
         sizeA

@@ -19,9 +19,14 @@ import Korrvigs.Web.Routes
 import Yesod
 import Yesod.Static
 
+data PhotoswipeContentType
+  = PSPicture
+  | PSVideo Text
+
 data PhotoswipeEntry = PhotoswipeEntry
   { _swpUrl :: Route WebData,
     _swpUrlPublic :: Route WebData,
+    _swpType :: PhotoswipeContentType,
     _swpMiniature :: Route WebData,
     _swpMiniaturePublic :: Route WebData,
     _swpRedirect :: Maybe (Route WebData),
@@ -33,8 +38,8 @@ data PhotoswipeEntry = PhotoswipeEntry
 
 makeLenses ''PhotoswipeEntry
 
-miniatureEntry :: Maybe Day -> Id -> Action -> Handler (Maybe PhotoswipeEntry)
-miniatureEntry day i sizeA = do
+miniatureEntryImpl :: PhotoswipeContentType -> Maybe Day -> Id -> Action -> Handler (Maybe PhotoswipeEntry)
+miniatureEntryImpl tp day i sizeA = do
   szM <- lazyRunJSON i "size" sizeA
   let url = EntryDownloadR (WId i)
   let miniatureUrl = EntryComputeR (WId i) "miniature"
@@ -50,12 +55,21 @@ miniatureEntry day i sizeA = do
           _swpUrlPublic = PublicEntryDownloadR urlSignature (WId i),
           _swpMiniature = miniatureUrl,
           _swpMiniaturePublic = PublicEntryComputeR miniatureSignature (WId i) "miniature",
+          _swpType = tp,
           _swpRedirect = Just $ EntryR (WId i),
           _swpCaption = mempty,
           _swpWidth = width,
           _swpHeight = height,
           _swpDate = day
         }
+
+miniatureEntry :: Maybe Text -> Maybe Day -> Id -> Action -> Handler (Maybe PhotoswipeEntry)
+miniatureEntry (Just mime) = miniatureFileEntry mime
+miniatureEntry _ = miniatureEntryImpl PSPicture
+
+miniatureFileEntry :: Text -> Maybe Day -> Id -> Action -> Handler (Maybe PhotoswipeEntry)
+miniatureFileEntry mime | T.isPrefixOf "video/" mime = miniatureEntryImpl $ PSVideo mime
+miniatureFileEntry _ = miniatureEntryImpl PSPicture
 
 photoswipeHeader :: Widget
 photoswipeHeader = do
@@ -80,6 +94,13 @@ photoswipeHeader = do
             children: 'a',
             pswpModule: () => import('@{StaticR $ StaticRoute ["photoswipe", "photoswipe.esm.js"] []}')
           });
+          lightbox.addFilter('itemData', (itemData, index) => {
+            const video = itemData.element.dataset.pswpVideoType;
+            if(video) {
+              itemData.videoType = video;
+            }
+            return itemData;
+          });
           lightbox.on('uiRegister', function () {
             lightbox.pswp.ui.registerElement({
               name: 'open-entry',
@@ -94,7 +115,34 @@ photoswipeHeader = do
                 })
               }
             });
-          })
+          });
+          lightbox.on('contentLoad', (e) => {
+            const { content } = e;
+            if (content.data.videoType) {
+              e.preventDefault();
+
+              content.element = document.createElement('video');
+              content.element.setAttribute('controls', true);
+              content.element.width = content.data.width;
+              content.element.height = content.data.height;
+              let source = document.createElement('source');
+              source.src = content.data.src;
+              source.type = content.data.videoType;
+              content.element.appendChild(source);
+
+              content.state = 'loading';
+              if (content.element.complete) {
+                content.onLoaded();
+              } else {
+                content.element.onload = () => {
+                  content.onLoaded();
+                };
+                content.element.onerror = () => {
+                  content.onError();
+                };
+              }
+            }
+          });
           lightbox.init()
         })
     }
@@ -148,9 +196,16 @@ photoswipe togroup (item : items) = do
       |]
   where
     itemTarget getUrl entry = fromMaybe (getUrl entry) (entry ^. swpRedirect)
-    itemWidget getUrl getMiniature it =
-      [whamlet|
-      <a href=@{getUrl it} data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-korrvigs-target=@{itemTarget getUrl it} target="_blank">
-        <img loading=lazy src=@{getMiniature it} alt="">
-        ^{_swpCaption it}
-    |]
+    itemWidget getUrl getMiniature it = case it ^. swpType of
+      PSPicture ->
+        [whamlet|
+        <a href=@{getUrl it} data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-korrvigs-target=@{itemTarget getUrl it} target="_blank">
+          <img loading=lazy src=@{getMiniature it} alt="">
+          ^{_swpCaption it}
+        |]
+      PSVideo mime ->
+        [whamlet|
+        <a href=@{getUrl it} data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-pswp-video-type=#{mime} data-korrvigs-target=@{itemTarget getUrl it} target="_blank">
+          <img loading=lazy src=@{getMiniature it} alt="">
+          ^{_swpCaption it}
+        |]

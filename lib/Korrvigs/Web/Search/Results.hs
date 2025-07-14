@@ -178,6 +178,7 @@ displayGallery isCol entries = do
       entry <-
         lift
           ( PhotoSwipe.miniatureEntry
+              (e ^. _2 . optMime)
               (e ^? _1 . sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
               (e ^. _1 . sqlEntryName)
               sizeA

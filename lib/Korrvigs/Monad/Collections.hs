@@ -16,6 +16,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import Korrvigs.Compute.Action
 import Korrvigs.Entry
+import Korrvigs.File.SQL
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad.Class
@@ -30,24 +31,25 @@ import Opaleye hiding (Field)
 import qualified Opaleye as O
 import System.IO
 
-data OptionalSQLDataImpl a b c = OptionalSQLData
+data OptionalSQLDataImpl a b c d = OptionalSQLData
   { _optTitle :: a,
     _optSizeAction :: b,
-    _optTask :: c
+    _optTask :: c,
+    _optMime :: d
   }
 
 makeLenses ''OptionalSQLDataImpl
 $(makeAdaptorAndInstanceInferrable "pOptSQLData" ''OptionalSQLDataImpl)
 
-type OptionalSQLData = OptionalSQLDataImpl (Maybe Text) (Maybe Action) (Maybe Text)
+type OptionalSQLData = OptionalSQLDataImpl (Maybe Text) (Maybe Action) (Maybe Text) (Maybe Text)
 
-type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlText) (FieldNullable SqlJsonb) (FieldNullable SqlText)
+type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlText) (FieldNullable SqlJsonb) (FieldNullable SqlText) (MaybeFields (O.Field SqlText))
 
 instance Default OptionalSQLData where
-  def = OptionalSQLData Nothing Nothing Nothing
+  def = OptionalSQLData Nothing Nothing Nothing Nothing
 
 instance Default OptionalSQLDataSQL where
-  def = OptionalSQLData O.null O.null O.null
+  def = OptionalSQLData O.null O.null O.null O.nothingFields
 
 optDef :: OptionalSQLDataSQL
 optDef = def
@@ -57,7 +59,14 @@ otherQuery display entry = case display of
   ColGallery -> do
     void $ selComp (entry ^. sqlEntryName) "miniature"
     sz <- selComp (entry ^. sqlEntryName) "size"
-    pure $ optDef & optSizeAction .~ toNullable (sz ^. sqlCompAction)
+    mime <- optional $ do
+      file <- selectTable filesTable
+      where_ $ (file ^. sqlFileName) .== (entry ^. sqlEntryName)
+      pure $ file ^. sqlFileMime
+    pure $
+      optDef
+        & optSizeAction .~ toNullable (sz ^. sqlCompAction)
+        & optMime .~ mime
   ColNetwork -> pure optDef
   ColTaskList -> do
     title <- selectTextMtdt Title $ entry ^. sqlEntryName

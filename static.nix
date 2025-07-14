@@ -52,6 +52,12 @@
     rev = "d80c32a62b169e776ad1c983d1fcdc6eea8b48e0";
     sha256 = "1a2rfvid8iqsnq582myjbbz3mjavwy7566lgfbds0badzf9l5srm";
   };
+  photoswipe-video = fetchFromGitHub {
+    owner = "dimsemenov";
+    repo = "photoswipe-video-plugin";
+    rev = "5e32d6589df53df2887900bcd55267d72aee57a6";
+    sha256 = "0l9rr3pb5mh7iv5m5d4b1x8qd26jr7nxzjwnqx4zk406bcqv672a";
+  };
   fullcalendar = fetchurl {
     url = "https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js";
     sha256 = "0x0hx6yazpp0qcqw103y14gr7pvd5r1g7638c6cpxa6yp3fimypr";
@@ -72,6 +78,7 @@ in
     cp ${vis-timeline} $out/vis/vis-timeline-graph2d.min.js
     cp -r ${ace}/src-min $out/ace
     cp -r ${photoswipe}/dist $out/photoswipe
+    cp -r ${photoswipe-video}/dist $out/photoswipe-video-plugin
     mkdir -p $out/fuse
     cp ${fuse} $out/fuse/fuse.js
     mkdir -p $out/fullcalendar

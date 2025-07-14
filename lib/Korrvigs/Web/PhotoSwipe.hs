@@ -87,20 +87,15 @@ photoswipeHeader = do
     [julius|
     function setupPhotoswipeFor(id) {
       import('@{StaticR $ StaticRoute ["photoswipe", "photoswipe-lightbox.esm.js"] []}')
-        .then((module) => {
-          const PhotoSwipeLightbox = module.default
+        .then((module) => import('@{StaticR $ StaticRoute ["photoswipe-video-plugin", "photoswipe-video-plugin.esm.js"] []}').then((video) => {
+          const PhotoSwipeLightbox = module.default;
+          const PhotoSwipeVideoPlugin = video.default;
           const lightbox = new PhotoSwipeLightbox({
             gallery: "#" + id,
             children: 'a',
             pswpModule: () => import('@{StaticR $ StaticRoute ["photoswipe", "photoswipe.esm.js"] []}')
           });
-          lightbox.addFilter('itemData', (itemData, index) => {
-            const video = itemData.element.dataset.pswpVideoType;
-            if(video) {
-              itemData.videoType = video;
-            }
-            return itemData;
-          });
+          const videoPlugin = new PhotoSwipeVideoPlugin(lightbox, {});
           lightbox.on('uiRegister', function () {
             lightbox.pswp.ui.registerElement({
               name: 'open-entry',
@@ -116,35 +111,8 @@ photoswipeHeader = do
               }
             });
           });
-          lightbox.on('contentLoad', (e) => {
-            const { content } = e;
-            if (content.data.videoType) {
-              e.preventDefault();
-
-              content.element = document.createElement('video');
-              content.element.setAttribute('controls', true);
-              content.element.width = content.data.width;
-              content.element.height = content.data.height;
-              let source = document.createElement('source');
-              source.src = content.data.src;
-              source.type = content.data.videoType;
-              content.element.appendChild(source);
-
-              content.state = 'loading';
-              if (content.element.complete) {
-                content.onLoaded();
-              } else {
-                content.element.onload = () => {
-                  content.onLoaded();
-                };
-                content.element.onerror = () => {
-                  content.onError();
-                };
-              }
-            }
-          });
           lightbox.init()
-        })
+        }))
     }
   |]
 
@@ -203,9 +171,9 @@ photoswipe togroup (item : items) = do
           <img loading=lazy src=@{getMiniature it} alt="">
           ^{_swpCaption it}
         |]
-      PSVideo mime ->
+      PSVideo _ ->
         [whamlet|
-        <a href=@{getUrl it} data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-pswp-video-type=#{mime} data-korrvigs-target=@{itemTarget getUrl it} target="_blank">
+        <a href=@{getUrl it} data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-pswp-type=video data-korrvigs-target=@{itemTarget getUrl it} target="_blank">
           <img loading=lazy src=@{getMiniature it} alt="">
           ^{_swpCaption it}
         |]

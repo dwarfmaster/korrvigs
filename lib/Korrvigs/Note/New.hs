@@ -1,7 +1,9 @@
 module Korrvigs.Note.New (new, NewNote (..), nnEntry, nnTitle) where
 
+import Control.Arrow (first)
 import Control.Lens
 import Data.Aeson
+import Data.Aeson.Lens
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
@@ -14,6 +16,7 @@ import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.Kind
+import qualified Korrvigs.Link.New as Link
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
@@ -58,13 +61,17 @@ initContent mtdt =
 create :: (MonadKorrvigs m) => NewNote -> m Id
 create note = do
   idmk' <- applyNewEntry (note ^. nnEntry) (imk "note")
+  extracted <- case note ^? nnEntry . neMtdt . each . filtered (\(k, _) -> CI.mk k == mtdtName Url) . _2 . _String of
+    Just url -> catchIOWith mempty $ Link.downloadInformation url
+    Nothing -> pure mempty
   let idmk = idmk' & idTitle ?~ note ^. nnTitle
   i <- newId idmk
   let parents = note ^. nnEntry . neParents
   let mtdt =
         useMtdt (note ^. nnEntry) $
           mconcat
-            [ M.singleton (mtdtName Title) (toJSON $ note ^. nnTitle),
+            [ M.fromList $ first CI.mk <$> M.toList (extracted ^. Link.exMtdt),
+              M.singleton (mtdtName Title) (toJSON $ note ^. nnTitle),
               maybe M.empty (M.singleton (mtdtName Language) . toJSON) (note ^. nnEntry . neLanguage),
               if null parents then M.empty else M.singleton (CI.mk "parents") (toJSON $ unId <$> parents),
               maybe M.empty (M.singleton (CI.mk "date") . toJSON) (note ^. nnEntry . neDate)

@@ -97,3 +97,9 @@ catchIO :: (MonadKorrvigs m) => IO a -> m a
 catchIO act = do
   r <- liftIO $ catch (Right <$> act) $ pure . Left
   throwEither KIOError r
+
+catchIOWith :: (MonadKorrvigs m) => a -> IO a -> m a
+catchIOWith d act =
+  liftIO (catch (Right <$> act) $ pure . Left) >>= \case
+    Left (_ :: IOException) -> pure d
+    Right v -> pure v

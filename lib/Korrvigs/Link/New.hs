@@ -6,6 +6,7 @@ module Korrvigs.Link.New
     nlEntry,
     nlOffline,
     ExtractedData (..),
+    downloadInformation,
     exCover,
     exMtdt,
     exContent,

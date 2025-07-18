@@ -105,6 +105,7 @@ library korrvigs-lib
     Korrvigs.Metadata.Media
     Korrvigs.Metadata.Media.Arxiv
     Korrvigs.Metadata.Media.GitHub
+    Korrvigs.Metadata.Media.Hackernews
     Korrvigs.Metadata.Media.MangaUpdates
     Korrvigs.Metadata.Media.New
     Korrvigs.Metadata.Media.Ontology

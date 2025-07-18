@@ -25,6 +25,7 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import qualified Korrvigs.Metadata.Media.Arxiv as AR
 import qualified Korrvigs.Metadata.Media.GitHub as GH
+import qualified Korrvigs.Metadata.Media.Hackernews as HN
 import qualified Korrvigs.Metadata.Media.MangaUpdates as MU
 import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.OpenLibrary as OL
@@ -115,6 +116,7 @@ dispatchMedia nm = do
               mkDispatcher "Arxiv" (pure . AR.parseQuery) AR.queryArxiv,
               mkDispatcher "Steam" (pure . Steam.parseQuery) Steam.querySteam,
               mkDispatcher "GitHub" (pure . GH.parseQuery) GH.queryGitHub,
+              mkDispatcher "Hacknews" (pure . HN.parseQuery) HN.queryHN,
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 
@@ -130,8 +132,11 @@ prepareNewMedia nm = do
         mergeInto md (nm ^. nmEntry)
           & neMtdt %~ ((mtdtSqlName TaskMtdt, "todo") :)
   let title = fromMaybe (medTxt (md ^. medType) <> " " <> nm ^. nmInput) $ ne ^. neTitle
+  let url = fromMaybe (nm ^. nmInput) $ md ^. medUrl
+  let nlink = NewLinkMedia url $ Link.NewLink ne False
   pure . (,subs) $ case md ^. medType of
-    Blogpost -> NewLinkMedia (nm ^. nmInput) $ Link.NewLink ne False
+    Blogpost -> nlink
+    Video -> nlink
     _ -> NewNoteMedia $ Note.NewNote ne title
   where
     medTxt :: MediaType -> Text

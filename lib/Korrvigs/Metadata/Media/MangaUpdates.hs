@@ -96,7 +96,8 @@ queryMangaUpdates url = do
                   _medContainer = Nothing,
                   _medInstitution = [],
                   _medLicense = [],
-                  _medCover = dlCover
+                  _medCover = dlCover,
+                  _medDiscussion = []
                 },
               toList dlCover
             )

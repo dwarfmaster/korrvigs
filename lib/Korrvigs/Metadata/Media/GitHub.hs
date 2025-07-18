@@ -100,6 +100,7 @@ queryGitHub i = do
                 _medContainer = Nothing,
                 _medInstitution = [],
                 _medLicense = toList $ gh ^. ghrLicense,
-                _medCover = Nothing
+                _medCover = Nothing,
+                _medDiscussion = []
               }
       pure $ Just (med, [])

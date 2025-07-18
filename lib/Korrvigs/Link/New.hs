@@ -40,6 +40,7 @@ import Korrvigs.Entry.New
 import Korrvigs.File.Download
 import Korrvigs.Kind
 import Korrvigs.Link.JSON
+import Korrvigs.Link.SQL
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
@@ -52,6 +53,7 @@ import Network.HTTP.Simple
 import Network.HTTP.Types.Status
 import Network.Mime
 import Network.URI
+import Opaleye
 import Text.HTML.TagSoup
 import Text.Pandoc hiding (Link, getCurrentTimeZone)
 import Text.Parsec hiding ((<|>))
@@ -258,7 +260,17 @@ downloadInformation uri = do
             _ -> pure mempty
 
 new :: (MonadKorrvigs m) => Text -> NewLink -> m Id
-new url options = case parseURI (T.unpack url) of
+new url options = do
+  li <- rSelect $ do
+    entry <- selectTable linksTable
+    where_ $ entry ^. sqlLinkRef .== sqlStrictText url
+    pure $ entry ^. sqlLinkName
+  case li of
+    (i : _) -> pure i
+    [] -> create url options
+
+create :: (MonadKorrvigs m) => Text -> NewLink -> m Id
+create url options = case parseURI (T.unpack url) of
   Nothing -> throwM $ KMiscError $ "Could not parse URL: " <> url
   Just uri -> do
     let protocol = T.pack $ uriScheme uri

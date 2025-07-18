@@ -83,6 +83,7 @@ querySteam i = do
       dlCover <- fmap join $ forM (steam ^. stImage) $ \img -> do
         let imgNew = NewDownloadedFile img $ def & neTitle ?~ title <> " cover"
         newFromUrl imgNew
+      let forum = "https://steamcommunity.com/app/" <> T.pack (show i) <> "/discussions"
       pure $
         Just
           ( Media
@@ -103,7 +104,8 @@ querySteam i = do
                 _medContainer = Nothing,
                 _medInstitution = [],
                 _medLicense = [],
-                _medCover = dlCover
+                _medCover = dlCover,
+                _medDiscussion = [forum]
               },
             toList dlCover
           )

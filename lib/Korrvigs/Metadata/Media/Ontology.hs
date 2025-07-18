@@ -76,7 +76,8 @@ data Media = Media
     _medContainer :: Maybe MediaContainer,
     _medInstitution :: [Text],
     _medLicense :: [Text],
-    _medCover :: Maybe Id
+    _medCover :: Maybe Id,
+    _medDiscussion :: [Text]
   }
   deriving (Show, Eq)
 

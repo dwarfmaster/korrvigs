@@ -30,7 +30,14 @@ data MediaType
   | Blogpost
   | Manga
   | Game
+  | Movie
+  | Video
+  | Song
   | Webcomic
+  | Blog
+  | Podcast
+  | Album
+  | Channel
   | Misc
   deriving (Show, Eq, Ord, Enum, Bounded)
 
@@ -93,7 +100,14 @@ displayMediaType Webcollection = "webcollection"
 displayMediaType Blogpost = "blogpost"
 displayMediaType Manga = "manga"
 displayMediaType Game = "game"
+displayMediaType Movie = "movie"
+displayMediaType Video = "video"
+displayMediaType Song = "song"
 displayMediaType Webcomic = "webcomic"
+displayMediaType Blog = "blog"
+displayMediaType Podcast = "podcast"
+displayMediaType Album = "album"
+displayMediaType Channel = "channel"
 displayMediaType Misc = "misc"
 
 mediaTypeMap :: Map Text MediaType

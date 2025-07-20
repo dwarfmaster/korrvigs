@@ -44,6 +44,7 @@ import Korrvigs.Link.SQL
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
+import Korrvigs.Monad.Metadata (updateMetadata)
 import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils (joinNull)
 import Korrvigs.Utils.DateTree
@@ -307,5 +308,9 @@ create url options = case parseURI (T.unpack url) of
               def
                 & neTitle .~ ((<> " cover") <$> title)
                 & neParents .~ [i]
-      void $ newFromUrl imgNew
+      newFromUrl imgNew >>= \case
+        Nothing -> pure ()
+        Just cid -> do
+          entry <- load i >>= throwMaybe (KMiscError $ unId i <> " just created, should be valid")
+          updateMetadata entry (M.singleton (mtdtSqlName Cover) (toJSON $ unId cid)) []
     pure i

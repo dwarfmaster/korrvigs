@@ -27,8 +27,20 @@ ytExtractor = string (T.unpack ytUrl) >> (urlVideoP <|> urlChannelP)
       i <- manyTill anyChar eof
       pure (Channel, ytUrl <> "@" <> T.pack i)
 
+nebulaExtractor :: TrivialExtractor
+nebulaExtractor = string (T.unpack nebulaUrl) >> (urlVideoP <|> urlChannelP)
+  where
+    nebulaUrl = "https://nebula.tv/"
+    urlVideoP = do
+      void $ try $ string "videos/"
+      i <- manyTill anyChar eof
+      pure (Video, nebulaUrl <> "videos/" <> T.pack i)
+    urlChannelP = do
+      i <- manyTill anyChar eof
+      pure (Channel, nebulaUrl <> T.pack i)
+
 extractors :: [TrivialExtractor]
-extractors = [ytExtractor]
+extractors = [ytExtractor, nebulaExtractor]
 
 parseQuery :: Text -> Maybe TrivialId
 parseQuery url = firstJust $ extract <$> extractors

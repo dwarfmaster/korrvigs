@@ -4,6 +4,7 @@ import Control.Lens
 import Data.Maybe
 import Korrvigs.Cli.Monad
 import Korrvigs.Monad
+import Korrvigs.Utils
 import Korrvigs.Utils.Base16
 import Korrvigs.Web ()
 import Korrvigs.Web.Backend
@@ -17,10 +18,8 @@ data Cmd = Cmd {_port :: Maybe Int, _staticPath :: Maybe FilePath}
 
 makeLenses ''Cmd
 
-firstJust :: a -> [Maybe a] -> a
-firstJust df [] = df
-firstJust _ (Just x : _) = x
-firstJust df (Nothing : xs) = firstJust df xs
+firstJust' :: a -> [Maybe a] -> a
+firstJust' x = fromMaybe x . firstJust
 
 parser' :: Parser Cmd
 parser' =
@@ -44,7 +43,7 @@ run cmd = do
   theme <- view $ korrWeb . webTheme
   staticEnv <- liftIO $ lookupEnv "KORRVIGS_WEB_STATIC"
   staticCfg <- view $ korrWeb . webStaticDir
-  let staticP = firstJust "./static" [cmd ^. staticPath, staticEnv, staticCfg]
+  let staticP = firstJust' "./static" [cmd ^. staticPath, staticEnv, staticCfg]
   stc <- liftIO $ staticDevel staticP
   staticRedirect <- view $ korrWeb . webStaticRedirect
   secret <- liftIO loadOrGenerateKey

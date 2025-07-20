@@ -112,6 +112,7 @@ library korrvigs-lib
     Korrvigs.Metadata.Media.OpenLibrary
     Korrvigs.Metadata.Media.Pandoc
     Korrvigs.Metadata.Media.Steam
+    Korrvigs.Metadata.Media.Trivial
     Korrvigs.Metadata.Task
     Korrvigs.Metadata.TH
     Korrvigs.Monad

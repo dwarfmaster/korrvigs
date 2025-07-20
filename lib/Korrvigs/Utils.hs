@@ -6,6 +6,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Data.Foldable
 import Data.Maybe
+import Data.Monoid
 import System.Directory
 import System.FilePath
 
@@ -26,6 +27,9 @@ combinePath :: FilePath -> FilePath -> FilePath
 combinePath rt pth
   | isAbsolute pth = pth
   | otherwise = rt </> pth
+
+firstJust :: (Foldable f) => f (Maybe a) -> Maybe a
+firstJust = getFirst . foldMap First
 
 -- Execute actions stopping at the first Just. Returns Nothing if no
 -- Just was found.

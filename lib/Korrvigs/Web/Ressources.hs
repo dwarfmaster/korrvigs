@@ -109,3 +109,8 @@ fuse mkStatic =
 fullcalendar :: (Route Static -> Route site) -> WidgetFor site ()
 fullcalendar mkStatic =
   addScript $ mkStatic $ StaticRoute ["fullcalendar", "index.global.min.js"] []
+
+epubJs :: (Route Static -> Route site) -> WidgetFor site ()
+epubJs mkStatic = do
+  addScript $ mkStatic $ StaticRoute ["jszip", "jszip.min.js"] []
+  addScript $ mkStatic $ StaticRoute ["epub", "epub.min.js"] []

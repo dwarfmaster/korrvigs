@@ -31,6 +31,7 @@ import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.OpenLibrary as OL
 import qualified Korrvigs.Metadata.Media.Pandoc as Pd
 import qualified Korrvigs.Metadata.Media.Steam as Steam
+import qualified Korrvigs.Metadata.Media.Trivial as Trivial
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections (capture)
@@ -117,7 +118,8 @@ dispatchMedia nm = do
               mkDispatcher "Arxiv" (pure . AR.parseQuery) AR.queryArxiv,
               mkDispatcher "Steam" (pure . Steam.parseQuery) Steam.querySteam,
               mkDispatcher "GitHub" (pure . GH.parseQuery) GH.queryGitHub,
-              mkDispatcher "Hacknews" (pure . HN.parseQuery) HN.queryHN,
+              mkDispatcher "Hackernews" (pure . HN.parseQuery) HN.queryHN,
+              mkDispatcher "Trivial" (pure . Trivial.parseQuery) Trivial.query,
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 

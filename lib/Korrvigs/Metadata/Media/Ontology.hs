@@ -17,6 +17,7 @@ import Korrvigs.Entry
 data MediaType
   = Article
   | Book
+  | Comic
   | Booklet
   | Inbook
   | Incollection
@@ -29,8 +30,11 @@ data MediaType
   | Webcollection
   | Blogpost
   | Manga
+  | Chapter
+  | Page
   | Game
   | Movie
+  | Episode
   | Video
   | Song
   | Webcomic
@@ -38,6 +42,7 @@ data MediaType
   | Podcast
   | Album
   | Channel
+  | Show
   | Misc
   deriving (Show, Eq, Ord, Enum, Bounded)
 
@@ -88,6 +93,7 @@ makeLenses ''Media
 displayMediaType :: MediaType -> Text
 displayMediaType Article = "article"
 displayMediaType Book = "book"
+displayMediaType Comic = "comic"
 displayMediaType Booklet = "booklet"
 displayMediaType Inbook = "inbook"
 displayMediaType Incollection = "incollection"
@@ -99,9 +105,12 @@ displayMediaType Unpublished = "unpublished"
 displayMediaType Software = "software"
 displayMediaType Webcollection = "webcollection"
 displayMediaType Blogpost = "blogpost"
+displayMediaType Chapter = "chapter"
+displayMediaType Page = "page"
 displayMediaType Manga = "manga"
 displayMediaType Game = "game"
 displayMediaType Movie = "movie"
+displayMediaType Episode = "episode"
 displayMediaType Video = "video"
 displayMediaType Song = "song"
 displayMediaType Webcomic = "webcomic"
@@ -109,6 +118,7 @@ displayMediaType Blog = "blog"
 displayMediaType Podcast = "podcast"
 displayMediaType Album = "album"
 displayMediaType Channel = "channel"
+displayMediaType Show = "show"
 displayMediaType Misc = "misc"
 
 mediaTypeMap :: Map Text MediaType

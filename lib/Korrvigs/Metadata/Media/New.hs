@@ -139,12 +139,17 @@ prepareNewMedia nm = do
   let nlink = NewLinkMedia url $ Link.NewLink ne False
   pure . (,subs) $ case md ^. medType of
     Blogpost -> nlink
+    Chapter -> nlink
+    Page -> nlink
+    Episode -> nlink
     Video -> nlink
+    Song -> nlink
     _ -> NewNoteMedia $ Note.NewNote ne title
   where
     medTxt :: MediaType -> Text
     medTxt Article = "Article"
     medTxt Book = "Livre"
+    medTxt Comic = "BD"
     medTxt Booklet = "Brochure"
     medTxt Inbook = "Chapitre"
     medTxt Incollection = "Partie"
@@ -157,8 +162,11 @@ prepareNewMedia nm = do
     medTxt Webcollection = "Collection"
     medTxt Blogpost = "Poste de blog"
     medTxt Manga = "Manga"
+    medTxt Chapter = "Chapitre"
+    medTxt Page = "Page"
     medTxt Game = "Game"
     medTxt Movie = "Movie"
+    medTxt Episode = "Épisode"
     medTxt Video = "Video"
     medTxt Song = "Song"
     medTxt Webcomic = "Webcomic"
@@ -166,6 +174,7 @@ prepareNewMedia nm = do
     medTxt Podcast = "Podcast"
     medTxt Album = "Album"
     medTxt Channel = "Channel"
+    medTxt Show = "Série"
     medTxt Misc = "Misc"
 
 new :: (MonadKorrvigs m) => NewMedia -> m Id

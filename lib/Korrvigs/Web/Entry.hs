@@ -133,9 +133,12 @@ refsWidget entry = do
   where
     cmp :: EntryRow -> EntryRow -> Ordering
     cmp row1 row2 = compare (row1 ^. sqlEntryName) (row2 ^. sqlEntryName)
+    favs = MkId "Favourites"
     relEntries :: Table a RelRowSQL -> Bool -> Select (Field SqlText, Field SqlText, Field SqlBool)
     relEntries tbl isSub = do
       subs <- selectTable tbl
+      where_ $ subs ^. source ./= sqlId favs
+      where_ $ subs ^. target ./= sqlId favs
       pure (subs ^. source, subs ^. target, sqlBool isSub)
     i = entry ^. name
     notesCC :: Select (EntryRowSQL, EntryRowSQL, Field SqlBool)

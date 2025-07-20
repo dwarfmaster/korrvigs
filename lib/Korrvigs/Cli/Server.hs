@@ -49,6 +49,7 @@ run cmd = do
   secret <- liftIO loadOrGenerateKey
   calsyncRt <- calsyncRoot
   captureRt <- captureRoot
+  creds <- view korrCreds
   liftIO $
     warp prt $
       WebData
@@ -59,5 +60,6 @@ run cmd = do
           web_static_redirect = staticRedirect,
           web_mac_secret = secret,
           web_calsync_root = calsyncRt,
-          web_capture_root = captureRt
+          web_capture_root = captureRt,
+          web_credentials = creds
         }

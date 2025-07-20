@@ -8,12 +8,16 @@ import Control.Lens hiding ((.=))
 import Control.Monad.Reader
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BSL
+import Data.Map (Map)
+import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Database.PostgreSQL.Simple (Connection, close, connectPostgreSQL)
 import Korrvigs.Monad
 import Korrvigs.Utils.Base16
+import Korrvigs.Utils.JSON (fromJSONM)
 import System.Directory
 import System.Environment.XDG.BaseDir
 import System.FilePath
@@ -30,7 +34,8 @@ data KorrState = KState
     _korrRoot :: FilePath,
     _korrCalsyncRoot :: FilePath,
     _korrCaptureRoot :: FilePath,
-    _korrWeb :: WebState
+    _korrWeb :: WebState,
+    _korrCreds :: Map Text Value
   }
 
 data KorrConfig = KConfig
@@ -41,7 +46,8 @@ data KorrConfig = KConfig
     _kconfigStaticDir :: Maybe FilePath,
     _kconfigStaticRedirect :: Maybe Text,
     _kconfigCalsyncRoot :: FilePath,
-    _kconfigCaptureRoot :: FilePath
+    _kconfigCaptureRoot :: FilePath,
+    _kconfigCredentials :: Maybe FilePath
   }
 
 makeLenses ''KorrState
@@ -56,10 +62,16 @@ instance MonadKorrvigs KorrM where
   root = view korrRoot
   calsyncRoot = view korrCalsyncRoot
   captureRoot = view korrCaptureRoot
+  getCredential c = do
+    creds <- view korrCreds
+    pure $ M.lookup c creds >>= fromJSONM
 
 runKorrM :: KorrConfig -> KorrM a -> IO (Either KorrvigsError a)
 runKorrM config act = do
   conn <- connectPostgreSQL $ Enc.encodeUtf8 $ config ^. kconfigPsql
+  creds <- case config ^. kconfigCredentials of
+    Nothing -> pure M.empty
+    Just credsPath -> fromMaybe M.empty . decode <$> BSL.readFile credsPath
   let state =
         KState
           { _korrConnection = conn,
@@ -72,7 +84,8 @@ runKorrM config act = do
                   _webTheme = config ^. kconfigTheme,
                   _webStaticDir = config ^. kconfigStaticDir,
                   _webStaticRedirect = config ^. kconfigStaticRedirect
-                }
+                },
+            _korrCreds = creds
           }
   let (KorrM action) = setupPsql >> act
   r <- catch (Right <$> runReaderT action state) (pure . Left)
@@ -96,6 +109,7 @@ instance FromJSON KorrConfig where
         <*> v .:? "staticRedirect"
         <*> v .: "calsync"
         <*> v .: "capture"
+        <*> v .:? "credentials"
 
 configPath :: IO FilePath
 configPath = do

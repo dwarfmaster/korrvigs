@@ -38,6 +38,7 @@ overlay: {
         base0E
         base0F
         ;
+      credentials = cfg.credentialFile;
       inherit (cfg) connectionSpec root calsync capture;
       inherit (server) port;
       staticDir = "${pkgs.korrvigs-static.override {inherit (cfg) theme;}}";
@@ -110,6 +111,11 @@ in {
         description = "Name of the database to use";
         default = "korrvigs";
       };
+    };
+    credentialFile = mkOption {
+      type = types.nullOr types.str;
+      description = "Path to the credential file";
+      default = null;
     };
 
     server = {

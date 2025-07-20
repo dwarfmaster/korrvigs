@@ -7,6 +7,7 @@ import Control.Exception
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Aeson
 import Data.Profunctor.Product.Default
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -34,6 +35,7 @@ class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   root :: m FilePath
   calsyncRoot :: m FilePath
   captureRoot :: m FilePath
+  getCredential :: (FromJSON cred) => Text -> m (Maybe cred)
 
 setupPsql :: (MonadKorrvigs m) => m ()
 setupPsql = do

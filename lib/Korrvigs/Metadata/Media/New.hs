@@ -27,6 +27,7 @@ import qualified Korrvigs.Metadata.Media.Arxiv as AR
 import qualified Korrvigs.Metadata.Media.GitHub as GH
 import qualified Korrvigs.Metadata.Media.Hackernews as HN
 import qualified Korrvigs.Metadata.Media.MangaUpdates as MU
+import qualified Korrvigs.Metadata.Media.OMDB as OMDB
 import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.OpenLibrary as OL
 import qualified Korrvigs.Metadata.Media.Pandoc as Pd
@@ -120,6 +121,7 @@ dispatchMedia nm = do
               mkDispatcher "GitHub" (pure . GH.parseQuery) GH.queryGitHub,
               mkDispatcher "Hackernews" (pure . HN.parseQuery) HN.queryHN,
               mkDispatcher "Trivial" (pure . Trivial.parseQuery) Trivial.query,
+              mkDispatcher "OMDB" (pure . OMDB.parseQuery) OMDB.queryOMDB,
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 

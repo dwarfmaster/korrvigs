@@ -68,7 +68,12 @@ displayHome :: Handler Html
 displayHome = do
   let actionsHd = [whamlet|<h2> ^{Widgets.headerSymbol "⊕"} Actions|]
   actions <- actionsWidget TargetHome
-  let favsHd = [whamlet|<h2> ^{Widgets.headerSymbol "★"} <a href=@{EntryR $ WId $ MkId "Favourites"}>Favourites|]
+  let favsHd =
+        [whamlet|
+    <h2> ^{Widgets.headerSymbol "★"}
+      <a href=@{EntryR $ WId $ MkId "Favourites"}>
+        Favourites
+  |]
   favs <- favouritesWidget
   let eventsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🕑"} Calendar|]
   evs <- eventsWidget

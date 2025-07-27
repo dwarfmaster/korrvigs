@@ -16,6 +16,7 @@ import Data.Typeable (Typeable)
 import Database.PostgreSQL.Simple (Connection, withTransaction)
 import qualified Database.PostgreSQL.Simple as Simple
 import Korrvigs.Entry
+import Network.HTTP.Client
 import Opaleye hiding (null)
 
 data KorrvigsError
@@ -33,6 +34,7 @@ instance Exception KorrvigsError
 class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
+  manager :: m Manager
   calsyncRoot :: m FilePath
   captureRoot :: m FilePath
   getCredential :: (FromJSON cred) => Text -> m (Maybe cred)

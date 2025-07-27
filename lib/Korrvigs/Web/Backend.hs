@@ -3,6 +3,7 @@ module Korrvigs.Web.Backend where
 import Data.Binary.Builder
 import Data.ByteString (ByteString)
 import Data.Functor ((<&>))
+import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -10,10 +11,12 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Database.PostgreSQL.Simple (Connection)
 import Korrvigs.Monad
+import Korrvigs.Utils (lazyCreateManager)
 import Korrvigs.Utils.Base16
 import Korrvigs.Utils.JSON
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
+import Network.HTTP.Client hiding (path)
 import Network.HTTP.Types
 import Yesod
 import Yesod.Static
@@ -27,7 +30,8 @@ data WebData = WebData
     web_mac_secret :: ByteString,
     web_calsync_root :: FilePath,
     web_capture_root :: FilePath,
-    web_credentials :: Map Text Value
+    web_credentials :: Map Text Value,
+    web_manager :: IORef (Maybe Manager)
   }
 
 getStaticR :: WebData -> Static
@@ -128,6 +132,7 @@ instance MonadKorrvigs Handler where
   getCredential c = do
     creds <- getsYesod web_credentials
     pure $ M.lookup c creds >>= fromJSONM
+  manager = getsYesod web_manager >>= liftIO . lazyCreateManager
 
 getFaviconR :: Handler TypedContent
 getFaviconR = redirect $ StaticR $ StaticRoute ["favicon.ico"] []

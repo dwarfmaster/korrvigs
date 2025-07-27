@@ -8,6 +8,7 @@ import Control.Lens hiding ((.=))
 import Control.Monad.Reader
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BSL
+import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
@@ -16,8 +17,10 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Database.PostgreSQL.Simple (Connection, close, connectPostgreSQL)
 import Korrvigs.Monad
+import Korrvigs.Utils (lazyCreateManager)
 import Korrvigs.Utils.Base16
 import Korrvigs.Utils.JSON (fromJSONM)
+import Network.HTTP.Client hiding (path)
 import System.Directory
 import System.Environment.XDG.BaseDir
 import System.FilePath
@@ -35,7 +38,8 @@ data KorrState = KState
     _korrCalsyncRoot :: FilePath,
     _korrCaptureRoot :: FilePath,
     _korrWeb :: WebState,
-    _korrCreds :: Map Text Value
+    _korrCreds :: Map Text Value,
+    _korrManager :: IORef (Maybe Manager)
   }
 
 data KorrConfig = KConfig
@@ -65,6 +69,7 @@ instance MonadKorrvigs KorrM where
   getCredential c = do
     creds <- view korrCreds
     pure $ M.lookup c creds >>= fromJSONM
+  manager = view korrManager >>= liftIO . lazyCreateManager
 
 runKorrM :: KorrConfig -> KorrM a -> IO (Either KorrvigsError a)
 runKorrM config act = do
@@ -72,6 +77,7 @@ runKorrM config act = do
   creds <- case config ^. kconfigCredentials of
     Nothing -> pure M.empty
     Just credsPath -> fromMaybe M.empty . decode <$> BSL.readFile credsPath
+  ref <- newIORef Nothing
   let state =
         KState
           { _korrConnection = conn,
@@ -85,7 +91,8 @@ runKorrM config act = do
                   _webStaticDir = config ^. kconfigStaticDir,
                   _webStaticRedirect = config ^. kconfigStaticRedirect
                 },
-            _korrCreds = creds
+            _korrCreds = creds,
+            _korrManager = ref
           }
   let (KorrM action) = setupPsql >> act
   r <- catch (Right <$> runReaderT action state) (pure . Left)

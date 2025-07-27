@@ -1,6 +1,5 @@
 module Korrvigs.Metadata.Media.Arxiv (parseQuery, queryArxiv) where
 
-import Korrvigs.Utils (simpleHttpM)
 import Conduit
 import Control.Applicative
 import Control.Arrow ((&&&))
@@ -21,6 +20,7 @@ import Korrvigs.File.Download
 import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.Pandoc as Pandoc
 import Korrvigs.Monad
+import Korrvigs.Utils (simpleHttpM)
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.URI
@@ -82,14 +82,14 @@ processArxivMtdts :: Entry -> Media -> Media
 processArxivMtdts entry =
   foldr (\el f -> processArxivMtdt el . f) id $ entryOther entry
 
-queryArxivBibtex :: ArxivId -> IO (Maybe Media)
+queryArxivBibtex :: (MonadKorrvigs m) => ArxivId -> m (Maybe Media)
 queryArxivBibtex i = do
   let url = escapeURIString isUnescapedInURI $ "https://arxiv.org/bibtex/" <> T.unpack i
   bibtex <- simpleHttpM $ T.pack url
   case bibtex of
     Nothing -> pure Nothing
     Just bib -> do
-      meds <- Pandoc.importBibtex bib
+      meds <- liftIO $ Pandoc.importBibtex bib
       case M.toList meds of
         [] -> pure Nothing
         ((_, med) : _) -> pure $ Just med
@@ -98,8 +98,8 @@ queryArxiv :: (MonadKorrvigs m) => ArxivId -> m (Maybe (Media, [Id]))
 queryArxiv i = do
   let url = escapeURIString isUnescapedInURI $ "https://export.arxiv.org/api/query?id_list=" <> T.unpack i
   req <- parseRequest url
-  man <- liftIO $ newManager tlsManagerSettings
-  med <- liftIO $ queryArxivBibtex i
+  man <- manager
+  med <- queryArxivBibtex i
   content <- liftIO $ runResourceT $ do
     resp <- http req man
     let scode = statusCode (responseStatus resp)

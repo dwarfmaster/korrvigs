@@ -74,13 +74,13 @@ contDispGetFilename bs = case runParser contDispP () "content-disposition" bs of
   Right v -> v
 
 newFromUrl :: (MonadKorrvigs m) => NewDownloadedFile -> m (Maybe Id)
-newFromUrl dl =
+newFromUrl dl = do
+  man <- manager
   withRunInIO $ \runIO ->
     withSystemTempDirectory "korrvigsDownload" $ \dir -> do
       let url = dl ^. ndlUrl
       let urlFileName = takeFileName . uriPath <$> parseURI (T.unpack url)
       req <- parseRequest $ T.unpack $ dl ^. ndlUrl
-      man <- newManager tlsManagerSettings
       success <- runResourceT $ do
         resp <- http req man
         let contentDisposition = find ((== "content-disposition") . fst) $ responseHeaders resp

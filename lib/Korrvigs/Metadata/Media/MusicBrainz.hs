@@ -1,6 +1,5 @@
 module Korrvigs.Metadata.Media.MusicBrainz where
 
-import Korrvigs.Utils
 import Conduit
 import Control.Lens
 import Control.Monad
@@ -18,6 +17,7 @@ import Korrvigs.Entry.New
 import Korrvigs.File.Download
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
+import Korrvigs.Utils
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.URI
@@ -100,7 +100,7 @@ queryMB (MBRelease i) = doQuery (mbUrl <> "ws/2/release/" <> i <> "?fmt=json&inc
   covId <- forM (guard (mbr ^. mbrCover) :: Maybe ()) $ \() -> do
     coverArtReq' <- parseRequest $ "https://coverartarchive.org/release/" <> T.unpack i <> "/front"
     let coverArtReq = coverArtReq' {redirectCount = 0}
-    man <- liftIO $ newManager tlsManagerSettings
+    man <- manager
     coverUrl <- runResourceT $ do
       resp <- http coverArtReq man
       let scode = statusCode $ responseStatus resp

@@ -38,8 +38,6 @@ import Korrvigs.Utils.DAV.Web (DavRessource (..), DavTag (..))
 import Korrvigs.Utils.DateTree
 import qualified Korrvigs.Utils.Git.Status as St
 import Korrvigs.Utils.Process
-import Network.HTTP.Client.TLS
-import Network.HTTP.Conduit
 import Opaleye hiding (null)
 import System.Directory
 import System.Exit
@@ -57,9 +55,9 @@ data CalChanges = CalChanges
 
 makeLenses ''CalChanges
 
-setupCDD :: (MonadIO m) => Calendar -> Text -> m DAV.CalDavData
+setupCDD :: (MonadKorrvigs m) => Calendar -> Text -> m DAV.CalDavData
 setupCDD cal pwd = do
-  man <- liftIO $ newManager tlsManagerSettings
+  man <- manager
   pure $
     DAV.CalDavData
       { DAV._calUser = cal ^. calUser,

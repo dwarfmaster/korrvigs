@@ -1,6 +1,6 @@
 module Korrvigs.Metadata.Media.OMDB where
 
-import Conduit
+import Korrvigs.Utils
 import Control.Lens hiding (noneOf)
 import Control.Monad
 import Data.Aeson
@@ -17,8 +17,6 @@ import Korrvigs.Entry.New
 import Korrvigs.File.Download
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
-import Network.HTTP.Conduit
-import Network.HTTP.Types.Status
 import Network.URI
 import Text.Parsec
 import Text.Parsec.Number
@@ -121,14 +119,7 @@ queryOMDB i =
 queryOMDBWithKey :: (MonadKorrvigs m) => Text -> OMDBId -> m (Maybe (Media, [Id]))
 queryOMDBWithKey key i = do
   let url = "https://www.omdbapi.com/?apikey=" <> key <> "&i=" <> i <> "&plot=full"
-  req <- parseRequest $ T.unpack url
-  man <- liftIO $ newManager tlsManagerSettings
-  content <- runResourceT $ do
-    resp <- http req man
-    let scode = statusCode $ responseStatus resp
-    if scode == 200
-      then fmap Just $ runConduit $ responseBody resp .| sinkLazy
-      else pure Nothing
+  content <- simpleHttpM url
   case eitherDecode <$> content of
     Just (Right omdb) -> do
       let imUrl = imdbUrl <> "title/" <> i

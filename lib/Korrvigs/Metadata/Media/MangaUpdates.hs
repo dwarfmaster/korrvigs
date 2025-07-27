@@ -4,7 +4,6 @@ module Korrvigs.Metadata.Media.MangaUpdates
   )
 where
 
-import Conduit
 import Control.Lens
 import Data.Aeson
 import Data.Aeson.Types
@@ -19,8 +18,7 @@ import Korrvigs.File.Download
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Metadata.Media.OpenLibrary (parsePublishMonth, parsePublishYear)
 import Korrvigs.Monad
-import Network.HTTP.Conduit
-import Network.HTTP.Types.Status
+import Korrvigs.Utils
 import Text.HTML.TagSoup
 
 data MangaUpdatesData = MangaUpdatesData
@@ -60,14 +58,7 @@ isMangaUpdates url =
 
 queryMangaUpdates :: (MonadKorrvigs m) => Text -> m (Maybe (Media, [Id]))
 queryMangaUpdates url = do
-  req <- parseRequest $ T.unpack url
-  man <- liftIO $ newManager tlsManagerSettings
-  content <- runResourceT $ do
-    resp <- http req man
-    let scode = statusCode (responseStatus resp)
-    if scode == 200
-      then fmap Just $ runConduit $ responseBody resp .| sinkLazy
-      else pure Nothing
+  content <- simpleHttpM url
   case sections isLD . parseTags <$> content of
     Just ((_ : TagText js : _) : _) -> case decode js of
       Nothing -> pure Nothing

@@ -1,5 +1,6 @@
 module Korrvigs.Metadata.Media.Arxiv (parseQuery, queryArxiv) where
 
+import Korrvigs.Utils (simpleHttpM)
 import Conduit
 import Control.Applicative
 import Control.Arrow ((&&&))
@@ -81,16 +82,10 @@ processArxivMtdts :: Entry -> Media -> Media
 processArxivMtdts entry =
   foldr (\el f -> processArxivMtdt el . f) id $ entryOther entry
 
-queryArxivBibtex :: Manager -> ArxivId -> IO (Maybe Media)
-queryArxivBibtex man i = do
+queryArxivBibtex :: ArxivId -> IO (Maybe Media)
+queryArxivBibtex i = do
   let url = escapeURIString isUnescapedInURI $ "https://arxiv.org/bibtex/" <> T.unpack i
-  req <- parseRequest url
-  bibtex <- runResourceT $ do
-    resp <- http req man
-    let scode = statusCode (responseStatus resp)
-    if scode == 200
-      then fmap Just $ runConduit $ responseBody resp .| sinkLazy
-      else pure Nothing
+  bibtex <- simpleHttpM $ T.pack url
   case bibtex of
     Nothing -> pure Nothing
     Just bib -> do
@@ -104,7 +99,7 @@ queryArxiv i = do
   let url = escapeURIString isUnescapedInURI $ "https://export.arxiv.org/api/query?id_list=" <> T.unpack i
   req <- parseRequest url
   man <- liftIO $ newManager tlsManagerSettings
-  med <- liftIO $ queryArxivBibtex man i
+  med <- liftIO $ queryArxivBibtex i
   content <- liftIO $ runResourceT $ do
     resp <- http req man
     let scode = statusCode (responseStatus resp)

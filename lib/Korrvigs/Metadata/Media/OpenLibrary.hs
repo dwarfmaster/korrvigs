@@ -8,14 +8,10 @@ module Korrvigs.Metadata.Media.OpenLibrary
 where
 
 import Citeproc.Types (readAsInt)
-import Conduit (runResourceT)
 import Control.Lens
 import Control.Monad
-import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Types
-import Data.Conduit
-import Data.Conduit.Combinators (sinkLazy)
 import Data.Default
 import Data.Foldable (toList)
 import Data.ISBN
@@ -30,8 +26,7 @@ import Korrvigs.Entry.New
 import Korrvigs.File.Download
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
-import Network.HTTP.Conduit
-import Network.HTTP.Types.Status
+import Korrvigs.Utils
 import Network.URI
 import System.FilePath
 
@@ -129,14 +124,7 @@ queryOpenLibrary :: (MonadKorrvigs m) => OpenLibraryQuery -> m (Maybe (Media, [I
 queryOpenLibrary q = case mkAPIUrl q of
   Nothing -> pure Nothing
   Just url -> do
-    req <- parseRequest $ T.unpack url
-    man <- liftIO $ newManager tlsManagerSettings
-    content <- runResourceT $ do
-      resp <- http req man
-      let scode = statusCode (responseStatus resp)
-      if scode == 200
-        then fmap Just $ runConduit $ responseBody resp .| sinkLazy
-        else pure Nothing
+    content <- simpleHttpM url
     case extract . eitherDecode <$> content of
       Nothing -> pure Nothing
       Just [] -> pure Nothing

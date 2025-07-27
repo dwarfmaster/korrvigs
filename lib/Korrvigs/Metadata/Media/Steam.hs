@@ -1,7 +1,6 @@
 module Korrvigs.Metadata.Media.Steam where
 
 import Citeproc.Types (readAsInt)
-import Conduit
 import Control.Lens
 import Control.Monad
 import Data.Aeson
@@ -17,8 +16,7 @@ import Korrvigs.Entry.New
 import Korrvigs.File.Download
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
-import Network.HTTP.Conduit
-import Network.HTTP.Types.Status
+import Korrvigs.Utils
 import Network.URI
 import System.FilePath
 
@@ -64,14 +62,7 @@ steamUrl = "https://store.steampowered.com"
 querySteam :: (MonadKorrvigs m) => SteamID -> m (Maybe (Media, [Id]))
 querySteam i = do
   let url = steamUrl <> "/api/appdetails?appids=" <> T.pack (show i)
-  req <- parseRequest $ T.unpack url
-  man <- liftIO $ newManager tlsManagerSettings
-  content <- runResourceT $ do
-    resp <- http req man
-    let scode = statusCode (responseStatus resp)
-    if scode == 200
-      then fmap Just $ runConduit $ responseBody resp .| sinkLazy
-      else pure Nothing
+  content <- simpleHttpM url
   case extract . eitherDecode <$> content of
     Nothing -> pure Nothing
     Just [] -> pure Nothing

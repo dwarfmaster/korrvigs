@@ -1,6 +1,5 @@
 module Korrvigs.Metadata.Media.Hackernews where
 
-import Conduit
 import Control.Lens
 import Data.Aeson
 import Data.Text (Text)
@@ -8,8 +7,7 @@ import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
-import Network.HTTP.Conduit
-import Network.HTTP.Types.Status
+import Korrvigs.Utils
 import Network.URI
 import Text.Parsec
 import Text.Parsec.Number
@@ -46,14 +44,7 @@ parseQuery _ = Nothing
 queryHN :: (MonadKorrvigs m) => HNId -> m (Maybe (Media, [Id]))
 queryHN i = do
   let url = "https://hacker-news.firebaseio.com/v0/item/" <> T.pack (show i) <> ".json"
-  req <- parseRequest $ T.unpack url
-  man <- liftIO $ newManager tlsManagerSettings
-  content <- runResourceT $ do
-    resp <- http req man
-    let scode = statusCode $ responseStatus resp
-    if scode == 200
-      then fmap Just $ runConduit $ responseBody resp .| sinkLazy
-      else pure Nothing
+  content <- simpleHttpM url
   case eitherDecode <$> content of
     Just (Right hndata)
       | hndata ^. hnType == "story" ->

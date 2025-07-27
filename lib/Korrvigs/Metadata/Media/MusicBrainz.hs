@@ -1,5 +1,6 @@
 module Korrvigs.Metadata.Media.MusicBrainz where
 
+import Korrvigs.Utils
 import Conduit
 import Control.Lens
 import Control.Monad
@@ -163,13 +164,7 @@ doQuery :: (MonadKorrvigs m, FromJSON a) => Text -> (a -> m (Media, [Id])) -> m 
 doQuery url mkMedia = do
   req' <- parseRequest $ T.unpack url
   let req = req' {requestHeaders = ("User-Agent", mbUserAgent) : requestHeaders req'}
-  man <- liftIO $ newManager tlsManagerSettings
-  content <- runResourceT $ do
-    resp <- http req man
-    let scode = statusCode $ responseStatus resp
-    if scode == 200
-      then fmap Just $ runConduit $ responseBody resp .| sinkLazy
-      else pure Nothing
+  content <- reqHttpM req
   case eitherDecode <$> content of
     Just (Right v) -> Just <$> mkMedia v
     _ -> pure Nothing

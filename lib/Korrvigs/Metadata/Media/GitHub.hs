@@ -1,6 +1,6 @@
 module Korrvigs.Metadata.Media.GitHub where
 
-import Conduit
+import Korrvigs.Utils (reqHttpM)
 import Control.Lens
 import Control.Monad
 import Data.Aeson
@@ -12,7 +12,6 @@ import Korrvigs.Entry (Id)
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
 import Network.HTTP.Conduit
-import Network.HTTP.Types.Status
 import Network.URI
 import System.FilePath
 
@@ -69,13 +68,7 @@ queryGitHub i = do
         initReq
           { requestHeaders = [("Accept", "application/vnd.github+json"), ("X-GitHub-Api-Version", "2022-11-28"), ("User-Agent", "dwarfmaster")]
           }
-  man <- liftIO $ newManager tlsManagerSettings
-  content <- liftIO $ runResourceT $ do
-    resp <- http req man
-    let scode = statusCode (responseStatus resp)
-    if scode == 200
-      then fmap Just $ runConduit $ responseBody resp .| sinkLazy
-      else pure Nothing
+  content <- reqHttpM req
   case eitherDecode <$> content of
     Nothing -> pure Nothing
     Just (Left _) -> pure Nothing

@@ -1,12 +1,18 @@
 module Korrvigs.Utils where
 
+import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
+import Data.ByteString.Lazy (ByteString)
 import Data.Foldable
 import Data.Maybe
 import Data.Monoid
+import Data.Text (Text)
+import qualified Data.Text as T
+import Network.HTTP.Conduit
+import Network.HTTP.Types.Status
 import System.Directory
 import System.FilePath
 
@@ -97,3 +103,16 @@ hoistEither (Right v) = pure v
 
 hoistEitherLift :: (Monad m) => m (Either e a) -> MaybeT m a
 hoistEitherLift act = lift act >>= hoistEither
+
+-- TODO Use global manager
+simpleHttpM :: (MonadIO m) => Text -> m (Maybe ByteString)
+simpleHttpM url = liftIO $ catch (Just <$> simpleHttp (T.unpack url)) (\(_ :: HttpException) -> pure Nothing)
+
+reqHttpM :: (MonadIO m) => Request -> m (Maybe ByteString)
+reqHttpM req = liftIO $ do
+  man <- newManager tlsManagerSettings
+  resp <- httpLbs req man
+  let scode = statusCode $ responseStatus resp
+  if scode == 200
+    then pure $ Just $ responseBody resp
+    else pure Nothing

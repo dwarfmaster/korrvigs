@@ -1,8 +1,12 @@
 module Korrvigs.Cli.New (newEntryOptions) where
 
+import Control.Arrow (first)
 import Control.Monad
 import Data.Aeson
+import Data.CaseInsensitive (CI)
+import qualified Data.CaseInsensitive as CI
 import Data.Functor.Identity
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -25,13 +29,13 @@ newEntryOptions =
     <*> optional (option dayParser $ metavar "DATE" <> long "date" <> help "Date for the entry, in format year-month-day")
     <*> optional (option str $ metavar "TITLE" <> long "title")
     <*> optional (option str $ metavar "LANG" <> long "lang" <> help "Either fr or en, the language the entry will be interpreted as")
-    <*> many (option mtdtParser $ long "mtdt" <> help "Pairs in the form key=json of metadata to add to the entry")
+    <*> (M.fromList <$> many (option mtdtParser $ long "mtdt" <> help "Pairs in the form key=json of metadata to add to the entry"))
     <*> (catMaybes <$> many (parseCollection <$> option str (long "collection" <> metavar "COL" <> help "Collections to add the entry to, in the form id#colname")))
 
-mtdtParser :: ReadM (Text, Value)
+mtdtParser :: ReadM (CI Text, Value)
 mtdtParser = eitherReader $ \s -> case P.runParser mtdtP () "<mtdt>" s of
   Left err -> Left $ show err
-  Right v -> Right v
+  Right v -> Right $ first CI.mk v
 
 mtdtP :: (P.Stream s Identity Char) => P.Parsec s u (Text, Value)
 mtdtP = do

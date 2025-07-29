@@ -13,13 +13,13 @@ module Korrvigs.Entry.New
   )
 where
 
-import Control.Arrow (first)
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
-import qualified Data.CaseInsensitive as CI
+import Data.CaseInsensitive (CI)
 import Data.Default
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
@@ -36,14 +36,14 @@ data NewEntry = NewEntry
     _neDate :: Maybe Day,
     _neTitle :: Maybe Text,
     _neLanguage :: Maybe Text,
-    _neMtdt :: [(Text, Value)],
+    _neMtdt :: Map (CI Text) Value,
     _neCollections :: [(Id, Text)]
   }
 
 makeLenses ''NewEntry
 
 instance Default NewEntry where
-  def = NewEntry [] Nothing Nothing Nothing [] []
+  def = NewEntry [] Nothing Nothing Nothing M.empty []
 
 zonedTimeFromDay :: TimeZone -> Day -> ZonedTime
 zonedTimeFromDay tz day =
@@ -55,7 +55,7 @@ useDate ne dt = do
   pure $ mplus (zonedTimeFromDay tz <$> ne ^. neDate) dt
 
 useMtdt :: NewEntry -> Metadata -> Metadata
-useMtdt ne = M.union $ M.fromList $ first CI.mk <$> ne ^. neMtdt
+useMtdt ne = M.union $ ne ^. neMtdt
 
 maybeOrNull :: (b -> Bool) -> a -> (b -> a) -> Maybe b -> a
 maybeOrNull _ d _ Nothing = d

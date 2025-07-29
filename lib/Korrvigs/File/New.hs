@@ -151,8 +151,8 @@ fromAndroid (adb, rel) = fmap (fromMaybe id) $ runMaybeT $ do
   let file = takeFileName rel
   phones <- lift listPhones
   phone <- hoistMaybe $ M.lookup adb phones
-  let addPhone = ((mtdtSqlName FromAndroid, toJSON $ unId $ phone ^. androidEntry) :)
-  let addFile = ((mtdtSqlName FromAndroidPath, toJSON file) :)
+  let addPhone = M.insert (mtdtName FromAndroid) $ toJSON $ unId $ phone ^. androidEntry
+  let addFile = M.insert (mtdtName FromAndroidPath) $ toJSON file
   pure $
     (nfEntry . neMtdt %~ addPhone . addFile)
       . (nfRemove .~ True)

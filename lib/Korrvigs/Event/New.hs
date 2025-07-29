@@ -1,12 +1,10 @@
 module Korrvigs.Event.New where
 
 import Conduit (throwM)
-import Control.Arrow (first)
 import Control.Lens
 import Control.Monad (unless)
 import Control.Monad.IO.Class
 import Data.Aeson (toJSON)
-import qualified Data.CaseInsensitive as CI
 import Data.Default
 import qualified Data.Map as M
 import Data.Maybe
@@ -92,7 +90,7 @@ new opts = do
             _iceGeometry = Nothing,
             _iceMtdt =
               mconcat
-                [ M.fromList (first CI.mk <$> opts ^. nevEntry . neMtdt),
+                [ opts ^. nevEntry . neMtdt,
                   M.singleton (mtdtName Title) $ toJSON title,
                   maybe M.empty (M.singleton (mtdtName Language) . toJSON) (opts ^. nevEntry . neLanguage)
                 ],

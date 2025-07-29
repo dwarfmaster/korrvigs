@@ -61,7 +61,7 @@ initContent mtdt =
 create :: (MonadKorrvigs m) => NewNote -> m Id
 create note = do
   idmk' <- applyNewEntry (note ^. nnEntry) (imk "note")
-  extracted <- case note ^? nnEntry . neMtdt . each . filtered (\(k, _) -> CI.mk k == mtdtName Url) . _2 . _String of
+  extracted <- case note ^? nnEntry . neMtdt . at (mtdtName Url) . _Just . _String of
     Just url -> catchIOWith mempty $ Link.downloadInformation url
     Nothing -> pure mempty
   let idmk = idmk' & idTitle ?~ note ^. nnTitle

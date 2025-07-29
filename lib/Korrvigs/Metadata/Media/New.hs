@@ -9,11 +9,9 @@ module Korrvigs.Metadata.Media.New
 where
 
 import Conduit (throwM)
-import Control.Arrow (first)
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import qualified Data.CaseInsensitive as CI
 import Data.Foldable
 import qualified Data.Map as M
 import Data.Maybe
@@ -130,14 +128,14 @@ dispatchMedia nm = do
 mergeInto :: Media -> NewEntry -> NewEntry
 mergeInto md =
   maybe id (neTitle ?~) (md ^. medTitle)
-    . (neMtdt %~ ((first CI.foldedCase <$> M.toList (M.delete (mtdtName Title) $ mediaMetadata md)) ++))
+    . (neMtdt %~ M.union (M.delete (mtdtName Title) $ mediaMetadata md))
 
 prepareNewMedia :: (MonadKorrvigs m) => NewMedia -> m (NewMediaInternal, [Id])
 prepareNewMedia nm = do
   (md, subs) <- dispatchMedia nm
   let ne =
         mergeInto md (nm ^. nmEntry)
-          & neMtdt %~ ((mtdtSqlName TaskMtdt, "todo") :)
+          & neMtdt %~ M.insert (mtdtName TaskMtdt) "todo"
   let title = fromMaybe (medTxt (md ^. medType) <> " " <> nm ^. nmInput) $ ne ^. neTitle
   let url = fromMaybe (nm ^. nmInput) $ md ^. medUrl
   let nlink = NewLinkMedia url $ Link.NewLink ne False

@@ -287,7 +287,7 @@ create url options = case parseURI (T.unpack url) of
     let mtdt =
           useMtdt (options ^. nlEntry) $
             M.union
-              (M.fromList (first CI.mk <$> options ^. nlEntry . neMtdt))
+              (options ^. nlEntry . neMtdt)
               (M.fromList $ first CI.mk <$> M.toList info)
               & at (mtdtName Title) .~ (toJSON <$> title)
     let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt

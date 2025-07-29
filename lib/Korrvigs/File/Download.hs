@@ -8,6 +8,7 @@ import Data.Aeson (toJSON)
 import Data.ByteString (ByteString)
 import Data.Char
 import Data.List
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -94,6 +95,6 @@ newFromUrl dl = do
       case success of
         Nothing -> pure Nothing
         Just tmp -> do
-          let nfile = NewFile (dl ^. ndlEntry) False & nfEntry . neMtdt %~ ((mtdtSqlName Url, toJSON url) :)
+          let nfile = NewFile (dl ^. ndlEntry) False & nfEntry . neMtdt %~ M.insert (mtdtName Url) (toJSON url)
           i <- runIO $ new tmp nfile
           pure $ Just i

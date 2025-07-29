@@ -15,8 +15,6 @@ import Data.Aeson.Types
 import Data.Default
 import Data.Foldable (toList)
 import Data.ISBN
-import Data.Map (Map)
-import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -51,7 +49,13 @@ data OLResult = OLResult
   }
   deriving (Ord, Eq, Show)
 
+newtype OLAuthor = OLAuthor
+  { _authName :: Text
+  }
+  deriving (Ord, Eq, Show)
+
 makeLenses ''OLResult
+makeLenses ''OLAuthor
 
 parseQuery :: Text -> Maybe OpenLibraryQuery
 parseQuery url | T.isPrefixOf openUrl url = Just $ OLUrl url
@@ -62,7 +66,7 @@ parseQuery txt = case validateISBN txt of
 parseAuthors :: Value -> Parser [Text]
 parseAuthors =
   withArray "OLResult authors" $
-    fmap toList . mapM (withObject "OLResult author" $ \obj -> obj .: "name")
+    fmap toList . mapM (withObject "OLResult author" $ \obj -> obj .: "key")
 
 parseDescription :: Maybe Value -> Parser (Maybe Text)
 parseDescription Nothing = pure Nothing
@@ -72,32 +76,32 @@ parseDescription (Just x) = unexpected x
 
 instance FromJSON OLResult where
   parseJSON = withObject "OLResult" $ \obj ->
-    OLResult
-      <$> obj .: "info_url"
-      <*> ((obj .: "details") >>= (.: "title"))
-      <*> ((obj .: "details") >>= (.:? "subtitle"))
-      <*> ((obj .: "details") >>= (.: "isbn_10"))
-      <*> ((obj .: "details") >>= (.: "isbn_13"))
-      <*> ((obj .: "details") >>= (.: "publishers"))
-      <*> ((obj .: "details") >>= (.: "authors") >>= parseAuthors)
-      <*> ((obj .: "details") >>= (.: "publish_date"))
-      <*> ((obj .: "details") >>= (.:? "description") >>= parseDescription)
-      <*> ((obj .: "details") >>= (.:? "series") <&> fromMaybe [])
-      <*> ((obj .: "details") >>= (.:? "covers") <&> fromMaybe [])
+    OLResult . (openUrl <>)
+      <$> obj .: "key"
+      <*> obj .: "title"
+      <*> obj .:? "subtitle"
+      <*> ((obj .:? "isbn_10") <&> fromMaybe [])
+      <*> ((obj .:? "isbn_13") <&> fromMaybe [])
+      <*> obj .: "publishers"
+      <*> ((obj .: "authors") >>= parseAuthors)
+      <*> obj .: "publish_date"
+      <*> ((obj .:? "description") >>= parseDescription)
+      <*> ((obj .:? "series") <&> fromMaybe [])
+      <*> ((obj .:? "covers") <&> fromMaybe [])
+
+instance FromJSON OLAuthor where
+  parseJSON = withObject "OL Author" $ \obj -> OLAuthor <$> obj .: "name"
 
 openUrl :: Text
 openUrl = "https://openlibrary.org"
 
-mkAPIBaseUrl :: OpenLibraryQuery -> Maybe Text
-mkAPIBaseUrl (OLISBN isbn) = Just $ openUrl <> "/api/books?bibkeys=ISBN:" <> renderISBN isbn
-mkAPIBaseUrl (OLKey key) = Just $ openUrl <> "/api/books?bibkeys=OLID:" <> key
-mkAPIBaseUrl (OLUrl url) =
-  case parseURI (T.unpack url) >>= (^? ix 2) . splitPath . uriPath of
-    Just keyWithSlash -> mkAPIBaseUrl $ OLKey $ T.pack $ init keyWithSlash
-    Nothing -> Nothing
-
 mkAPIUrl :: OpenLibraryQuery -> Maybe Text
-mkAPIUrl = fmap (<> "&format=json&jscmd=details") . mkAPIBaseUrl
+mkAPIUrl (OLISBN isbn) = Just $ openUrl <> "/isbn/" <> renderISBN isbn <> ".json"
+mkAPIUrl (OLKey key) = Just $ openUrl <> "/books/" <> key <> ".json"
+mkAPIUrl (OLUrl url) =
+  case parseURI (T.unpack url) >>= (^? ix 2) . splitPath . uriPath of
+    Just keyWithSlash -> mkAPIUrl $ OLKey $ T.pack $ init keyWithSlash
+    Nothing -> Nothing
 
 parsePublishMonth :: Text -> Maybe MonthOfYear
 parsePublishMonth t
@@ -120,21 +124,30 @@ parsePublishYear t = toInteger <$> readAsInt yr
   where
     yr = T.takeEnd 4 t
 
+queryAuthor :: (MonadKorrvigs m) => Text -> m (Maybe Text)
+queryAuthor key = do
+  let url = openUrl <> key <> ".json"
+  content <- simpleHttpM url
+  case eitherDecode <$> content of
+    Just (Right author) -> pure $ Just $ author ^. authName
+    _ -> pure Nothing
+
 queryOpenLibrary :: (MonadKorrvigs m) => OpenLibraryQuery -> m (Maybe (Media, [Id]))
 queryOpenLibrary q = case mkAPIUrl q of
   Nothing -> pure Nothing
   Just url -> do
     content <- simpleHttpM url
-    case extract . eitherDecode <$> content of
+    case eitherDecode <$> content of
       Nothing -> pure Nothing
-      Just [] -> pure Nothing
-      Just (olr : _) -> do
+      Just (Left _) -> pure Nothing
+      Just (Right olr) -> do
         let title = olr ^. olTitle
         dlCover <- fmap join $ forM (listToMaybe $ olr ^. olCovers) $ \cov -> do
           let coverUrl = "https://covers.openlibrary.org/b/id/" <> T.pack (show cov) <> "-L.jpg"
           let coverNew = NewDownloadedFile coverUrl $ def & neTitle ?~ title <> " cover"
           newFromUrl coverNew
         let fullTitle = title <> maybe "" (" - " <>) (olr ^. olSubtitle)
+        authors <- fmap catMaybes $ mapM queryAuthor $ olr ^. olAuthors
         pure $
           Just
             ( Media
@@ -145,7 +158,7 @@ queryOpenLibrary q = case mkAPIUrl q of
                   _medISBN = mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
                   _medISSN = [],
                   _medTitle = Just fullTitle,
-                  _medAuthors = olr ^. olAuthors,
+                  _medAuthors = authors,
                   _medMonth = parsePublishMonth $ olr ^. olPublishDate,
                   _medYear = parsePublishYear $ olr ^. olPublishDate,
                   _medUrl = Just $ olr ^. olUrl,
@@ -172,6 +185,3 @@ queryOpenLibrary q = case mkAPIUrl q of
     parseISBN isbnT = case validateISBN isbnT of
       Right isbn -> Just isbn
       Left _ -> Nothing
-    extract :: Either a (Map Text c) -> [c]
-    extract (Left _) = []
-    extract (Right mp) = M.elems mp

@@ -40,8 +40,16 @@ nebulaExtractor = string (T.unpack nebulaUrl) >> (urlVideoP <|> urlChannelP)
       i <- manyTill anyChar eof
       pure (Channel, nebulaUrl <> T.pack i)
 
+mediapartExtractor :: TrivialExtractor
+mediapartExtractor = do
+  void $ string journalUrl
+  i <- manyTill anyChar eof
+  pure (Article, T.pack $ journalUrl <> i)
+  where
+    journalUrl = "https://www.mediapart.fr/journal"
+
 extractors :: [TrivialExtractor]
-extractors = [ytExtractor, nebulaExtractor]
+extractors = [ytExtractor, nebulaExtractor, mediapartExtractor]
 
 parseQuery :: Text -> Maybe TrivialId
 parseQuery url = firstJust $ extract <$> extractors

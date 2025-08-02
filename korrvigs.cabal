@@ -161,6 +161,7 @@ library korrvigs-lib
     Korrvigs.Web
     Korrvigs.Web.Ace
     Korrvigs.Web.Actions
+    Korrvigs.Web.Actions.Bibtex
     Korrvigs.Web.Actions.Collection
     Korrvigs.Web.Actions.Defs
     Korrvigs.Web.Actions.EventSync
@@ -171,6 +172,7 @@ library korrvigs-lib
     Korrvigs.Web.Actions.Share
     Korrvigs.Web.Actions.Update
     Korrvigs.Web.Backend
+    Korrvigs.Web.Bibtex
     Korrvigs.Web.Compute
     Korrvigs.Web.Download
     Korrvigs.Web.Entry

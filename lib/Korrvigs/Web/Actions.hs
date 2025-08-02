@@ -18,6 +18,7 @@ import Korrvigs.Entry
 import Korrvigs.Monad.SQL
 import Korrvigs.Note.AST
 import Korrvigs.Utils.Base16
+import Korrvigs.Web.Actions.Bibtex
 import Korrvigs.Web.Actions.Collection
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Actions.EventSync
@@ -47,6 +48,7 @@ data ActionLabel
   | LabEventSync
   | LabExport
   | LabCollection
+  | LabBibtex
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 mkIcon :: Text -> Base16Index -> (Route WebData, Base16Index)
@@ -65,6 +67,7 @@ actIcon LabUpdate = mkIcon "upload" Base0E
 actIcon LabEventSync = mkIcon "eventsync" Base0E
 actIcon LabExport = mkIcon "export" Base0E
 actIcon LabCollection = mkIcon "collection" Base0B
+actIcon LabBibtex = mkIcon "bib" Base0E
 
 actName :: ActionLabel -> Text
 actName LabRemove = "remove"
@@ -79,6 +82,7 @@ actName LabUpdate = "update"
 actName LabEventSync = "eventsync"
 actName LabExport = "export"
 actName LabCollection = "collection"
+actName LabBibtex = "exportbib"
 
 actWidget :: Text -> ActionLabel -> Widget
 actWidget formId act = do
@@ -135,6 +139,7 @@ actForm l@LabUpdate = genForm updateForm updateTitle $ actUrl l
 actForm l@LabEventSync = genForm syncEvForm syncEvTitle $ actUrl l
 actForm l@LabExport = genForm exportForm exportTitle $ actUrl l
 actForm l@LabCollection = genForm colForm colTitle $ actUrl l
+actForm l@LabBibtex = genForm bibtexForm bibtexTitle $ actUrl l
 
 runPost :: AForm Handler a -> (a -> ActionTarget -> Handler ActionReaction) -> ActionTarget -> Handler ActionReaction
 runPost form runner tgt = do
@@ -158,6 +163,7 @@ actPost LabUpdate = runPost updateForm runUpdate
 actPost LabEventSync = runPost syncEvForm runSyncEv
 actPost LabExport = runPost exportForm runExport
 actPost LabCollection = runPost colForm runCol
+actPost LabBibtex = runPost bibtexForm runBibtex
 
 actCond :: ActionLabel -> ActionTarget -> Bool
 actCond LabRemove = removeTarget
@@ -172,6 +178,7 @@ actCond LabUpdate = updateTarget
 actCond LabEventSync = syncEvTarget
 actCond LabExport = exportTarget
 actCond LabCollection = colTarget
+actCond LabBibtex = bibtexTarget
 
 postHandler :: ActionLabel -> ActionTarget -> Handler Value
 postHandler lbl tgt = toJSON <$> actPost lbl tgt

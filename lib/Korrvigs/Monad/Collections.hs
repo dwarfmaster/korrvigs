@@ -94,13 +94,17 @@ expandID display i = do
 loadCollection :: (MonadKorrvigs m) => Collection -> [CollectionItem] -> m [(EntryRow, OptionalSQLData)]
 loadCollection = concatMapM . loadCollectionItem
 
-loadCollectionItem :: (MonadKorrvigs m) => Collection -> CollectionItem -> m [(EntryRow, OptionalSQLData)]
-loadCollectionItem c (ColItemEntry i) = expandID c i
-loadCollectionItem c (ColItemInclude i included) = fromMaybeT [] $ do
+noteCollection :: (MonadKorrvigs m) => Id -> Text -> m (Maybe [CollectionItem])
+noteCollection i col = runMaybeT $ do
   entry <- hoistLift $ load i
   note <- hoistMaybe $ entry ^? kindData . _NoteD
   md <- hoistEitherLift $ readNote $ note ^. notePath
-  col <- hoistMaybe $ md ^? docContent . each . bkCollection included . _3
+  hoistMaybe $ md ^? docContent . each . bkCollection col . _3
+
+loadCollectionItem :: (MonadKorrvigs m) => Collection -> CollectionItem -> m [(EntryRow, OptionalSQLData)]
+loadCollectionItem c (ColItemEntry i) = expandID c i
+loadCollectionItem c (ColItemInclude i included) = fromMaybeT [] $ do
+  col <- hoistMaybe =<< lift (noteCollection i included)
   lift $ loadCollection c col
 loadCollectionItem c (ColItemQuery q) = runQuery c q
 loadCollectionItem c (ColItemSubOf i) =

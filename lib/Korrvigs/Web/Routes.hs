@@ -25,6 +25,7 @@ korrvigsRoutes =
   [parseRoutes|
 -- Home and login
 / HomeR GET
+/bibtex SearchBibtexR GET
 
 -- Entry search and visualisation
 /entry SearchR GET
@@ -33,11 +34,13 @@ korrvigsRoutes =
 /entry/#WebId/metadata EntryMtdtR GET POST
 /entry/#WebId/cache EntryCacheR GET
 /entry/#WebId/cache/#Text EntryComputeR GET
+/entry/#WebId/bibtex EntryBibtexR GET
 
 -- Note getting
 /note/#WebId/sub NoteR GET POST
 /note/#WebId/sub/#WebAnyLoc NoteSubR GET POST
 /note/#WebId/col/#Text NoteColR GET POST
+/note/#WebId/col/#Text/bibtex NoteColBibtexR GET
 
 -- Actions
 /action/#Text/entry/#WebId ActEntryR POST

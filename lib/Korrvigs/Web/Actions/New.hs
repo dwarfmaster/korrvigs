@@ -99,6 +99,7 @@ runNewNote nnote tgt = do
               & neParents .~ maybeToList (extractParent tgt)
           )
           (nnote ^. nnoteTitle)
+          False
   i <- NNote.new settings
   mkReaction tgt "new note" i
 

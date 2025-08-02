@@ -1,10 +1,10 @@
 module Korrvigs.Metadata.Media.OMDB where
 
-import Korrvigs.Utils
 import Control.Lens hiding (noneOf)
 import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types
+import qualified Data.CaseInsensitive as CI
 import Data.Containers.ListUtils (nubOrd)
 import Data.Default
 import Data.Foldable
@@ -15,8 +15,11 @@ import Data.Time.Format
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Download
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
+import Korrvigs.Utils
 import Network.URI
 import Text.Parsec
 import Text.Parsec.Number
@@ -110,13 +113,13 @@ parseQuery url | T.isPrefixOf imdbUrl url = do
       pure $ T.pack i
 parseQuery _ = Nothing
 
-queryOMDB :: (MonadKorrvigs m) => OMDBId -> m (Maybe (Media, [Id]))
+queryOMDB :: (MonadKorrvigs m) => OMDBId -> m (Maybe (NewEntry -> NewEntry))
 queryOMDB i =
   getCredential "omdb" >>= \case
     Nothing -> pure Nothing
     Just key -> queryOMDBWithKey key i
 
-queryOMDBWithKey :: (MonadKorrvigs m) => Text -> OMDBId -> m (Maybe (Media, [Id]))
+queryOMDBWithKey :: (MonadKorrvigs m) => Text -> OMDBId -> m (Maybe (NewEntry -> NewEntry))
 queryOMDBWithKey key i = do
   let url = "https://www.omdbapi.com/?apikey=" <> key <> "&i=" <> i <> "&plot=full"
   content <- simpleHttpM url
@@ -127,32 +130,24 @@ queryOMDBWithKey key i = do
       dlCover <- fmap join $ forM (omdb ^. omdbPoster) $ \poster -> do
         let imgNew = NewDownloadedFile poster $ def & neTitle ?~ (omdb ^. omdbTitle) <> " cover"
         newFromUrl imgNew
+      let isFr = any (\l -> CI.mk l == "fr" || CI.mk l == "french") $ omdb ^. omdbLanguage
+      let tp = case omdb ^. omdbType of
+            OMDBMovie -> Movie
+            OMDBSerie -> Show
+            OMDBEpisode -> Episode
       pure $
-        Just
-          ( Media
-              { _medType = case omdb ^. omdbType of
-                  OMDBMovie -> Movie
-                  OMDBSerie -> Show
-                  OMDBEpisode -> Episode,
-                _medAbstract = Just $ omdb ^. omdbPlot,
-                _medBibtex = Nothing,
-                _medDOI = [],
-                _medISBN = [],
-                _medISSN = [],
-                _medTitle = Just $ omdb ^. omdbTitle,
-                _medAuthors = authors,
-                _medMonth = omdb ^? omdbReleased . _Just . to toGregorian . _2,
-                _medYear = omdb ^? omdbReleased . _Just . to toGregorian . _1,
-                _medUrl = Just imUrl,
-                _medRSS = Nothing,
-                _medSource = [],
-                _medPublisher = [],
-                _medContainer = Nothing,
-                _medInstitution = [],
-                _medLicense = [],
-                _medCover = dlCover,
-                _medDiscussion = []
-              },
-            toList dlCover
-          )
+        Just $
+          foldr
+            (.)
+            (setMtdtValue MediaMtdt tp)
+            [ setMtdtValue Abstract $ omdb ^. omdbPlot,
+              setMtdtValue Title $ omdb ^. omdbTitle,
+              setMtdtValue Authors authors,
+              setMtdtValueM MedMonth $ omdb ^? omdbReleased . _Just . to toGregorian . _2,
+              setMtdtValueM MedYear $ omdb ^? omdbReleased . _Just . to toGregorian . _1,
+              setMtdtValue Url imUrl,
+              setMtdtValueM Cover $ unId <$> dlCover,
+              if isFr then setMtdtValue Language "fr" else id,
+              neChildren %~ (toList dlCover <>)
+            ]
     _ -> pure Nothing

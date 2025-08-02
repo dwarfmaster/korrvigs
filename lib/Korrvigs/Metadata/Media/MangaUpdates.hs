@@ -15,6 +15,8 @@ import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Download
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Metadata.Media.OpenLibrary (parsePublishMonth, parsePublishYear)
 import Korrvigs.Monad
@@ -56,7 +58,7 @@ isMangaUpdates url =
     then Just url
     else Nothing
 
-queryMangaUpdates :: (MonadKorrvigs m) => Text -> m (Maybe (Media, [Id]))
+queryMangaUpdates :: (MonadKorrvigs m) => Text -> m (Maybe (NewEntry -> NewEntry))
 queryMangaUpdates url = do
   content <- simpleHttpM url
   case sections isLD . parseTags <$> content of
@@ -68,30 +70,20 @@ queryMangaUpdates url = do
           let coverNew = NewDownloadedFile (muData ^. muImage) $ def & neTitle ?~ title <> " cover"
           newFromUrl coverNew
         pure $
-          Just
-            ( Media
-                { _medType = Manga,
-                  _medAbstract = Just $ muData ^. muDescription,
-                  _medBibtex = Nothing,
-                  _medDOI = [],
-                  _medISBN = [],
-                  _medISSN = [],
-                  _medTitle = Just title,
-                  _medAuthors = muData ^. muAuthors,
-                  _medMonth = parsePublishMonth $ muData ^. muDate,
-                  _medYear = parsePublishYear $ muData ^. muDate,
-                  _medUrl = Just $ muData ^. muUrl,
-                  _medRSS = Nothing,
-                  _medSource = [],
-                  _medPublisher = muData ^. muPublishers,
-                  _medContainer = Nothing,
-                  _medInstitution = [],
-                  _medLicense = [],
-                  _medCover = dlCover,
-                  _medDiscussion = []
-                },
-              toList dlCover
-            )
+          Just $
+            foldr
+              (.)
+              (setMtdtValue MediaMtdt Manga)
+              [ setMtdtValue Abstract $ muData ^. muDescription,
+                setMtdtValue Title title,
+                setMtdtValue Authors $ muData ^. muAuthors,
+                setMtdtValueM MedMonth $ parsePublishMonth $ muData ^. muDate,
+                setMtdtValueM MedYear $ parsePublishYear $ muData ^. muDate,
+                setMtdtValue Url $ muData ^. muUrl,
+                setMtdtValue Publisher $ muData ^. muPublishers,
+                setMtdtValueM Cover $ unId <$> dlCover,
+                neChildren %~ (toList dlCover <>)
+              ]
     _ -> pure Nothing
   where
     isLD :: (Eq str, IsString str) => Tag str -> Bool

@@ -302,6 +302,7 @@ create url options = case parseURI (T.unpack url) of
     pth <- storeFile rt jsonTT Nothing (unId i <> ".json") $ FileLazy content
     syncFileOfKind pth Link
     applyCollections (options ^. nlEntry) i
+    applyChildren (options ^. nlEntry) i
     forM_ (extracted ^. exCover) $ \covUrl -> do
       let imgNew =
             NewDownloadedFile covUrl $

@@ -64,4 +64,5 @@ new nc = do
   -- Sync
   syncFileOfKind path Calendar
   applyCollections (nc ^. ncEntry) i
+  applyChildren (nc ^. ncEntry) i
   pure i

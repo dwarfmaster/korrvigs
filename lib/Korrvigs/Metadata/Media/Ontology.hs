@@ -5,14 +5,11 @@ import Control.Lens hiding ((.=))
 import Data.Aeson
 import Data.Aeson.Types (Parser)
 import Data.Default
-import Data.ISBN
 import Data.List (singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Time.Calendar
-import Korrvigs.Entry
 
 data MediaType
   = Article
@@ -63,32 +60,8 @@ data MediaContainer = MediaContainer
   }
   deriving (Show, Eq, Ord)
 
-data Media = Media
-  { _medType :: MediaType,
-    _medAbstract :: Maybe Text,
-    _medBibtex :: Maybe Text,
-    _medDOI :: [Text],
-    _medISBN :: [ISBN],
-    _medISSN :: [Text],
-    _medTitle :: Maybe Text,
-    _medAuthors :: [Text],
-    _medMonth :: Maybe MonthOfYear,
-    _medYear :: Maybe Year,
-    _medUrl :: Maybe Text,
-    _medRSS :: Maybe Text,
-    _medSource :: [MediaSource],
-    _medPublisher :: [Text],
-    _medContainer :: Maybe MediaContainer,
-    _medInstitution :: [Text],
-    _medLicense :: [Text],
-    _medCover :: Maybe Id,
-    _medDiscussion :: [Text]
-  }
-  deriving (Show, Eq)
-
 makeLenses ''MediaSource
 makeLenses ''MediaContainer
-makeLenses ''Media
 
 displayMediaType :: MediaType -> Text
 displayMediaType Article = "article"

@@ -10,6 +10,7 @@ import Citeproc.Types
 import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad
+import Data.Aeson
 import qualified Data.ByteString.Lazy as BSL
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
@@ -24,7 +25,11 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Builder as LB
 import qualified Data.Text.Lazy.Encoding as LEnc
+import Korrvigs.Entry.New
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
+import Korrvigs.Utils.JSON (fromJSONM)
 import Korrvigs.Utils.Pandoc
 import Text.Pandoc (PandocIO, ReaderOptions, runIO)
 import Text.Pandoc.Builder
@@ -105,80 +110,64 @@ parsePages (TextVal txt) = parsePagesTxt txt
 parsePages (FancyVal inls) = parsePagesTxt $ inlinesToText inls
 parsePages _ = Nothing
 
-missued :: Val Inlines -> Endo Media
-missued (DateVal (Date [DateParts [year]] _ _ _)) = Endo $ medYear ?~ toInteger year
+missued :: Val Inlines -> Endo NewEntry
+missued (DateVal (Date [DateParts [year]] _ _ _)) =
+  Endo $ neMtdt . at (mtdtName MedYear) ?~ toJSON (toInteger year)
 missued (DateVal (Date [DateParts (year : month : _)] _ _ _)) =
-  Endo $ (medYear ?~ toInteger year) . (medMonth ?~ month)
+  Endo $
+    (neMtdt . at (mtdtName MedYear) ?~ toJSON (toInteger year))
+      . (neMtdt . at (mtdtName MedMonth) ?~ toJSON month)
 missued _ = mempty
 
-mp :: (Val Inlines -> Maybe a) -> ASetter' Media (Maybe a) -> Val Inlines -> Endo Media
-mp parser lns val = Endo $ maybe id (lns ?~) $ parser val
+mp :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => (Val Inlines -> Maybe (MtdtType mtdt)) -> mtdt -> Val Inlines -> Endo NewEntry
+mp parser mtdt val = Endo $ maybe id ((neMtdt . at (mtdtName mtdt) ?~) . toJSON) $ parser val
 
-mpCon :: (Val Inlines -> Maybe a) -> ASetter' MediaContainer a -> Val Inlines -> Endo Media
+mpCon :: (Val Inlines -> Maybe a) -> ASetter' MediaContainer a -> Val Inlines -> Endo NewEntry
 mpCon parser lns val =
-  Endo $ maybe id (\v -> medContainer %~ Just . (lns .~ v) . fromMaybe def) $ parser val
+  Endo $ maybe id (\v -> neMtdt . at (mtdtName InContainer) %~ Just . toJSON . (lns .~ v) . fromMaybe def . (>>= fromJSONM)) $ parser val
 
-mp' :: (Val Inlines -> Maybe a) -> ASetter' Media [a] -> Val Inlines -> Endo Media
-mp' parser lns val = Endo $ maybe id (\v -> lns %~ (v :)) $ parser val
+mp' :: (ExtraMetadata mtdt, MtdtType mtdt ~ [a], ToJSON a, FromJSON a) => (Val Inlines -> Maybe a) -> mtdt -> Val Inlines -> Endo NewEntry
+mp' parser mtdt val = Endo $ maybe id (\v -> neMtdt . at (mtdtName mtdt) %~ Just . toJSON . maybe [v] (v :) . (>>= fromJSONM)) $ parser val
 
-variablesMapping :: [(Variable, Val Inlines -> Endo Media)]
+variablesMapping :: [(Variable, Val Inlines -> Endo NewEntry)]
 variablesMapping =
-  [ ("abstract", mpTxt medAbstract),
-    ("doi", mpTxt' medDOI),
-    ("isbn", mp' parseISBN medISBN),
-    ("issn", mpTxt' medISSN),
-    ("title", mpTxt medTitle),
-    ("author", \v -> Endo $ medAuthors %~ (++ parseAuthors v)),
+  [ ("abstract", mpTxt Abstract),
+    ("doi", mpTxt' DOI),
+    ("isbn", mp' parseISBN ISBNMtdt),
+    ("issn", mpTxt' ISSN),
+    ("title", mpTxt Title),
+    ("author", \v -> Endo $ neMtdt . at (mtdtName Authors) %~ Just . toJSON . (++ parseAuthors v) . fromMaybe [] . (>>= fromJSONM)),
     ("issued", missued),
-    ("url", mpTxt medUrl),
-    ("publisher", mpTxt' medPublisher),
+    ("url", mpTxt Url),
+    ("publisher", mpTxt' Publisher),
     ("container-title", mpCon parseTxt conTitle),
     ("collection-title", mpCon (fmap Just . parseTxt) conCollection),
     ("chapter", mpCon (fmap Just . parseTxt) conChapter),
     ("page", mpCon (fmap Just . parsePages) conPages),
     ("volume", mpCon (fmap Just . parseInt) conVolume),
-    ("organization", mpTxt' medInstitution)
+    ("organization", mpTxt' Institution)
   ]
   where
+    mpTxt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Val Inlines -> Endo NewEntry
     mpTxt = mp parseTxt
+    mpTxt' :: (ExtraMetadata mtdt, MtdtType mtdt ~ [Text]) => mtdt -> Val Inlines -> Endo NewEntry
     mpTxt' = mp' parseTxt
 
-importReference :: Reference Inlines -> Media
-importReference ref = appEndo endo med
+importReference :: Reference Inlines -> NewEntry -> NewEntry
+importReference ref = appEndo endo . med
   where
     tp = lookupType $ referenceType ref
-    med =
-      Media
-        { _medType = tp,
-          _medAbstract = Nothing,
-          _medBibtex = Nothing,
-          _medDOI = [],
-          _medISBN = [],
-          _medISSN = [],
-          _medTitle = Nothing,
-          _medAuthors = [],
-          _medMonth = Nothing,
-          _medYear = Nothing,
-          _medUrl = Nothing,
-          _medRSS = Nothing,
-          _medSource = [],
-          _medPublisher = [],
-          _medContainer = Nothing,
-          _medInstitution = [],
-          _medLicense = [],
-          _medCover = Nothing,
-          _medDiscussion = []
-        }
-    handleVariable :: Variable -> Val Inlines -> Endo Media
+    med = setMtdtValue MediaMtdt tp
+    handleVariable :: Variable -> Val Inlines -> Endo NewEntry
     handleVariable var val =
       maybe mempty ($ val) $ M.lookup var $ M.fromList variablesMapping
-    endo :: Endo Media
+    endo :: Endo NewEntry
     endo = foldMap (uncurry handleVariable) $ M.toList $ referenceVariables ref
 
-importReferences :: [Reference Inlines] -> Map Text Media
+importReferences :: [Reference Inlines] -> Map Text (NewEntry -> NewEntry)
 importReferences = M.fromList . map (unItemId . referenceId &&& importReference)
 
-importPandoc :: (ReaderOptions -> Text -> PandocIO Pandoc) -> BSL.ByteString -> IO (Map Text Media)
+importPandoc :: (ReaderOptions -> Text -> PandocIO Pandoc) -> BSL.ByteString -> IO (Map Text (NewEntry -> NewEntry))
 importPandoc reader input =
   runIO act <&> \case
     Left _ -> M.empty
@@ -190,13 +179,13 @@ importPandoc reader input =
       refs <- getReferences Nothing pd
       pure $ importReferences refs
 
-importBibtex :: BSL.ByteString -> IO (Map Text Media)
+importBibtex :: BSL.ByteString -> IO (Map Text (NewEntry -> NewEntry))
 importBibtex = importPandoc readBibLaTeX
 
-importRIS :: BSL.ByteString -> IO (Map Text Media)
+importRIS :: BSL.ByteString -> IO (Map Text (NewEntry -> NewEntry))
 importRIS = importPandoc readRIS
 
-importRef :: Text -> IO (Maybe Media)
+importRef :: Text -> IO (Maybe (NewEntry -> NewEntry))
 importRef txt = do
   let bsl = LEnc.encodeUtf8 $ LT.fromStrict txt
   bib <- importBibtex bsl

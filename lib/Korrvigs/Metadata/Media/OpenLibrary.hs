@@ -23,6 +23,8 @@ import Data.Time.Calendar
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Download
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
 import Korrvigs.Utils
@@ -133,7 +135,7 @@ queryAuthor key = do
     Just (Right author) -> pure $ Just $ author ^. authName
     _ -> pure Nothing
 
-queryOpenLibrary :: (MonadKorrvigs m) => OpenLibraryQuery -> m (Maybe (Media, [Id]))
+queryOpenLibrary :: (MonadKorrvigs m) => OpenLibraryQuery -> m (Maybe (NewEntry -> NewEntry))
 queryOpenLibrary q = case mkAPIUrl q of
   Nothing -> pure Nothing
   Just url -> do
@@ -152,37 +154,29 @@ queryOpenLibrary q = case mkAPIUrl q of
         let fullTitle = title <> maybe "" (" - " <>) (olr ^. olSubtitle)
         authors <- fmap catMaybes $ mapM queryAuthor $ olr ^. olAuthors
         pure $
-          Just
-            ( Media
-                { _medType = Book,
-                  _medAbstract = T.replace "\r\n" "\n" <$> olr ^. olDescription,
-                  _medBibtex = Nothing,
-                  _medDOI = [],
-                  _medISBN = mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
-                  _medISSN = [],
-                  _medTitle = Just fullTitle,
-                  _medAuthors = authors,
-                  _medMonth = parsePublishMonth $ olr ^. olPublishDate,
-                  _medYear = parsePublishYear $ olr ^. olPublishDate,
-                  _medUrl = Just $ olr ^. olUrl,
-                  _medRSS = Nothing,
-                  _medSource = [],
-                  _medPublisher = olr ^. olPublisher,
-                  _medContainer =
-                    listToMaybe $
-                      MediaContainer
-                        <$> olr ^. olSeries
-                        <*> pure Nothing
-                        <*> pure Nothing
-                        <*> pure Nothing
-                        <*> pure Nothing,
-                  _medInstitution = [],
-                  _medLicense = [],
-                  _medCover = dlCover,
-                  _medDiscussion = []
-                },
-              toList dlCover
-            )
+          Just $
+            foldr
+              (.)
+              (setMtdtValue MediaMtdt Book)
+              [ setMtdtValueM Abstract $ T.replace "\r\n" "\n" <$> olr ^. olDescription,
+                setMtdtValue ISBNMtdt $ mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
+                setMtdtValue Title fullTitle,
+                setMtdtValue Authors authors,
+                setMtdtValueM MedMonth $ parsePublishMonth $ olr ^. olPublishDate,
+                setMtdtValueM MedYear $ parsePublishYear $ olr ^. olPublishDate,
+                setMtdtValue Url $ olr ^. olUrl,
+                setMtdtValue Publisher $ olr ^. olPublisher,
+                setMtdtValueM InContainer $
+                  listToMaybe $
+                    MediaContainer
+                      <$> olr ^. olSeries
+                      <*> pure Nothing
+                      <*> pure Nothing
+                      <*> pure Nothing
+                      <*> pure Nothing,
+                setMtdtValueM Cover $ unId <$> dlCover,
+                neChildren %~ (toList dlCover <>)
+              ]
   where
     parseISBN :: Text -> Maybe ISBN
     parseISBN isbnT = case validateISBN isbnT of

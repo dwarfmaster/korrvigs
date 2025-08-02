@@ -96,4 +96,5 @@ create note = do
   path <- storeFile rt noteTreeType Nothing (unId i <> ".md") $ FileLazy bs
   syncFileOfKind path Note
   applyCollections (note ^. nnEntry) i
+  applyChildren (note ^. nnEntry) i
   pure i

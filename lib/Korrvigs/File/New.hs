@@ -198,6 +198,7 @@ new path' options' = do
   syncFileOfKind stored File
   when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path'
   applyCollections (options ^. nfEntry) i
+  applyChildren (options ^. nfEntry) i
   comps <- listCompute i
   forM_ comps Cpt.run
   pure i

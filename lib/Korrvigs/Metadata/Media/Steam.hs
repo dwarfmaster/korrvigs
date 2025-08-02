@@ -14,6 +14,8 @@ import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Download
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
 import Korrvigs.Utils
@@ -59,7 +61,7 @@ parseQuery _ = Nothing
 steamUrl :: Text
 steamUrl = "https://store.steampowered.com"
 
-querySteam :: (MonadKorrvigs m) => SteamID -> m (Maybe (Media, [Id]))
+querySteam :: (MonadKorrvigs m) => SteamID -> m (Maybe (NewEntry -> NewEntry))
 querySteam i = do
   let url = steamUrl <> "/api/appdetails?appids=" <> T.pack (show i)
   content <- simpleHttpM url
@@ -76,30 +78,20 @@ querySteam i = do
         newFromUrl imgNew
       let forum = "https://steamcommunity.com/app/" <> T.pack (show i) <> "/discussions"
       pure $
-        Just
-          ( Media
-              { _medType = Game,
-                _medAbstract = Just $ steam ^. stDescription,
-                _medBibtex = Nothing,
-                _medDOI = [],
-                _medISBN = [],
-                _medISSN = [],
-                _medTitle = Just title,
-                _medAuthors = steam ^. stDevs,
-                _medMonth = Nothing,
-                _medYear = Nothing,
-                _medUrl = Just gameUrl,
-                _medRSS = Just rssUrl,
-                _medSource = [],
-                _medPublisher = steam ^. stPublishers,
-                _medContainer = Nothing,
-                _medInstitution = [],
-                _medLicense = [],
-                _medCover = dlCover,
-                _medDiscussion = [forum]
-              },
-            toList dlCover
-          )
+        Just $
+          foldr
+            (.)
+            (setMtdtValue MediaMtdt Game)
+            [ setMtdtValue Abstract $ steam ^. stDescription,
+              setMtdtValue Title title,
+              setMtdtValue Authors $ steam ^. stDevs,
+              setMtdtValue Url gameUrl,
+              setMtdtValue Feed rssUrl,
+              setMtdtValue Publisher $ steam ^. stPublishers,
+              setMtdtValueM Cover $ unId <$> dlCover,
+              setMtdtValue Discussions [forum],
+              neChildren %~ (toList dlCover <>)
+            ]
   where
     extract :: Either a (Map Text c) -> [c]
     extract (Left _) = []

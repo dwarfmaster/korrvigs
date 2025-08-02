@@ -15,6 +15,8 @@ import Data.Time.Format
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Download
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
 import Korrvigs.Utils
@@ -95,7 +97,7 @@ parseQuery url | T.isPrefixOf mbUrl url = do
     _ -> Nothing
 parseQuery _ = Nothing
 
-queryMB :: (MonadKorrvigs m) => MBId -> m (Maybe (Media, [Id]))
+queryMB :: (MonadKorrvigs m) => MBId -> m (Maybe (NewEntry -> NewEntry))
 queryMB (MBRelease i) = doQuery (mbUrl <> "ws/2/release/" <> i <> "?fmt=json&inc=artists") $ \mbr -> do
   covId <- forM (guard (mbr ^. mbrCover) :: Maybe ()) $ \() -> do
     coverArtReq' <- parseRequest $ "https://coverartarchive.org/release/" <> T.unpack i <> "/front"
@@ -110,57 +112,31 @@ queryMB (MBRelease i) = doQuery (mbUrl <> "ws/2/release/" <> i <> "?fmt=json&inc
     fmap join $ forM coverUrl $ \covUrl -> do
       let covNew = NewDownloadedFile (Enc.decodeUtf8 covUrl) $ def & neTitle ?~ (mbr ^. mbrTitle) <> " cover"
       newFromUrl covNew
-  pure
-    ( Media
-        { _medType = Album,
-          _medAbstract = Nothing,
-          _medBibtex = Nothing,
-          _medDOI = [],
-          _medISBN = [],
-          _medISSN = [],
-          _medTitle = Just $ mbr ^. mbrTitle,
-          _medAuthors = mbr ^. mbrArtists,
-          _medMonth = mbr ^? mbrDate . _Just . to toGregorian . _2,
-          _medYear = mbr ^? mbrDate . _Just . to toGregorian . _1,
-          _medUrl = Just $ mbUrl <> "release/" <> i,
-          _medRSS = Nothing,
-          _medSource = [],
-          _medPublisher = [],
-          _medContainer = Nothing,
-          _medInstitution = [],
-          _medLicense = [],
-          _medCover = join covId,
-          _medDiscussion = []
-        },
-      toList $ join covId
-    )
+  pure $
+    foldr
+      (.)
+      (setMtdtValue MediaMtdt Album)
+      [ setMtdtValue Title $ mbr ^. mbrTitle,
+        setMtdtValue Authors $ mbr ^. mbrArtists,
+        setMtdtValueM MedMonth $ mbr ^? mbrDate . _Just . to toGregorian . _2,
+        setMtdtValueM MedYear $ mbr ^? mbrDate . _Just . to toGregorian . _1,
+        setMtdtValue Url $ mbUrl <> "release/" <> i,
+        setMtdtValueM Cover $ unId <$> join covId,
+        neChildren %~ (toList (join covId) <>)
+      ]
 queryMB (MBRecording i) = doQuery (mbUrl <> "ws/2/recording/" <> i <> "?fmt=json&inc=artists+releases") $ \mbr ->
-  pure
-    ( Media
-        { _medType = Song,
-          _medAbstract = Nothing,
-          _medBibtex = Nothing,
-          _medDOI = [],
-          _medISBN = [],
-          _medISSN = [],
-          _medTitle = Just $ mbr ^. mbroTitle,
-          _medAuthors = mbr ^. mbroArtists,
-          _medMonth = mbr ^? mbroDate . _Just . to toGregorian . _2,
-          _medYear = mbr ^? mbroDate . _Just . to toGregorian . _1,
-          _medUrl = Just $ mbUrl <> "recording/" <> i,
-          _medRSS = Nothing,
-          _medSource = [],
-          _medPublisher = [],
-          _medContainer = Nothing,
-          _medInstitution = [],
-          _medLicense = [],
-          _medCover = Nothing,
-          _medDiscussion = []
-        },
-      []
-    )
+  pure $
+    foldr
+      (.)
+      (setMtdtValue MediaMtdt Song)
+      [ setMtdtValue Title $ mbr ^. mbroTitle,
+        setMtdtValue Authors $ mbr ^. mbroArtists,
+        setMtdtValueM MedMonth $ mbr ^? mbroDate . _Just . to toGregorian . _2,
+        setMtdtValueM MedYear $ mbr ^? mbroDate . _Just . to toGregorian . _1,
+        setMtdtValue Url $ mbUrl <> "recording/" <> i
+      ]
 
-doQuery :: (MonadKorrvigs m, FromJSON a) => Text -> (a -> m (Media, [Id])) -> m (Maybe (Media, [Id]))
+doQuery :: (MonadKorrvigs m, FromJSON a) => Text -> (a -> m (NewEntry -> NewEntry)) -> m (Maybe (NewEntry -> NewEntry))
 doQuery url mkMedia = do
   req' <- parseRequest $ T.unpack url
   let req = req' {requestHeaders = ("User-Agent", mbUserAgent) : requestHeaders req'}

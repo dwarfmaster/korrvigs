@@ -4,7 +4,8 @@ import Conduit
 import Control.Monad (void)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Entry
+import Korrvigs.Entry.New
+import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
 import Korrvigs.Utils (firstJust)
@@ -50,30 +51,5 @@ parseQuery url = firstJust $ extract <$> extractors
       Left _ -> Nothing
       Right r -> pure r
 
-query :: (MonadKorrvigs m) => TrivialId -> m (Maybe (Media, [Id]))
-query (tp, url) =
-  pure $
-    Just
-      ( Media
-          { _medType = tp,
-            _medAbstract = Nothing,
-            _medBibtex = Nothing,
-            _medDOI = [],
-            _medISBN = [],
-            _medISSN = [],
-            _medTitle = Nothing,
-            _medAuthors = [],
-            _medMonth = Nothing,
-            _medYear = Nothing,
-            _medUrl = Just url,
-            _medRSS = Nothing,
-            _medSource = [],
-            _medPublisher = [],
-            _medContainer = Nothing,
-            _medInstitution = [],
-            _medLicense = [],
-            _medCover = Nothing,
-            _medDiscussion = []
-          },
-        []
-      )
+query :: (MonadKorrvigs m) => TrivialId -> m (Maybe (NewEntry -> NewEntry))
+query (tp, url) = pure $ Just $ setMtdtValue MediaMtdt tp . setMtdtValue Url url

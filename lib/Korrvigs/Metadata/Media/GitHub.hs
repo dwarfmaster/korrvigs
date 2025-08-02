@@ -1,6 +1,5 @@
 module Korrvigs.Metadata.Media.GitHub where
 
-import Korrvigs.Utils (reqHttpM)
 import Control.Lens
 import Control.Monad
 import Data.Aeson
@@ -8,9 +7,12 @@ import Data.Aeson.Types (Parser)
 import Data.Foldable
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Entry (Id)
+import Korrvigs.Entry.New
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
+import Korrvigs.Utils (reqHttpM)
 import Network.HTTP.Conduit
 import Network.URI
 import System.FilePath
@@ -60,7 +62,7 @@ parseQuery url = do
           }
     _ -> Nothing
 
-queryGitHub :: (MonadKorrvigs m) => GitHubId -> m (Maybe (Media, [Id]))
+queryGitHub :: (MonadKorrvigs m) => GitHubId -> m (Maybe (NewEntry -> NewEntry))
 queryGitHub i = do
   let url = "https://api.github.com/repos/" <> i ^. ghiOwner <> "/" <> i ^. ghiRepo
   initReq <- parseRequest $ T.unpack url
@@ -74,26 +76,15 @@ queryGitHub i = do
     Just (Left _) -> pure Nothing
     Just (Right gh) -> do
       let title = i ^. ghiRepo <> maybe "" (" - " <>) (gh ^. ghrDescription)
-      let med =
-            Media
-              { _medType = Software,
-                _medAbstract = Nothing,
-                _medBibtex = Nothing,
-                _medDOI = [],
-                _medISBN = [],
-                _medISSN = [],
-                _medTitle = Just title,
-                _medAuthors = [i ^. ghiOwner],
-                _medMonth = Nothing,
-                _medYear = Nothing,
-                _medUrl = Just $ "https://github.com/" <> i ^. ghiOwner <> "/" <> i ^. ghiRepo,
-                _medRSS = Just $ "https://github.com/" <> i ^. ghiOwner <> "/" <> i ^. ghiRepo <> "/commits/" <> gh ^. ghrDefaultBranch <> ".atom",
-                _medSource = [GitHubSource (i ^. ghiOwner) (i ^. ghiRepo)],
-                _medPublisher = [],
-                _medContainer = Nothing,
-                _medInstitution = [],
-                _medLicense = toList $ gh ^. ghrLicense,
-                _medCover = Nothing,
-                _medDiscussion = []
-              }
-      pure $ Just (med, [])
+      pure $
+        Just $
+          foldr
+            (.)
+            (setMtdtValue MediaMtdt Software)
+            [ setMtdtValue Title title,
+              setMtdtValue Authors [i ^. ghiOwner],
+              setMtdtValue Url $ "https://github.com/" <> i ^. ghiOwner <> "/" <> i ^. ghiRepo,
+              setMtdtValue Feed $ "https://github.com/" <> i ^. ghiOwner <> "/" <> i ^. ghiRepo <> "/commits/" <> gh ^. ghrDefaultBranch <> ".atom",
+              setMtdtValue Source [GitHubSource (i ^. ghiOwner) (i ^. ghiRepo)],
+              setMtdtValue License $ toList $ gh ^. ghrLicense
+            ]

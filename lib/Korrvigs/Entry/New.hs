@@ -6,10 +6,14 @@ module Korrvigs.Entry.New
     neLanguage,
     neMtdt,
     neCollections,
+    neChildren,
     useDate,
     useMtdt,
     applyNewEntry,
     applyCollections,
+    applyChildren,
+    setMtdtValue,
+    setMtdtValueM,
   )
 where
 
@@ -27,8 +31,10 @@ import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
+import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
+import Korrvigs.Monad.Metadata (updateParents)
 import Korrvigs.Note.AST
 
 data NewEntry = NewEntry
@@ -37,13 +43,14 @@ data NewEntry = NewEntry
     _neTitle :: Maybe Text,
     _neLanguage :: Maybe Text,
     _neMtdt :: Map (CI Text) Value,
-    _neCollections :: [(Id, Text)]
+    _neCollections :: [(Id, Text)],
+    _neChildren :: [Id]
   }
 
 makeLenses ''NewEntry
 
 instance Default NewEntry where
-  def = NewEntry [] Nothing Nothing Nothing M.empty []
+  def = NewEntry [] Nothing Nothing Nothing M.empty [] []
 
 zonedTimeFromDay :: TimeZone -> Day -> ZonedTime
 zonedTimeFromDay tz day =
@@ -78,3 +85,19 @@ applyCollections :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
 applyCollections ne i =
   forM_ (ne ^. neCollections) $ \(entry, colName) ->
     addToCollection entry colName (ColItemEntry i)
+
+applyChildren :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
+applyChildren ne i = do
+  forM_ (ne ^. neChildren) $
+    load
+      >=> ( \case
+              Just child -> updateParents child [i] []
+              Nothing -> pure ()
+          )
+
+setMtdtValue :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => mtdt -> MtdtType mtdt -> NewEntry -> NewEntry
+setMtdtValue mtdt val = neMtdt . at (mtdtName mtdt) ?~ toJSON val
+
+setMtdtValueM :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => mtdt -> Maybe (MtdtType mtdt) -> NewEntry -> NewEntry
+setMtdtValueM _ Nothing = id
+setMtdtValueM mtdt (Just val) = setMtdtValue mtdt val

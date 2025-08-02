@@ -8,6 +8,7 @@ import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.Foldable
+import Data.List (intersperse)
 import Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -52,11 +53,13 @@ initContent mtdt =
   mconcat
     [ [Para [PlainLink Nothing uri] | url <- get Url, uri <- toList (parseURI $ T.unpack url)],
       [Embed (MkId i) | i <- get Cover],
-      [Para [Plain txt] | txt <- get Abstract]
+      [Para (mkContent txt) | txt <- get Abstract]
     ]
   where
     get :: (ExtraMetadata mt, MtdtType mt ~ a, FromJSON a) => mt -> [a]
     get m = toList $ extractMtdt m mtdt
+    mkContent :: Text -> [Inline]
+    mkContent = intersperse Space . fmap Plain . filter (not . T.null) . T.split (== ' ')
 
 create :: (MonadKorrvigs m) => NewNote -> m Id
 create note = do

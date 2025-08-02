@@ -10,6 +10,7 @@ where
 import Citeproc.Types (readAsInt)
 import Control.Lens
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Default
@@ -83,7 +84,7 @@ instance FromJSON OLResult where
       <*> ((obj .:? "isbn_10") <&> fromMaybe [])
       <*> ((obj .:? "isbn_13") <&> fromMaybe [])
       <*> obj .: "publishers"
-      <*> ((obj .: "authors") >>= parseAuthors)
+      <*> (((obj .:? "authors") <&> fromMaybe (toJSON ())) >>= parseAuthors)
       <*> obj .: "publish_date"
       <*> ((obj .:? "description") >>= parseDescription)
       <*> ((obj .:? "series") <&> fromMaybe [])
@@ -139,7 +140,9 @@ queryOpenLibrary q = case mkAPIUrl q of
     content <- simpleHttpM url
     case eitherDecode <$> content of
       Nothing -> pure Nothing
-      Just (Left _) -> pure Nothing
+      Just (Left err) -> do
+        liftIO $ putStrLn $ ">>> " <> err
+        pure Nothing
       Just (Right olr) -> do
         let title = olr ^. olTitle
         dlCover <- fmap join $ forM (listToMaybe $ olr ^. olCovers) $ \cov -> do

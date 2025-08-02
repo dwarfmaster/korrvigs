@@ -104,6 +104,7 @@ library korrvigs-lib
     Korrvigs.Metadata.Android.ADB
     Korrvigs.Metadata.Media
     Korrvigs.Metadata.Media.Arxiv
+    Korrvigs.Metadata.Media.Export
     Korrvigs.Metadata.Media.GitHub
     Korrvigs.Metadata.Media.Hackernews
     Korrvigs.Metadata.Media.MangaUpdates

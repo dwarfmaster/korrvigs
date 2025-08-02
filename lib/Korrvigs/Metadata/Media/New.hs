@@ -84,7 +84,10 @@ dispatchMedia nm = do
   dispatch <- sequence dispatchers
   case fold dispatch of
     DispatcherSuccess md -> pure md
-    DispatcherSkip -> pure $ setMtdtValue MediaMtdt $ fromMaybe Blogpost $ nm ^. nmType
+    DispatcherSkip ->
+      pure $
+        setMtdtValue MediaMtdt (fromMaybe Blogpost $ nm ^. nmType)
+          . setMtdtValue Url (nm ^. nmInput)
     DispatcherFail lbl -> throwM $ KMiscError $ "Failed to import from " <> lbl
   where
     dispatchers =

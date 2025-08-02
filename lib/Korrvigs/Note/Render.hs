@@ -303,7 +303,7 @@ renderAttr attr = listOnLine as (writeText "{") (writeText " ") (writeText "}")
 renderMetadata :: Text -> Set Id -> Map (CI Text) Value -> RenderM ()
 renderMetadata title parents mtdt = withoutBreak $ do
   writeText "---" >> flush >> newline
-  writeText "title: " >> surrounded "'" (writeText title) >> flush >> newline
+  writeText "title: " >> renderToYAML True (String title) >> flush >> newline
   unless (S.null parents) $ do
     writeText "parents: " >> flush
     withPrefix "  " $ renderToYAML True $ toJSON $ unId <$> S.toList parents

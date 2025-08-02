@@ -48,8 +48,16 @@ mediapartExtractor = do
   where
     journalUrl = "https://www.mediapart.fr/journal"
 
+mondeDiploExtractor :: TrivialExtractor
+mondeDiploExtractor = do
+  void $ string journalUrl
+  i <- manyTill anyChar eof
+  pure (Article, T.pack $ journalUrl <> i)
+  where
+    journalUrl = "https://www.monde-diplomatique.fr/"
+
 extractors :: [TrivialExtractor]
-extractors = [ytExtractor, nebulaExtractor, mediapartExtractor]
+extractors = [ytExtractor, nebulaExtractor, mediapartExtractor, mondeDiploExtractor]
 
 parseQuery :: Text -> Maybe TrivialId
 parseQuery url = firstJust $ extract <$> extractors

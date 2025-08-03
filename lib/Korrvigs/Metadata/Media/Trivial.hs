@@ -56,8 +56,22 @@ mondeDiploExtractor = do
   where
     journalUrl = "https://www.monde-diplomatique.fr/"
 
+webtoonExtractor :: TrivialExtractor
+webtoonExtractor = do
+  void $ string webtoonUrl
+  i <- manyTill anyChar eof
+  pure (Webcomic, T.pack $ webtoonUrl <> i)
+  where
+    webtoonUrl = "https://www.webtoons.com/"
+
 extractors :: [TrivialExtractor]
-extractors = [ytExtractor, nebulaExtractor, mediapartExtractor, mondeDiploExtractor]
+extractors =
+  [ ytExtractor,
+    nebulaExtractor,
+    mediapartExtractor,
+    mondeDiploExtractor,
+    webtoonExtractor
+  ]
 
 parseQuery :: Text -> Maybe TrivialId
 parseQuery url = firstJust $ extract <$> extractors

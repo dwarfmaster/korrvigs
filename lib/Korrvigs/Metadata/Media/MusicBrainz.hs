@@ -133,6 +133,7 @@ queryMB (MBRecording i) = doQuery (mbUrl <> "ws/2/recording/" <> i <> "?fmt=json
         setMtdtValue Authors $ mbr ^. mbroArtists,
         setMtdtValueM MedMonth $ mbr ^? mbroDate . _Just . to toGregorian . _2,
         setMtdtValueM MedYear $ mbr ^? mbroDate . _Just . to toGregorian . _1,
+        setMtdtValueM TimeEstimation $ mbr ^. mbroLength,
         setMtdtValue Url $ mbUrl <> "recording/" <> i
       ]
 

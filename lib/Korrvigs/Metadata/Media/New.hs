@@ -25,6 +25,7 @@ import Korrvigs.Metadata.Media
 import qualified Korrvigs.Metadata.Media.Arxiv as AR
 import qualified Korrvigs.Metadata.Media.GitHub as GH
 import qualified Korrvigs.Metadata.Media.Hackernews as HN
+import qualified Korrvigs.Metadata.Media.IGDB as IGDB
 import qualified Korrvigs.Metadata.Media.MangaUpdates as MU
 import qualified Korrvigs.Metadata.Media.MusicBrainz as MB
 import qualified Korrvigs.Metadata.Media.OMDB as OMDB
@@ -100,6 +101,7 @@ dispatchMedia nm = do
               mkDispatcher "Hackernews" (pure . HN.parseQuery) HN.queryHN,
               mkDispatcher "Trivial" (pure . Trivial.parseQuery) Trivial.query,
               mkDispatcher "OMDB" (pure . OMDB.parseQuery) OMDB.queryOMDB,
+              mkDispatcher "IGDB" (pure . IGDB.parseQuery) IGDB.queryIGDB,
               mkDispatcher "MusicBrainz" (pure . MB.parseQuery) MB.queryMB,
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]

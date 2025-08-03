@@ -31,6 +31,9 @@ data KorrvigsError
 
 instance Exception KorrvigsError
 
+-- Credentials are a global read-only credential store.
+-- Tokens are read-write data not persisted across restarts, but shared
+-- across the entire application
 class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
@@ -38,6 +41,8 @@ class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   calsyncRoot :: m FilePath
   captureRoot :: m FilePath
   getCredential :: (FromJSON cred) => Text -> m (Maybe cred)
+  getToken :: (FromJSON tok) => Text -> m (Maybe tok)
+  storeToken :: (ToJSON tok) => Text -> tok -> m ()
 
 setupPsql :: (MonadKorrvigs m) => m ()
 setupPsql = do

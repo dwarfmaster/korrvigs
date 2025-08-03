@@ -141,7 +141,7 @@ queryOMDBWithKey key i = do
             (.)
             (setMtdtValue MediaMtdt tp)
             [ setMtdtValue Abstract $ omdb ^. omdbPlot,
-              setMtdtValue Title $ omdb ^. omdbTitle,
+              neTitle ?~ omdb ^. omdbTitle,
               setMtdtValue Authors authors,
               setMtdtValueM MedMonth $ omdb ^? omdbReleased . _Just . to toGregorian . _2,
               setMtdtValueM MedYear $ omdb ^? omdbReleased . _Just . to toGregorian . _1,

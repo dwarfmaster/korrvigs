@@ -107,6 +107,7 @@ library korrvigs-lib
     Korrvigs.Metadata.Media.Export
     Korrvigs.Metadata.Media.GitHub
     Korrvigs.Metadata.Media.Hackernews
+    Korrvigs.Metadata.Media.IGDB
     Korrvigs.Metadata.Media.MangaUpdates
     Korrvigs.Metadata.Media.MusicBrainz
     Korrvigs.Metadata.Media.New
@@ -261,6 +262,7 @@ library korrvigs-lib
     , random                ^>=1.2.1.2
     , shakespeare           ^>=2.1.0.1
     , split                 ^>=0.2.5
+    , stm                   ^>=2.5.3.1
     , tagsoup               ^>=0.14.8
     , template-haskell      ^>=2.21.0.0
     , temporary             ^>=1.3

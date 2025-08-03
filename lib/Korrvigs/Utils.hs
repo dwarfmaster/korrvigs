@@ -117,7 +117,10 @@ reqHttpM req = do
   let scode = statusCode $ responseStatus resp
   if scode == 200
     then pure $ Just $ responseBody resp
-    else pure Nothing
+    else do
+      liftIO $ print req
+      liftIO $ putStrLn $ "Failed to download request with error code " <> show scode
+      pure Nothing
 
 lazyCreateManager :: IORef (Maybe Manager) -> IO Manager
 lazyCreateManager ref = liftIO $ do

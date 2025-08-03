@@ -160,7 +160,7 @@ queryOpenLibrary q = case mkAPIUrl q of
               (setMtdtValue MediaMtdt Book)
               [ setMtdtValueM Abstract $ T.replace "\r\n" "\n" <$> olr ^. olDescription,
                 setMtdtValue ISBNMtdt $ mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
-                setMtdtValue Title fullTitle,
+                neTitle ?~ fullTitle,
                 setMtdtValue Authors authors,
                 setMtdtValueM MedMonth $ parsePublishMonth $ olr ^. olPublishDate,
                 setMtdtValueM MedYear $ parsePublishYear $ olr ^. olPublishDate,

@@ -3,6 +3,7 @@
 module Korrvigs.Cli.Monad where
 
 import Conduit (MonadThrow, MonadUnliftIO, throwM)
+import Control.Concurrent.STM
 import Control.Exception
 import Control.Lens hiding ((.=))
 import Control.Monad.Reader
@@ -39,6 +40,7 @@ data KorrState = KState
     _korrCaptureRoot :: FilePath,
     _korrWeb :: WebState,
     _korrCreds :: Map Text Value,
+    _korrTokens :: TVar (Map Text Value),
     _korrManager :: IORef (Maybe Manager)
   }
 
@@ -70,6 +72,14 @@ instance MonadKorrvigs KorrM where
     creds <- view korrCreds
     pure $ M.lookup c creds >>= fromJSONM
   manager = view korrManager >>= liftIO . lazyCreateManager
+  getToken tok = do
+    tv <- view korrTokens
+    liftIO $ atomically $ do
+      toks <- readTVar tv
+      pure $ M.lookup tok toks >>= fromJSONM
+  storeToken tok v = do
+    tv <- view korrTokens
+    liftIO $ atomically $ modifyTVar tv $ M.insert tok $ toJSON v
 
 runKorrM :: KorrConfig -> KorrM a -> IO (Either KorrvigsError a)
 runKorrM config act = do
@@ -78,6 +88,7 @@ runKorrM config act = do
     Nothing -> pure M.empty
     Just credsPath -> fromMaybe M.empty . decode <$> BSL.readFile credsPath
   ref <- newIORef Nothing
+  toks <- newTVarIO M.empty
   let state =
         KState
           { _korrConnection = conn,
@@ -92,6 +103,7 @@ runKorrM config act = do
                   _webStaticRedirect = config ^. kconfigStaticRedirect
                 },
             _korrCreds = creds,
+            _korrTokens = toks,
             _korrManager = ref
           }
   let (KorrM action) = setupPsql >> act

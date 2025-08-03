@@ -81,7 +81,7 @@ queryGitHub i = do
           foldr
             (.)
             (setMtdtValue MediaMtdt Software)
-            [ setMtdtValue Title title,
+            [ neTitle ?~ title,
               setMtdtValue Authors [i ^. ghiOwner],
               setMtdtValue Url $ "https://github.com/" <> i ^. ghiOwner <> "/" <> i ^. ghiRepo,
               setMtdtValue Feed $ "https://github.com/" <> i ^. ghiOwner <> "/" <> i ^. ghiRepo <> "/commits/" <> gh ^. ghrDefaultBranch <> ".atom",

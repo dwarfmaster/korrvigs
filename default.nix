@@ -8,7 +8,7 @@
 , memory, mime-types, monad-loops, mtl, network-uri, opaleye
 , optparse-applicative, pandoc, pandoc-types, parsec
 , parsec3-numbers, password, postgresql-simple, process
-, product-profunctors, profunctors, random, shakespeare, split
+, product-profunctors, profunctors, random, shakespeare, split, stm
 , tagsoup, template-haskell, temporary, text, text-builder
 , text-manipulate, time, transformers, unix, utf8-string, vector
 , xdg-basedir, xml-conduit, xml-types, yaml, yesod, yesod-core
@@ -30,7 +30,7 @@ mkDerivation {
     mime-types monad-loops mtl network-uri opaleye optparse-applicative
     pandoc pandoc-types parsec parsec3-numbers password
     postgresql-simple process product-profunctors profunctors random
-    shakespeare split tagsoup template-haskell temporary text
+    shakespeare split stm tagsoup template-haskell temporary text
     text-builder text-manipulate time transformers unix utf8-string
     vector xdg-basedir xml-conduit xml-types yaml yesod yesod-core
     yesod-static

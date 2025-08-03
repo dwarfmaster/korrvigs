@@ -75,7 +75,7 @@ queryMangaUpdates url = do
               (.)
               (setMtdtValue MediaMtdt Manga)
               [ setMtdtValue Abstract $ muData ^. muDescription,
-                setMtdtValue Title title,
+                neTitle ?~ title,
                 setMtdtValue Authors $ muData ^. muAuthors,
                 setMtdtValueM MedMonth $ parsePublishMonth $ muData ^. muDate,
                 setMtdtValueM MedYear $ parsePublishYear $ muData ^. muDate,

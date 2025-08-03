@@ -51,6 +51,7 @@ run cmd = do
   captureRt <- captureRoot
   creds <- view korrCreds
   ref <- view korrManager
+  toks <- view korrTokens
   liftIO $
     warp prt $
       WebData
@@ -63,5 +64,6 @@ run cmd = do
           web_calsync_root = calsyncRt,
           web_capture_root = captureRt,
           web_credentials = creds,
-          web_manager = ref
+          web_manager = ref,
+          web_tokens = toks
         }

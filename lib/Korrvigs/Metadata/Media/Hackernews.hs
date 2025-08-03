@@ -5,7 +5,6 @@ import Data.Aeson
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry.New
-import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
@@ -56,7 +55,7 @@ queryHN i = do
                   foldr
                     (.)
                     (setMtdtValue MediaMtdt Blogpost)
-                    [ setMtdtValue Title $ hndata ^. hnTitle,
+                    [ neTitle ?~ hndata ^. hnTitle,
                       setMtdtValue Url hnurl,
                       setMtdtValue Discussions [hnurl]
                     ]

@@ -1,5 +1,6 @@
 module Korrvigs.Web.Backend where
 
+import Control.Concurrent.STM
 import Data.Binary.Builder
 import Data.ByteString (ByteString)
 import Data.Functor ((<&>))
@@ -31,7 +32,8 @@ data WebData = WebData
     web_calsync_root :: FilePath,
     web_capture_root :: FilePath,
     web_credentials :: Map Text Value,
-    web_manager :: IORef (Maybe Manager)
+    web_manager :: IORef (Maybe Manager),
+    web_tokens :: TVar (Map Text Value)
   }
 
 getStaticR :: WebData -> Static
@@ -133,6 +135,14 @@ instance MonadKorrvigs Handler where
     creds <- getsYesod web_credentials
     pure $ M.lookup c creds >>= fromJSONM
   manager = getsYesod web_manager >>= liftIO . lazyCreateManager
+  getToken tok = do
+    tv <- getsYesod web_tokens
+    liftIO $ atomically $ do
+      toks <- readTVar tv
+      pure $ M.lookup tok toks >>= fromJSONM
+  storeToken tok v = do
+    tv <- getsYesod web_tokens
+    liftIO $ atomically $ modifyTVar tv $ M.insert tok $ toJSON v
 
 getFaviconR :: Handler TypedContent
 getFaviconR = redirect $ StaticR $ StaticRoute ["favicon.ico"] []

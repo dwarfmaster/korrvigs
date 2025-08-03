@@ -83,7 +83,7 @@ querySteam i = do
             (.)
             (setMtdtValue MediaMtdt Game)
             [ setMtdtValue Abstract $ steam ^. stDescription,
-              setMtdtValue Title title,
+              neTitle ?~ title,
               setMtdtValue Authors $ steam ^. stDevs,
               setMtdtValue Url gameUrl,
               setMtdtValue Feed rssUrl,

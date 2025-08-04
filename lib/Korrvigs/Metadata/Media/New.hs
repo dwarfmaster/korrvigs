@@ -123,7 +123,7 @@ prepareNewMedia nm = do
     Episode -> nlink
     Video -> nlink
     Song -> nlink
-    _ -> NewNoteMedia $ Note.NewNote ne title True
+    _ -> NewNoteMedia $ Note.NewNote ne title $ isNothing $ ne ^. neTitle
   where
     medTxt :: MediaType -> Text
     medTxt Article = "Article"

@@ -16,6 +16,7 @@ overlay: {
   server = cfg.server;
   psql = cfg.postgresql;
   nginx = server.nginx;
+  postgre = config.services.postgresql;
 
   configContent =
     {
@@ -165,12 +166,21 @@ in {
         ];
       };
       programs.korrvigs.connectionSpec = "dbname='${psql.database}'";
-      systemd.services.postgresql.postStart = lib.mkAfter ''
-        $PSQL ${pgUser} -d ${psql.database} -c 'CREATE EXTENSION IF NOT EXISTS postgis';
-        $PSQL ${pgUser} -d ${psql.database} -c 'CREATE EXTENSION IF NOT EXISTS address_standardizer';
-        $PSQL ${pgUser} -d ${psql.database} -f ${./doc/schema.pgsql}
-        $PSQL ${pgUser} -d ${psql.database} -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${cfg.user}';
-      '';
+      systemd.services.korrvigs-setup-pgsql = {
+        serviceConfig.Type = "oneshot";
+        requiredBy = ["korrvigs.service"];
+        before = ["korrvigs.service"];
+        after = ["postgresql.service"];
+        serviceConfig.User = "postgres";
+        environment.PSQL = "psql --port=${toString postgre.settings.port}";
+        path = [postgre.package];
+        script = ''
+          $PSQL ${pgUser} -d ${psql.database} -c 'CREATE EXTENSION IF NOT EXISTS postgis'
+          $PSQL ${pgUser} -d ${psql.database} -c 'CREATE EXTENSION IF NOT EXISTS address_standardizer'
+          $PSQL ${pgUser} -d ${psql.database} -f ${./doc/schema.pgsql}
+          $PSQL ${pgUser} -d ${psql.database} -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${cfg.user}'
+        '';
+      };
     })
 
     (mkIf (cfg.enable && server.enable) {

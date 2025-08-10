@@ -145,16 +145,9 @@ run' rt act = do
           liftIO $ createDirectoryIfMissing True dir
           Builtin.run blt entry file
     (False, Cached _ _) -> pure ()
-  when (shouldAnnex && not ex) $ flip annexAdd file =<< root
   pure (hash, file)
   where
     dat = actionData act
-    shouldAnnex :: Bool
-    shouldAnnex = case dat ^. adatType of
-      ScalarImage -> True
-      Picture -> True
-      VectorImage -> True
-      Json -> False
 
 run :: (MonadKorrvigs m) => Action -> m (CompHash, FilePath)
 run act = cacheDir >>= \rt -> run' rt act

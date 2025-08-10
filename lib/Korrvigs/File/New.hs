@@ -34,7 +34,6 @@ import Korrvigs.Monad.Metadata (listCompute)
 import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils (joinNull, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
-import Korrvigs.Utils.Git.Annex
 import Korrvigs.Utils.Process
 import Korrvigs.Utils.Time (dayToZonedTime)
 import Network.Mime
@@ -123,8 +122,6 @@ update file nfile = do
   let newpath = replaceExtension oldpath ext
   liftIO $ copyFile nfile newpath
   annex <- liftIO $ shouldAnnex newpath mime
-  rt <- root
-  when annex $ annexAdd rt newpath
   -- Rename meta file
   let oldmeta = file ^. fileMeta
   let newmeta = addExtension (dropExtension (dropExtension oldmeta)) (ext <> ".meta")
@@ -170,7 +167,6 @@ new path' options' = do
   let mtdt' = FileMetadata mimeTxt M.empty Nothing Nothing Nothing Nothing []
   mtdt'' <- liftIO $ ($ mtdt') <$> extractMetadata path mime
   mtdt <- ($ mtdt'') <$> applyNewOptions (options ^. nfEntry)
-  annex <- liftIO $ shouldAnnex path mime
   let baseName = listToMaybe [T.pack (takeBaseName path') | null (options ^. nfEntry . neParents)]
   let idmk' =
         imk (choosePrefix mime)
@@ -193,7 +189,6 @@ new path' options' = do
   let metapath = metaPath stored
   liftIO $ TLIO.writeFile metapath $ encodeToLazyText mtdt
   rt <- root
-  when (annex && not alreadyAnnexed) $ annexAdd rt stored
   when alreadyAnnexed $ void $ runSilentK (proc "git" ["annex", "fix", stored]) {cwd = Just rt}
   syncFileOfKind stored File
   when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path'

@@ -29,7 +29,6 @@ data WebData = WebData
     web_static :: Static,
     web_static_redirect :: Maybe Text,
     web_mac_secret :: ByteString,
-    web_calsync_root :: FilePath,
     web_capture_root :: FilePath,
     web_credentials :: Map Text Value,
     web_manager :: IORef (Maybe Manager),
@@ -129,7 +128,6 @@ instance RenderMessage WebData FormMessage where
 instance MonadKorrvigs Handler where
   pgSQL = getsYesod web_connection
   root = getsYesod web_root
-  calsyncRoot = getsYesod web_calsync_root
   captureRoot = getsYesod web_capture_root
   getCredential c = do
     creds <- getsYesod web_credentials

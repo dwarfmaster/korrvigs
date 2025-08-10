@@ -47,7 +47,6 @@ run cmd = do
   stc <- liftIO $ staticDevel staticP
   staticRedirect <- view $ korrWeb . webStaticRedirect
   secret <- liftIO loadOrGenerateKey
-  calsyncRt <- calsyncRoot
   captureRt <- captureRoot
   creds <- view korrCreds
   ref <- view korrManager
@@ -61,7 +60,6 @@ run cmd = do
           web_static = stc,
           web_static_redirect = staticRedirect,
           web_mac_secret = secret,
-          web_calsync_root = calsyncRt,
           web_capture_root = captureRt,
           web_credentials = creds,
           web_manager = ref,

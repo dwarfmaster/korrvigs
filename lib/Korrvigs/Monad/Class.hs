@@ -38,7 +38,6 @@ class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   pgSQL :: m Connection
   root :: m FilePath
   manager :: m Manager
-  calsyncRoot :: m FilePath
   captureRoot :: m FilePath
   getCredential :: (FromJSON cred) => Text -> m (Maybe cred)
   getToken :: (FromJSON tok) => Text -> m (Maybe tok)

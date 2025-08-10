@@ -36,7 +36,6 @@ data WebState = WState
 data KorrState = KState
   { _korrConnection :: Connection,
     _korrRoot :: FilePath,
-    _korrCalsyncRoot :: FilePath,
     _korrCaptureRoot :: FilePath,
     _korrWeb :: WebState,
     _korrCreds :: Map Text Value,
@@ -51,7 +50,6 @@ data KorrConfig = KConfig
     _kconfigTheme :: Base16Data,
     _kconfigStaticDir :: Maybe FilePath,
     _kconfigStaticRedirect :: Maybe Text,
-    _kconfigCalsyncRoot :: FilePath,
     _kconfigCaptureRoot :: FilePath,
     _kconfigCredentials :: Maybe FilePath
   }
@@ -66,7 +64,6 @@ newtype KorrM a = KorrM (ReaderT KorrState IO a)
 instance MonadKorrvigs KorrM where
   pgSQL = view korrConnection
   root = view korrRoot
-  calsyncRoot = view korrCalsyncRoot
   captureRoot = view korrCaptureRoot
   getCredential c = do
     creds <- view korrCreds
@@ -93,7 +90,6 @@ runKorrM config act = do
         KState
           { _korrConnection = conn,
             _korrRoot = config ^. kconfigRoot,
-            _korrCalsyncRoot = config ^. kconfigCalsyncRoot,
             _korrCaptureRoot = config ^. kconfigCaptureRoot,
             _korrWeb =
               WState
@@ -126,7 +122,6 @@ instance FromJSON KorrConfig where
         <*> parseJSON (Object v)
         <*> v .:? "staticDir"
         <*> v .:? "staticRedirect"
-        <*> v .: "calsync"
         <*> v .: "capture"
         <*> v .:? "credentials"
 

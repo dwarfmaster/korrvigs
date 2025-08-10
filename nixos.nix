@@ -40,7 +40,7 @@ overlay: {
         base0F
         ;
       credentials = cfg.credentialFile;
-      inherit (cfg) connectionSpec root calsync capture;
+      inherit (cfg) connectionSpec root capture;
       inherit (server) port;
       staticDir = "${pkgs.korrvigs-static.override {inherit (cfg) theme;}}";
     }
@@ -74,10 +74,6 @@ in {
     root = mkOption {
       type = types.str;
       description = "Path to the git-annexed root of korrvigs files";
-    };
-    calsync = mkOption {
-      type = types.str;
-      description = "Path to the calsync worktree root";
     };
     capture = mkOption {
       type = types.str;

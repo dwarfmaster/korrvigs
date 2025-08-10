@@ -31,7 +31,7 @@ gitRm :: FilePath -> [FilePath] -> IO ()
 gitRm rt files = runGitIn rt $ "rm" : files
 
 gitAdd :: FilePath -> [FilePath] -> IO ()
-gitAdd rt files = runGitIn rt $ "add" : files
+gitAdd rt files = runGitIn rt $ "annex" : "add" : files
 
 gitCommit :: FilePath -> CommitData -> IO ()
 gitCommit rt ci = do

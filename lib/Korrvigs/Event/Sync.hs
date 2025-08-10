@@ -94,12 +94,6 @@ syncEvent i calendar ics ifile ical = do
   let txt' = if T.null txt then Nothing else Just txt
   pure $ SyncData erow evrow mrows txt' (calendar : ical ^. iceParents) [] M.empty
 
-syncOneEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m (SyncData EventRow)
-syncOneEvent i calendar ics ifile ievent = do
-  prev <- load i
-  forM_ prev removeDB
-  syncEvent i calendar ics ifile ievent
-
 syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData EventRow)
 syncOne path = do
   let (i, calendar) = eventIdFromPath path
@@ -107,7 +101,7 @@ syncOne path = do
     Left err -> throwM $ KMiscError $ "Failed to parse \"" <> T.pack path <> "\": " <> err
     Right ifile -> case ifile ^. icEvent of
       Nothing -> throwM $ KMiscError $ "Ics file \"" <> T.pack path <> "\" has no VEVENT"
-      Just ievent -> syncOneEvent i calendar path ifile ievent
+      Just ievent -> syncEvent i calendar path ifile ievent
 
 sync :: (MonadKorrvigs m) => m (Map Id (SyncData EventRow))
 sync = do

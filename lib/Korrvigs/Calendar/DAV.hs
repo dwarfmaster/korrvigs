@@ -27,12 +27,14 @@ import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad
+import Korrvigs.Monad.Metadata
 import Korrvigs.Monad.Remove (remove)
 import Korrvigs.Monad.Sync (syncFileOfKind)
 import qualified Korrvigs.Utils.DAV.Cal as DAV
 import Korrvigs.Utils.DAV.Web (DavRessource (..), DavTag (..))
 import qualified Korrvigs.Utils.DAV.Web as Web
 import Korrvigs.Utils.DateTree
+import Network.URI hiding (path)
 import Opaleye hiding (null)
 
 -- New
@@ -73,6 +75,7 @@ sync report pwd = fmap isJust $ runMaybeT $ do
       else do
         pullAndMerge report cal cdd
         pushNew report cal cdd
+        lift $ updateMetadata (cal ^. calEntry) (M.singleton (mtdtSqlName DAVCTag) (toJSON nctag)) []
   where
     reportE = lift . reportErr report
 
@@ -85,6 +88,7 @@ pullAndMerge report cal cdd = do
       Right etags -> pure etags
   etags' <- lift $ rSelect $ do
     ev <- selectTable eventsTable
+    where_ $ ev ^. sqlEventCalendar .== sqlId (cal ^. calEntry . name)
     let i = ev ^. sqlEventName
     res <- baseSelectTextMtdt DAVPath i
     etag <- baseSelectTextMtdt DAVETag i
@@ -155,7 +159,6 @@ pullAndMerge report cal cdd = do
       liftIO (parseICal Nothing $ LEnc.encodeUtf8 $ LT.fromStrict dat) >>= \case
         Left err -> lift (report $ "Failed to parse data for " <> extractDavRc davref <> ": " <> err) >> mzero
         Right ical -> pure ical
-    --
     mergeInto report i nical netag davref
 
 mergeInto :: (MonadKorrvigs m) => (Text -> m ()) -> Id -> ICalFile -> DavTag -> DavRessource -> MaybeT m ()
@@ -201,9 +204,10 @@ mergeICEvent ev nev =
     & iceMtdt .~ M.union (ev ^. iceMtdt) (nev ^. iceMtdt)
 
 pushNew :: (MonadKorrvigs m) => (Text -> m ()) -> Calendar -> DAV.CalDavData -> MaybeT m ()
-pushNew report _ cdd = do
+pushNew report cal cdd = do
   newEvents <- lift $ rSelect $ do
     ev <- selectTable eventsTable
+    where_ $ ev ^. sqlEventCalendar .== sqlId (cal ^. calEntry . name)
     let i = ev ^. sqlEventName
     davref <- selectMtdt DAVPath i
     where_ $ isNull davref
@@ -212,7 +216,10 @@ pushNew report _ cdd = do
   forM_ newEvents $ \(i, file) -> do
     lift $ report $ ">>> Uploading " <> unId i
     content <- liftIO $ BSL.readFile file
-    let evRc = DavRc $ "/korr_" <> T.replace ":" "_" (unId i) <> ".ics"
+    uriPth <- case parseURI (T.unpack $ cal ^. calServer) of
+      Nothing -> lift (report $ "Failed to parse server " <> cal ^. calServer) >> mzero
+      Just uri -> pure $ T.pack $ uriPath uri
+    let evRc = DavRc $ uriPth <> "/calendars/" <> cal ^. calUser <> "/" <> cal ^. calName <> "/korr_" <> T.replace ":" "_" (unId i) <> ".ics"
     r <- lift $ DAV.putCalData cdd evRc Nothing content
     case r of
       Left err -> lift (reportErr report err) >> mzero

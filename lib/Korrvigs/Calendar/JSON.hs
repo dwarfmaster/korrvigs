@@ -14,7 +14,6 @@ data CalJSON = CalJSON
   { _cljsServer :: Text,
     _cljsUser :: Text,
     _cljsCalName :: Text,
-    _cljsCalCache :: Text,
     _cljsMetadata :: Map Text Value,
     _cljsDate :: Maybe ZonedTime,
     _cljsDuration :: Maybe CalendarDiffTime,
@@ -31,7 +30,6 @@ instance FromJSON CalJSON where
       <$> v .: "server"
       <*> v .: "user"
       <*> v .: "calendar"
-      <*> v .: "cache"
       <*> v .: "metadata"
       <*> v .:? "date"
       <*> v .:? "duration"
@@ -42,12 +40,11 @@ instance FromJSON CalJSON where
     prependFailure "parsing calendar failed, " $ typeMismatch "Object" invalid
 
 instance ToJSON CalJSON where
-  toJSON (CalJSON srv user nm cache mtdt dt dur geo txt prts) =
+  toJSON (CalJSON srv user nm mtdt dt dur geo txt prts) =
     object $
       [ "server" .= srv,
         "user" .= user,
         "calendar" .= nm,
-        "cache" .= cache,
         "metadata" .= mtdt,
         "parents" .= prts
       ]

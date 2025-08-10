@@ -79,11 +79,7 @@ listFilesForPhone phone = do
     where_ $ from ^. sqlValue .== sqlTextToJson (sqlId phone)
     path <- baseSelectTextMtdt FromAndroidPath $ from ^. sqlEntry
     pure (from ^. sqlEntry, path)
-  pure $ S.fromList $ mapMaybe extractFile filesSQL
-  where
-    extractFile :: (Id, Maybe Text) -> Maybe AndroidFile
-    extractFile (_, Nothing) = Nothing
-    extractFile (i, Just path) = Just $ AndroidFile i path
+  pure $ S.fromList $ uncurry AndroidFile <$> filesSQL
 
 capturedDir :: (MonadKorrvigs m) => m FilePath
 capturedDir = (</> "android") <$> captureRoot

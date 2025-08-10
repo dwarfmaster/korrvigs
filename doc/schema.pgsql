@@ -97,7 +97,6 @@ CREATE TABLE IF NOT EXISTS calendars (
   server TEXT NOT NULL,
   usr TEXT NOT NULL,
   calname TEXT NOT NULL,
-  cache TEXT NOT NULL,
   CONSTRAINT calendars_entries
     FOREIGN KEY (name,kind) references entries(name,kind)
 );

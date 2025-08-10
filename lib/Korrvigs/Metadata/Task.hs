@@ -77,8 +77,7 @@ loadTask i = do
         <*> selectMtdt TaskFinished si
   case r of
     Nothing -> pure Nothing
-    Just (Nothing, _, _, _, _, _) -> pure Nothing
-    Just (Just tsk, title, deadline, scheduled, started, finished) -> do
+    Just (tsk, title, deadline, scheduled, started, finished) -> do
       let st = fromMaybe TaskTodo $ parseStatusName tsk
       let title' = fromMaybe ("@" <> unId i) title
       let deadline' = deadline >>= fromJSONM

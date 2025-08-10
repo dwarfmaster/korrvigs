@@ -4,7 +4,6 @@ import Control.Arrow (first, (&&&))
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import Crypto.Hash
 import Data.Aeson
 import Data.ByteString.Lazy (readFile, writeFile)
 import qualified Data.CaseInsensitive as CI
@@ -16,12 +15,9 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.SQL
-import Korrvigs.Compute.Action
-import Korrvigs.Compute.Declare
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
-import Korrvigs.Utils.Crypto
 import System.Directory
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
@@ -51,10 +47,8 @@ syncCalJSON i json = do
   let geom = json ^. cljsGeo
   let erow = EntryRow i Calendar tm dur geom Nothing :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
-  cache <- throwMaybe (KMiscError $ "Failed to parse cache for " <> unId i) $ digestFromHexa $ json ^. cljsCalCache
-  let crow = CalRow i (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) cache :: CalRow
-  let cmps = M.singleton "dav" (Cached Json cache)
-  pure $ SyncData erow crow mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) [] cmps
+  let crow = CalRow i (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
+  pure $ SyncData erow crow mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) [] M.empty
 
 syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData CalRow)
 syncOne path = do
@@ -103,6 +97,3 @@ updateParents cal toAdd toRm = updateImpl cal $ pure . updParents
     rmTxt = unId <$> toRm
     addTxt = unId <$> toAdd
     updParents = cljsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)
-
-updateCache :: (MonadKorrvigs m) => Id -> FilePath -> Digest SHA256 -> m ()
-updateCache i path hsh = updateFile i path $ pure . (cljsCalCache .~ digestToHexa hsh)

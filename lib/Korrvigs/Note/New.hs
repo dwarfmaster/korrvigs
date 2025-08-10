@@ -44,7 +44,7 @@ new note = do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryKind .== sqlKind Note
     t <- baseSelectTextMtdt Title $ entry ^. sqlEntryName
-    where_ $ matchNullable (sqlBool False) (.== sqlStrictText (note ^. nnTitle)) t
+    where_ $ t .== sqlStrictText (note ^. nnTitle)
     pure $ entry ^. sqlEntryName
   case mi of
     (i : _) -> pure i

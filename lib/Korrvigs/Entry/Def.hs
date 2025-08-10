@@ -4,7 +4,6 @@ module Korrvigs.Entry.Def where
 
 import Control.Lens (Getter, Traversal', to, view)
 import Control.Lens.TH (makeLenses, makePrisms)
-import Crypto.Hash
 import Data.Aeson (Value)
 import Data.CaseInsensitive (CI)
 import Data.Map (Map)
@@ -63,8 +62,7 @@ data Calendar = MkCalendar
   { _calEntry :: Entry,
     _calServer :: Text,
     _calUser :: Text,
-    _calName :: Text,
-    _calCache :: Digest SHA256
+    _calName :: Text
   }
   deriving (Show)
 

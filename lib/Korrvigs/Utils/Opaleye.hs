@@ -11,6 +11,9 @@ import qualified Opaleye.Internal.Column as C
 import qualified Opaleye.Internal.HaskellDB.PrimQuery as HPQ
 import qualified Opaleye.Internal.Operators as O
 
+fromNullableSelect :: Select (FieldNullable a) -> Select (Field a)
+fromNullableSelect s = catMaybeFields $ nullableToMaybeFields <$> s
+
 ap1 :: String -> Field_ n a -> Field_ n b
 ap1 f = C.Column . HPQ.FunExpr f . singleton . C.unColumn
 

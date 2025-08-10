@@ -8,16 +8,13 @@ import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
-import Korrvigs.Calendar.DAV
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.Sync
-import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync (syncFileOfKind)
-import Korrvigs.Utils.Crypto
 import Korrvigs.Utils.JSON (writeJsonToFile)
 import System.Directory
 
@@ -41,9 +38,6 @@ new nc = do
   -- Make sure directory exists
   dir <- calJSONPath
   liftIO $ createDirectoryIfMissing True dir
-  -- Empty cached data
-  let cache = CachedData Nothing M.empty
-  (hash, _) <- storeCachedJson cache
   -- Create JSON
   dt <- useDate (nc ^. ncEntry) Nothing
   let json =
@@ -51,7 +45,6 @@ new nc = do
           { _cljsServer = nc ^. ncServer,
             _cljsUser = nc ^. ncUser,
             _cljsCalName = nc ^. ncCalendar,
-            _cljsCalCache = digestToHexa hash,
             _cljsMetadata = unmapCI $ useMtdt (nc ^. ncEntry) M.empty,
             _cljsDate = dt,
             _cljsDuration = Nothing,

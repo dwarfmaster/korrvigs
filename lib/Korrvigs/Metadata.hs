@@ -2,7 +2,6 @@ module Korrvigs.Metadata where
 
 import Control.Arrow (first)
 import Control.Lens
-import Control.Monad (join)
 import Data.Aeson
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
@@ -15,6 +14,7 @@ import Korrvigs.Entry
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON (fromJSONM, sqlJsonToText)
+import Korrvigs.Utils.Opaleye (fromNullableSelect)
 import Opaleye
 import qualified Opaleye as O
 
@@ -76,8 +76,8 @@ selectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlText -> Select (FieldNull
 selectMtdt mtdt i =
   fmap maybeFieldsToNullable $ optional $ limit 1 $ baseSelectMtdt mtdt i
 
-baseSelectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlText -> Select (FieldNullable SqlText)
-baseSelectTextMtdt mtdt i = do
+baseSelectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlText -> Select (Field SqlText)
+baseSelectTextMtdt mtdt i = fromNullableSelect $ do
   m <- selectTable entriesMetadataTable
   where_ $ (m ^. sqlEntry) .== i
   where_ $ m ^. sqlKey .== sqlStrictText (CI.foldedCase $ mtdtName mtdt)
@@ -88,14 +88,14 @@ rSelectTextMtdt ::
   mtdt ->
   Field SqlText ->
   m (Maybe Text)
-rSelectTextMtdt mtdt i = rSelectOne (baseSelectTextMtdt mtdt i) <&> join
+rSelectTextMtdt mtdt i = rSelectOne (baseSelectTextMtdt mtdt i)
 
 selectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlText -> Select (FieldNullable SqlText)
 selectTextMtdt mtdt i = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtdt mtdt i
   where
-    joinMField :: MaybeFields (FieldNullable a) -> FieldNullable a
+    joinMField :: MaybeFields (Field a) -> FieldNullable a
     joinMField mfield = matchMaybe mfield $ \case
-      Just f -> f
+      Just f -> toNullable f
       Nothing -> O.null
 
 -- Metadata list

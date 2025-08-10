@@ -124,18 +124,27 @@ pullAndMerge report cal cdd = do
     ievent' <- case ical' ^. icEvent of
       Nothing -> lift (report $ extractDavRc davref <> " is not an event") >> mzero
       Just ievent -> pure ievent
-    let ievent =
-          ievent'
-            & iceMtdt . at (mtdtName DAVPath) ?~ toJSON (extractDavRc davref)
-            & iceMtdt . at (mtdtName DAVETag) ?~ toJSON etag
-    let ical = ical' & icEvent ?~ ievent
-    i <- lift $ Ev.register ical
-    let basename = unId i <> "_" <> unId (cal ^. calEntry . name) <> ".ics"
-    let start = resolveICalTime ical <$> ievent ^. iceStart
-    let day = localDay . zonedTimeToLocalTime <$> start
-    rt <- lift eventsDirectory
-    stored <- storeFile rt Ev.eventTreeType day basename $ FileLazy $ renderICalFile ical
-    lift $ syncFileOfKind stored Event
+    mi <- lift $ rSelectOne $ do
+      ev <- selectTable eventsTable
+      where_ $ ev ^. sqlEventUID .== sqlStrictText (ievent' ^. iceUid)
+      pure $ ev ^. sqlEventName
+    case mi of
+      Just i -> do
+        lift $ report $ "Merging with " <> unId i
+        mergeInto report i ical' etag davref
+      Nothing -> do
+        let ievent =
+              ievent'
+                & iceMtdt . at (mtdtName DAVPath) ?~ toJSON davref
+                & iceMtdt . at (mtdtName DAVETag) ?~ toJSON etag
+        let ical = ical' & icEvent ?~ ievent
+        i <- lift $ Ev.register ical
+        let basename = unId i <> "_" <> unId (cal ^. calEntry . name) <> ".ics"
+        let start = resolveICalTime ical <$> ievent ^. iceStart
+        let day = localDay . zonedTimeToLocalTime <$> start
+        rt <- lift eventsDirectory
+        stored <- storeFile rt Ev.eventTreeType day basename $ FileLazy $ renderICalFile ical
+        lift $ syncFileOfKind stored Event
 
   -- Updates events present on both
   lift $ report $ ">> Updating " <> T.pack (show $ M.size changed) <> " events"
@@ -146,21 +155,29 @@ pullAndMerge report cal cdd = do
       liftIO (parseICal Nothing $ LEnc.encodeUtf8 $ LT.fromStrict dat) >>= \case
         Left err -> lift (report $ "Failed to parse data for " <> extractDavRc davref <> ": " <> err) >> mzero
         Right ical -> pure ical
-    entry <-
-      lift (load i) >>= \case
-        Nothing -> lift (report $ "Failed to load " <> unId i) >> mzero
-        Just entry -> pure entry
-    ev <- case entry ^. kindData of
-      EventD ev -> pure ev
-      _ -> lift (report $ unId i <> " is not an event") >> mzero
-    let path = ev ^. eventFile
-    ical <-
-      liftIO (parseICalFile path) >>= \case
-        Left err -> lift (report $ "Failed to parse " <> T.pack path <> ": " <> err) >> mzero
-        Right ical -> pure ical
-    let newIcal = mergeICal ical nical & icEvent . _Just . iceMtdt . at (mtdtName DAVETag) ?~ toJSON netag
-    liftIO $ BSL.writeFile path $ renderICalFile newIcal
-    lift $ syncFileOfKind path Event
+    --
+    mergeInto report i nical netag davref
+
+mergeInto :: (MonadKorrvigs m) => (Text -> m ()) -> Id -> ICalFile -> DavTag -> DavRessource -> MaybeT m ()
+mergeInto report i nical netag davref = do
+  entry <-
+    lift (load i) >>= \case
+      Nothing -> lift (report $ "Failed to load " <> unId i) >> mzero
+      Just entry -> pure entry
+  ev <- case entry ^. kindData of
+    EventD ev -> pure ev
+    _ -> lift (report $ unId i <> " is not an event") >> mzero
+  let path = ev ^. eventFile
+  ical <-
+    liftIO (parseICalFile path) >>= \case
+      Left err -> lift (report $ "Failed to parse " <> T.pack path <> ": " <> err) >> mzero
+      Right ical -> pure ical
+  let newIcal =
+        mergeICal ical nical
+          & icEvent . _Just . iceMtdt . at (mtdtName DAVPath) ?~ toJSON davref
+          & icEvent . _Just . iceMtdt . at (mtdtName DAVETag) ?~ toJSON netag
+  liftIO $ BSL.writeFile path $ renderICalFile newIcal
+  lift $ syncFileOfKind path Event
 
 mergeICal :: ICalFile -> ICalFile -> ICalFile
 mergeICal ic nic =
@@ -206,7 +223,7 @@ pushNew report _ cdd = do
             Right ical -> pure ical
         let ical =
               ical'
-                & icEvent . _Just . iceMtdt . at (mtdtName DAVPath) ?~ toJSON (extractDavRc evRc)
+                & icEvent . _Just . iceMtdt . at (mtdtName DAVPath) ?~ toJSON evRc
                 & icEvent . _Just . iceMtdt . at (mtdtName DAVETag) ?~ toJSON netag
         liftIO $ BSL.writeFile file $ renderICalFile ical
         lift $ syncFileOfKind file Event

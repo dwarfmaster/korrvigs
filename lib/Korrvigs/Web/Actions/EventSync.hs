@@ -23,8 +23,9 @@ mkMsg :: Bool -> Text -> (Route WebData -> [(Text, Text)] -> Text) -> Html
 mkMsg r msg =
   [hamlet|
   <p> #{status} 
-  <code>
-    #{msg}
+  <pre>
+    <code>
+      #{msg}
 |]
   where
     status :: Text

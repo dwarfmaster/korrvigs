@@ -1,12 +1,14 @@
 module Korrvigs.Web.Download (getEntryDownloadR) where
 
 import Control.Lens
+import Control.Monad
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Calendar (calendarPath)
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Entry
 import Korrvigs.Web.Routes
 import System.FilePath
 import Yesod
@@ -41,6 +43,9 @@ getEntryDownloadR :: WebId -> Handler TypedContent
 getEntryDownloadR (WId i) =
   load i >>= \case
     Just entry -> do
+      public <- isPublic
+      private <- isPrivate entry
+      when (public && private) $ permissionDenied "Tried to access a private entry"
       filenameHint i $ entry ^. kindData
       downloadEntry $ entry ^. kindData
     Nothing -> notFound

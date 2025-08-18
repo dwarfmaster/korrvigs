@@ -1,4 +1,4 @@
-module Korrvigs.Web.Entry (getEntryR) where
+module Korrvigs.Web.Entry (getEntryR, isPrivate) where
 
 import Control.Lens hiding (children)
 import Control.Monad
@@ -282,9 +282,17 @@ actWidget entry = do
       ^{actions}
   |]
 
+isPrivate :: Entry -> Handler Bool
+isPrivate entry =
+  rSelectTextMtdt Private (sqlId $ entry ^. name) >>= \case
+    Nothing -> pure False
+    _ -> pure True
+
 entryWidget :: Entry -> Handler Widget
 entryWidget entry = do
   public <- isPublic
+  private <- isPrivate entry
+  when (public && private) $ permissionDenied "Tried to access a private entry"
   contentId <- newIdent
   title <- titleWidget entry contentId
   dt <- dateWidget entry

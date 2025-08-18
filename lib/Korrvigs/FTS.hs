@@ -1,6 +1,7 @@
 module Korrvigs.FTS
   ( SqlTSVector,
     tsParseEnglish,
+    tsParseFrench,
     tsRank,
     SqlTSQuery,
     Query (..),

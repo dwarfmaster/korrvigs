@@ -22,6 +22,9 @@ tsConfigByName = C.Column . HPQ.CastExpr (showSqlType (Nothing :: Maybe SqlRegCo
 tsConfigEnglish :: Field SqlRegConfig
 tsConfigEnglish = tsConfigByName $ sqlStrictText "english"
 
+tsConfigFrench :: Field SqlRegConfig
+tsConfigFrench = tsConfigByName $ sqlStrictText "french"
+
 -- TSVector
 data SqlTSVector
 
@@ -33,6 +36,9 @@ tsParse = UOp.ap2 "to_tsvector"
 
 tsParseEnglish :: Field SqlText -> Field SqlTSVector
 tsParseEnglish = tsParse tsConfigEnglish
+
+tsParseFrench :: Field SqlText -> Field SqlTSVector
+tsParseFrench = tsParse tsConfigFrench
 
 pgTSVector :: Text -> Field SqlTSVector
 pgTSVector = IPT.literalColumn . HPQ.StringLit . T.unpack

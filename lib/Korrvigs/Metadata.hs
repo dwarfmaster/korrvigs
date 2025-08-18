@@ -12,7 +12,7 @@ import Data.Maybe
 import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Metadata.TH
-import Korrvigs.Monad
+import Korrvigs.Monad.Class
 import Korrvigs.Utils.JSON (fromJSONM, sqlJsonToText)
 import Korrvigs.Utils.Opaleye (fromNullableSelect)
 import Opaleye

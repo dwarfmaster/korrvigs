@@ -17,6 +17,7 @@ where
 
 import Control.Lens
 import Control.Monad
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -31,6 +32,7 @@ import Korrvigs.FTS
 import qualified Korrvigs.File.SQL as File
 import Korrvigs.Kind
 import qualified Korrvigs.Link.SQL as Link
+import Korrvigs.Metadata
 import Korrvigs.Monad.Class
 import qualified Korrvigs.Note.SQL as Note
 import Opaleye hiding (null)
@@ -183,11 +185,17 @@ syncSQL tbl dt = atomicSQL $ \conn -> do
           iOnConflict = Just doNothing
         }
   -- Optionally set textContent
-  forM_ (dt ^. syncTextContent) $ \txt ->
+  forM_ (dt ^. syncTextContent) $ \txt -> do
+    -- Find language
+    let lang = (^. sqlValue) <$> find (\mrow -> mrow ^. sqlKey == mtdtName Language) (dt ^. syncMtdtRows)
+    let parser = case lang of
+          Just "fr" -> tsParseFrench
+          _ -> tsParseEnglish
+    -- Update
     runUpdate conn $
       Update
         { uTable = entriesTable,
-          uUpdateWith = sqlEntryText .~ toNullable (tsParseEnglish $ sqlStrictText txt),
+          uUpdateWith = sqlEntryText .~ toNullable (parser $ sqlStrictText txt),
           uWhere = \row -> row ^. sqlEntryName .== sqlId i,
           uReturning = rCount
         }

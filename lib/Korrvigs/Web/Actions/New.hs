@@ -23,13 +23,13 @@ import System.FilePath
 import System.IO.Temp
 import Yesod hiding (joinPath)
 
-newtype NewNote = NewNote {_nnoteTitle :: Text}
+data NewNote = NewNote {_nnoteTitle :: Text, _nnoteLang :: Maybe Text}
 
-data NewLink = NewLink {_nlinkTitle :: Maybe Text, _nlinkUrl :: Text}
+data NewLink = NewLink {_nlinkTitle :: Maybe Text, _nlinkUrl :: Text, _nlinkLang :: Maybe Text}
 
-data NewFile = NewFile {_nfileTitle :: Maybe Text, _nfileContent :: FileInfo}
+data NewFile = NewFile {_nfileTitle :: Maybe Text, _nfileContent :: FileInfo, _nfileLang :: Maybe Text}
 
-data NewMedia = NewMedia {_nmedInput :: Text, _nmedType :: Maybe MediaType}
+data NewMedia = NewMedia {_nmedInput :: Text, _nmedType :: Maybe MediaType, _nmedLang :: Maybe Text}
 
 makeLenses ''NewNote
 makeLenses ''NewLink
@@ -85,8 +85,15 @@ mkReaction (TargetNoteCollection note col) suffix i = do
       & reactMsg ?~ htmlUrl render
       & reactClipboard ?~ unId i
 
+langForm :: AForm Handler (Maybe Text)
+langForm = aopt field "Language" Nothing
+  where
+    field = selectField $ pure $ mkOptionList opts
+    opts = mkOpt <$> [(1 :: Int, "fr", "French"), (2, "en", "English")]
+    mkOpt (i, val, nm) = Option nm val $ T.pack $ show i
+
 newNoteForm :: AForm Handler NewNote
-newNoteForm = NewNote <$> areq textField "Title" Nothing
+newNoteForm = NewNote <$> areq textField "Title" Nothing <*> langForm
 
 newNoteTitle :: ActionTarget -> Text
 newNoteTitle = mkNewTitle "new note"
@@ -97,6 +104,7 @@ runNewNote nnote tgt = do
         NNote.NewNote
           ( def
               & neParents .~ maybeToList (extractParent tgt)
+              & neLanguage .~ nnote ^. nnoteLang
           )
           (nnote ^. nnoteTitle)
           False
@@ -108,6 +116,7 @@ newLinkForm =
   NewLink
     <$> aopt textField "Title" Nothing
     <*> areq textField "URL" Nothing
+    <*> langForm
 
 newLinkTitle :: ActionTarget -> Text
 newLinkTitle = mkNewTitle "new link"
@@ -119,6 +128,7 @@ runNewLink nlink tgt = do
           & NLink.nlOffline .~ False
           & NLink.nlEntry . neTitle .~ nlink ^. nlinkTitle
           & NLink.nlEntry . neParents .~ maybeToList (extractParent tgt)
+          & NLink.nlEntry . neLanguage .~ nlink ^. nlinkLang
   i <- NLink.new (nlink ^. nlinkUrl) settings
   mkReaction tgt "new link" i
 
@@ -127,6 +137,7 @@ newFileForm =
   NewFile
     <$> aopt textField "Title" Nothing
     <*> fileAFormReq ("" {fsLabel = "File"})
+    <*> langForm
 
 newFileTitle :: ActionTarget -> Text
 newFileTitle = mkNewTitle "new file"
@@ -143,6 +154,7 @@ runNewFile nfile tgt =
               def
                 & neTitle .~ nfile ^. nfileTitle
                 & neParents .~ maybeToList (extractParent tgt)
+                & neLanguage .~ nfile ^. nfileLang
       runIO $ do
         i <- NFile.new path settings
         mkReaction tgt "new file" i
@@ -152,6 +164,7 @@ newMediaForm =
   NewMedia . unTextarea
     <$> areq textareaField "Input" Nothing
     <*> areq (selectFieldList types) "Type" Nothing
+    <*> langForm
   where
     types :: [(Text, Maybe MediaType)]
     types = ("Auto", Nothing) : ((displayMediaType &&& Just) <$> [minBound .. maxBound])
@@ -165,7 +178,8 @@ runNewMedia nmedia tgt = do
         NMedia.NewMedia
           { NMedia._nmEntry =
               def
-                & neParents %~ maybe id (:) (extractParent tgt),
+                & neParents %~ maybe id (:) (extractParent tgt)
+                & neLanguage .~ nmedia ^. nmedLang,
             NMedia._nmInput = nmedia ^. nmedInput,
             NMedia._nmType = nmedia ^. nmedType,
             NMedia._nmCapture = True

@@ -24,5 +24,8 @@ instance DefaultFromField SqlKind Kind where
 instance Default ToFields Kind (Field SqlKind) where
   def = enumToFields sqlKindMapper
 
+instance IsSqlType SqlKind where
+  showSqlType _ = "kind"
+
 sqlKind :: Kind -> Field SqlKind
 sqlKind = toFields

@@ -151,13 +151,15 @@ refsWidget entry = do
           ( \(eid1, eid2, isSub) -> do
               e1 <- selectTable entriesTable
               where_ $ e1 ^. sqlEntryName .== eid1
+              where_ $ (e1 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event] .|| eid1 .== sqlId i
               e2 <- selectTable entriesTable
               where_ $ e2 ^. sqlEntryName .== eid2
+              where_ $ (e2 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event]
               pure $
                 O.not isSub
                   .|| eid1
                   .== sqlId i
-                  .|| O.not (isPair e1 e2 [(Event, Calendar), (File, Event), (File, Note)])
+                  .|| O.not (isPair e1 e2 [(Event, Calendar)])
           )
           (pure (sqlId i, sqlId i, sqlBool True))
       e1 <- selectTable entriesTable

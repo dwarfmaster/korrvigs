@@ -148,14 +148,19 @@ refsWidget entry = do
           (unionAll (relEntries entriesSubTable True) (relEntries entriesRefTable False))
           (view _1)
           (view _2)
-          ( \(eid1, eid2, isSub) -> do
+          ( \(eid1, eid2, isSub) orient -> do
               e1 <- selectTable entriesTable
               where_ $ e1 ^. sqlEntryName .== eid1
               where_ $ (e1 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event] .|| eid1 .== sqlId i
               e2 <- selectTable entriesTable
               where_ $ e2 ^. sqlEntryName .== eid2
               where_ $ (e2 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event]
-              pure $
+              hub1 <- O.not . isNull <$> selectTextMtdt HubMtdt eid1
+              hub2 <- O.not . isNull <$> selectTextMtdt HubMtdt eid2
+              where_ $
+                (O.not orient .&& (O.not hub1 .|| hub2))
+                  .|| (orient .&& (O.not hub2 .|| hub1))
+              where_ $
                 O.not isSub
                   .|| eid1
                   .== sqlId i

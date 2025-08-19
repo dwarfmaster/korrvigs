@@ -29,6 +29,7 @@ import Prelude hiding (putStrLn, readFile, writeFile)
 
 data Cmd
   = Format {_formatFile :: FilePath, _inplace :: Bool}
+  | Reformat
   | New {_newNote :: NewNote}
   | Attach {_attachRef :: Text, _attachIsPath :: Bool, _attachSub :: AttachCmd}
   | Col {_colNote :: Maybe Text, _colName :: Maybe Text, _colInsert :: Maybe Text}
@@ -56,6 +57,14 @@ parser' =
                 <> header "korr note format -- format note"
             )
         )
+        <> command
+          "reformat"
+          ( info
+              (pure Reformat <**> helper)
+              ( progDesc "Reformat all notes"
+                  <> header "korr note reformat -- reformat notes"
+              )
+          )
         <> command
           "new"
           ( info
@@ -164,8 +173,8 @@ resolveId path True =
     where_ $ note ^. sqlNotePath .== sqlStrictText path
     pure $ note ^. sqlNoteName
 
-run :: Cmd -> KorrM ()
-run (Format path inline) = do
+formatNote :: FilePath -> Bool -> KorrM ()
+formatNote path inline = do
   doRead <- readNote path
   case doRead of
     Left err -> liftIO . putStrLn $ "Could not parse " <> T.pack path <> ": " <> err
@@ -176,6 +185,16 @@ run (Format path inline) = do
       case doWrite of
         Just err -> liftIO . putStrLn $ "Could not write document: " <> err
         Nothing -> pure ()
+
+run :: Cmd -> KorrM ()
+run (Format path inline) = formatNote path inline
+run Reformat = do
+  paths <- rSelect $ do
+    note <- selectTable notesTable
+    pure $ note ^. sqlNotePath
+  forM_ paths $ \path -> do
+    liftIO $ putStrLn $ "Formatting " <> T.pack path
+    formatNote path True
 run (New note) = do
   i <- new note
   liftIO $ putStrLn $ unId i

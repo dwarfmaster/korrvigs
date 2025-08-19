@@ -9,11 +9,16 @@ import Korrvigs.Web.Routes
 import Yesod
 
 embed :: Int -> Link -> Handler Widget
-embed lvl link =
-  rSelectMtdt Cover (sqlId $ link ^. linkEntry . name) >>= \case
+embed lvl link = do
+  let i = link ^. linkEntry . name
+  abstract <- rSelectMtdt Abstract $ sqlId i
+  rSelectMtdt Cover (sqlId i) >>= \case
     Just cid ->
       pure
         [whamlet|
+      $maybe a <- abstract
+        <p>
+          #{a}
       <a href=#{ref}>
         <img src=@{EntryDownloadR $ WId $ MkId cid} style="width: 100%">
     |]
@@ -21,6 +26,9 @@ embed lvl link =
       pure
         [whamlet|
       <a href=#{ref}>#{ref}
+      $maybe a <- abstract
+        <p>
+          #{a}
       $if lvl == 0
         <iframe width=100% height=700 src=#{ref}>
     |]

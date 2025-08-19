@@ -44,7 +44,7 @@ flushLinks = do
   lks <- use links
   separatedRenders 1 $ for (reverse lks) $ \(i, link) -> do
     writeText "["
-    writeText $ T.pack $ show i
+    writeText i
     writeText "]: "
     writeText link
     withoutBreak flush
@@ -275,8 +275,8 @@ renderInline (PlainLink (Just title) uri) = do
       writeText "["
       forM_ title renderInline
       writeText "]["
-      count <- registerLink $ T.pack $ show uri
-      writeText $ T.pack $ show count
+      key <- registerLink (renderInlines title) $ T.pack $ show uri
+      writeText key
       writeText "]"
 renderInline Space = flush
 renderInline Break = flush

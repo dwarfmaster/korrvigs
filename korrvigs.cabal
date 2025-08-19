@@ -157,6 +157,7 @@ library korrvigs-lib
     Korrvigs.Utils.Opaleye
     Korrvigs.Utils.Pandoc
     Korrvigs.Utils.Process
+    Korrvigs.Utils.Text
     Korrvigs.Utils.Time
     Korrvigs.Utils.XML
     Korrvigs.Web

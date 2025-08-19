@@ -7,9 +7,15 @@ import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Builder as B
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.UTF8 as BSL8
+import qualified Data.Char as C
+import Data.List (find)
+import Data.Maybe
+import Data.Set (Set)
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Note.AST
+import Korrvigs.Utils.Text
 import Prelude hiding (break)
 
 data RenderState = RS
@@ -20,8 +26,8 @@ data RenderState = RS
     _symbol :: Maybe (Builder, Int),
     _notes :: [(Int, [Block])],
     _noteCount :: Int,
-    _linkCount :: Int,
-    _links :: [(Int, Text)], -- Links to add at the end of section
+    _links :: [(Text, Text)], -- Links to add at the end of section
+    _linksUsed :: Set Text,
     _listDepth :: Int
   }
 
@@ -121,12 +127,16 @@ registerNote note = do
   noteCount += 1
   pure num
 
-registerLink :: Text -> RenderM Int
-registerLink uri = do
-  num <- use linkCount
-  links %= ((num, uri) :)
-  linkCount += 1
-  pure num
+registerLink :: Text -> Text -> RenderM Text
+registerLink txt uri = do
+  let wds = T.words $ T.map sanitize $ toASCIIFuzzy txt
+  let stub = T.pack $ take 3 $ C.toLower . T.head <$> wds
+  lks <- use linksUsed
+  let candidates = stub : ((stub <>) . T.pack . show <$> ([1 ..] :: [Int]))
+  let key = fromJust $ find (\c -> not $ S.member c lks) candidates
+  links %= ((key, uri) :)
+  linksUsed %= S.insert key
+  pure key
 
 hasNotes :: RenderM Bool
 hasNotes = use $ notes . to (not . null)
@@ -155,7 +165,7 @@ runRenderM width rdr =
           _symbol = Nothing,
           _notes = [],
           _noteCount = 1,
-          _linkCount = 0,
           _links = [],
+          _linksUsed = S.empty,
           _listDepth = 0
         }

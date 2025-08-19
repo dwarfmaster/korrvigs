@@ -15,11 +15,9 @@ module Korrvigs.Entry.Ident
   )
 where
 
-import Codec.Text.IConv
 import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad.Extra (findM)
-import qualified Data.ByteString.Lazy as LBS
 import Data.Char
 import Data.List (find, unfoldr)
 import Data.Maybe (fromJust, isNothing)
@@ -28,10 +26,10 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as Enc
 import Data.Time
 import qualified Korrvigs.Entry.Ident.English as En
 import qualified Korrvigs.Entry.Ident.French as Fr
+import Korrvigs.Utils.Text
 import Opaleye (DefaultFromField (..), Field, SqlText, ToFields, sqlStrictText)
 import Text.Printf
 
@@ -86,15 +84,7 @@ prepTitle language title = foldl (<>) "" content
   where
     ascii :: Text
     ascii =
-      T.map sanitize $
-        Enc.decodeASCII $
-          LBS.toStrict $
-            convertFuzzy Transliterate "utf-8" "ascii" $
-              LBS.fromStrict $
-                Enc.encodeUtf8 title
-    sanitize :: Char -> Char
-    sanitize c | isAlpha c = c
-    sanitize _ = ' '
+      T.map sanitize $ toASCIIFuzzy title
     wds :: [Text]
     wds = T.map toLower <$> T.split (\c -> isPunctuation c || isSpace c) ascii
     stopwords :: Set Text

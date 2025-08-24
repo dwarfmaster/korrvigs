@@ -5,6 +5,8 @@ module Korrvigs.Web.Note
     postNoteSubR,
     getNoteColR,
     postNoteColR,
+    getNoteNamedSubR,
+    getNoteNamedCodeR,
   )
 where
 
@@ -14,6 +16,7 @@ import Control.Monad
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.Conduit.Combinators (fold)
+import Data.Default
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -30,6 +33,8 @@ import Korrvigs.Note.AST
 import Korrvigs.Note.Pandoc
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Entry.Note (embedContent)
+import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search
@@ -186,3 +191,31 @@ postNoteColR (WId i) col = do
   r <- addToCollection i col item
   unless r $ throwM $ KMiscError "Failed to insert into collection"
   pure $ toJSON ()
+
+getNoteNamedSubR :: WebId -> Text -> Handler Html
+getNoteNamedSubR (WId i) sb = do
+  entry <- load i >>= maybe notFound pure
+  note <- maybe notFound pure $ entry ^? kindData . _NoteD
+  md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
+  hd <- maybe notFound pure $ md ^? docContent . each . bkNamedSub sb
+  (widget, _) <- embedContent False 0 Nothing i [Sub hd] (hd ^. hdChecks)
+  defaultLayout $ do
+    Rcs.entryStyle
+    Rcs.formsStyle
+    Rcs.checkboxCode
+    PhotoSwipe.photoswipeHeader
+    widget
+
+getNoteNamedCodeR :: WebId -> Text -> Handler Html
+getNoteNamedCodeR (WId i) cd = do
+  entry <- load i >>= maybe notFound pure
+  note <- maybe notFound pure $ entry ^? kindData . _NoteD
+  md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
+  (attrs, txt) <- maybe notFound pure $ md ^? docContent . each . bkNamedCode cd
+  (widget, _) <- embedContent False 0 Nothing i [CodeBlock attrs txt] def
+  defaultLayout $ do
+    Rcs.entryStyle
+    Rcs.formsStyle
+    Rcs.checkboxCode
+    PhotoSwipe.photoswipeHeader
+    widget

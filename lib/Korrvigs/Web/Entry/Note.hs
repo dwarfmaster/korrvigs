@@ -1,4 +1,4 @@
-module Korrvigs.Web.Entry.Note (content, embed, editButton, embedBody, embedLnk) where
+module Korrvigs.Web.Entry.Note (content, embed, embedContent, editButton, embedBody, embedLnk) where
 
 import Control.Lens
 import Control.Monad
@@ -52,13 +52,14 @@ data CompileState = CState
     _codeCount :: Int,
     _checkboxCount :: Int,
     _openedSub :: SubLoc,
-    _currentHeaderId :: Maybe Text
+    _currentHeaderId :: Maybe Text,
+    _editEnabled :: Bool
   }
 
 makeLenses ''CompileState
 
 initCState :: Id -> CompileState
-initCState i = CState 1 [] True 0 0 False i (SubLoc []) 0 0 0 (SubLoc []) Nothing
+initCState i = CState 1 [] True 0 0 False i (SubLoc []) 0 0 0 (SubLoc []) Nothing False
 
 type CompileM = StateT CompileState Handler
 
@@ -112,31 +113,37 @@ embed lvl note = do
           def
         )
     Right md -> do
-      let isEmbedded = lvl > 0
       subL <- fmap parseLoc <$> lookupGetParam "open"
-      let st' =
-            initCState (note ^. noteEntry . name)
-              & hdRootLevel .~ lvl
-              & currentLevel .~ lvl
-              & embedded .~ isEmbedded
-      let st = case subL of
-            Just (Right (LocSub loc)) -> st' & openedSub .~ loc
-            Just (Right (LocCode loc)) -> st' & openedSub .~ (loc ^. codeSub)
-            _ -> st'
-      markdown <- runCompile st $ compileBlocks $ md ^. docContent
-      let w = do
-            Ace.setup
-            Rcs.mathjax StaticR
-            [whamlet|
-             $if not isEmbedded
-               <p .checks-top>
-                 ^{checksDisplay $ md ^. docChecks}
-           |]
-            markdown
-            unless isEmbedded $ do
-              Wdgs.sectionLogic
-              toWidget [julius|checkboxCleanSpans()|]
-      pure (w, md ^. docChecks)
+      let msubL = either (const Nothing) Just =<< subL
+      embedContent True lvl msubL (note ^. noteEntry . name) (md ^. docContent) (md ^. docChecks)
+
+embedContent :: Bool -> Int -> Maybe AnyLoc -> Id -> [Block] -> Checks -> Handler (Widget, Checks)
+embedContent enableEdit lvl subL i cnt checks = do
+  let isEmbedded = lvl > 0
+  let st' =
+        initCState i
+          & hdRootLevel .~ lvl
+          & currentLevel .~ lvl
+          & embedded .~ isEmbedded
+          & editEnabled .~ enableEdit
+  let st = case subL of
+        Just (LocSub loc) -> st' & openedSub .~ loc
+        Just (LocCode loc) -> st' & openedSub .~ (loc ^. codeSub)
+        _ -> st'
+  markdown <- runCompile st $ compileBlocks cnt
+  let w = do
+        Ace.setup
+        Rcs.mathjax StaticR
+        [whamlet|
+         $if not isEmbedded
+           <p .checks-top>
+             ^{checksDisplay checks}
+       |]
+        markdown
+        unless isEmbedded $ do
+          Wdgs.sectionLogic
+          toWidget [julius|checkboxCleanSpans()|]
+  pure (w, checks)
 
 content :: Note -> Handler Widget
 content = fmap fst . embed 0
@@ -198,19 +205,25 @@ compileBlock' (CodeBlock attr code) = do
         redirUrl
   codeCount %= (+ 1)
   public <- lift isPublic
+  enableEdit <- use editEnabled
+  let edit = not public && enableEdit
   let editW =
-        if public
+        if not edit
           then mempty
           else
             [whamlet|
     <div ##{buttonId} .edit-code>
       ✎
   |]
+  let cdId = attr ^. attrId
   pure $ do
-    unless public js
+    when edit js
     [whamlet|
   <div ##{divId} .sourceCode *{compileAttr attr}>
     ^{editW}
+    $if not (T.null cdId)
+      <a href=@{NoteNamedCodeR (WId entry) cdId} .open-code>
+        ^{openIcon}
     ^{ace}
   |]
 compileBlock' (BlockQuote bks) = do
@@ -314,7 +327,8 @@ compileBlock' (Sub hd) = do
   -- Render header
   editIdent <- newIdent
   entry <- use currentEntry
-  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent (hd ^. hdTask) (hd ^. hdChecks) subL
+  enableEdit <- use editEnabled
+  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent (hd ^. hdTask) (hd ^. hdChecks) subL enableEdit
   openedLoc <- use openedSub
   let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
   let taskClass :: [Text] = ["task-section" | isJust (hd ^. hdTask)]
@@ -332,6 +346,12 @@ compileBlock' (Table tbl) = do
       ^{captionW}
   |]
 
+openIcon :: Widget
+openIcon =
+  [whamlet|
+  <img width=16 height=16 style="display: inline; vertical-align: -10%;" src=@{StaticR $ StaticRoute ["icons", "open-white.png"] []}>
+|]
+
 colWidget :: Id -> Text -> Widget -> Handler Widget
 colWidget i nm widget = do
   pure
@@ -340,7 +360,7 @@ colWidget i nm widget = do
       <summary>
         ##{nm}
         <a href=@{NoteColR (WId i) nm}>
-          <img width=16 height=16 style="display: inline; vertical-align: -10%;" src=@{StaticR $ StaticRoute ["icons", "open-white.png"] []}>
+          ^{openIcon}
       ^{widget}
   |]
 
@@ -399,11 +419,19 @@ compileAttr' (MkAttr i clss misc) = applyId . applyClasses . applyMisc
     applyClasses = if null clss then id else applyAttr $ Attr.class_ $ textValue $ T.intercalate " " clss
     applyMisc = appEndo $ foldMap (\(k, v) -> Endo $ applyAttr $ customAttribute (textTag k) $ textValue v) $ M.toList misc
 
-compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Maybe Task -> Checks -> SubLoc -> Handler Widget
-compileHead entry n hdId t edit task checks subL = do
+compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Maybe Task -> Checks -> SubLoc -> Bool -> Handler Widget
+compileHead entry n hdId t edit task checks subL enableEdit = do
   btm <- editButton entry (min n 5) hdId edit subL
   tsk <- Wdgs.taskWidget entry subL task
-  compileHeader n [whamlet|^{tsk} #{t} ^{checksDisplay checks} ^{btm}|]
+  let editBtm = if enableEdit then btm else mempty
+  let openBtm = case hdId of
+        Just i ->
+          [whamlet|
+           <a href=@{NoteNamedSubR (WId entry) i}>
+             ^{openIcon}
+         |]
+        Nothing -> mempty
+  compileHeader n [whamlet|^{tsk} #{t} ^{openBtm} ^{checksDisplay checks} ^{editBtm}|]
 
 compileHeader :: Int -> Widget -> Handler Widget
 compileHeader 0 tit =

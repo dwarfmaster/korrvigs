@@ -299,9 +299,24 @@ compileBlock' (EmbedHeader i) = do
                 (if tk ^. tskStatus == TaskDont then 1 else 0)
         propagateChecks embedId tkchecks
 compileBlock' (Collection col nm items) = do
-  wdg <- lift $ displayResults col True =<< loadCollection col items
+  dat <- lift $ loadCollection col items
+  let checks = foldr (updChecks . snd) def dat
+  wdg <- lift $ displayResults col True dat
   i <- use currentEntry
-  lift $ colWidget i nm wdg
+  cl <- lift $ colWidget i nm wdg
+  pure $ do
+    propagateChecks nm checks
+    cl
+  where
+    updChecks :: OptionalSQLData -> Checks -> Checks
+    updChecks dat = case dat ^. optTask >>= parseStatusName of
+      Just TaskTodo -> ckTodo %~ (+ 1)
+      Just TaskImportant -> ckImportant %~ (+ 1)
+      Just TaskOngoing -> ckOngoing %~ (+ 1)
+      Just TaskBlocked -> ckBlocked %~ (+ 1)
+      Just TaskDone -> ckDone %~ (+ 1)
+      Just TaskDont -> ckDont %~ (+ 1)
+      Nothing -> id
 compileBlock' (Sub hd) = do
   -- Compute level shift
   rtLvl <- use hdRootLevel

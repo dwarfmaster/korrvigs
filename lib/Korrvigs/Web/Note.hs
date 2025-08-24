@@ -200,12 +200,13 @@ getNoteNamedSubR (WId i) sb = do
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   hd <- maybe notFound pure $ md ^? docContent . each . bkNamedSub sb
   (widget, _) <- embedContent False 0 Nothing i [Sub hd] (hd ^. hdChecks)
+  public <- isPublic
   defaultLayout $ do
     Rcs.entryStyle
     Rcs.formsStyle
     Rcs.checkboxCode
     PhotoSwipe.photoswipeHeader
-    actions
+    unless public actions
     widget
 
 getNoteNamedCodeR :: WebId -> Text -> Handler Html
@@ -216,10 +217,11 @@ getNoteNamedCodeR (WId i) cd = do
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   (attrs, txt) <- maybe notFound pure $ md ^? docContent . each . bkNamedCode cd
   (widget, _) <- embedContent False 0 Nothing i [CodeBlock attrs txt] def
+  public <- isPublic
   defaultLayout $ do
     Rcs.entryStyle
     Rcs.formsStyle
     Rcs.checkboxCode
     PhotoSwipe.photoswipeHeader
-    actions
+    unless public actions
     widget

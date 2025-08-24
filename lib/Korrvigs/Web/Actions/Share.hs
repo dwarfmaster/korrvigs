@@ -16,8 +16,8 @@ shareTarget (TargetEntry _) = True
 shareTarget TargetHome = False
 shareTarget (TargetSearch _ _) = True
 shareTarget (TargetNoteCollection _ _) = True
-shareTarget (TargetNoteSub _ _) = False
-shareTarget (TargetNoteCode _ _) = False
+shareTarget (TargetNoteSub _ _) = True
+shareTarget (TargetNoteCode _ _) = True
 
 shareForm :: AForm Handler ()
 shareForm = pure ()
@@ -71,5 +71,31 @@ runShare () (TargetNoteCollection note col) = do
             <a href=@{PublicNoteColR public (WId i) col}>
               Share this collection
       |]
-runShare () (TargetNoteSub _ _) = pure def
-runShare () (TargetNoteCode _ _) = pure def
+runShare () (TargetNoteSub note sb) = do
+  public <- Public.signRoute (NoteNamedSubR (WId i) sb) []
+  render <- getUrlRenderParams
+  let html = htmlUrl public render
+  pure $ def & reactMsg ?~ html
+  where
+    i = note ^. noteEntry . name
+    htmlUrl public =
+      [hamlet|
+        <ul>
+          <li>
+            <a href=@{PublicNoteNamedSubR public (WId i) sb}>
+              Share this subtree
+      |]
+runShare () (TargetNoteCode note cd) = do
+  public <- Public.signRoute (NoteNamedCodeR (WId i) cd) []
+  render <- getUrlRenderParams
+  let html = htmlUrl public render
+  pure $ def & reactMsg ?~ html
+  where
+    i = note ^. noteEntry . name
+    htmlUrl public =
+      [hamlet|
+        <ul>
+          <li>
+            <a href=@{PublicNoteNamedCodeR public (WId i) cd}>
+              Share this code block
+      |]

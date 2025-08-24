@@ -81,6 +81,8 @@ isPublicRoute (PublicEntryDownloadR _ _) = True
 isPublicRoute (PublicEntryComputeR {}) = True
 isPublicRoute (PublicSearchR _) = True
 isPublicRoute (PublicNoteColR {}) = True
+isPublicRoute (PublicNoteNamedSubR {}) = True
+isPublicRoute (PublicNoteNamedCodeR {}) = True
 isPublicRoute _ = False
 
 isPublic :: Handler Bool

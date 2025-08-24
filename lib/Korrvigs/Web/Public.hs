@@ -5,7 +5,7 @@ import Korrvigs.Web.Backend
 import Korrvigs.Web.Compute (getEntryComputeR)
 import Korrvigs.Web.Download (getEntryDownloadR)
 import Korrvigs.Web.Entry (getEntryR)
-import Korrvigs.Web.Note (getNoteColR)
+import Korrvigs.Web.Note (getNoteColR, getNoteNamedCodeR, getNoteNamedSubR)
 import Korrvigs.Web.Public.Crypto
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search (getSearchR)
@@ -43,3 +43,13 @@ getPublicNoteColR :: Text -> WebId -> Text -> Handler TypedContent
 getPublicNoteColR mac i col = do
   checkMac mac $ NoteColR i col
   getNoteColR i col
+
+getPublicNoteNamedSubR :: Text -> WebId -> Text -> Handler Html
+getPublicNoteNamedSubR mac i sb = do
+  checkMac mac $ NoteNamedSubR i sb
+  getNoteNamedSubR i sb
+
+getPublicNoteNamedCodeR :: Text -> WebId -> Text -> Handler Html
+getPublicNoteNamedCodeR mac i cd = do
+  checkMac mac $ NoteNamedCodeR i cd
+  getNoteNamedCodeR i cd

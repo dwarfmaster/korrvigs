@@ -66,6 +66,8 @@ korrvigsRoutes =
 /public/#Text/entry/#WebId/cache/#Text PublicEntryComputeR GET
 /public/#Text/entry PublicSearchR GET
 /public/#Text/note/#WebId/col/#Text PublicNoteColR GET
+/public/#Text/note/#WebId/named/sub/#Text PublicNoteNamedSubR GET
+/public/#Text/note/#WebId/named/code/#Text PublicNoteNamedCodeR GET
 
 -- Specific visualisations
 -- TODO Date

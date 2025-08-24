@@ -37,7 +37,9 @@ data Document = Document
     _docTasks :: [Task],
     _docChecks :: Checks,
     _docParents :: Set Id,
-    _docCollections :: Set Text
+    _docCollections :: Set Text,
+    _docNamedSubs :: Set Text,
+    _docNamedCode :: Set Text
   }
   deriving (Show)
 
@@ -225,7 +227,7 @@ bkBlocks f x = f x
 
 -- Traversal over all blocks in block, descending into subs
 bkSubBlocks :: Traversal' Block Block
-bkSubBlocks f (Sub sub) = Sub . setBks <$> each (bkSubBlocks f) (sub ^. hdContent)
+bkSubBlocks f (Sub sub) = f (Sub sub) *> (Sub . setBks <$> each (bkSubBlocks f) (sub ^. hdContent))
   where
     setBks bks = sub & hdContent .~ bks
 bkSubBlocks f x = bkBlocks f x
@@ -241,3 +243,9 @@ bkCollections = bkSubBlocks . bkCollections'
 -- bkCollection :: Text -> Traversal' Block (Collection, Text, [CollectionItem])
 bkCollection :: (Applicative f) => Text -> ((Collection, Text, [CollectionItem]) -> f (Collection, Text, [CollectionItem])) -> Block -> f Block
 bkCollection nm = bkCollections . filtered ((== nm) . view _2)
+
+bkNamedSub :: (Applicative f) => Text -> (Header -> f Header) -> Block -> f Block
+bkNamedSub i = bkSubBlocks . _Sub . filtered ((== i) . view (hdAttr . attrId))
+
+bkNamedCode :: (Applicative f) => Text -> ((Attr, Text) -> f (Attr, Text)) -> Block -> f Block
+bkNamedCode i = bkSubBlocks . _CodeBlock . filtered ((== i) . view (_1 . attrId))

@@ -50,6 +50,8 @@ data BlockStackZipper = BSZ
     _bszLeft :: [WithParent A.Block],
     _bszTasks :: [Task],
     _bszCollections :: Set Text,
+    _bszNamedSubs :: Set Text,
+    _bszNamedCode :: Set Text,
     _bszParent :: Maybe BlockStackZipper
   }
 
@@ -71,7 +73,7 @@ pushBlock :: WithParent A.Block -> ParseM ()
 pushBlock blk = stack . bszLeft %= (blk :)
 
 pushHeader :: Int -> A.Attr -> ParseM ()
-pushHeader lvl attr = stack %= BSZ lvl attr "" Nothing S.empty def [] [] S.empty . Just
+pushHeader lvl attr = stack %= BSZ lvl attr "" Nothing S.empty def [] [] S.empty S.empty S.empty . Just
 
 headerLvl :: ParseM Int
 headerLvl = use $ stack . bszLevel
@@ -158,14 +160,16 @@ run act mtdt bks =
             A._docTasks = st ^. stack . bszTasks,
             A._docChecks = st ^. stack . bszChecks,
             A._docParents = S.fromList $ fmap MkId $ join $ toList $ maybe (Success []) fromJSON $ M.lookup (CI.mk "parents") cimtdt,
-            A._docCollections = st ^. stack . bszCollections
+            A._docCollections = st ^. stack . bszCollections,
+            A._docNamedSubs = st ^. stack . bszNamedSubs,
+            A._docNamedCode = st ^. stack . bszNamedCode
           }
    in doc
   where
     cimtdt = M.fromList $ first CI.mk <$> M.toList mtdt
     st =
       execState (act >> iterateWhile id popHeader) $
-        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] [] S.empty Nothing)
+        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] [] S.empty S.empty S.empty Nothing)
 
 readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
 readNote pth = liftIO $ do
@@ -210,6 +214,8 @@ parseTopBlocks lvl (Pandoc _ bks) = run act M.empty bks ^. A.docContent
 parseTopBlock :: Block -> ParseM ()
 parseTopBlock (Header lvl attr title) = do
   let parsed = parseAttr attr
+  let i = parsed ^. A.attrId
+  unless (T.null i) $ stack . bszNamedSubs %= S.insert i
   startHeader lvl parsed
   rendered <- renderInlines <$> parseTitleInlines title
   stack . bszTitle .= rendered
@@ -225,7 +231,11 @@ parseBlock :: Block -> ParseM [A.Block]
 parseBlock (Plain inls) = pure . A.Para <$> parseInlines inls
 parseBlock (Para inls) = pure . A.Para <$> parseInlines inls
 parseBlock (LineBlock lns) = pure . A.LineBlock <$> mapM parseInlines lns
-parseBlock (CodeBlock attr txt) = pure . pure $ A.CodeBlock (parseAttr attr) txt
+parseBlock (CodeBlock attr txt) = do
+  let nattr = parseAttr attr
+  let i = nattr ^. A.attrId
+  unless (T.null i) $ stack . bszNamedCode %= S.insert i
+  pure . pure $ A.CodeBlock nattr txt
 parseBlock (RawBlock (Format fmt) i)
   | CI.mk fmt == "embed" = do
       refTo $ MkId i

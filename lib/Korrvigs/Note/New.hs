@@ -95,7 +95,9 @@ create note = do
             _docParents = S.fromList $ note ^. nnEntry . neParents,
             _docTask = Nothing,
             _docTasks = [],
-            _docCollections = S.empty
+            _docCollections = S.empty,
+            _docNamedSubs = S.empty,
+            _docNamedCode = S.empty
           }
   let bs = writeNoteLazy doc
   rt <- noteDirectory

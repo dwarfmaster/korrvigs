@@ -6,6 +6,8 @@ module Korrvigs.Note
     docRefTo,
     docChecks,
     docCollections,
+    docNamedSubs,
+    docNamedCode,
     Checks (..),
     ckTodo,
     ckImportant,

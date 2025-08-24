@@ -196,6 +196,7 @@ getNoteNamedSubR :: WebId -> Text -> Handler Html
 getNoteNamedSubR (WId i) sb = do
   entry <- load i >>= maybe notFound pure
   note <- maybe notFound pure $ entry ^? kindData . _NoteD
+  actions <- actionsWidget $ TargetNoteSub note sb
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   hd <- maybe notFound pure $ md ^? docContent . each . bkNamedSub sb
   (widget, _) <- embedContent False 0 Nothing i [Sub hd] (hd ^. hdChecks)
@@ -204,12 +205,14 @@ getNoteNamedSubR (WId i) sb = do
     Rcs.formsStyle
     Rcs.checkboxCode
     PhotoSwipe.photoswipeHeader
+    actions
     widget
 
 getNoteNamedCodeR :: WebId -> Text -> Handler Html
 getNoteNamedCodeR (WId i) cd = do
   entry <- load i >>= maybe notFound pure
   note <- maybe notFound pure $ entry ^? kindData . _NoteD
+  actions <- actionsWidget $ TargetNoteCode note cd
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   (attrs, txt) <- maybe notFound pure $ md ^? docContent . each . bkNamedCode cd
   (widget, _) <- embedContent False 0 Nothing i [CodeBlock attrs txt] def
@@ -218,4 +221,5 @@ getNoteNamedCodeR (WId i) cd = do
     Rcs.formsStyle
     Rcs.checkboxCode
     PhotoSwipe.photoswipeHeader
+    actions
     widget

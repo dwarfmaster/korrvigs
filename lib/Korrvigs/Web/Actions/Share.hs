@@ -16,6 +16,8 @@ shareTarget (TargetEntry _) = True
 shareTarget TargetHome = False
 shareTarget (TargetSearch _ _) = True
 shareTarget (TargetNoteCollection _ _) = True
+shareTarget (TargetNoteSub _ _) = False
+shareTarget (TargetNoteCode _ _) = False
 
 shareForm :: AForm Handler ()
 shareForm = pure ()
@@ -69,3 +71,5 @@ runShare () (TargetNoteCollection note col) = do
             <a href=@{PublicNoteColR public (WId i) col}>
               Share this collection
       |]
+runShare () (TargetNoteSub _ _) = pure def
+runShare () (TargetNoteCode _ _) = pure def

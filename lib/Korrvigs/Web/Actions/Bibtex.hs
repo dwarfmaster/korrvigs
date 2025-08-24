@@ -16,6 +16,8 @@ bibtexTarget (TargetEntry _) = True
 bibtexTarget TargetHome = False
 bibtexTarget (TargetSearch _ _) = True
 bibtexTarget (TargetNoteCollection _ _) = True
+bibtexTarget (TargetNoteSub _ _) = False
+bibtexTarget (TargetNoteCode _ _) = False
 
 bibtexForm :: AForm Handler ()
 bibtexForm = pure ()
@@ -37,3 +39,5 @@ runBibtex () (TargetNoteCollection note col) = do
   render <- getUrlRender
   let url = NoteColBibtexR (WId $ note ^. noteEntry . name) col
   pure $ def & reactRedirect ?~ render url
+runBibtex () (TargetNoteSub _ _) = pure def
+runBibtex () (TargetNoteCode _ _) = pure def

@@ -3,6 +3,8 @@ module Korrvigs.Web.Actions
     postActEntryR,
     postActSearchR,
     postActNoteColR,
+    postActNoteSubR,
+    postActNoteCodeR,
     actionsWidget,
     module Korrvigs.Web.Actions.Defs,
   )
@@ -125,6 +127,8 @@ actUrl lbl (TargetEntry entry) = ActEntryR (actName lbl) (WId $ entry ^. name)
 actUrl lbl TargetHome = ActHomeR (actName lbl)
 actUrl lbl (TargetSearch _ _) = ActSearchR (actName lbl)
 actUrl lbl (TargetNoteCollection note col) = ActNoteColR (actName lbl) (WId $ note ^. noteEntry . name) col
+actUrl lbl (TargetNoteSub note sub) = ActNoteSubR (actName lbl) (WId $ note ^. noteEntry . name) sub
+actUrl lbl (TargetNoteCode note sub) = ActNoteCodeR (actName lbl) (WId $ note ^. noteEntry . name) sub
 
 actForm :: ActionLabel -> ActionTarget -> Handler Widget
 actForm l@LabRemove = genForm removeForm removeTitle $ actUrl l
@@ -218,6 +222,26 @@ postActNoteColR nm (WId i) col =
       NoteD note -> do
         act <- parseActionName nm
         postHandler act $ TargetNoteCollection note col
+      _ -> notFound
+
+postActNoteSubR :: Text -> WebId -> Text -> Handler Value
+postActNoteSubR nm (WId i) col =
+  load i >>= \case
+    Nothing -> notFound
+    Just entry -> case entry ^. kindData of
+      NoteD note -> do
+        act <- parseActionName nm
+        postHandler act $ TargetNoteSub note col
+      _ -> notFound
+
+postActNoteCodeR :: Text -> WebId -> Text -> Handler Value
+postActNoteCodeR nm (WId i) col =
+  load i >>= \case
+    Nothing -> notFound
+    Just entry -> case entry ^. kindData of
+      NoteD note -> do
+        act <- parseActionName nm
+        postHandler act $ TargetNoteCode note col
       _ -> notFound
 
 actionsWidget :: ActionTarget -> Handler Widget

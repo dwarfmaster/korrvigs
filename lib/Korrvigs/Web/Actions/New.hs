@@ -41,6 +41,8 @@ newTarget (TargetEntry _) = True
 newTarget TargetHome = True
 newTarget (TargetSearch _ _) = False
 newTarget (TargetNoteCollection _ _) = True
+newTarget (TargetNoteSub _ _) = False
+newTarget (TargetNoteCode _ _) = False
 
 mkNewTitle :: Text -> ActionTarget -> Text
 mkNewTitle suffix TargetHome = "Create " <> suffix
@@ -84,6 +86,8 @@ mkReaction (TargetNoteCollection note col) suffix i = do
     def
       & reactMsg ?~ htmlUrl render
       & reactClipboard ?~ unId i
+mkReaction (TargetNoteSub _ _) _ _ = pure def
+mkReaction (TargetNoteCode _ _) _ _ = pure def
 
 langForm :: AForm Handler (Maybe Text)
 langForm = aopt field "Language" Nothing

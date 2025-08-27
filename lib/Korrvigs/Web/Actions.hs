@@ -40,6 +40,7 @@ import Yesod.Static
 data ActionLabel
   = LabRemove
   | LabNewFile
+  | LabNewFileDownload
   | LabNewNote
   | LabNewLink
   | LabNewMedia
@@ -59,6 +60,7 @@ mkIcon icon color = (StaticR $ StaticRoute ["icons", icon <> ".png"] [], color)
 actIcon :: ActionLabel -> (Route WebData, Base16Index)
 actIcon LabRemove = mkIcon "remove" Base08
 actIcon LabNewFile = mkIcon "file" Base0B
+actIcon LabNewFileDownload = mkIcon "downloads" Base0B
 actIcon LabNewNote = mkIcon "note" Base0B
 actIcon LabNewLink = mkIcon "link" Base0B
 actIcon LabNewMedia = mkIcon "media" Base0B
@@ -74,6 +76,7 @@ actIcon LabBibtex = mkIcon "bib" Base0E
 actName :: ActionLabel -> Text
 actName LabRemove = "remove"
 actName LabNewFile = "newfile"
+actName LabNewFileDownload = "newfiledl"
 actName LabNewNote = "newnote"
 actName LabNewLink = "newlink"
 actName LabNewMedia = "newmedia"
@@ -133,6 +136,7 @@ actUrl lbl (TargetNoteCode note sub) = ActNoteCodeR (actName lbl) (WId $ note ^.
 actForm :: ActionLabel -> ActionTarget -> Handler Widget
 actForm l@LabRemove = genForm removeForm removeTitle $ actUrl l
 actForm l@LabNewFile = genForm newFileForm newFileTitle $ actUrl l
+actForm l@LabNewFileDownload = genForm newFileDlForm newFileDlTitle $ actUrl l
 actForm l@LabNewNote = genForm newNoteForm newNoteTitle $ actUrl l
 actForm l@LabNewLink = genForm newLinkForm newLinkTitle $ actUrl l
 actForm l@LabNewMedia = genForm newMediaForm newMediaTitle $ actUrl l
@@ -157,6 +161,7 @@ runPost form runner tgt = do
 actPost :: ActionLabel -> ActionTarget -> Handler ActionReaction
 actPost LabRemove = runPost removeForm runRemove
 actPost LabNewFile = runPost newFileForm runNewFile
+actPost LabNewFileDownload = runPost newFileDlForm runNewFileDl
 actPost LabNewNote = runPost newNoteForm runNewNote
 actPost LabNewLink = runPost newLinkForm runNewLink
 actPost LabNewMedia = runPost newMediaForm runNewMedia
@@ -172,6 +177,7 @@ actPost LabBibtex = runPost bibtexForm runBibtex
 actCond :: ActionLabel -> ActionTarget -> Bool
 actCond LabRemove = removeTarget
 actCond LabNewFile = newTarget
+actCond LabNewFileDownload = newTarget
 actCond LabNewNote = newTarget
 actCond LabNewLink = newTarget
 actCond LabNewMedia = newTarget

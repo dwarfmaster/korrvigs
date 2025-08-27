@@ -9,6 +9,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Entry.New
+import qualified Korrvigs.File.Download as DL
 import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
 import qualified Korrvigs.Metadata.Media.New as NMedia
@@ -29,11 +30,14 @@ data NewLink = NewLink {_nlinkTitle :: Maybe Text, _nlinkUrl :: Text, _nlinkLang
 
 data NewFile = NewFile {_nfileTitle :: Maybe Text, _nfileContent :: FileInfo, _nfileLang :: Maybe Text}
 
+data NewFileDl = NewFileDl {_nfileDlTitle :: Maybe Text, _nfileDlUrl :: Text, _nfileDlLanguage :: Maybe Text}
+
 data NewMedia = NewMedia {_nmedInput :: Text, _nmedType :: Maybe MediaType, _nmedLang :: Maybe Text}
 
 makeLenses ''NewNote
 makeLenses ''NewLink
 makeLenses ''NewFile
+makeLenses ''NewFileDl
 makeLenses ''NewMedia
 
 newTarget :: ActionTarget -> Bool
@@ -162,6 +166,33 @@ runNewFile nfile tgt =
       runIO $ do
         i <- NFile.new path settings
         mkReaction tgt "new file" i
+
+newFileDlForm :: AForm Handler NewFileDl
+newFileDlForm =
+  NewFileDl
+    <$> aopt textField "Title" Nothing
+    <*> areq textField "Url" Nothing
+    <*> langForm
+
+newFileDlTitle :: ActionTarget -> Text
+newFileDlTitle = mkNewTitle "download file"
+
+runNewFileDl :: NewFileDl -> ActionTarget -> Handler ActionReaction
+runNewFileDl nfiledl tgt =
+  DL.newFromUrl settings >>= \case
+    Just i -> mkReaction tgt "download file" i
+    Nothing -> do
+      render <- getUrlRenderParams
+      let msg = [hamlet|<p>Failed to download <a href=#{url}>#{url}</a>|] render
+      pure $ def & reactMsg ?~ msg
+  where
+    url = nfiledl ^. nfileDlUrl
+    settings =
+      DL.NewDownloadedFile url $
+        def
+          & neTitle .~ nfiledl ^. nfileDlTitle
+          & neParents .~ maybeToList (extractParent tgt)
+          & neLanguage .~ nfiledl ^. nfileDlLanguage
 
 newMediaForm :: AForm Handler NewMedia
 newMediaForm =

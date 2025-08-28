@@ -15,6 +15,7 @@ module Korrvigs.Entry.New
     applyCollections,
     applyChildren,
     setMtdtValue,
+    setMtdtValueV,
     setMtdtValueM,
   )
 where
@@ -100,7 +101,10 @@ applyChildren ne i = do
           )
 
 setMtdtValue :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => mtdt -> MtdtType mtdt -> NewEntry -> NewEntry
-setMtdtValue mtdt val = neMtdt . at (mtdtName mtdt) ?~ toJSON val
+setMtdtValue mtdt = setMtdtValueV mtdt . toJSON
+
+setMtdtValueV :: (ExtraMetadata mtdt) => mtdt -> Value -> NewEntry -> NewEntry
+setMtdtValueV mtdt val = neMtdt . at (mtdtName mtdt) ?~ val
 
 setMtdtValueM :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => mtdt -> Maybe (MtdtType mtdt) -> NewEntry -> NewEntry
 setMtdtValueM _ Nothing = id

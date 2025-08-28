@@ -5,16 +5,11 @@ module Korrvigs.Link.New
     NewLink (..),
     nlEntry,
     nlOffline,
-    ExtractedData (..),
     downloadInformation,
-    exCover,
-    exMtdt,
-    exContent,
   )
 where
 
-import Conduit (throwM)
-import Control.Applicative
+import Conduit (liftIO, throwM)
 import Control.Arrow (first)
 import Control.Exception hiding (try)
 import Control.Lens hiding (noneOf)
@@ -22,6 +17,7 @@ import Control.Monad
 import Data.Aeson
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
 import qualified Data.ByteString as BS
+import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.List
@@ -29,6 +25,7 @@ import Data.List.Split (divvy)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -40,15 +37,14 @@ import Korrvigs.Entry.New
 import Korrvigs.File.New hiding (new)
 import Korrvigs.Kind
 import Korrvigs.Link.JSON
+import qualified Korrvigs.Link.New.Video as Vid
 import Korrvigs.Link.SQL
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
-import Korrvigs.Monad.Metadata (updateMetadata)
 import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils (joinNull)
 import Korrvigs.Utils.DateTree
-import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Pandoc (pdExtractMtdt)
 import Network.HTTP.Simple
 import Network.HTTP.Types.Status
@@ -95,7 +91,7 @@ extractImage :: Text -> (Maybe Text, Maybe Value)
 extractImage url = (Just url, Nothing)
 
 -- Map property name to metadata name and extractor
-htmlMetas :: Map Text (Text, Text -> (Maybe Text, Maybe Value))
+htmlMetas :: Map Text (CI Text, Text -> (Maybe Text, Maybe Value))
 htmlMetas =
   M.fromList
     [ -- Standard metadata
@@ -104,15 +100,15 @@ htmlMetas =
       -- OpenGraph
       ("og:title", extractText Title),
       ("og:description", extractText Abstract),
-      ("og:locale", (mtdtSqlName Language, (Nothing,) . extractLanguage)),
-      ("og:image", (mtdtSqlName Cover, extractImage)),
+      ("og:locale", (mtdtName Language, (Nothing,) . extractLanguage)),
+      ("og:image", (mtdtName Cover, extractImage)),
       -- Twitter
       ("twitter:title", extractText Title),
       ("twitter:description", extractText Abstract)
     ]
   where
-    extractText mtdt = (mtdtSqlName mtdt, (Nothing,) . Just . String)
-    extractList mtdt = (mtdtSqlName mtdt, (Nothing,) . Just . Array . V.singleton . String)
+    extractText mtdt = (mtdtName mtdt, (Nothing,) . Just . String)
+    extractList mtdt = (mtdtName mtdt, (Nothing,) . Just . Array . V.singleton . String)
     extractLanguage :: Text -> Maybe Value
     extractLanguage loc
       | "en_" `T.isPrefixOf` loc = Just "en"
@@ -139,47 +135,33 @@ instance FromJSON LDJsonData where
       <*> obj .:? "publisher"
       <*> obj .:? "about"
 
-data ExtractedData = ExtractedData
-  { _exMtdt :: Map Text Value,
-    _exContent :: Maybe Text,
-    _exCover :: Maybe Text
-  }
-
-makeLenses ''ExtractedData
-
-instance Semigroup ExtractedData where
-  ExtractedData m1 t1 c1 <> ExtractedData m2 t2 c2 =
-    ExtractedData (m1 <> m2) (t1 <|> t2) (c1 <|> c2)
-
-instance Monoid ExtractedData where
-  mempty = ExtractedData M.empty Nothing Nothing
-
-fromMap :: Map Text Value -> ExtractedData
-fromMap mtdt = ExtractedData mtdt Nothing Nothing
-
-ldToMeta :: LDJsonData -> ExtractedData
+ldToMeta :: LDJsonData -> Endo NewEntry
 ldToMeta ld
   | ld ^. ldContext == "http://www.schema.org" =
-      fromMap $
-        M.fromList $
-          maybe [] (\nm -> [(mtdtSqlName Title, String nm)]) (ld ^. ldName)
-            ++ maybe [] (\auth -> [(mtdtSqlName Authors, Array $ V.singleton $ String auth)]) (ld ^. ldAuthor)
-            ++ maybe [] (\pub -> [(mtdtSqlName Publisher, Array $ V.singleton $ String pub)]) (ld ^. ldPublisher)
-            ++ maybe [] (\abt -> [(mtdtSqlName Abstract, String abt)]) (ld ^. ldAbout)
+      mconcat $
+        Endo
+          <$> [ setMtdtValueM Title (ld ^. ldName),
+                setMtdtValueM Authors (singleton <$> ld ^. ldAuthor),
+                setMtdtValueM Publisher (singleton <$> ld ^. ldPublisher),
+                setMtdtValueM Abstract (ld ^. ldAbout)
+              ]
 ldToMeta _ = mempty
 
-extractHTMLMeta :: Text -> Text -> ExtractedData
+extractHTMLMeta :: (MonadKorrvigs m) => Text -> Text -> m (Endo NewEntry)
 extractHTMLMeta url txt =
-  mconcat . mconcat $
-    [ matchTitle <$> divvy 2 1 html,
-      matchLD <$> divvy 2 1 html,
-      matchRSS <$> html,
-      matchMeta <$> html,
-      singleton matchLanguage
+  fmap mconcat . sequence $
+    [ pure . mconcat $ matchTitle <$> divvy 2 1 html,
+      pure . mconcat $ matchLD <$> divvy 2 1 html,
+      pure . mconcat $ matchRSS <$> html,
+      pure . mconcat $ matchMeta <$> html,
+      pure matchLanguage,
+      Vid.youtube url tags,
+      Vid.nebula url tags
     ]
   where
-    html = takeWhile (/= TagClose ("head" :: Text)) $ parseTags txt
-    matchRSS :: Tag Text -> ExtractedData
+    tags = parseTags txt
+    html = takeWhile (/= TagClose ("head" :: Text)) tags
+    matchRSS :: Tag Text -> Endo NewEntry
     matchRSS (TagOpen "link" attrs)
       | any (\(k, v) -> k == "rel" && v == "alternate") attrs = fromMaybe mempty $ do
           tp <- find ((== "type") . fst) attrs
@@ -187,40 +169,40 @@ extractHTMLMeta url txt =
           ref <- snd <$> find ((== "href") . fst) attrs
           guard $ T.length ref > 0
           let uri = if T.head ref == '/' then url <> T.tail ref else ref
-          pure $ fromMap $ M.singleton (mtdtSqlName Feed) $ toJSON uri
+          pure $ Endo $ setMtdtValue Feed uri
     matchRSS _ = mempty
-    matchMeta :: Tag Text -> ExtractedData
+    matchMeta :: Tag Text -> Endo NewEntry
     matchMeta (TagOpen "meta" attrs) = fromMaybe mempty $ do
       (_, nm) <- find (\(k, _) -> k == "property") attrs
       (_, content) <- find (\(k, _) -> k == "content") attrs
       (mtdt, extractor) <- M.lookup nm htmlMetas
       let (mcover, mval) = extractor content
-      let excover = maybe mempty (ExtractedData M.empty Nothing . Just) mcover
-      let exval = maybe mempty (fromMap . M.singleton mtdt) mval
+      let excover = Endo $ neCover .~ mcover
+      let exval = Endo $ maybe id (neMtdt . at mtdt ?~) mval
       pure $ excover <> exval
     matchMeta _ = mempty
-    matchTitle :: [Tag Text] -> ExtractedData
+    matchTitle :: [Tag Text] -> Endo NewEntry
     matchTitle [TagOpen "title" _, TagText title] =
-      fromMap $ M.singleton (mtdtSqlName Title) $ String title
+      Endo $ setMtdtValue Title title
     matchTitle _ = mempty
-    matchLD :: [Tag Text] -> ExtractedData
+    matchLD :: [Tag Text] -> Endo NewEntry
     matchLD [tagOpen, TagText json]
       | tagOpen ~== TagOpen ("script" :: Text) [("type", "application/ld+json")] =
           case eitherDecode (LEnc.encodeUtf8 $ LT.fromStrict json) of
             Left _ -> mempty
             Right ld -> ldToMeta ld
     matchLD _ = mempty
-    matchLanguage :: ExtractedData
+    matchLanguage :: Endo NewEntry
     matchLanguage =
       if "fr" `T.isSuffixOf` url
-        then fromMap $ M.singleton (mtdtSqlName Language) (String "fr")
+        then Endo $ setMtdtValue Language "fr"
         else mempty
 
-processPandocMtdt :: Map Text Value -> ExtractedData
-processPandocMtdt = fromMap . M.fromList . mapMaybe process . M.toList
+processPandocMtdt :: Map Text Value -> Endo NewEntry
+processPandocMtdt = mconcat . mapMaybe process . M.toList
   where
-    process :: (Text, Value) -> Maybe (Text, Value)
-    process (key, val) = (,val) <$> M.lookup key pdMtdt
+    process :: (Text, Value) -> Maybe (Endo NewEntry)
+    process (key, val) = (\k -> Endo $ neMtdt . at (CI.mk k) ?~ val) <$> M.lookup key pdMtdt
     pdMtdt :: Map Text Text
     pdMtdt =
       M.fromList
@@ -231,16 +213,16 @@ processPandocMtdt = fromMap . M.fromList . mapMaybe process . M.toList
     mkMtdt :: (ExtraMetadata mtdt) => mtdt -> Text -> (Text, Text)
     mkMtdt mtdt pd = (pd, mtdtSqlName mtdt)
 
-extractPandocMtdt :: Pandoc -> ExtractedData
-extractPandocMtdt pd = setContent $ processPandocMtdt mtdt
+extractPandocMtdt :: Pandoc -> Endo NewEntry
+extractPandocMtdt pd = Endo setContent <> processPandocMtdt mtdt
   where
     (content, mtdt) = pdExtractMtdt pd
-    setContent = if T.null content then id else exContent ?~ content
+    setContent = if T.null content then id else neContent ?~ content
 
-downloadInformation :: Text -> IO ExtractedData
+downloadInformation :: (MonadKorrvigs m) => Text -> m (Endo NewEntry)
 downloadInformation uri = do
   req <- parseRequest $ T.unpack uri
-  resp <- tryJust (guard . isHttpException) $ httpBS req
+  resp <- liftIO $ tryJust (guard . isHttpException) $ httpBS req
   case resp of
     Left _ -> pure mempty
     Right response -> do
@@ -253,8 +235,8 @@ downloadInformation uri = do
           case r of
             (Right ("text/html", decoder)) : _ -> case decoder (getResponseBody response) of
               Just content -> do
-                let htmlMeta = extractHTMLMeta uri content
-                runIO (readHtml def content) >>= \case
+                htmlMeta <- extractHTMLMeta uri content
+                liftIO (runIO $ readHtml def content) >>= \case
                   Left _ -> pure mempty
                   Right pd -> pure $ htmlMeta <> extractPandocMtdt pd
               Nothing -> pure mempty
@@ -280,17 +262,14 @@ create url options = case parseURI (T.unpack url) of
     extracted <-
       if options ^. nlOffline
         then pure mempty
-        else catchIO $ downloadInformation link
-    let info = extracted ^. exMtdt
-    let title = mplus (joinNull T.null $ options ^. nlEntry . neTitle) (M.lookup (mtdtSqlName Title) info >>= jsonAsText)
-    nentry <- applyCover (options ^. nlEntry) title
+        else downloadInformation link
+    let nentry' = appEndo extracted $ options ^. nlEntry
+    let title = joinNull T.null $ nentry' ^. neTitle
+    nentry <- applyCover nentry' title
     dt <- useDate nentry Nothing
-    let mtdt =
-          useMtdt nentry $
-            M.fromList (first CI.mk <$> M.toList info)
-              & at (mtdtName Title) .~ (toJSON <$> title)
+    let mtdt = useMtdt nentry M.empty
     let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt
-    let txt = extracted ^. exContent <|> nentry ^. neContent
+    let txt = nentry ^. neContent
     let json = LinkJSON protocol link mtdtJson dt Nothing Nothing txt parents
     idmk' <- applyNewEntry nentry (imk "link")
     let idmk = idmk' & idTitle .~ title
@@ -302,15 +281,4 @@ create url options = case parseURI (T.unpack url) of
     syncFileOfKind pth Link
     applyCollections nentry i
     applyChildren nentry i
-    forM_ (extracted ^. exCover) $ \covUrl -> do
-      let imgNew =
-            NewDownloadedFile covUrl $
-              def
-                & neTitle .~ ((<> " cover") <$> title)
-                & neParents .~ [i]
-      newFromUrl imgNew >>= \case
-        Nothing -> pure ()
-        Just cid -> do
-          entry <- load i >>= throwMaybe (KMiscError $ unId i <> " just created, should be valid")
-          updateMetadata entry (M.singleton (mtdtSqlName Cover) (toJSON $ unId cid)) []
     pure i

@@ -1,6 +1,5 @@
 module Korrvigs.Note.New (new, NewNote (..), nnEntry, nnTitle, nnTitleOverride) where
 
-import Control.Arrow (first)
 import Control.Lens
 import Data.Aeson
 import Data.Aeson.Lens
@@ -12,6 +11,7 @@ import Data.List (intersperse)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Monoid
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -66,23 +66,23 @@ initContent mtdt =
 
 create :: (MonadKorrvigs m) => NewNote -> m Id
 create note = do
-  idmk' <- applyNewEntry (note ^. nnEntry) (imk "note")
   extracted <- case note ^? nnEntry . neMtdt . at (mtdtName Url) . _Just . _String of
-    Just url -> catchIOWith mempty $ Link.downloadInformation url
+    Just url -> Link.downloadInformation url
     Nothing -> pure mempty
+  let nentry' = appEndo extracted $ note ^. nnEntry
   let title =
         if note ^. nnTitleOverride
-          then fromMaybe (note ^. nnTitle) $ extracted ^? Link.exMtdt . at (mtdtSqlName Title) . _Just . _JSON
+          then fromMaybe (note ^. nnTitle) $ nentry' ^? neMtdt . at (mtdtName Title) . _Just . _JSON
           else note ^. nnTitle
-  nentry <- applyCover (note ^. nnEntry) $ Just title
+  nentry <- applyCover nentry' $ Just title
+  idmk' <- applyNewEntry nentry (imk "note")
   let idmk = idmk' & idTitle ?~ title
   i <- newId idmk
   let parents = nentry ^. neParents
   let mtdt =
         useMtdt nentry $
           mconcat
-            [ M.fromList $ first CI.mk <$> M.toList (extracted ^. Link.exMtdt),
-              M.singleton (mtdtName Title) (toJSON title),
+            [ M.singleton (mtdtName Title) (toJSON title),
               maybe M.empty (M.singleton (mtdtName Language) . toJSON) (nentry ^. neLanguage),
               if null parents then M.empty else M.singleton (CI.mk "parents") (toJSON $ unId <$> parents),
               maybe M.empty (M.singleton (CI.mk "date") . toJSON) (nentry ^. neDate)

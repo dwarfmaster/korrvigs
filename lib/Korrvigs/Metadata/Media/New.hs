@@ -33,7 +33,6 @@ import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.OpenLibrary as OL
 import qualified Korrvigs.Metadata.Media.Pandoc as Pd
 import qualified Korrvigs.Metadata.Media.Steam as Steam
-import qualified Korrvigs.Metadata.Media.Trivial as Trivial
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections (capture)
@@ -99,7 +98,6 @@ dispatchMedia nm = do
               mkDispatcher "Steam" (pure . Steam.parseQuery) Steam.querySteam,
               mkDispatcher "GitHub" (pure . GH.parseQuery) GH.queryGitHub,
               mkDispatcher "Hackernews" (pure . HN.parseQuery) HN.queryHN,
-              mkDispatcher "Trivial" (pure . Trivial.parseQuery) Trivial.query,
               mkDispatcher "OMDB" (pure . OMDB.parseQuery) OMDB.queryOMDB,
               mkDispatcher "IGDB" (pure . IGDB.parseQuery) IGDB.queryIGDB,
               mkDispatcher "MusicBrainz" (pure . MB.parseQuery) MB.queryMB,

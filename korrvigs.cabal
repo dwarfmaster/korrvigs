@@ -96,6 +96,7 @@ library korrvigs-lib
     Korrvigs.Link
     Korrvigs.Link.JSON
     Korrvigs.Link.New
+    Korrvigs.Link.New.Video
     Korrvigs.Link.SQL
     Korrvigs.Link.Sync
     Korrvigs.Metadata
@@ -115,7 +116,6 @@ library korrvigs-lib
     Korrvigs.Metadata.Media.OpenLibrary
     Korrvigs.Metadata.Media.Pandoc
     Korrvigs.Metadata.Media.Steam
-    Korrvigs.Metadata.Media.Trivial
     Korrvigs.Metadata.Task
     Korrvigs.Metadata.TH
     Korrvigs.Monad

@@ -9,7 +9,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Entry.New
-import qualified Korrvigs.File.Download as DL
 import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
 import qualified Korrvigs.Metadata.Media.New as NMedia
@@ -179,7 +178,7 @@ newFileDlTitle = mkNewTitle "download file"
 
 runNewFileDl :: NewFileDl -> ActionTarget -> Handler ActionReaction
 runNewFileDl nfiledl tgt =
-  DL.newFromUrl settings >>= \case
+  NFile.newFromUrl settings >>= \case
     Just i -> mkReaction tgt "download file" i
     Nothing -> do
       render <- getUrlRenderParams
@@ -188,7 +187,7 @@ runNewFileDl nfiledl tgt =
   where
     url = nfiledl ^. nfileDlUrl
     settings =
-      DL.NewDownloadedFile url $
+      NFile.NewDownloadedFile url $
         def
           & neTitle .~ nfiledl ^. nfileDlTitle
           & neParents .~ maybeToList (extractParent tgt)

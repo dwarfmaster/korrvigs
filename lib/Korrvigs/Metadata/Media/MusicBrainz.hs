@@ -5,16 +5,13 @@ import Control.Lens
 import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types (Parser)
-import Data.Default
 import Data.Foldable
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time.Calendar
 import Data.Time.Format
-import Korrvigs.Entry
 import Korrvigs.Entry.New
-import Korrvigs.File.Download
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -99,19 +96,16 @@ parseQuery _ = Nothing
 
 queryMB :: (MonadKorrvigs m) => MBId -> m (Maybe (NewEntry -> NewEntry))
 queryMB (MBRelease i) = doQuery (mbUrl <> "ws/2/release/" <> i <> "?fmt=json&inc=artists") $ \mbr -> do
-  covId <- forM (guard (mbr ^. mbrCover) :: Maybe ()) $ \() -> do
+  coverUrl <- fmap join $ forM (guard (mbr ^. mbrCover) :: Maybe ()) $ \() -> do
     coverArtReq' <- parseRequest $ "https://coverartarchive.org/release/" <> T.unpack i <> "/front"
     let coverArtReq = coverArtReq' {redirectCount = 0}
     man <- manager
-    coverUrl <- runResourceT $ do
+    runResourceT $ do
       resp <- http coverArtReq man
       let scode = statusCode $ responseStatus resp
       if scode == 307
         then pure $ lookup "Location" $ responseHeaders resp
         else pure Nothing
-    fmap join $ forM coverUrl $ \covUrl -> do
-      let covNew = NewDownloadedFile (Enc.decodeUtf8 covUrl) $ def & neTitle ?~ (mbr ^. mbrTitle) <> " cover"
-      newFromUrl covNew
   pure $
     foldr
       (.)
@@ -121,8 +115,7 @@ queryMB (MBRelease i) = doQuery (mbUrl <> "ws/2/release/" <> i <> "?fmt=json&inc
         setMtdtValueM MedMonth $ mbr ^? mbrDate . _Just . to toGregorian . _2,
         setMtdtValueM MedYear $ mbr ^? mbrDate . _Just . to toGregorian . _1,
         setMtdtValue Url $ mbUrl <> "release/" <> i,
-        setMtdtValueM Cover $ unId <$> join covId,
-        neChildren %~ (toList (join covId) <>)
+        neCover .~ (Enc.decodeUtf8 <$> coverUrl)
       ]
 queryMB (MBRecording i) = doQuery (mbUrl <> "ws/2/recording/" <> i <> "?fmt=json&inc=artists+releases") $ \mbr ->
   pure $

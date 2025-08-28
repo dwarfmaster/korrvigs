@@ -5,8 +5,6 @@ import Control.Concurrent (threadDelay)
 import Control.Lens hiding ((.=))
 import Control.Monad
 import Data.Aeson
-import Data.Default
-import Data.Foldable
 import Data.List (sort)
 import qualified Data.Map as M
 import Data.Maybe
@@ -17,9 +15,7 @@ import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.Clock.POSIX
 import Data.Time.LocalTime
-import Korrvigs.Entry
 import Korrvigs.Entry.New
-import Korrvigs.File.Download
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -211,14 +207,11 @@ doQueryIGDB creds token endpoint cond fields = do
 parseQuery :: Text -> Maybe Text
 parseQuery = T.stripPrefix "https://www.igdb.com/games/"
 
-getCover :: (MonadKorrvigs m) => IGDBCredentials -> AccessToken -> Text -> IGDBId -> m (Maybe Id)
-getCover creds tok title i =
-  doQueryIGDB creds tok "covers" ("id=" <> T.pack (show i)) ["url"] >>= \case
-    [] -> pure Nothing
-    (u : _) -> do
-      let url = "https:" <> u ^. coverUrl
-      let covNew = NewDownloadedFile url $ def & neTitle ?~ title <> " cover"
-      newFromUrl covNew
+getCover :: (MonadKorrvigs m) => IGDBCredentials -> AccessToken -> IGDBId -> m (Maybe Text)
+getCover creds tok i =
+  doQueryIGDB creds tok "covers" ("id=" <> T.pack (show i)) ["url"] <&> \case
+    [] -> Nothing
+    (u : _) -> Just $ "https:" <> u ^. coverUrl
 
 getTime :: (MonadKorrvigs m) => IGDBCredentials -> AccessToken -> Maybe Integer -> [IGDBId] -> m (Maybe ZonedTime)
 getTime creds tok Nothing releases = do
@@ -260,7 +253,7 @@ queryIGDB slug = do
     [] -> pure Nothing
     game : _ -> do
       let title = game ^. igdbName
-      cover <- maybe (pure Nothing) (getCover creds tok title) $ game ^. igdbCover
+      cover <- maybe (pure Nothing) (getCover creds tok) $ game ^. igdbCover
       time <- getTime creds tok (game ^. igdbRelease) (game ^. igdbReleases)
       let day = localDay . zonedTimeToLocalTime <$> time
       liftIO $ threadDelay 1000 -- To avoid being rate limited
@@ -275,8 +268,7 @@ queryIGDB slug = do
               setMtdtValue Authors devs,
               setMtdtValue Publisher pubs,
               setMtdtValue Url url,
-              setMtdtValueM Cover $ unId <$> cover,
-              neChildren %~ (toList cover <>),
+              neCover .~ cover,
               setMtdtValueM MedMonth $ day ^? _Just . to toGregorian . _2,
               setMtdtValueM MedYear $ day ^? _Just . to toGregorian . _1,
               maybe id (neDate ?~) day

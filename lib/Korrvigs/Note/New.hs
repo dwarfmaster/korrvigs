@@ -17,6 +17,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Entry.New
+import Korrvigs.File.New hiding (new)
 import Korrvigs.Kind
 import qualified Korrvigs.Link.New as Link
 import Korrvigs.Metadata
@@ -73,17 +74,18 @@ create note = do
         if note ^. nnTitleOverride
           then fromMaybe (note ^. nnTitle) $ extracted ^? Link.exMtdt . at (mtdtSqlName Title) . _Just . _JSON
           else note ^. nnTitle
+  nentry <- applyCover (note ^. nnEntry) $ Just title
   let idmk = idmk' & idTitle ?~ title
   i <- newId idmk
-  let parents = note ^. nnEntry . neParents
+  let parents = nentry ^. neParents
   let mtdt =
-        useMtdt (note ^. nnEntry) $
+        useMtdt nentry $
           mconcat
             [ M.fromList $ first CI.mk <$> M.toList (extracted ^. Link.exMtdt),
               M.singleton (mtdtName Title) (toJSON title),
-              maybe M.empty (M.singleton (mtdtName Language) . toJSON) (note ^. nnEntry . neLanguage),
+              maybe M.empty (M.singleton (mtdtName Language) . toJSON) (nentry ^. neLanguage),
               if null parents then M.empty else M.singleton (CI.mk "parents") (toJSON $ unId <$> parents),
-              maybe M.empty (M.singleton (CI.mk "date") . toJSON) (note ^. nnEntry . neDate)
+              maybe M.empty (M.singleton (CI.mk "date") . toJSON) (nentry ^. neDate)
             ]
   let doc =
         Document
@@ -92,7 +94,7 @@ create note = do
             _docTitle = title,
             _docRefTo = S.empty,
             _docChecks = def,
-            _docParents = S.fromList $ note ^. nnEntry . neParents,
+            _docParents = S.fromList $ nentry ^. neParents,
             _docTask = Nothing,
             _docTasks = [],
             _docCollections = S.empty,
@@ -103,6 +105,6 @@ create note = do
   rt <- noteDirectory
   path <- storeFile rt noteTreeType Nothing (unId i <> ".md") $ FileLazy bs
   syncFileOfKind path Note
-  applyCollections (note ^. nnEntry) i
-  applyChildren (note ^. nnEntry) i
+  applyCollections nentry i
+  applyChildren nentry i
   pure i

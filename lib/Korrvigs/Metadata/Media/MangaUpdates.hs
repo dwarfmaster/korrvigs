@@ -7,14 +7,11 @@ where
 import Control.Lens
 import Data.Aeson
 import Data.Aeson.Types
-import Data.Default
 import Data.Foldable
 import Data.String (IsString)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Entry
 import Korrvigs.Entry.New
-import Korrvigs.File.Download
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -66,9 +63,6 @@ queryMangaUpdates url = do
       Nothing -> pure Nothing
       Just muData -> do
         let title = muData ^. muName
-        dlCover <- do
-          let coverNew = NewDownloadedFile (muData ^. muImage) $ def & neTitle ?~ title <> " cover"
-          newFromUrl coverNew
         pure $
           Just $
             foldr
@@ -81,8 +75,7 @@ queryMangaUpdates url = do
                 setMtdtValueM MedYear $ parsePublishYear $ muData ^. muDate,
                 setMtdtValue Url $ muData ^. muUrl,
                 setMtdtValue Publisher $ muData ^. muPublishers,
-                setMtdtValueM Cover $ unId <$> dlCover,
-                neChildren %~ (toList dlCover <>)
+                neCover ?~ muData ^. muImage
               ]
     _ -> pure Nothing
   where

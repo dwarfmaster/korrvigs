@@ -12,6 +12,7 @@ import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.Sync
 import Korrvigs.Entry
 import Korrvigs.Entry.New
+import Korrvigs.File.New
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync (syncFileOfKind)
@@ -32,30 +33,31 @@ unmapCI = M.fromList . fmap (first CI.foldedCase) . M.toList
 
 new :: (MonadKorrvigs m) => NewCalendar -> m Id
 new nc = do
+  nentry <- applyCover (nc ^. ncEntry) $ Just $ nc ^. ncCalendar
   -- Create ID
-  idmk <- applyNewEntry (nc ^. ncEntry) $ imk "cal" & idTitle ?~ nc ^. ncCalendar
+  idmk <- applyNewEntry nentry $ imk "cal" & idTitle ?~ nc ^. ncCalendar
   i <- newId idmk
   -- Make sure directory exists
   dir <- calJSONPath
   liftIO $ createDirectoryIfMissing True dir
   -- Create JSON
-  dt <- useDate (nc ^. ncEntry) Nothing
+  dt <- useDate nentry Nothing
   let json =
         CalJSON
           { _cljsServer = nc ^. ncServer,
             _cljsUser = nc ^. ncUser,
             _cljsCalName = nc ^. ncCalendar,
-            _cljsMetadata = unmapCI $ useMtdt (nc ^. ncEntry) M.empty,
+            _cljsMetadata = unmapCI $ useMtdt nentry M.empty,
             _cljsDate = dt,
             _cljsDuration = Nothing,
             _cljsGeo = Nothing,
-            _cljsText = ((nc ^. ncCalendar <> " ") <>) <$> nc ^. ncEntry . neTitle,
-            _cljsParents = unId <$> nc ^. ncEntry . neParents
+            _cljsText = ((nc ^. ncCalendar <> " ") <>) <$> nentry ^. neTitle,
+            _cljsParents = unId <$> nentry ^. neParents
           }
   path <- calendarPath' i
   writeJsonToFile path json
   -- Sync
   syncFileOfKind path Calendar
-  applyCollections (nc ^. ncEntry) i
-  applyChildren (nc ^. ncEntry) i
+  applyCollections nentry i
+  applyChildren nentry i
   pure i

@@ -2,18 +2,13 @@ module Korrvigs.Metadata.Media.Steam where
 
 import Citeproc.Types (readAsInt)
 import Control.Lens
-import Control.Monad
 import Data.Aeson
-import Data.Default
-import Data.Foldable
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Entry
 import Korrvigs.Entry.New
-import Korrvigs.File.Download
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -73,9 +68,6 @@ querySteam i = do
       let steamGameUrl = steamUrl <> "/app/" <> T.pack (show i)
       let gameUrl = fromMaybe steamGameUrl $ steam ^. stWebsite
       let rssUrl = steamUrl <> "/feeds/news/app/" <> T.pack (show i)
-      dlCover <- fmap join $ forM (steam ^. stImage) $ \img -> do
-        let imgNew = NewDownloadedFile img $ def & neTitle ?~ title <> " cover"
-        newFromUrl imgNew
       let forum = "https://steamcommunity.com/app/" <> T.pack (show i) <> "/discussions"
       pure $
         Just $
@@ -88,9 +80,8 @@ querySteam i = do
               setMtdtValue Url gameUrl,
               setMtdtValue Feed rssUrl,
               setMtdtValue Publisher $ steam ^. stPublishers,
-              setMtdtValueM Cover $ unId <$> dlCover,
               setMtdtValue Discussions [forum],
-              neChildren %~ (toList dlCover <>)
+              neCover .~ (steam ^. stImage)
             ]
   where
     extract :: Either a (Map Text c) -> [c]

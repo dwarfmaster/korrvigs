@@ -32,6 +32,8 @@ newEntryOptions =
     <*> (M.fromList <$> many (option mtdtParser $ long "mtdt" <> help "Pairs in the form key=json of metadata to add to the entry"))
     <*> (catMaybes <$> many (parseCollection <$> option str (long "collection" <> metavar "COL" <> help "Collections to add the entry to, in the form id#colname")))
     <*> pure []
+    <*> optional (option str $ metavar "URL" <> long "cover" <> help "Link to picture to use as cover for entry")
+    <*> pure Nothing
 
 mtdtParser :: ReadM (CI Text, Value)
 mtdtParser = eitherReader $ \s -> case P.runParser mtdtP () "<mtdt>" s of

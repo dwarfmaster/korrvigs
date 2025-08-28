@@ -9,20 +9,16 @@ where
 
 import Citeproc.Types (readAsInt)
 import Control.Lens
-import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Types
-import Data.Default
 import Data.Foldable (toList)
 import Data.ISBN
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
-import Korrvigs.Entry
 import Korrvigs.Entry.New
-import Korrvigs.File.Download
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -147,10 +143,7 @@ queryOpenLibrary q = case mkAPIUrl q of
         pure Nothing
       Just (Right olr) -> do
         let title = olr ^. olTitle
-        dlCover <- fmap join $ forM (listToMaybe $ olr ^. olCovers) $ \cov -> do
-          let coverUrl = "https://covers.openlibrary.org/b/id/" <> T.pack (show cov) <> "-L.jpg"
-          let coverNew = NewDownloadedFile coverUrl $ def & neTitle ?~ title <> " cover"
-          newFromUrl coverNew
+        let mkCoverUrl cov = "https://covers.openlibrary.org/b/id/" <> T.pack (show cov) <> "-L.jpg"
         let fullTitle = title <> maybe "" (" - " <>) (olr ^. olSubtitle)
         authors <- fmap catMaybes $ mapM queryAuthor $ olr ^. olAuthors
         pure $
@@ -174,8 +167,7 @@ queryOpenLibrary q = case mkAPIUrl q of
                       <*> pure Nothing
                       <*> pure Nothing
                       <*> pure Nothing,
-                setMtdtValueM Cover $ unId <$> dlCover,
-                neChildren %~ (toList dlCover <>)
+                neCover .~ (mkCoverUrl <$> listToMaybe (olr ^. olCovers))
               ]
   where
     parseISBN :: Text -> Maybe ISBN

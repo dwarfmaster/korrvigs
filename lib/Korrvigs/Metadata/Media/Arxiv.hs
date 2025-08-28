@@ -15,7 +15,7 @@ import Data.Time.Clock
 import Data.Time.Format.ISO8601
 import qualified Data.XML.Types as XML
 import Korrvigs.Entry.New
-import Korrvigs.File.Download
+import Korrvigs.File.New
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology

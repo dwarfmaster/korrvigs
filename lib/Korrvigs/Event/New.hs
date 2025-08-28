@@ -18,6 +18,7 @@ import Korrvigs.Entry.Ident
 import Korrvigs.Entry.New
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.Sync
+import Korrvigs.File.New
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Monad
@@ -61,6 +62,7 @@ new opts = do
   localTime <- liftIO $ zonedTimeToLocalTime <$> getZonedTime
   let stamp = formatTime defaultTimeLocale "%0Y%m%dT%H%M%S" localTime
   let title = fromMaybe (opts ^. nevSummary) $ opts ^. nevEntry . neTitle
+  nentry <- applyCover (opts ^. nevEntry) $ Just title
   let ievent =
         ICEvent
           { _iceUid = "",
@@ -85,13 +87,13 @@ new opts = do
                   },
             _iceDuration = Nothing,
             _iceTransparent = not $ opts ^. nevOpaque,
-            _iceParents = opts ^. nevEntry . neParents,
+            _iceParents = nentry ^. neParents,
             _iceGeometry = Nothing,
             _iceMtdt =
               mconcat
-                [ opts ^. nevEntry . neMtdt,
+                [ nentry ^. neMtdt,
                   M.singleton (mtdtName Title) $ toJSON title,
-                  maybe M.empty (M.singleton (mtdtName Language) . toJSON) (opts ^. nevEntry . neLanguage)
+                  maybe M.empty (M.singleton (mtdtName Language) . toJSON) (nentry ^. neLanguage)
                 ],
             _iceContent =
               def
@@ -119,6 +121,6 @@ new opts = do
   let day = localDay . zonedTimeToLocalTime . resolveICalTime ncal <$> ncal ^? icEvent . _Just . iceStart . _Just
   path <- storeFile rt eventTreeType day filename $ FileLazy $ renderICalFile ncal
   syncFileOfKind path Event
-  applyCollections (opts ^. nevEntry) i
-  applyChildren (opts ^. nevEntry) i
+  applyCollections nentry i
+  applyChildren nentry i
   pure i

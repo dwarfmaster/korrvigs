@@ -72,7 +72,6 @@ library korrvigs-lib
     Korrvigs.Event.SQL
     Korrvigs.Event.Sync
     Korrvigs.File
-    Korrvigs.File.Download
     Korrvigs.File.Mtdt
     Korrvigs.File.Mtdt.ExifTool
     Korrvigs.File.Mtdt.GPX

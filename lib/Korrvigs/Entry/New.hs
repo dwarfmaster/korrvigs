@@ -7,6 +7,8 @@ module Korrvigs.Entry.New
     neMtdt,
     neCollections,
     neChildren,
+    neCover,
+    neContent,
     useDate,
     useMtdt,
     applyNewEntry,
@@ -44,13 +46,15 @@ data NewEntry = NewEntry
     _neLanguage :: Maybe Text,
     _neMtdt :: Map (CI Text) Value,
     _neCollections :: [(Id, Text)],
-    _neChildren :: [Id]
+    _neChildren :: [Id],
+    _neCover :: Maybe Text,
+    _neContent :: Maybe Text
   }
 
 makeLenses ''NewEntry
 
 instance Default NewEntry where
-  def = NewEntry [] Nothing Nothing Nothing M.empty [] []
+  def = NewEntry [] Nothing Nothing Nothing M.empty [] [] Nothing Nothing
 
 zonedTimeFromDay :: TimeZone -> Day -> ZonedTime
 zonedTimeFromDay tz day =

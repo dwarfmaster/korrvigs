@@ -37,7 +37,7 @@ import qualified Data.Text.Lazy.Encoding as LEnc
 import qualified Data.Vector as V
 import Korrvigs.Entry
 import Korrvigs.Entry.New
-import Korrvigs.File.Download
+import Korrvigs.File.New hiding (new)
 import Korrvigs.Kind
 import Korrvigs.Link.JSON
 import Korrvigs.Link.SQL
@@ -283,17 +283,16 @@ create url options = case parseURI (T.unpack url) of
         else catchIO $ downloadInformation link
     let info = extracted ^. exMtdt
     let title = mplus (joinNull T.null $ options ^. nlEntry . neTitle) (M.lookup (mtdtSqlName Title) info >>= jsonAsText)
-    dt <- useDate (options ^. nlEntry) Nothing
+    nentry <- applyCover (options ^. nlEntry) title
+    dt <- useDate nentry Nothing
     let mtdt =
-          useMtdt (options ^. nlEntry) $
-            M.union
-              (options ^. nlEntry . neMtdt)
-              (M.fromList $ first CI.mk <$> M.toList info)
+          useMtdt nentry $
+            M.fromList (first CI.mk <$> M.toList info)
               & at (mtdtName Title) .~ (toJSON <$> title)
     let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt
-    let txt = extracted ^. exContent
+    let txt = extracted ^. exContent <|> nentry ^. neContent
     let json = LinkJSON protocol link mtdtJson dt Nothing Nothing txt parents
-    idmk' <- applyNewEntry (options ^. nlEntry) (imk "link")
+    idmk' <- applyNewEntry nentry (imk "link")
     let idmk = idmk' & idTitle .~ title
     i <- newId idmk
     rt <- linkJSONPath
@@ -301,8 +300,8 @@ create url options = case parseURI (T.unpack url) of
     let content = encodingToLazyByteString . value $ toJSON json
     pth <- storeFile rt jsonTT Nothing (unId i <> ".json") $ FileLazy content
     syncFileOfKind pth Link
-    applyCollections (options ^. nlEntry) i
-    applyChildren (options ^. nlEntry) i
+    applyCollections nentry i
+    applyChildren nentry i
     forM_ (extracted ^. exCover) $ \covUrl -> do
       let imgNew =
             NewDownloadedFile covUrl $

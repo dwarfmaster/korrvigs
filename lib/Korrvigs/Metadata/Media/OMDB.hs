@@ -6,15 +6,12 @@ import Data.Aeson
 import Data.Aeson.Types
 import qualified Data.CaseInsensitive as CI
 import Data.Containers.ListUtils (nubOrd)
-import Data.Default
 import Data.Foldable
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.Format
-import Korrvigs.Entry
 import Korrvigs.Entry.New
-import Korrvigs.File.Download
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -127,9 +124,6 @@ queryOMDBWithKey key i = do
     Just (Right omdb) -> do
       let imUrl = imdbUrl <> "title/" <> i
       let authors = nubOrd $ mconcat [toList (omdb ^. omdbDirector), toList (omdb ^. omdbWriter), omdb ^. omdbActor]
-      dlCover <- fmap join $ forM (omdb ^. omdbPoster) $ \poster -> do
-        let imgNew = NewDownloadedFile poster $ def & neTitle ?~ (omdb ^. omdbTitle) <> " cover"
-        newFromUrl imgNew
       let isFr = any (\l -> CI.mk l == "fr" || CI.mk l == "french") $ omdb ^. omdbLanguage
       let tp = case omdb ^. omdbType of
             OMDBMovie -> Movie
@@ -146,8 +140,7 @@ queryOMDBWithKey key i = do
               setMtdtValueM MedMonth $ omdb ^? omdbReleased . _Just . to toGregorian . _2,
               setMtdtValueM MedYear $ omdb ^? omdbReleased . _Just . to toGregorian . _1,
               setMtdtValue Url imUrl,
-              setMtdtValueM Cover $ unId <$> dlCover,
               if isFr then setMtdtValue Language "fr" else id,
-              neChildren %~ (toList dlCover <>)
+              neCover .~ omdb ^. omdbPoster
             ]
     _ -> pure Nothing

@@ -27,6 +27,7 @@ import Korrvigs.Web.Actions.EventSync
 import Korrvigs.Web.Actions.Export
 import Korrvigs.Web.Actions.New
 import Korrvigs.Web.Actions.Parent
+import Korrvigs.Web.Actions.RSS
 import Korrvigs.Web.Actions.Remove
 import Korrvigs.Web.Actions.Share
 import Korrvigs.Web.Actions.Update
@@ -48,6 +49,7 @@ data ActionLabel
   | LabParentAdd
   | LabParentRm
   | LabUpdate
+  | LabImportRSS
   | LabEventSync
   | LabExport
   | LabCollection
@@ -68,6 +70,7 @@ actIcon LabShare = mkIcon "share" Base0E
 actIcon LabParentAdd = mkIcon "parent" Base0B
 actIcon LabParentRm = mkIcon "parent" Base08
 actIcon LabUpdate = mkIcon "upload" Base0E
+actIcon LabImportRSS = mkIcon "rss" Base0B
 actIcon LabEventSync = mkIcon "eventsync" Base0E
 actIcon LabExport = mkIcon "export" Base0E
 actIcon LabCollection = mkIcon "collection" Base0B
@@ -84,6 +87,7 @@ actName LabShare = "share"
 actName LabParentAdd = "addparent"
 actName LabParentRm = "rmparent"
 actName LabUpdate = "update"
+actName LabImportRSS = "importrss"
 actName LabEventSync = "eventsync"
 actName LabExport = "export"
 actName LabCollection = "collection"
@@ -144,6 +148,7 @@ actForm l@LabShare = genForm shareForm shareTitle $ actUrl l
 actForm l@LabParentAdd = genForm parentForm parentAddTitle $ actUrl l
 actForm l@LabParentRm = genForm parentForm parentRmTitle $ actUrl l
 actForm l@LabUpdate = genForm updateForm updateTitle $ actUrl l
+actForm l@LabImportRSS = genForm importRssForm importRssTitle $ actUrl l
 actForm l@LabEventSync = genForm syncEvForm syncEvTitle $ actUrl l
 actForm l@LabExport = genForm exportForm exportTitle $ actUrl l
 actForm l@LabCollection = genForm colForm colTitle $ actUrl l
@@ -169,6 +174,7 @@ actPost LabShare = runPost shareForm runShare
 actPost LabParentAdd = runPost parentForm runParentAdd
 actPost LabParentRm = runPost parentForm runParentRm
 actPost LabUpdate = runPost updateForm runUpdate
+actPost LabImportRSS = runPost importRssForm runImportRSS
 actPost LabEventSync = runPost syncEvForm runSyncEv
 actPost LabExport = runPost exportForm runExport
 actPost LabCollection = runPost colForm runCol
@@ -185,6 +191,7 @@ actCond LabShare = shareTarget
 actCond LabParentAdd = parentTarget
 actCond LabParentRm = parentTarget
 actCond LabUpdate = updateTarget
+actCond LabImportRSS = importRssTarget
 actCond LabEventSync = syncEvTarget
 actCond LabExport = exportTarget
 actCond LabCollection = colTarget

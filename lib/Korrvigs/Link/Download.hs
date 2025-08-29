@@ -5,10 +5,13 @@ import Control.Exception hiding (try)
 import Control.Lens hiding (noneOf)
 import Control.Monad
 import Data.Aeson
+import Data.Aeson.Types hiding (parse)
 import qualified Data.ByteString as BS
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
+import Data.Foldable
+import Data.ISBN
 import Data.List
 import Data.List.Split (divvy)
 import Data.Map (Map)
@@ -22,7 +25,7 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import qualified Data.Vector as V
 import Korrvigs.Entry.New
-import qualified Korrvigs.Link.Download.Manga as Manga
+import qualified Korrvigs.Link.Download.Books as Books
 import qualified Korrvigs.Link.Download.Video as Vid
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
@@ -88,33 +91,69 @@ htmlMetas =
 data LDJsonData = LDJsonData
   { _ldContext :: Text,
     _ldName :: Maybe Text,
-    _ldAuthor :: Maybe Text,
+    _ldAuthor :: Maybe [Text],
     _ldPublisher :: Maybe Text,
-    _ldAbout :: Maybe Text
+    _ldAbout :: Maybe Text,
+    _ldImage :: Maybe Text,
+    _ldPages :: Maybe Int,
+    _ldLanguage :: Maybe Text,
+    _ldISBN :: Maybe Text
   }
   deriving (Show)
 
 makeLenses ''LDJsonData
+
+parseAuthors :: Maybe Value -> Parser (Maybe [Text])
+parseAuthors Nothing = pure Nothing
+parseAuthors (Just (String author)) = pure $ Just [author]
+parseAuthors (Just (Array authors)) = do
+  parsed <- mapM (withObject "LD Authors" $ \obj -> obj .: "name") authors
+  pure $ Just $ toList parsed
+parseAuthors _ = fail "Expected string or array for LD authors"
 
 instance FromJSON LDJsonData where
   parseJSON = withObject "LDJsonData" $ \obj ->
     LDJsonData
       <$> obj .: "@context"
       <*> obj .:? "name"
-      <*> obj .:? "author"
+      <*> (parseAuthors =<< obj .:? "author")
       <*> obj .:? "publisher"
       <*> obj .:? "about"
+      <*> obj .:? "image"
+      <*> obj .:? "numberOfPages"
+      <*> obj .:? "inLanguage"
+      <*> obj .:? "isbn"
+
+isLDSchema :: Text -> Bool
+isLDSchema "http://www.schema.org" = True
+isLDSchema "http://schema.org" = True
+isLDSchema "https://www.schema.org" = True
+isLDSchema "https://schema.org" = True
+isLDSchema _ = False
 
 ldToMeta :: LDJsonData -> Endo NewEntry
 ldToMeta ld
-  | ld ^. ldContext == "http://www.schema.org" =
+  | isLDSchema (ld ^. ldContext) =
       mconcat $
         Endo
           <$> [ setMtdtValueM Title (ld ^. ldName),
-                setMtdtValueM Authors (singleton <$> ld ^. ldAuthor),
+                setMtdtValueM Authors (ld ^. ldAuthor),
                 setMtdtValueM Publisher (singleton <$> ld ^. ldPublisher),
-                setMtdtValueM Abstract (ld ^. ldAbout)
+                setMtdtValueM Abstract (ld ^. ldAbout),
+                maybe id (neCover ?~) (ld ^. ldImage),
+                setMtdtValueM Pages (ld ^. ldPages),
+                setMtdtValueM Language (ld ^. ldLanguage >>= parseLanguage),
+                setMtdtValueM ISBNMtdt (ld ^. ldISBN >>= parseISBN)
               ]
+  where
+    parseISBN :: Text -> Maybe [ISBN]
+    parseISBN isbn = case validateISBN isbn of
+      Left _ -> Nothing
+      Right i -> Just [i]
+    parseLanguage :: Text -> Maybe Text
+    parseLanguage "English" = Just "en"
+    parseLanguage "French" = Just "fr"
+    parseLanguage _ = Nothing
 ldToMeta _ = mempty
 
 extractHTMLMeta :: (MonadKorrvigs m) => Text -> Text -> m (Endo NewEntry)
@@ -122,9 +161,10 @@ extractHTMLMeta url txt =
   fmap mconcat . sequence $
     [ Vid.youtube url tags,
       Vid.nebula url tags,
-      Manga.manytoon url tags,
-      pure . mconcat $ matchTitle <$> divvy 2 1 html,
+      Books.manytoon url tags,
+      Books.goodreads url tags,
       pure . mconcat $ matchLD <$> divvy 2 1 html,
+      pure . mconcat $ matchTitle <$> divvy 2 1 html,
       pure . mconcat $ matchRSS <$> html,
       pure . mconcat $ matchMeta <$> html,
       pure matchLanguage

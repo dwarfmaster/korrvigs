@@ -95,7 +95,7 @@ library korrvigs-lib
     Korrvigs.Kind.SQL
     Korrvigs.Link
     Korrvigs.Link.Download
-    Korrvigs.Link.Download.Manga
+    Korrvigs.Link.Download.Books
     Korrvigs.Link.Download.Video
     Korrvigs.Link.JSON
     Korrvigs.Link.New

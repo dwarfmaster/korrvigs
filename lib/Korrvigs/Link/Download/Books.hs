@@ -30,3 +30,11 @@ goodreads url _
     fixTitle = (neTitle . _Just %~ cutTitle) . (neMtdt . at (mtdtName Title) . _Just . _String %~ cutTitle)
     cutTitle = maybe "" fst . uncons . T.splitOn "|"
 goodreads _ _ = pure mempty
+
+bedetheque :: (MonadKorrvigs m) => Text -> [Tag Text] -> m (Endo NewEntry)
+bedetheque url _
+  | "https://www.bedetheque.com/" `T.isPrefixOf` url =
+      pure $ Endo $ setMtdtValue MediaMtdt Comic . setMtdtValue Language "fr" . delFeed
+  where
+    delFeed = neMtdt . at (mtdtName Feed) .~ Nothing
+bedetheque _ _ = pure mempty

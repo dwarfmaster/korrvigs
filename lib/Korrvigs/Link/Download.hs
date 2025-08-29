@@ -1,6 +1,7 @@
 module Korrvigs.Link.Download (downloadInformation) where
 
 import Conduit (liftIO)
+import Control.Applicative
 import Control.Exception hiding (try)
 import Control.Lens hiding (noneOf)
 import Control.Monad
@@ -163,6 +164,7 @@ extractHTMLMeta url txt =
       Vid.nebula url tags,
       Books.manytoon url tags,
       Books.goodreads url tags,
+      Books.bedetheque url tags,
       pure . mconcat $ matchLD <$> divvy 2 1 html,
       pure . mconcat $ matchTitle <$> divvy 2 1 html,
       pure . mconcat $ matchRSS <$> html,
@@ -184,8 +186,8 @@ extractHTMLMeta url txt =
     matchRSS _ = mempty
     matchMeta :: Tag Text -> Endo NewEntry
     matchMeta (TagOpen "meta" attrs) = fromMaybe mempty $ do
-      (_, nm) <- find (\(k, _) -> k == "property") attrs
-      (_, content) <- find (\(k, _) -> k == "content") attrs
+      nm <- lookup "name" attrs <|> lookup "property" attrs
+      content <- lookup "content" attrs
       (mtdt, extractor) <- M.lookup nm htmlMetas
       let (mcover, mval) = extractor content
       let excover = Endo $ maybe id (neCover ?~) mcover

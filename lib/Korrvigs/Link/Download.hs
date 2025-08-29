@@ -22,6 +22,7 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import qualified Data.Vector as V
 import Korrvigs.Entry.New
+import qualified Korrvigs.Link.Download.Manga as Manga
 import qualified Korrvigs.Link.Download.Video as Vid
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
@@ -119,13 +120,14 @@ ldToMeta _ = mempty
 extractHTMLMeta :: (MonadKorrvigs m) => Text -> Text -> m (Endo NewEntry)
 extractHTMLMeta url txt =
   fmap mconcat . sequence $
-    [ pure . mconcat $ matchTitle <$> divvy 2 1 html,
+    [ Vid.youtube url tags,
+      Vid.nebula url tags,
+      Manga.manytoon url tags,
+      pure . mconcat $ matchTitle <$> divvy 2 1 html,
       pure . mconcat $ matchLD <$> divvy 2 1 html,
       pure . mconcat $ matchRSS <$> html,
       pure . mconcat $ matchMeta <$> html,
-      pure matchLanguage,
-      Vid.youtube url tags,
-      Vid.nebula url tags
+      pure matchLanguage
     ]
   where
     tags = parseTags txt
@@ -206,7 +208,7 @@ downloadInformation uri = do
               Just content -> do
                 htmlMeta <- extractHTMLMeta uri content
                 liftIO (runIO $ readHtml def content) >>= \case
-                  Left _ -> pure mempty
+                  Left _ -> pure htmlMeta
                   Right pd -> pure $ htmlMeta <> extractPandocMtdt pd
               Nothing -> pure mempty
             _ -> pure mempty

@@ -73,6 +73,7 @@ parser' =
                             <$> newEntryOptions
                             <*> argument str (metavar "TITLE")
                             <*> switch (long "allow-override" <> help "If a url is present, use the title extracted from this URL instead")
+                            <*> pure False
                         )
                 )
                   <**> helper
@@ -225,7 +226,8 @@ run (Attach note isPath cmd) =
                 NewNote
                   { _nnTitle = nt,
                     _nnEntry = def & neParents .~ [i],
-                    _nnTitleOverride = False
+                    _nnTitleOverride = False,
+                    _nnIgnoreUrl = False
                   }
           ni <- new options
           liftIO $ putStrLn $ unId ni

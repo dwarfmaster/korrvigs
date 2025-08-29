@@ -1,4 +1,4 @@
-module Korrvigs.Note.New (new, NewNote (..), nnEntry, nnTitle, nnTitleOverride) where
+module Korrvigs.Note.New (new, NewNote (..), nnEntry, nnTitle, nnTitleOverride, nnIgnoreUrl) where
 
 import Control.Lens
 import Data.Aeson
@@ -19,7 +19,7 @@ import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.New hiding (new)
 import Korrvigs.Kind
-import qualified Korrvigs.Link.New as Link
+import qualified Korrvigs.Link.Download as Link
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
@@ -34,7 +34,8 @@ import Opaleye hiding (not, null)
 data NewNote = NewNote
   { _nnEntry :: NewEntry,
     _nnTitle :: Text,
-    _nnTitleOverride :: Bool
+    _nnTitleOverride :: Bool,
+    _nnIgnoreUrl :: Bool
   }
 
 makeLenses ''NewNote
@@ -67,8 +68,8 @@ initContent mtdt =
 create :: (MonadKorrvigs m) => NewNote -> m Id
 create note = do
   extracted <- case note ^? nnEntry . neMtdt . at (mtdtName Url) . _Just . _String of
-    Just url -> Link.downloadInformation url
-    Nothing -> pure mempty
+    Just url | not (note ^. nnIgnoreUrl) -> Link.downloadInformation url
+    _ -> pure mempty
   let nentry' = appEndo extracted $ note ^. nnEntry
   let title =
         if note ^. nnTitleOverride

@@ -114,14 +114,10 @@ prepareNewMedia nm = do
   let title = fromMaybe (medTxt tp <> " " <> nm ^. nmInput) $ ne ^. neTitle
   let url = fromMaybe (nm ^. nmInput) $ ne ^? neMtdt . at (mtdtName Url) . _Just . _JSON
   let nlink = NewLinkMedia url $ Link.NewLink ne False
-  pure $ case tp of
-    Blogpost -> nlink
-    Chapter -> nlink
-    Page -> nlink
-    Episode -> nlink
-    Video -> nlink
-    Song -> nlink
-    _ -> NewNoteMedia $ Note.NewNote ne title $ isNothing $ ne ^. neTitle
+  pure $
+    if mediaTypeDefaultToNote tp
+      then NewNoteMedia $ Note.NewNote ne title (isNothing $ ne ^. neTitle) False
+      else nlink
   where
     medTxt :: MediaType -> Text
     medTxt Article = "Article"

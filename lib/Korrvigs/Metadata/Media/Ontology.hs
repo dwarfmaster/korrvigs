@@ -94,6 +94,15 @@ displayMediaType Channel = "channel"
 displayMediaType Show = "show"
 displayMediaType Misc = "misc"
 
+mediaTypeDefaultToNote :: MediaType -> Bool
+mediaTypeDefaultToNote Blogpost = False
+mediaTypeDefaultToNote Chapter = False
+mediaTypeDefaultToNote Page = False
+mediaTypeDefaultToNote Episode = False
+mediaTypeDefaultToNote Video = False
+mediaTypeDefaultToNote Song = False
+mediaTypeDefaultToNote _ = True
+
 mediaTypeMap :: Map Text MediaType
 mediaTypeMap = M.fromList $ (displayMediaType &&& id) <$> [minBound .. maxBound]
 

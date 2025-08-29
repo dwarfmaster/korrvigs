@@ -115,6 +115,7 @@ runNewNote nnote tgt = do
           )
           (nnote ^. nnoteTitle)
           False
+          False
   i <- NNote.new settings
   mkReaction tgt "new note" i
 

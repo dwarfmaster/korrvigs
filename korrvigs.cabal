@@ -94,9 +94,10 @@ library korrvigs-lib
     Korrvigs.Kind.Def
     Korrvigs.Kind.SQL
     Korrvigs.Link
+    Korrvigs.Link.Download
+    Korrvigs.Link.Download.Video
     Korrvigs.Link.JSON
     Korrvigs.Link.New
-    Korrvigs.Link.New.Video
     Korrvigs.Link.SQL
     Korrvigs.Link.Sync
     Korrvigs.Metadata

@@ -1,4 +1,4 @@
-module Korrvigs.Link.New.Video (youtube, nebula) where
+module Korrvigs.Link.Download.Video (youtube, nebula) where
 
 import Control.Lens
 import Data.Monoid
@@ -45,7 +45,9 @@ youtube url tags
     matchAuthor tagOpen@(TagOpen "link" attrs)
       | tagOpen ~== TagOpen ("link" :: Text) [("itemprop", "url")] =
           case lookup "href" attrs of
-            Just channel | "https://www.youtube.com/@" `T.isPrefixOf` channel -> pure channel
+            Just channel
+              | "http://www.youtube.com/@" `T.isPrefixOf` channel ->
+                  pure $ "https" <> T.drop 4 channel
             _ -> mempty
     matchAuthor _ = mempty
 youtube _ _ = pure mempty

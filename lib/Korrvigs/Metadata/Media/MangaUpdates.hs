@@ -7,10 +7,14 @@ where
 import Control.Lens
 import Data.Aeson
 import Data.Aeson.Types
+import Data.ByteString (ByteString)
 import Data.Foldable
+import Data.Monoid
 import Data.String (IsString)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Entry.New
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
@@ -58,7 +62,8 @@ isMangaUpdates url =
 queryMangaUpdates :: (MonadKorrvigs m) => Text -> m (Maybe (NewEntry -> NewEntry))
 queryMangaUpdates url = do
   content <- simpleHttpM url
-  case sections isLD . parseTags <$> content of
+  let tags = parseTags <$> content
+  ldDat <- case sections isLD <$> tags of
     Just ((_ : TagText js : _) : _) -> case decode js of
       Nothing -> pure Nothing
       Just muData -> do
@@ -78,6 +83,12 @@ queryMangaUpdates url = do
                 neCover ?~ muData ^. muImage
               ]
     _ -> pure Nothing
+  let forum = flip fmap tags $ \tgs -> flip foldMap tgs $ \case
+        tag@(TagOpen "a" attrs)
+          | tag ~== TagOpen ("a" :: ByteString) [("title", "Click for Forum Info")] ->
+              maybe mempty (\lnk -> Endo $ setMtdtValue Discussions [LT.toStrict $ LEnc.decodeUtf8 lnk]) $ lookup "href" attrs
+        _ -> mempty
+  pure $ (maybe id appEndo forum .) <$> ldDat
   where
     isLD :: (Eq str, IsString str) => Tag str -> Bool
     isLD (TagOpen "script" attrs) = ("type", "application/ld+json") `elem` attrs

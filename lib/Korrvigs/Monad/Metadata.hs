@@ -29,11 +29,12 @@ updateMetadata entry upd rm = do
     CalendarD cal -> Cal.updateMetadata cal upd rm
   let rows = mkRow i <$> M.toList upd
   atomicSQL $ \conn -> do
+    let todelete = sqlArray sqlStrictText $ rm ++ M.keys upd
     void $
       runDelete conn $
         Delete
           { dTable = entriesMetadataTable,
-            dWhere = \mtdt -> sqlElem (mtdt ^. sqlKey) (sqlArray sqlStrictText rm) .&& mtdt ^. sqlEntry .== sqlId i,
+            dWhere = \mtdt -> sqlElem (mtdt ^. sqlKey) todelete .&& mtdt ^. sqlEntry .== sqlId i,
             dReturning = rCount
           }
     void $

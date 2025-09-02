@@ -48,7 +48,6 @@ import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils (joinNull, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
 import Korrvigs.Utils.Process
-import Korrvigs.Utils.Time (dayToZonedTime)
 import Network.HTTP.Conduit hiding (path)
 import qualified Network.HTTP.Types as H
 import Network.HTTP.Types.Status
@@ -124,14 +123,10 @@ choosePrefix mime
 
 applyNewOptions :: (MonadIO m) => NewEntry -> m (FileMetadata -> FileMetadata)
 applyNewOptions ne = do
-  dt <- mkdate
-  pure $ foldr (.) id [parents, dt, title, lang, mtdt]
+  dt <- useDate ne Nothing
+  pure $ foldr (.) id [parents, maybe id (exDate ?~) dt, title, lang, mtdt]
   where
     parents = exParents %~ (++ (ne ^. neParents))
-    mkdate = do
-      tz <- liftIO getCurrentTimeZone
-      let dt = dayToZonedTime tz <$> ne ^. neDate
-      pure $ maybe id (exDate ?~) dt
     title = maybe id ((annoted . at (mtdtSqlName Title) ?~) . toJSON) $ joinNull T.null $ ne ^. neTitle
     lang = maybe id ((annoted . at (mtdtSqlName Language) ?~) . toJSON) $ ne ^. neLanguage
     mtdt = annoted %~ unCIMtdt . useMtdt ne . reCIMtdt

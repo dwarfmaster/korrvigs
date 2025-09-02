@@ -93,7 +93,7 @@ create url options = case parseURI (T.unpack url) of
         rt <- linkJSONPath
         let jsonTT = linkJSONTreeType
         let content = encodingToLazyByteString . value $ toJSON json
-        pth <- storeFile rt jsonTT Nothing (unId i <> ".json") $ FileLazy content
+        pth <- storeFile rt jsonTT (nentry ^. neDate) (unId i <> ".json") $ FileLazy content
         syncFileOfKind pth Link
         applyCollections nentry i
         applyChildren nentry i

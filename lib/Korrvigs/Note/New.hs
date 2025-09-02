@@ -104,7 +104,7 @@ create note = do
           }
   let bs = writeNoteLazy doc
   rt <- noteDirectory
-  path <- storeFile rt noteTreeType Nothing (unId i <> ".md") $ FileLazy bs
+  path <- storeFile rt noteTreeType (nentry ^. neDate) (unId i <> ".md") $ FileLazy bs
   syncFileOfKind path Note
   applyCollections nentry i
   applyChildren nentry i

@@ -40,6 +40,7 @@ library korrvigs-lib
     Korrvigs.Cli.Config
     Korrvigs.Cli.Event
     Korrvigs.Cli.File
+    Korrvigs.Cli.Import
     Korrvigs.Cli.Info
     Korrvigs.Cli.Link
     Korrvigs.Cli.Monad

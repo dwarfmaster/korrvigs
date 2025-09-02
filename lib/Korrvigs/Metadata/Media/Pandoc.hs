@@ -169,9 +169,11 @@ importReferences = M.fromList . map (unItemId . referenceId &&& importReference)
 
 importPandoc :: (ReaderOptions -> Text -> PandocIO Pandoc) -> BSL.ByteString -> IO (Map Text (NewEntry -> NewEntry))
 importPandoc reader input =
-  runIO act <&> \case
-    Left _ -> M.empty
-    Right v -> v
+  runIO act >>= \case
+    Left err -> do
+      putStrLn $ "Failed to load: " <> show err
+      pure M.empty
+    Right v -> pure v
   where
     txt = LT.toStrict $ LEnc.decodeUtf8 input
     act = do

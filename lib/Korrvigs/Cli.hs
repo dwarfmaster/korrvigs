@@ -5,6 +5,7 @@ import qualified Korrvigs.Cli.Compute as Compute
 import qualified Korrvigs.Cli.Config as Config
 import qualified Korrvigs.Cli.Event as Event
 import qualified Korrvigs.Cli.File as File
+import qualified Korrvigs.Cli.Import as Import
 import qualified Korrvigs.Cli.Info as Info
 import qualified Korrvigs.Cli.Link as Link
 import Korrvigs.Cli.Monad
@@ -26,6 +27,7 @@ data Command
   | Event Event.Cmd
   | Compute Compute.Cmd
   | Adb Adb.Cmd
+  | Import Import.Cmd
 
 parser' :: Parser Command
 parser' =
@@ -41,6 +43,7 @@ parser' =
       <> command "event" (Event <$> Event.parser)
       <> command "compute" (Compute <$> Compute.parser)
       <> command "adb" (Adb <$> Adb.parser)
+      <> command "import" (Import <$> Import.parser)
 
 parser :: ParserInfo Command
 parser =
@@ -61,6 +64,7 @@ run (Server cmd) = Server.run cmd
 run (Event cmd) = Event.run cmd
 run (Compute cmd) = Compute.run cmd
 run (Adb cmd) = Adb.run cmd
+run (Import cmd) = Import.run cmd
 
 main :: IO ()
 main = do

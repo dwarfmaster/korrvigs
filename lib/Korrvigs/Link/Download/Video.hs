@@ -1,4 +1,4 @@
-module Korrvigs.Link.Download.Video (youtube, nebula) where
+module Korrvigs.Link.Download.Video (nebula) where
 
 import Control.Lens
 import Data.Monoid
@@ -32,25 +32,6 @@ setParent author =
             Nothing -> mempty
             Just parentId -> Endo $ neParents %~ (parentId :)
       pure $ ex <> setVideo
-
-youtube :: (MonadKorrvigs m) => Text -> [Tag Text] -> m (Endo NewEntry)
-youtube url _
-  | "https://www.youtube.com/@" `T.isPrefixOf` url =
-      pure $ Endo $ setMtdtValue MediaMtdt Channel
-youtube url tags
-  | "https://www.youtube.com/watch?v=" `T.isPrefixOf` url =
-      setParent $ foldMap matchAuthor tags
-  where
-    matchAuthor :: Tag Text -> First Text
-    matchAuthor tagOpen@(TagOpen "link" attrs)
-      | tagOpen ~== TagOpen ("link" :: Text) [("itemprop", "url")] =
-          case lookup "href" attrs of
-            Just channel
-              | "http://www.youtube.com/@" `T.isPrefixOf` channel ->
-                  pure $ "https" <> T.drop 4 channel
-            _ -> mempty
-    matchAuthor _ = mempty
-youtube _ _ = pure mempty
 
 nebula :: (MonadKorrvigs m) => Text -> [Tag Text] -> m (Endo NewEntry)
 nebula url tags

@@ -15,8 +15,11 @@ module Korrvigs.Entry.New
     applyCollections,
     applyChildren,
     setMtdtValue,
+    setMtdtValueLazy,
     setMtdtValueV,
+    setMtdtValueLazyV,
     setMtdtValueM,
+    setMtdtValueLazyM,
   )
 where
 
@@ -67,7 +70,7 @@ useDate ne dt = do
   pure $ mplus (zonedTimeFromDay tz <$> ne ^. neDate) dt
 
 useMtdt :: NewEntry -> Metadata -> Metadata
-useMtdt ne = M.union $ ne ^. neMtdt
+useMtdt ne = maybe id (M.insert (mtdtName Title) . toJSON) (ne ^. neTitle) . M.union (ne ^. neMtdt)
 
 maybeOrNull :: (b -> Bool) -> a -> (b -> a) -> Maybe b -> a
 maybeOrNull _ d _ Nothing = d
@@ -106,6 +109,16 @@ setMtdtValue mtdt = setMtdtValueV mtdt . toJSON
 setMtdtValueV :: (ExtraMetadata mtdt) => mtdt -> Value -> NewEntry -> NewEntry
 setMtdtValueV mtdt val = neMtdt . at (mtdtName mtdt) ?~ val
 
+setMtdtValueLazy :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => mtdt -> MtdtType mtdt -> NewEntry -> NewEntry
+setMtdtValueLazy mtdt = setMtdtValueLazyV mtdt . toJSON
+
+setMtdtValueLazyV :: (ExtraMetadata mtdt) => mtdt -> Value -> NewEntry -> NewEntry
+setMtdtValueLazyV mtdt v = neMtdt . at (mtdtName mtdt) %~ maybe (Just v) Just
+
 setMtdtValueM :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => mtdt -> Maybe (MtdtType mtdt) -> NewEntry -> NewEntry
 setMtdtValueM _ Nothing = id
 setMtdtValueM mtdt (Just val) = setMtdtValue mtdt val
+
+setMtdtValueLazyM :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => mtdt -> Maybe (MtdtType mtdt) -> NewEntry -> NewEntry
+setMtdtValueLazyM _ Nothing = id
+setMtdtValueLazyM mtdt (Just val) = setMtdtValueLazy mtdt val

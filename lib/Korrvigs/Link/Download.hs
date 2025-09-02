@@ -8,7 +8,6 @@ import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types hiding (parse)
 import qualified Data.ByteString as BS
-import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.Foldable
@@ -61,33 +60,35 @@ contentTypeP = do
 isHttpException :: SomeException -> Bool
 isHttpException e = isJust (fromException e :: Maybe HttpException)
 
-extractImage :: Text -> (Maybe Text, Maybe Value)
-extractImage url = (Just url, Nothing)
+extractImage :: Text -> Endo NewEntry
+extractImage url = Endo $ neCover %~ maybe (Just url) Just
 
 -- Map property name to metadata name and extractor
-htmlMetas :: Map Text (CI Text, Text -> (Maybe Text, Maybe Value))
+htmlMetas :: Map Text (Text -> Endo NewEntry)
 htmlMetas =
   M.fromList
     [ -- Standard metadata
       ("author", extractList Authors),
       ("description", extractText Abstract),
       -- OpenGraph
-      ("og:title", extractText Title),
+      ("og:title", extractTitle),
       ("og:description", extractText Abstract),
-      ("og:locale", (mtdtName Language, (Nothing,) . extractLanguage)),
-      ("og:image", (mtdtName Cover, extractImage)),
+      ("og:locale", extractLanguage),
+      ("og:image", extractImage),
       -- Twitter
-      ("twitter:title", extractText Title),
+      ("twitter:title", extractTitle),
       ("twitter:description", extractText Abstract)
     ]
   where
-    extractText mtdt = (mtdtName mtdt, (Nothing,) . Just . String)
-    extractList mtdt = (mtdtName mtdt, (Nothing,) . Just . Array . V.singleton . String)
-    extractLanguage :: Text -> Maybe Value
+    extractTitle t = Endo $ neTitle %~ maybe (Just t) Just
+    extractText :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Text -> Endo NewEntry
+    extractText mtdt v = Endo $ setMtdtValueLazy mtdt v
+    extractList mtdt v = Endo $ setMtdtValueLazyV mtdt (Array $ V.singleton $ String v)
+    extractLanguage :: Text -> Endo NewEntry
     extractLanguage loc
-      | "en_" `T.isPrefixOf` loc = Just "en"
-      | "fr_" `T.isPrefixOf` loc = Just "fr"
-      | otherwise = Nothing
+      | "en_" `T.isPrefixOf` loc = Endo $ setMtdtValueLazy Language "en"
+      | "fr_" `T.isPrefixOf` loc = Endo $ setMtdtValueLazy Language "fr"
+      | otherwise = mempty
 
 data LDJsonData = LDJsonData
   { _ldContext :: Text,
@@ -137,14 +138,14 @@ ldToMeta ld
   | isLDSchema (ld ^. ldContext) =
       mconcat $
         Endo
-          <$> [ setMtdtValueM Title (ld ^. ldName),
-                setMtdtValueM Authors (ld ^. ldAuthor),
-                setMtdtValueM Publisher (singleton <$> ld ^. ldPublisher),
-                setMtdtValueM Abstract (ld ^. ldAbout),
-                maybe id (neCover ?~) (ld ^. ldImage),
-                setMtdtValueM Pages (ld ^. ldPages),
-                setMtdtValueM Language (ld ^. ldLanguage >>= parseLanguage),
-                setMtdtValueM ISBNMtdt (ld ^. ldISBN >>= parseISBN)
+          <$> [ maybe id (\t -> neTitle %~ maybe (Just t) Just) (ld ^. ldName),
+                setMtdtValueLazyM Authors (ld ^. ldAuthor),
+                setMtdtValueLazyM Publisher (singleton <$> ld ^. ldPublisher),
+                setMtdtValueLazyM Abstract (ld ^. ldAbout),
+                maybe id (\c -> neCover %~ maybe (Just c) Just) (ld ^. ldImage),
+                setMtdtValueLazyM Pages (ld ^. ldPages),
+                setMtdtValueLazyM Language (ld ^. ldLanguage >>= parseLanguage),
+                setMtdtValueLazyM ISBNMtdt (ld ^. ldISBN >>= parseISBN)
               ]
   where
     parseISBN :: Text -> Maybe [ISBN]
@@ -160,8 +161,7 @@ ldToMeta _ = mempty
 extractHTMLMeta :: (MonadKorrvigs m) => Text -> Text -> m (Endo NewEntry)
 extractHTMLMeta url txt =
   fmap mconcat . sequence $
-    [ Vid.youtube url tags,
-      Vid.nebula url tags,
+    [ Vid.nebula url tags,
       Books.manytoon url tags,
       Books.goodreads url tags,
       Books.bedetheque url tags,
@@ -182,21 +182,18 @@ extractHTMLMeta url txt =
           ref <- snd <$> find ((== "href") . fst) attrs
           guard $ T.length ref > 0
           let uri = if T.head ref == '/' then url <> T.tail ref else ref
-          pure $ Endo $ setMtdtValue Feed uri
+          pure $ Endo $ setMtdtValueLazy Feed uri
     matchRSS _ = mempty
     matchMeta :: Tag Text -> Endo NewEntry
     matchMeta (TagOpen "meta" attrs) = fromMaybe mempty $ do
       nm <- lookup "name" attrs <|> lookup "property" attrs
       content <- lookup "content" attrs
-      (mtdt, extractor) <- M.lookup nm htmlMetas
-      let (mcover, mval) = extractor content
-      let excover = Endo $ maybe id (neCover ?~) mcover
-      let exval = Endo $ maybe id (neMtdt . at mtdt ?~) mval
-      pure $ excover <> exval
+      extractor <- M.lookup nm htmlMetas
+      pure $ extractor content
     matchMeta _ = mempty
     matchTitle :: [Tag Text] -> Endo NewEntry
     matchTitle [TagOpen "title" _, TagText title] =
-      Endo $ setMtdtValue Title title
+      Endo $ neTitle %~ maybe (Just title) Just
     matchTitle _ = mempty
     matchLD :: [Tag Text] -> Endo NewEntry
     matchLD [tagOpen, TagText json]
@@ -208,14 +205,14 @@ extractHTMLMeta url txt =
     matchLanguage :: Endo NewEntry
     matchLanguage =
       if "fr" `T.isSuffixOf` url
-        then Endo $ setMtdtValue Language "fr"
+        then Endo $ setMtdtValueLazy Language "fr"
         else mempty
 
 processPandocMtdt :: Map Text Value -> Endo NewEntry
 processPandocMtdt = mconcat . mapMaybe process . M.toList
   where
     process :: (Text, Value) -> Maybe (Endo NewEntry)
-    process (key, val) = (\k -> Endo $ neMtdt . at (CI.mk k) ?~ val) <$> M.lookup key pdMtdt
+    process (key, val) = (\k -> Endo $ neMtdt . at (CI.mk k) %~ maybe (Just val) Just) <$> M.lookup key pdMtdt
     pdMtdt :: Map Text Text
     pdMtdt =
       M.fromList

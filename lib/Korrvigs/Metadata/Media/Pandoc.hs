@@ -135,7 +135,7 @@ variablesMapping =
     ("doi", mpTxt' DOI),
     ("isbn", mp' parseISBN ISBNMtdt),
     ("issn", mpTxt' ISSN),
-    ("title", mpTxt Title),
+    ("title", Endo . maybe id (neTitle ?~) . parseTxt),
     ("author", \v -> Endo $ neMtdt . at (mtdtName Authors) %~ Just . toJSON . (++ parseAuthors v) . fromMaybe [] . (>>= fromJSONM)),
     ("issued", missued),
     ("url", mpTxt Url),

@@ -13,11 +13,13 @@ where
 import Control.Arrow
 import Control.Lens
 import Control.Monad
+import Control.Monad.Catch (catch)
+import Data.Default
 import qualified Data.Map as M
 import Data.Text (Text)
 import Data.Time.LocalTime
 import Korrvigs.Entry
-import Korrvigs.Monad.SQL
+import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Actions.Bibtex
@@ -159,9 +161,23 @@ runPost form runner tgt = do
   let mform = renderDivs form
   ((result, _), _) <- runFormPost mform
   case result of
-    FormSuccess v -> runner v tgt
+    FormSuccess v ->
+      withRunInIO $ \runIO -> liftIO $ catch (runIO $ runner v tgt) $ runIO . catcher
     FormFailure msg -> invalidArgs msg
     FormMissing -> invalidArgs []
+  where
+    catcher :: KorrvigsError -> Handler ActionReaction
+    catcher err = do
+      render <- getUrlRenderParams
+      pure $
+        def
+          & reactMsg
+            ?~ [hamlet|
+        <p>Action failed:
+
+        <pre>#{show err}
+      |]
+              render
 
 actPost :: ActionLabel -> ActionTarget -> Handler ActionReaction
 actPost LabRemove = runPost removeForm runRemove

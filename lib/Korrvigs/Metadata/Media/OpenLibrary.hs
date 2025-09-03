@@ -24,6 +24,7 @@ import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
 import Korrvigs.Utils
+import Korrvigs.Utils.Time
 import Network.URI
 import System.FilePath
 
@@ -146,6 +147,7 @@ queryOpenLibrary q = case mkAPIUrl q of
         let mkCoverUrl cov = "https://covers.openlibrary.org/b/id/" <> T.pack (show cov) <> "-L.jpg"
         let fullTitle = title <> maybe "" (" - " <>) (olr ^. olSubtitle)
         authors <- fmap catMaybes $ mapM queryAuthor $ olr ^. olAuthors
+        let olDate = olr ^. olPublishDate
         pure $
           Just $
             foldr
@@ -155,8 +157,7 @@ queryOpenLibrary q = case mkAPIUrl q of
                 setMtdtValue ISBNMtdt $ mapMaybe parseISBN $ olr ^. olISBN10 <> olr ^. olISBN13,
                 neTitle ?~ fullTitle,
                 setMtdtValue Authors authors,
-                setMtdtValueM MedMonth $ parsePublishMonth $ olr ^. olPublishDate,
-                setMtdtValueM MedYear $ parsePublishYear $ olr ^. olPublishDate,
+                maybe id (\yr -> neDate ?~ fromGreg yr (parsePublishMonth olDate) Nothing) $ parsePublishYear olDate,
                 setMtdtValue Url $ olr ^. olUrl,
                 setMtdtValue Publisher $ olr ^. olPublisher,
                 setMtdtValueM InContainer $

@@ -13,6 +13,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Link.JSON
@@ -90,3 +91,6 @@ updateParents link toAdd toRm = updateImpl link $ pure . updParents
     rmTxt = unId <$> toRm
     addTxt = unId <$> toAdd
     updParents = lkjsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)
+
+updateDate :: (MonadKorrvigs m) => Link -> Maybe ZonedTime -> m ()
+updateDate link ntime = updateImpl link $ pure . (lkjsDate .~ ntime)

@@ -31,6 +31,7 @@ import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Utils.JSON (fromJSONM)
 import Korrvigs.Utils.Pandoc
+import Korrvigs.Utils.Time
 import Text.Pandoc (PandocIO, ReaderOptions, runIO)
 import Text.Pandoc.Builder
 import Text.Pandoc.Citeproc (getReferences)
@@ -112,11 +113,9 @@ parsePages _ = Nothing
 
 missued :: Val Inlines -> Endo NewEntry
 missued (DateVal (Date [DateParts [year]] _ _ _)) =
-  Endo $ neMtdt . at (mtdtName MedYear) ?~ toJSON (toInteger year)
+  Endo $ neDate ?~ fromGreg year Nothing Nothing
 missued (DateVal (Date [DateParts (year : month : _)] _ _ _)) =
-  Endo $
-    (neMtdt . at (mtdtName MedYear) ?~ toJSON (toInteger year))
-      . (neMtdt . at (mtdtName MedMonth) ?~ toJSON month)
+  Endo $ neDate ?~ fromGreg year (Just month) Nothing
 missued _ = mempty
 
 mp :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => (Val Inlines -> Maybe (MtdtType mtdt)) -> mtdt -> Val Inlines -> Endo NewEntry

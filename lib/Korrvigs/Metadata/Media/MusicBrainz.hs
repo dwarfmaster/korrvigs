@@ -112,8 +112,7 @@ queryMB (MBRelease i) = doQuery (mbUrl <> "ws/2/release/" <> i <> "?fmt=json&inc
       (setMtdtValue MediaMtdt Album)
       [ neTitle ?~ mbr ^. mbrTitle,
         setMtdtValue Authors $ mbr ^. mbrArtists,
-        setMtdtValueM MedMonth $ mbr ^? mbrDate . _Just . to toGregorian . _2,
-        setMtdtValueM MedYear $ mbr ^? mbrDate . _Just . to toGregorian . _1,
+        maybe id (neDate ?~) $ mbr ^. mbrDate,
         setMtdtValue Url $ mbUrl <> "release/" <> i,
         neCover .~ (Enc.decodeUtf8 <$> coverUrl)
       ]
@@ -124,8 +123,7 @@ queryMB (MBRecording i) = doQuery (mbUrl <> "ws/2/recording/" <> i <> "?fmt=json
       (setMtdtValue MediaMtdt Song)
       [ neTitle ?~ mbr ^. mbroTitle,
         setMtdtValue Authors $ mbr ^. mbroArtists,
-        setMtdtValueM MedMonth $ mbr ^? mbroDate . _Just . to toGregorian . _2,
-        setMtdtValueM MedYear $ mbr ^? mbroDate . _Just . to toGregorian . _1,
+        maybe id (neDate ?~) $ mbr ^. mbroDate,
         setMtdtValueM TimeEstimation $ mbr ^. mbroLength,
         setMtdtValue Url $ mbUrl <> "recording/" <> i
       ]

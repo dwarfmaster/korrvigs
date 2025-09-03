@@ -1,4 +1,10 @@
-module Korrvigs.Monad.Metadata (updateMetadata, updateParents, listCompute) where
+module Korrvigs.Monad.Metadata
+  ( updateMetadata,
+    updateParents,
+    updateDate,
+    listCompute,
+  )
+where
 
 import Control.Lens
 import Control.Monad
@@ -6,6 +12,7 @@ import Data.Aeson
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
+import Data.Time.LocalTime
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Compute.Action
 import Korrvigs.Entry
@@ -15,6 +22,7 @@ import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad.Class
 import qualified Korrvigs.Note.Sync as Note
 import Opaleye hiding (not, null)
+import qualified Opaleye as O
 
 -- Update the metadate on the database from a list of updates to do and a list of
 -- metadata to remove.
@@ -77,6 +85,25 @@ updateParents entry toAdd toRm = do
               iReturning = rCount,
               iOnConflict = Just doNothing
             }
+
+updateDate :: (MonadKorrvigs m) => Entry -> Maybe ZonedTime -> m ()
+updateDate entry ntime = do
+  let i = entry ^. name
+  case entry ^. kindData of
+    LinkD link -> Link.updateDate link ntime
+    FileD file -> File.updateDate file ntime
+    NoteD note -> Note.updateDate note ntime
+    EventD _ -> undefined
+    CalendarD cal -> Cal.updateDate cal ntime
+  atomicSQL $ \conn -> do
+    void $
+      runUpdate conn $
+        Update
+          { uTable = entriesTable,
+            uUpdateWith = sqlEntryDate .~ maybe O.null (toNullable . sqlZonedTime) ntime,
+            uWhere = \e -> e ^. sqlEntryName .== sqlId i,
+            uReturning = rCount
+          }
 
 listCompute :: (MonadKorrvigs m) => Id -> m (Map Text Action)
 listCompute i = do

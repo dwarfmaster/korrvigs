@@ -137,8 +137,7 @@ queryOMDBWithKey key i = do
             [ setMtdtValue Abstract $ omdb ^. omdbPlot,
               neTitle ?~ omdb ^. omdbTitle,
               setMtdtValue Authors authors,
-              setMtdtValueM MedMonth $ omdb ^? omdbReleased . _Just . to toGregorian . _2,
-              setMtdtValueM MedYear $ omdb ^? omdbReleased . _Just . to toGregorian . _1,
+              maybe id (neDate ?~) $ omdb ^. omdbReleased,
               setMtdtValue Url imUrl,
               if isFr then setMtdtValue Language "fr" else id,
               neCover .~ omdb ^. omdbPoster

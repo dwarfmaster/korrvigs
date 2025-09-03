@@ -1,5 +1,6 @@
 module Korrvigs.Utils.Time
-  ( addNominal,
+  ( fromGreg,
+    addNominal,
     addCalendar,
     dayToZonedTime,
     getCurrentZonedTime,
@@ -9,12 +10,16 @@ module Korrvigs.Utils.Time
 where
 
 import Control.Monad.IO.Class
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.LocalTime
 import System.Clock
+
+fromGreg :: (Integral yr) => yr -> Maybe MonthOfYear -> Maybe DayOfMonth -> Day
+fromGreg year month day = fromGregorian (toInteger year) (fromMaybe 1 month) (fromMaybe 1 day)
 
 dayToZonedTime :: TimeZone -> Day -> ZonedTime
 dayToZonedTime tz day = ZonedTime (LocalTime day (TimeOfDay 0 0 0)) tz

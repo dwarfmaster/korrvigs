@@ -13,6 +13,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.LocalTime
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.SQL
 import Korrvigs.Entry
@@ -97,3 +98,7 @@ updateParents cal toAdd toRm = updateImpl cal $ pure . updParents
     rmTxt = unId <$> toRm
     addTxt = unId <$> toAdd
     updParents = cljsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)
+
+updateDate :: (MonadKorrvigs m) => Calendar -> Maybe ZonedTime -> m ()
+updateDate cal ntime =
+  updateImpl cal $ pure . (cljsDate .~ ntime)

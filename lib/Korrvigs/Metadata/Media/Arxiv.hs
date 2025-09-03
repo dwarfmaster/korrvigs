@@ -23,6 +23,7 @@ import qualified Korrvigs.Metadata.Media.Pandoc as Pandoc
 import Korrvigs.Monad
 import Korrvigs.Utils (simpleHttpM)
 import Korrvigs.Utils.JSON
+import Korrvigs.Utils.Time
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.URI
@@ -125,8 +126,7 @@ queryArxiv i = do
                 med
                 [ setMtdtValueM Abstract $ prepAbstract . T.pack . txtToString <$> entrySummary entry,
                   setMtdtValue DOI ["10.48550/arXiv." <> i],
-                  setMtdtValueM MedMonth $ entryPublished entry >>= parseDate <&> snd,
-                  setMtdtValueM MedYear $ entryPublished entry >>= parseDate <&> fst,
+                  maybe id (\(yr, mth) -> neDate ?~ fromGreg yr (Just mth) Nothing) $ entryPublished entry >>= parseDate,
                   setMtdtValue Url $ entryId entry,
                   processLinks entry,
                   processArxivMtdts entry,

@@ -14,6 +14,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
@@ -104,3 +105,7 @@ updateParents note toAdd toRm = updateImpl note $ pure . upd
   where
     updParents = foldr (.) id $ fmap S.insert toAdd ++ fmap S.delete toRm
     upd = docParents %~ updParents
+
+updateDate :: (MonadKorrvigs m) => Note -> Maybe ZonedTime -> m ()
+updateDate note ntime =
+  updateImpl note $ pure . (docMtdt . at "date" .~ (toJSON <$> ntime))

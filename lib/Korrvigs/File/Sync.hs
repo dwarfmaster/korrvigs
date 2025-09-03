@@ -163,3 +163,6 @@ updateParents file toAdd toRm =
   updateImpl file $ pure . (exParents %~ updParents)
   where
     updParents = (toAdd ++) . filter (not . flip elem toRm)
+
+updateDate :: (MonadKorrvigs m) => File -> Maybe ZonedTime -> m ()
+updateDate file ntime = updateImpl file $ pure . (exDate .~ ntime)

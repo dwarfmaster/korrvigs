@@ -11,6 +11,7 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
+import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
@@ -59,6 +60,7 @@ rSelectBibData i =
     Nothing -> pure Nothing
     Just tp -> do
       key <- rSelectMtdt BibtexKey si
+      entry <- load i
       bd <-
         BibData (mkBibKind tp) (fromMaybe (unId i) key)
           <$> rSelectMtdt Title si
@@ -66,8 +68,8 @@ rSelectBibData i =
           <*> rSelectMtdt Abstract si
           <*> ((listToMaybe =<<) <$> rSelectMtdt DOI si)
           <*> ((listToMaybe =<<) <$> rSelectMtdt ISBNMtdt si)
-          <*> rSelectMtdt MedMonth si
-          <*> rSelectMtdt MedYear si
+          <*> pure (entry ^? _Just . date . _Just . to greg . _2)
+          <*> pure (entry ^? _Just . date . _Just . to greg . _1)
           <*> rSelectMtdt Url si
           <*> rSelectMtdt Journal si
           <*> ((listToMaybe =<<) <$> rSelectMtdt Publisher si)
@@ -77,6 +79,7 @@ rSelectBibData i =
       pure $ Just bd
   where
     si = sqlId i
+    greg = toGregorian . localDay . zonedTimeToLocalTime
 
 prepareBibData :: (MonadKorrvigs m) => [Id] -> m [BibData]
 prepareBibData ids = do

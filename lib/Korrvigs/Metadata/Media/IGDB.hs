@@ -11,7 +11,6 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
-import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.Clock.POSIX
 import Data.Time.LocalTime
@@ -269,7 +268,5 @@ queryIGDB slug = do
               setMtdtValue Publisher pubs,
               setMtdtValue Url url,
               neCover .~ cover,
-              setMtdtValueM MedMonth $ day ^? _Just . to toGregorian . _2,
-              setMtdtValueM MedYear $ day ^? _Just . to toGregorian . _1,
               maybe id (neDate ?~) day
             ]

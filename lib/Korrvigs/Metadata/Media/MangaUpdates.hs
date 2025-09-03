@@ -22,6 +22,7 @@ import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Metadata.Media.OpenLibrary (parsePublishMonth, parsePublishYear)
 import Korrvigs.Monad
 import Korrvigs.Utils
+import Korrvigs.Utils.Time
 import Text.HTML.TagSoup
 
 data MangaUpdatesData = MangaUpdatesData
@@ -68,6 +69,7 @@ queryMangaUpdates url = do
       Nothing -> pure Nothing
       Just muData -> do
         let title = muData ^. muName
+        let date = muData ^. muDate
         pure $
           Just $
             foldr
@@ -76,8 +78,7 @@ queryMangaUpdates url = do
               [ setMtdtValue Abstract $ muData ^. muDescription,
                 neTitle ?~ title,
                 setMtdtValue Authors $ muData ^. muAuthors,
-                setMtdtValueM MedMonth $ parsePublishMonth $ muData ^. muDate,
-                setMtdtValueM MedYear $ parsePublishYear $ muData ^. muDate,
+                maybe id (\yr -> neDate ?~ fromGreg yr (parsePublishMonth date) Nothing) $ parsePublishYear date,
                 setMtdtValue Url $ muData ^. muUrl,
                 setMtdtValue Publisher $ muData ^. muPublishers,
                 neCover ?~ muData ^. muImage

@@ -5,7 +5,6 @@ module Korrvigs.Metadata.Media where
 import Data.Aeson
 import Data.ISBN
 import Data.Text (Text)
-import Data.Time.Calendar
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Metadata.TH
@@ -24,8 +23,6 @@ mkMtdt "BibtexKey" "bibtex" [t|Text|]
 mkMtdt "DOI" "doi" [t|[Text]|]
 mkMtdt "ISBNMtdt" "isbn" [t|[ISBN]|]
 mkMtdt "ISSN" "issn" [t|[Text]|]
-mkMtdt "MedMonth" "month" [t|MonthOfYear|]
-mkMtdt "MedYear" "year" [t|Year|]
 mkMtdt "Url" "url" [t|Text|]
 mkMtdt "Feed" "feed" [t|Text|]
 mkMtdt "Source" "source" [t|[MediaSource]|]

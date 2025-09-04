@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS entries (
   duration INTERVAL,
   geo GEOGRAPHY,
   text TSVECTOR,
+  title TEXT,
   CONSTRAINT entries_ref
     UNIQUE(name,kind)
 );

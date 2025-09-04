@@ -26,27 +26,28 @@ import qualified Korrvigs.Utils.Opaleye as Utils
 import Opaleye
 
 -- Entries table
-data EntryRowImpl a b c d e f = EntryRow
+data EntryRowImpl a b c d e f g = EntryRow
   { _sqlEntryName :: a,
     _sqlEntryKind :: b,
     _sqlEntryDate :: c,
     _sqlEntryDuration :: d,
     _sqlEntryGeo :: e,
-    _sqlEntryText :: f
+    _sqlEntryText :: f,
+    _sqlEntryTitle :: g
   }
 
 makeLenses ''EntryRowImpl
 $(makeAdaptorAndInstanceInferrable "pEntryRow" ''EntryRowImpl)
 
-type EntryRow = EntryRowImpl Id Kind (Maybe ZonedTime) (Maybe CalendarDiffTime) (Maybe Geometry) (Maybe ())
+type EntryRow = EntryRowImpl Id Kind (Maybe ZonedTime) (Maybe CalendarDiffTime) (Maybe Geometry) (Maybe ()) (Maybe Text)
 
-mkEntryRow :: Id -> Kind -> Maybe ZonedTime -> Maybe CalendarDiffTime -> Maybe Geometry -> Maybe () -> EntryRow
+mkEntryRow :: Id -> Kind -> Maybe ZonedTime -> Maybe CalendarDiffTime -> Maybe Geometry -> Maybe () -> Maybe Text -> EntryRow
 mkEntryRow = EntryRow
 
-type EntryRowSQL = EntryRowImpl (Field SqlText) (Field SqlKind) (FieldNullable SqlTimestamptz) (FieldNullable SqlInterval) (FieldNullable SqlGeometry) (FieldNullable SqlTSVector)
+type EntryRowSQL = EntryRowImpl (Field SqlText) (Field SqlKind) (FieldNullable SqlTimestamptz) (FieldNullable SqlInterval) (FieldNullable SqlGeometry) (FieldNullable SqlTSVector) (FieldNullable SqlText)
 
 instance Default ToFields EntryRow EntryRowSQL where
-  def = pEntryRow $ EntryRow def def def def def def
+  def = pEntryRow $ EntryRow def def def def def def def
 
 entriesTable ::
   Table EntryRowSQL EntryRowSQL
@@ -60,6 +61,7 @@ entriesTable =
         (tableField "duration")
         (tableField "geo")
         (tableField "text")
+        (tableField "title")
 
 nameKindField :: Kind -> TableFields (Field SqlText) (Field SqlText)
 nameKindField kd =
@@ -153,6 +155,7 @@ entryFromRow tkd row cstr = kd
           _entryDate = row ^. sqlEntryDate,
           _entryDuration = row ^. sqlEntryDuration,
           _entryGeo = row ^. sqlEntryGeo,
+          _entryTitle = row ^. sqlEntryTitle,
           _entryKindData = tkd kd
         }
 

@@ -46,7 +46,8 @@ syncCalJSON i json = do
   let tm = json ^. cljsDate
   let dur = json ^. cljsDuration
   let geom = json ^. cljsGeo
-  let erow = EntryRow i Calendar tm dur geom Nothing :: EntryRow
+  let title = json ^. cljsTitle
+  let erow = EntryRow i Calendar tm dur geom Nothing title :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let crow = CalRow i (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
   pure $ SyncData erow crow mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) [] M.empty

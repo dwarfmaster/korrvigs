@@ -38,6 +38,7 @@ data FileMetadata = FileMetadata
     _exDuration :: Maybe CalendarDiffTime,
     _exGeo :: Maybe Geometry,
     _exText :: Maybe Text,
+    _exTitle :: Maybe Text,
     _exParents :: [Id]
   }
 
@@ -52,6 +53,7 @@ instance FromJSON FileMetadata where
       <*> v .:? "duration"
       <*> v .:? "geometry"
       <*> v .:? "textContent"
+      <*> v .:? "title"
       <*> (fmap MkId <$> v .: "parents")
   parseJSON invalid =
     prependFailure "parsing file metadata failed, " $ typeMismatch "Object" invalid
@@ -66,6 +68,7 @@ instance ToJSON FileMetadata where
         ++ maybe [] ((: []) . ("date" .=)) (mtdt ^. exDate)
         ++ maybe [] ((: []) . ("duration" .=)) (mtdt ^. exDuration)
         ++ maybe [] ((: []) . ("geometry" .=)) (mtdt ^. exGeo)
+        ++ maybe [] ((: []) . ("title" .=)) (mtdt ^. exDate)
         ++ maybe [] ((: []) . ("textContent" .=)) (mtdt ^. exText)
 
 metaPath :: FilePath -> FilePath
@@ -139,7 +142,8 @@ syncOne path = do
   let geom = json ^. exGeo
   let tm = json ^. exDate
   let dur = json ^. exDuration
-  let erow = EntryRow i File tm dur geom Nothing :: EntryRow
+  let title = json ^. exTitle
+  let erow = EntryRow i File tm dur geom Nothing title :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let frow = FileRow i path (metaPath path) status mime :: FileRow
   let txt = json ^. exText

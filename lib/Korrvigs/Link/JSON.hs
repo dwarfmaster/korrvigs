@@ -23,6 +23,7 @@ data LinkJSON = LinkJSON
     _lkjsDuration :: Maybe CalendarDiffTime,
     _lkjsGeo :: Maybe Geometry,
     _lkjsText :: Maybe Text,
+    _lkjsTitle :: Maybe Text,
     _lkjsParents :: [Text]
   }
 
@@ -46,12 +47,14 @@ instance FromJSON LinkJSON where
       <*> v
         .:? "textContent"
       <*> v
+        .:? "title"
+      <*> v
         .: "parents"
   parseJSON invalid =
     prependFailure "parsing link failed, " $ typeMismatch "Object" invalid
 
 instance ToJSON LinkJSON where
-  toJSON (LinkJSON prot lk mtdt dt dur geo txt prts) =
+  toJSON (LinkJSON prot lk mtdt dt dur geo txt title prts) =
     object $
       [ "protocol" .= prot,
         "link" .= lk,
@@ -62,6 +65,7 @@ instance ToJSON LinkJSON where
         ++ maybe [] ((: []) . ("duration" .=)) dur
         ++ maybe [] ((: []) . ("geometry" .=)) geo
         ++ maybe [] ((: []) . ("textContent" .=)) txt
+        ++ maybe [] ((: []) . ("title" .=)) title
 
 linkJSONPath :: (MonadKorrvigs m) => m FilePath
 linkJSONPath = joinPath . (: ["links"]) <$> root

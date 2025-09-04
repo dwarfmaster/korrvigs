@@ -37,7 +37,8 @@ syncLinkJSON i path json = do
   let tm = json ^. lkjsDate
   let dur = json ^. lkjsDuration
   let geom = json ^. lkjsGeo
-  let erow = EntryRow i Link tm dur geom Nothing :: EntryRow
+  let title = json ^. lkjsTitle
+  let erow = EntryRow i Link tm dur geom Nothing title :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let lrow = LinkRow i (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
   pure $ SyncData erow lrow mtdtrows (json ^. lkjsText) (MkId <$> json ^. lkjsParents) [] M.empty

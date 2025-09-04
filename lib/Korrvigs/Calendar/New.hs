@@ -52,6 +52,7 @@ new nc = do
             _cljsDuration = Nothing,
             _cljsGeo = Nothing,
             _cljsText = ((nc ^. ncCalendar <> " ") <>) <$> nentry ^. neTitle,
+            _cljsTitle = nentry ^. neTitle,
             _cljsParents = unId <$> nentry ^. neParents
           }
   path <- calendarPath' i

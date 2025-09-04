@@ -86,6 +86,7 @@ data Entry = MkEntry
     _entryDate :: Maybe ZonedTime,
     _entryDuration :: Maybe CalendarDiffTime,
     _entryGeo :: Maybe Geometry,
+    _entryTitle :: Maybe Text,
     _entryKindData :: KindData
   }
   deriving (Show)

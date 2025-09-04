@@ -86,7 +86,7 @@ create url options = case parseURI (T.unpack url) of
         let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt
         let txt = nentry ^. neContent
         let parents = unId <$> nentry ^. neParents
-        let json = LinkJSON protocol link mtdtJson dt Nothing Nothing txt parents
+        let json = LinkJSON protocol link mtdtJson dt Nothing Nothing txt title parents
         idmk' <- applyNewEntry nentry (imk "link")
         let idmk = idmk' & idTitle .~ title
         i <- newId idmk

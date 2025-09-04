@@ -19,6 +19,7 @@ data CalJSON = CalJSON
     _cljsDuration :: Maybe CalendarDiffTime,
     _cljsGeo :: Maybe Geometry,
     _cljsText :: Maybe Text,
+    _cljsTitle :: Maybe Text,
     _cljsParents :: [Text]
   }
 
@@ -35,12 +36,13 @@ instance FromJSON CalJSON where
       <*> v .:? "duration"
       <*> v .:? "geometry"
       <*> v .:? "textContent"
+      <*> v .:? "title"
       <*> v .: "parents"
   parseJSON invalid =
     prependFailure "parsing calendar failed, " $ typeMismatch "Object" invalid
 
 instance ToJSON CalJSON where
-  toJSON (CalJSON srv user nm mtdt dt dur geo txt prts) =
+  toJSON (CalJSON srv user nm mtdt dt dur geo txt title prts) =
     object $
       [ "server" .= srv,
         "user" .= user,
@@ -52,6 +54,7 @@ instance ToJSON CalJSON where
         ++ maybe [] ((: []) . ("duration" .=)) dur
         ++ maybe [] ((: []) . ("geometry" .=)) geo
         ++ maybe [] ((: []) . ("textContent" .=)) txt
+        ++ maybe [] ((: []) . ("title" .=)) title
 
 calJSONPath :: (MonadKorrvigs m) => m FilePath
 calJSONPath = joinPath . (: ["calendars"]) <$> root

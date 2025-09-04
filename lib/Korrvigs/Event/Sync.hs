@@ -5,7 +5,7 @@ import Control.Arrow ((***))
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson (Result (Error, Success), Value, fromJSON, toJSON)
+import Data.Aeson (Result (Error, Success), Value, fromJSON)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.CaseInsensitive as CI
 import Data.Default
@@ -77,8 +77,7 @@ register ical =
 
 syncEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m (SyncData EventRow)
 syncEvent i calendar ics ifile ical = do
-  let extractTitle = maybe id (M.insert (mtdtName Title) . toJSON) $ ical ^. iceSummary
-  let mtdt = extractTitle $ ical ^. iceMtdt
+  let mtdt = ical ^. iceMtdt
   let geom = ical ^. iceGeometry
   let tm = resolveICalTime ifile <$> ical ^. iceStart
   let dur = case (tm, ical ^. iceEnd) of
@@ -87,7 +86,7 @@ syncEvent i calendar ics ifile ical = do
            in let diff = diffUTCTime (zonedTimeToUTC ndTime) (zonedTimeToUTC st)
                in Just $ calendarTimeTime diff
         _ -> calendarTimeTime <$> ical ^. iceDuration
-  let erow = EntryRow i Event tm dur geom Nothing :: EntryRow
+  let erow = EntryRow i Event tm dur geom Nothing (ical ^. iceSummary) :: EntryRow
   let mrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
   let evrow = EventRow i calendar ics (ical ^. iceUid) :: EventRow
   let txt = T.intercalate " " $ catMaybes [ical ^. iceComment, ical ^. iceSummary, ical ^. iceDescription]

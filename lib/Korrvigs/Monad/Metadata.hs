@@ -9,8 +9,10 @@ where
 import Control.Lens
 import Control.Monad
 import Data.Aeson
+import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
+import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Time.LocalTime
 import qualified Korrvigs.Calendar.Sync as Cal
@@ -20,6 +22,8 @@ import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
 import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad.Class
+import Korrvigs.Monad.SQL (indexedMetadata)
+import Korrvigs.Monad.Sync (syncOne)
 import qualified Korrvigs.Note.Sync as Note
 import Opaleye hiding (not, null)
 import qualified Opaleye as O
@@ -53,6 +57,7 @@ updateMetadata entry upd rm = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
+  when (any (\m -> CI.mk m `S.member` indexedMetadata) $ M.keys upd ++ rm) $ syncOne entry
   where
     mkRow :: Id -> (Text, Value) -> MetadataRowSQL
     mkRow i (key, val) = MetadataRow (sqlId i) (sqlStrictText key) (sqlValueJSONB val)

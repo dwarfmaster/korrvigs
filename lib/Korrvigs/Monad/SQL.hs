@@ -12,17 +12,23 @@ module Korrvigs.Monad.SQL
     syncTextContent,
     syncParents,
     syncRefs,
+    indexedMetadata,
   )
 where
 
 import Control.Lens
 import Control.Monad
-import Data.List
+import Data.Aeson.Lens
+import Data.CaseInsensitive (CI)
+import Data.Foldable
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Profunctor.Product.Default
+import Data.Set (Set)
+import qualified Data.Set as S
 import Data.Text (Text)
+import qualified Data.Text as T
 import GHC.Int (Int64)
 import qualified Korrvigs.Calendar.SQL as Cal
 import Korrvigs.Compute.Action
@@ -33,9 +39,17 @@ import qualified Korrvigs.File.SQL as File
 import Korrvigs.Kind
 import qualified Korrvigs.Link.SQL as Link
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Monad.Class
 import qualified Korrvigs.Note.SQL as Note
 import Opaleye hiding (null)
+
+indexedMetadata :: Set (CI Text)
+indexedMetadata =
+  S.fromList
+    [ mtdtName Title,
+      mtdtName Abstract
+    ]
 
 mkEntry :: (IsKindData a) => EntryRow -> (Entry -> a) -> Entry
 mkEntry row = kdEntry . entryFromRow kdKindData row
@@ -185,20 +199,23 @@ syncSQL tbl dt = atomicSQL $ \conn -> do
           iOnConflict = Just doNothing
         }
   -- Optionally set textContent
-  forM_ (dt ^. syncTextContent) $ \txt -> do
+  let mtdtVal = (^? sqlValue . _String) <$> filter (\r -> (r ^. sqlKey) `S.member` indexedMetadata) (dt ^. syncMtdtRows)
+  let txtContent = T.intercalate " " . mconcat $ toList <$> (dt ^. syncTextContent : mtdtVal)
+  unless (T.null txtContent) $ do
     -- Find language
     let lang = (^. sqlValue) <$> find (\mrow -> mrow ^. sqlKey == mtdtName Language) (dt ^. syncMtdtRows)
     let parser = case lang of
           Just "fr" -> tsParseFrench
           _ -> tsParseEnglish
     -- Update
-    runUpdate conn $
-      Update
-        { uTable = entriesTable,
-          uUpdateWith = sqlEntryText .~ toNullable (parser $ sqlStrictText txt),
-          uWhere = \row -> row ^. sqlEntryName .== sqlId i,
-          uReturning = rCount
-        }
+    void $
+      runUpdate conn $
+        Update
+          { uTable = entriesTable,
+            uUpdateWith = sqlEntryText .~ toNullable (parser $ sqlStrictText txtContent),
+            uWhere = \row -> row ^. sqlEntryName .== sqlId i,
+            uReturning = rCount
+          }
   -- Update computations
   let compRows = uncurry (CompRow i) <$> M.toList (dt ^. syncCompute)
   void $

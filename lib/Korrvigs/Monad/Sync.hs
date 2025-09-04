@@ -1,4 +1,4 @@
-module Korrvigs.Monad.Sync (sync, syncFile, syncFileOfKind) where
+module Korrvigs.Monad.Sync (sync, syncFile, syncFileOfKind, syncOne) where
 
 import Conduit (throwM)
 import Control.Arrow ((&&&))
@@ -160,3 +160,11 @@ syncFileOfKind path Calendar =
 
 syncFile :: (MonadKorrvigs m) => FilePath -> m ()
 syncFile path = identifyPath path >>= syncFileOfKind path
+
+syncOne :: (MonadKorrvigs m) => Entry -> m ()
+syncOne entry = case entry ^. kindData of
+  LinkD link -> syncFileOfKind (link ^. linkPath) Link
+  NoteD note -> syncFileOfKind (note ^. notePath) Note
+  FileD file -> syncFileOfKind (file ^. filePath) File
+  EventD event -> syncFileOfKind (event ^. eventFile) Event
+  CalendarD cal -> Cal.calendarPath cal >>= flip syncFileOfKind Calendar

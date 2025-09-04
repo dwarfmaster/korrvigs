@@ -9,12 +9,10 @@ module Korrvigs.Link.New
 where
 
 import Conduit (throwM)
-import Control.Applicative
 import Control.Arrow (first)
 import Control.Lens hiding (noneOf)
 import Data.Aeson
 import Data.Aeson.Encoding (encodingToLazyByteString, value)
-import Data.Aeson.Lens (_String)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
 import qualified Data.Map as M
@@ -71,9 +69,7 @@ create url options = case parseURI (T.unpack url) of
         then pure mempty
         else downloadInformation link
     let nentry' = appEndo extracted $ options ^. nlEntry
-    let title =
-          joinNull T.null (nentry' ^. neTitle)
-            <|> nentry' ^? neMtdt . at (mtdtName Title) . _Just . _String
+    let title = joinNull T.null (nentry' ^. neTitle)
     let shouldBeNote = maybe False mediaTypeDefaultToNote $ nentry' ^? neMtdt . at (mtdtName MediaMtdt) . _Just . to fromJSONM . _Just
     case title of
       Just tit | shouldBeNote -> do

@@ -50,7 +50,7 @@ syncCalJSON i json = do
   let erow = EntryRow i Calendar tm dur geom Nothing title :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let crow = CalRow i (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
-  pure $ SyncData erow crow mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) [] M.empty
+  pure $ SyncData erow crow mtdtrows (json ^. cljsText) title (MkId <$> json ^. cljsParents) [] M.empty
 
 syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData CalRow)
 syncOne path = do

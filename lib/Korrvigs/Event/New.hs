@@ -68,7 +68,7 @@ new opts = do
           { _iceUid = "",
             _iceCategories = [],
             _iceComment = Nothing,
-            _iceSummary = Just $ opts ^. nevSummary,
+            _iceSummary = Just title,
             _iceDescription = opts ^. nevDescription,
             _iceLocation = opts ^. newLocation,
             _iceStart =
@@ -92,7 +92,6 @@ new opts = do
             _iceMtdt =
               mconcat
                 [ nentry ^. neMtdt,
-                  M.singleton (mtdtName Title) $ toJSON title,
                   maybe M.empty (M.singleton (mtdtName Language) . toJSON) (nentry ^. neLanguage)
                 ],
             _iceContent =

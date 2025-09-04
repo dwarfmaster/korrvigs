@@ -9,6 +9,7 @@ module Korrvigs.Entry
     sqlEntryDuration,
     sqlEntryGeo,
     sqlEntryText,
+    sqlEntryTitle,
     EntryRow,
     mkEntryRow,
     EntryRowSQL,

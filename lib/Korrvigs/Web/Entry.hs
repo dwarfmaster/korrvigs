@@ -43,8 +43,8 @@ import Yesod hiding (Field)
 titleWidget :: Entry -> Text -> Handler Widget
 titleWidget entry contentId = do
   public <- isPublic
-  title <- rSelectTextMtdt Title $ sqlId $ entry ^. entryName
-  taskW <- Wdgs.taskWidget (entry ^. entryName) (SubLoc []) =<< loadTask (entry ^. entryName)
+  let title = entry ^. entryTitle
+  taskW <- Wdgs.taskWidget (entry ^. entryName) (SubLoc []) =<< loadTask (entry ^. entryName) title
   medit <- if public then pure mempty else editWidget
   downloadUrl <- Public.mkPublic $ EntryDownloadR $ WId $ entry ^. entryName
   pure $ do
@@ -206,10 +206,11 @@ subWidget :: Entry -> Handler Widget
 subWidget entry = do
   let i = entry ^. entryName
   subs :: [(Id, Maybe Text)] <- rSelect $ orderBy ord $ do
+    e <- selectTable entriesTable
     rel <- selectTable entriesSubTable
+    where_ $ (e ^. sqlEntryName) .== rel ^. source
     where_ $ rel ^. target .== sqlId i
-    title <- selectTextMtdt Title $ rel ^. source
-    pure (rel ^. source, title)
+    pure (e ^. sqlEntryName, e ^. sqlEntryTitle)
   pure $
     if null subs
       then mempty

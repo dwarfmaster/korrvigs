@@ -69,7 +69,7 @@ seqLookup mp (key : keys) = M.lookup key mp <|> seqLookup mp keys
 
 getTitle :: Mapping -> Extractor
 getTitle mtdt = case seqLookup mtdt ["Title", "BookName", "UpdatedTitle"] of
-  Just ((_, title) :| _) -> annoted . at (mtdtSqlName Title) ?~ toJSON title
+  Just ((_, title) :| _) -> exTitle ?~ title
   Nothing -> id
 
 getPageCount :: Mapping -> Extractor

@@ -70,7 +70,7 @@ useDate ne dt = do
   pure $ mplus (zonedTimeFromDay tz <$> ne ^. neDate) dt
 
 useMtdt :: NewEntry -> Metadata -> Metadata
-useMtdt ne = maybe id (M.insert (mtdtName Title) . toJSON) (ne ^. neTitle) . M.union (ne ^. neMtdt)
+useMtdt ne = M.union $ ne ^. neMtdt
 
 maybeOrNull :: (b -> Bool) -> a -> (b -> a) -> Maybe b -> a
 maybeOrNull _ d _ Nothing = d

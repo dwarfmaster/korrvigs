@@ -61,7 +61,7 @@ entryInfoSpec =
   [ -- Generic info
     ("name", _1 . entryName . to unId . to text),
     ("kind", _1 . kind . to displayKind . to text),
-    ("title", _2 . ix (mtdtName Title) . _String . to text),
+    ("title", _1 . entryTitle . _Just . to text),
     ("date", _1 . entryDate . _Just . to iso8601Show . to string),
     ("duration", _1 . entryDuration . _Just . to iso8601Show . to string),
     ("pages", _2 . ix (mtdtName Pages) . _Integer . to decimal),

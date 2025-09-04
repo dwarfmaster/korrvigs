@@ -17,7 +17,6 @@ import qualified Data.Text as T
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
-import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers
@@ -26,7 +25,6 @@ import Korrvigs.Note.Render (writeNoteLazy)
 import Korrvigs.Note.SQL
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
-import Korrvigs.Utils.JSON (fromJSONM)
 import System.Directory (doesFileExist)
 import System.FilePath (joinPath, takeBaseName)
 import Prelude hiding (writeFile)
@@ -84,7 +82,7 @@ syncDocument i path doc = do
   let mrows = uncurry (MetadataRow i) <$> M.toList mtdt' :: [MetadataRow]
   let nrow = NoteRow i path (S.toList $ doc ^. docCollections) :: NoteRow
   let txt = renderDocument doc
-  pure $ SyncData erow nrow mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) M.empty
+  pure $ SyncData erow nrow mrows (Just txt) title (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) M.empty
 
 updateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
 updateImpl note f = do
@@ -95,11 +93,10 @@ updateImpl note f = do
   liftIO $ writeFile path $ writeNoteLazy ndoc
 
 updateMetadata :: (MonadKorrvigs m) => Note -> Map Text Value -> [Text] -> m ()
-updateMetadata note upd rm = updateImpl note $ pure . ndoc . updTitle
+updateMetadata note upd rm = updateImpl note $ pure . ndoc
   where
     updCi = M.fromList $ first CI.mk <$> M.toList upd
     rmCi = CI.mk <$> rm
-    updTitle = maybe id (docTitle .~) $ M.lookup (mtdtName Title) updCi >>= fromJSONM
     ndoc = docMtdt %~ M.union updCi . flip (foldr M.delete) rmCi
 
 updateParents :: (MonadKorrvigs m) => Note -> [Id] -> [Id] -> m ()

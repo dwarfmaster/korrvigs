@@ -21,7 +21,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Vector as V
 import Korrvigs.Entry.Ident
-import Korrvigs.Metadata
 import Korrvigs.Metadata.Task
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers (renderInlines)
@@ -308,7 +307,7 @@ renderMetadata title parents mtdt = withoutBreak $ do
     writeText "parents: " >> flush
     withPrefix "  " $ renderToYAML True $ toJSON $ unId <$> S.toList parents
     flush >> newline
-  forM_ (M.toList $ M.delete (mtdtName Title) mtdt) $ \(key, val) -> do
+  forM_ (M.toList mtdt) $ \(key, val) -> do
     writeText (CI.foldedCase key) >> writeText ": " >> flush
     withPrefix "  " $ renderToYAML True val
     flush >> newline

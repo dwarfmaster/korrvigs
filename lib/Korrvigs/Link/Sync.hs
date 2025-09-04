@@ -41,7 +41,7 @@ syncLinkJSON i path json = do
   let erow = EntryRow i Link tm dur geom Nothing title :: EntryRow
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let lrow = LinkRow i (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
-  pure $ SyncData erow lrow mtdtrows (json ^. lkjsText) (MkId <$> json ^. lkjsParents) [] M.empty
+  pure $ SyncData erow lrow mtdtrows (json ^. lkjsText) title (MkId <$> json ^. lkjsParents) [] M.empty
 
 syncLink :: (MonadKorrvigs m) => FilePath -> m (SyncData LinkRow)
 syncLink path = do

@@ -30,6 +30,7 @@ import qualified Korrvigs.Link.Download.Video as Vid
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
+import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Pandoc (pdExtractMtdt)
 import Network.HTTP.Simple
 import Network.HTTP.Types.Status
@@ -216,18 +217,18 @@ processPandocMtdt = mconcat . mapMaybe process . M.toList
     pdMtdt :: Map Text Text
     pdMtdt =
       M.fromList
-        [ mkMtdt Title "title",
-          mkMtdt Authors "authors",
+        [ mkMtdt Authors "authors",
           mkMtdt Abstract "abstract"
         ]
     mkMtdt :: (ExtraMetadata mtdt) => mtdt -> Text -> (Text, Text)
     mkMtdt mtdt pd = (pd, mtdtSqlName mtdt)
 
 extractPandocMtdt :: Pandoc -> Endo NewEntry
-extractPandocMtdt pd = Endo setContent <> processPandocMtdt mtdt
+extractPandocMtdt pd = Endo (setContent . setTitle) <> processPandocMtdt mtdt
   where
     (content, mtdt) = pdExtractMtdt pd
     setContent = if T.null content then id else neContent ?~ content
+    setTitle = maybe id (neTitle ?~) $ M.lookup "title" mtdt >>= fromJSONM
 
 downloadInformation :: (MonadKorrvigs m) => Text -> m (Endo NewEntry)
 downloadInformation uri = do

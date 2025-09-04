@@ -147,7 +147,7 @@ syncOne path = do
   let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
   let frow = FileRow i path (metaPath path) status mime :: FileRow
   let txt = json ^. exText
-  let sdt = SyncData erow frow mtdtrows txt (json ^. exParents) [] cmps
+  let sdt = SyncData erow frow mtdtrows txt title (json ^. exParents) [] cmps
   pure sdt
 
 updateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()

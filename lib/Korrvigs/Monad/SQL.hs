@@ -10,6 +10,7 @@ module Korrvigs.Monad.SQL
     syncDataRow,
     syncMtdtRows,
     syncTextContent,
+    syncTitle,
     syncParents,
     syncRefs,
     indexedMetadata,
@@ -47,8 +48,7 @@ import Opaleye hiding (null)
 indexedMetadata :: Set (CI Text)
 indexedMetadata =
   S.fromList
-    [ mtdtName Title,
-      mtdtName Abstract
+    [ mtdtName Abstract
     ]
 
 mkEntry :: (IsKindData a) => EntryRow -> (Entry -> a) -> Entry
@@ -134,6 +134,7 @@ data SyncData drow = SyncData
     _syncDataRow :: drow,
     _syncMtdtRows :: [MetadataRow],
     _syncTextContent :: Maybe Text,
+    _syncTitle :: Maybe Text,
     _syncParents :: [Id],
     _syncRefs :: [Id],
     _syncCompute :: Map Text Action
@@ -200,7 +201,7 @@ syncSQL tbl dt = atomicSQL $ \conn -> do
         }
   -- Optionally set textContent
   let mtdtVal = (^? sqlValue . _String) <$> filter (\r -> (r ^. sqlKey) `S.member` indexedMetadata) (dt ^. syncMtdtRows)
-  let txtContent = T.intercalate " " . mconcat $ toList <$> (dt ^. syncTextContent : mtdtVal)
+  let txtContent = T.intercalate " " . mconcat $ toList <$> (dt ^. syncTextContent : dt ^. syncTitle : mtdtVal)
   unless (T.null txtContent) $ do
     -- Find language
     let lang = (^. sqlValue) <$> find (\mrow -> mrow ^. sqlKey == mtdtName Language) (dt ^. syncMtdtRows)

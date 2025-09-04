@@ -31,25 +31,24 @@ import Opaleye hiding (Field)
 import qualified Opaleye as O
 import System.IO
 
-data OptionalSQLDataImpl a b c d = OptionalSQLData
-  { _optTitle :: a,
-    _optSizeAction :: b,
-    _optTask :: c,
-    _optMime :: d
+data OptionalSQLDataImpl a b c = OptionalSQLData
+  { _optSizeAction :: a,
+    _optTask :: b,
+    _optMime :: c
   }
 
 makeLenses ''OptionalSQLDataImpl
 $(makeAdaptorAndInstanceInferrable "pOptSQLData" ''OptionalSQLDataImpl)
 
-type OptionalSQLData = OptionalSQLDataImpl (Maybe Text) (Maybe Action) (Maybe Text) (Maybe Text)
+type OptionalSQLData = OptionalSQLDataImpl (Maybe Action) (Maybe Text) (Maybe Text)
 
-type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlText) (FieldNullable SqlJsonb) (FieldNullable SqlText) (MaybeFields (O.Field SqlText))
+type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlJsonb) (FieldNullable SqlText) (MaybeFields (O.Field SqlText))
 
 instance Default OptionalSQLData where
-  def = OptionalSQLData Nothing Nothing Nothing Nothing
+  def = OptionalSQLData Nothing Nothing Nothing
 
 instance Default OptionalSQLDataSQL where
-  def = OptionalSQLData O.null O.null O.null O.nothingFields
+  def = OptionalSQLData O.null O.null O.nothingFields
 
 optDef :: OptionalSQLDataSQL
 optDef = def
@@ -69,12 +68,10 @@ otherQuery display entry = case display of
         & optMime .~ mime
   ColNetwork -> pure optDef
   ColTaskList -> do
-    title <- selectTextMtdt Title $ entry ^. sqlEntryName
     tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryName
-    pure $ optDef & optTitle .~ title & optTask .~ tsk
+    pure $ optDef & optTask .~ tsk
   _ -> do
-    title <- selectTextMtdt Title $ entry ^. sqlEntryName
-    pure $ optDef & optTitle .~ title
+    pure optDef
 
 runQuery :: (MonadKorrvigs m) => Collection -> Query -> m [(EntryRow, OptionalSQLData)]
 runQuery display query = rSelect $ do

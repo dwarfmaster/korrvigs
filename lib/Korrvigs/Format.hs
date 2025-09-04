@@ -203,11 +203,11 @@ entrySpec :: (MonadKorrvigs m) => FormatSpec m Entry
 entrySpec =
   fromList
     [ ("name", fromLens $ entryName . to unId),
-      ("kind", fromLens $ kind . to displayKind)
+      ("kind", fromLens $ kind . to displayKind),
+      ("title", fromLens $ entryTitle . _Just)
     ]
     <> liftSpec (entryDate . _Just) dateSpec
     <> foldMap kindDataSpec [minBound .. maxBound]
-    <> mtdtSpec Title
     <> mtdtSpec Language
     <> mtdtSpec Authors
     <> mtdtSpec Pages

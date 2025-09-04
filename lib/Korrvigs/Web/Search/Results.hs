@@ -2,7 +2,7 @@
 
 module Korrvigs.Web.Search.Results where
 
-import Control.Arrow (second, (***))
+import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Class
@@ -33,8 +33,8 @@ import Opaleye hiding (Field, not)
 import qualified Opaleye as O
 import Yesod
 
-displayEntry :: (EntryRow, Maybe Text) -> Handler Html
-displayEntry (entry, title) = do
+displayEntry :: EntryRow -> Handler Html
+displayEntry entry = do
   public <- isPublic
   kd <- htmlKind' $ entry ^. sqlEntryKind
   [hamlet|
@@ -47,6 +47,7 @@ displayEntry (entry, title) = do
   |]
     <$> getUrlRenderParams
   where
+    title = entry ^. sqlEntryTitle
     plain = case title of
       Just t -> [hamlet|#{t}|]
       Nothing -> [hamlet|@#{unId $ entry ^. sqlEntryName}|]
@@ -68,9 +69,9 @@ displayUnsupported col _ _ =
   pure [whamlet|<p>#{show col} is not supported yet|]
 
 displayList :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
-displayList _ entries = do
-  let entriesWithTitle = second (view optTitle) <$> entries
-  entriesH <- mapM displayEntry entriesWithTitle
+displayList _ entries' = do
+  let entries = fst <$> entries'
+  entriesH <- mapM displayEntry entries
   pure
     [whamlet|
       <ul>
@@ -85,9 +86,9 @@ displayMap _ entries = do
   pure $ leafletWidget "resultmap" $ catMaybes items
   where
     mkItem :: (EntryRow, OptionalSQLData) -> Handler (Maybe MapItem)
-    mkItem (entry, opt) = case entry ^. sqlEntryGeo of
+    mkItem (entry, _) = case entry ^. sqlEntryGeo of
       Just geom -> do
-        html <- displayEntry (entry, opt ^. optTitle)
+        html <- displayEntry entry
         pure $
           Just $
             MapItem
@@ -120,13 +121,13 @@ displayGraph _ entries = do
     candidates :: O.Field (SqlArray SqlText)
     candidates = sqlArray sqlId $ view (_1 . sqlEntryName) <$> entries
     mkNode :: (EntryRow, OptionalSQLData) -> Handler (Text, Text, Network.NodeStyle)
-    mkNode (entry, opt) = do
+    mkNode (entry, _) = do
       public <- isPublic
       style <- Network.defNodeStyle
       render <- getUrlRender
       let mrender url = if public then Nothing else Just (render url)
       base <- getBase
-      let caption = case opt ^. optTitle of
+      let caption = case entry ^. sqlEntryTitle of
             Just t -> t
             Nothing -> "@" <> unId (entry ^. sqlEntryName)
       let color = base $ colorKind $ entry ^. sqlEntryKind
@@ -148,11 +149,11 @@ displayTimeline _ entries = do
   Timeline.timeline timelineId $ catMaybes items
   where
     mkItem :: (EntryRow, OptionalSQLData) -> Handler (Maybe Timeline.Item)
-    mkItem (entry, opt) = do
+    mkItem (entry, _) = do
       public <- isPublic
       render <- getUrlRender
       let mrender url = if public then Nothing else Just (render url)
-      let caption = case opt ^. optTitle of
+      let caption = case entry ^. sqlEntryTitle of
             Just t -> t
             Nothing -> "@" <> unId (entry ^. sqlEntryName)
       pure $ case entry ^. sqlEntryDate of
@@ -193,7 +194,7 @@ displayGallery isCol entries = do
 
 displayFuzzy :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
 displayFuzzy _ entries = do
-  items <- forM entries $ Fuse.itemFromEntry . (view sqlEntryName *** view optTitle)
+  items <- forM entries $ Fuse.itemFromEntry . (view sqlEntryName &&& view sqlEntryTitle) . fst
   fuse <- Fuse.widget items
   pure $ do
     Fuse.header
@@ -201,7 +202,7 @@ displayFuzzy _ entries = do
 
 displayCalendar :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
 displayCalendar _ entries = do
-  events <- forM entries $ Cal.entryToEvent . second (view optTitle)
+  events <- forM entries $ Cal.entryToEvent . fst
   cal <- Cal.widget $ catMaybes events
   pure $ do
     Cal.header
@@ -230,10 +231,10 @@ displayTaskList _ entries = do
           ^{cb}
           #{T.pack " "}
           $if public
-            ^{plainTitle i (view optTitle dat)}
+            ^{plainTitle i (view sqlEntryTitle entry)}
           $else
             <a href=@{EntryR $ WId i}>
-              ^{plainTitle i (view optTitle dat)}
+              ^{plainTitle i (view sqlEntryTitle entry)}
       |]
     plainTitle :: Id -> Maybe Text -> Widget
     plainTitle i title =

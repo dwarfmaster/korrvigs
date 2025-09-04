@@ -45,8 +45,7 @@ new note = do
   mi <- rSelect $ do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryKind .== sqlKind Note
-    t <- baseSelectTextMtdt Title $ entry ^. sqlEntryName
-    where_ $ t .== sqlStrictText (note ^. nnTitle)
+    where_ $ matchNullable (sqlBool False) (.== sqlStrictText (note ^. nnTitle)) $ entry ^. sqlEntryTitle
     pure $ entry ^. sqlEntryName
   case mi of
     (i : _) -> pure i
@@ -73,7 +72,7 @@ create note = do
   let nentry' = appEndo extracted $ note ^. nnEntry
   let title =
         if note ^. nnTitleOverride
-          then fromMaybe (note ^. nnTitle) $ nentry' ^? neMtdt . at (mtdtName Title) . _Just . _JSON
+          then fromMaybe (note ^. nnTitle) $ nentry' ^. neTitle
           else note ^. nnTitle
   nentry <- applyCover nentry' $ Just title
   idmk' <- applyNewEntry nentry (imk "note")
@@ -83,8 +82,7 @@ create note = do
   let mtdt =
         useMtdt nentry $
           mconcat
-            [ M.singleton (mtdtName Title) (toJSON title),
-              maybe M.empty (M.singleton (mtdtName Language) . toJSON) (nentry ^. neLanguage),
+            [ maybe M.empty (M.singleton (mtdtName Language) . toJSON) (nentry ^. neLanguage),
               if null parents then M.empty else M.singleton (CI.mk "parents") (toJSON $ unId <$> parents),
               maybe M.empty (M.singleton (CI.mk "date") . toJSON) (nentry ^. neDate)
             ]

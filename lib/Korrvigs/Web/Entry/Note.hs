@@ -14,7 +14,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.File.SQL
-import Korrvigs.Metadata
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
@@ -268,7 +267,7 @@ compileBlock' (Embed i) = do
   lnk <- lift $ embedLnk i
   lvl <- use currentLevel
   embedId <- newIdent
-  (widget, checks) <- lift $ embedBody i lvl
+  (widget, checks, _) <- lift $ embedBody i lvl
   pure $ do
     propagateChecks embedId checks
     [whamlet|
@@ -279,13 +278,12 @@ compileBlock' (Embed i) = do
 compileBlock' (EmbedHeader i) = do
   lnk <- lift $ embedLnk i
   lvl <- use currentLevel
-  (widget, checks) <- lift $ embedBody i $ lvl + 1
-  task <- lift $ loadTask i
+  (widget, checks, title) <- lift $ embedBody i $ lvl + 1
+  task <- lift $ loadTask i title
   taskW <- lift $ Wdgs.taskWidget i (SubLoc []) task
-  titleText <- lift $ rSelectMtdt Title $ sqlId i
-  title <- lift $ compileHeader (lvl + 1) [whamlet|^{taskW} #{fromMaybe "" titleText} ^{checksDisplay checks} ^{lnk}|]
+  titleW <- lift $ compileHeader (lvl + 1) [whamlet|^{taskW} #{fromMaybe "" title} ^{checksDisplay checks} ^{lnk}|]
   pure $ do
-    embedId <- Wdgs.mkSection (lvl + 1) [("class", "collapsed")] [] title widget
+    embedId <- Wdgs.mkSection (lvl + 1) [("class", "collapsed")] [] titleW widget
     case task of
       Nothing -> propagateChecks embedId checks
       Just tk -> do
@@ -406,17 +404,18 @@ embedLnk i = do
       @#{unId i}
 |]
 
-embedBody :: Id -> Int -> Handler (Widget, Checks)
+embedBody :: Id -> Int -> Handler (Widget, Checks, Maybe Text)
 embedBody i lvl =
   load i >>= \case
-    Nothing -> pure (mempty, def)
+    Nothing -> pure (mempty, def, Nothing)
     Just entry -> do
+      let title = entry ^. entryTitle
       case entry ^. entryKindData of
-        LinkD link -> (,def) <$> Link.embed lvl link
-        FileD file -> (,def) <$> File.embed lvl file
-        EventD event -> (,def) <$> Event.embed lvl event
-        CalendarD cal -> (,def) <$> Cal.embed lvl cal
-        NoteD note -> embed lvl note
+        LinkD link -> (,def,title) <$> Link.embed lvl link
+        FileD file -> (,def,title) <$> File.embed lvl file
+        EventD event -> (,def,title) <$> Event.embed lvl event
+        CalendarD cal -> (,def,title) <$> Cal.embed lvl cal
+        NoteD note -> (\(w, c) -> (w, c, title)) <$> embed lvl note
 
 compileAttrWithClasses :: [Text] -> Attr -> [(Text, Text)]
 compileAttrWithClasses cls attr =

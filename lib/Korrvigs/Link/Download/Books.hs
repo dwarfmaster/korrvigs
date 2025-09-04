@@ -1,7 +1,6 @@
 module Korrvigs.Link.Download.Books where
 
 import Control.Lens
-import Data.Aeson.Lens
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -18,7 +17,7 @@ manytoon url _
       pure $ Endo $ setMtdtValue MediaMtdt Manga . delFeed . fixTitle
   where
     delFeed = neMtdt . at (mtdtName Feed) .~ Nothing
-    fixTitle = (neTitle . _Just %~ cutTitle) . (neMtdt . at (mtdtName Title) . _Just . _String %~ cutTitle)
+    fixTitle = neTitle . _Just %~ cutTitle
     cutTitle = T.intercalate " - " . init . T.splitOn " - "
 manytoon _ _ = pure mempty
 
@@ -27,7 +26,7 @@ goodreads url _
   | "https://www.goodreads.com/book" `T.isPrefixOf` url =
       pure $ Endo $ setMtdtValue MediaMtdt Book . fixTitle
   where
-    fixTitle = (neTitle . _Just %~ cutTitle) . (neMtdt . at (mtdtName Title) . _Just . _String %~ cutTitle)
+    fixTitle = neTitle . _Just %~ cutTitle
     cutTitle = maybe "" fst . uncons . T.splitOn "|"
 goodreads _ _ = pure mempty
 

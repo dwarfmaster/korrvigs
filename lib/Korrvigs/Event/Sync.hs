@@ -91,7 +91,7 @@ syncEvent i calendar ics ifile ical = do
   let evrow = EventRow i calendar ics (ical ^. iceUid) :: EventRow
   let txt = T.intercalate " " $ catMaybes [ical ^. iceComment, ical ^. iceSummary, ical ^. iceDescription]
   let txt' = if T.null txt then Nothing else Just txt
-  pure $ SyncData erow evrow mrows txt' (calendar : ical ^. iceParents) [] M.empty
+  pure $ SyncData erow evrow mrows txt' (ical ^. iceSummary) (calendar : ical ^. iceParents) [] M.empty
 
 syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData EventRow)
 syncOne path = do
@@ -130,9 +130,6 @@ updateMetadata event upd rm =
     updMtdt :: Text -> Value -> ICalEvent -> ICalEvent
     updMtdt "categories" val ievent = case fromJSON val of
       Success cats -> ievent & iceCategories .~ cats
-      Error _ -> ievent
-    updMtdt key val ievent | CI.mk key == mtdtName Title = case fromJSON val of
-      Success txt -> ievent & iceSummary .~ txt
       Error _ -> ievent
     updMtdt key val ievent = ievent & iceMtdt . at (CI.mk key) ?~ val
     doMtdt :: ICalEvent -> ICalEvent

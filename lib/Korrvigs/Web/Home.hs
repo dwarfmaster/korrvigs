@@ -6,12 +6,10 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Data.Default
 import Data.Maybe
-import Data.Text (Text)
 import Data.Time.Clock
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
-import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Query
 import Korrvigs.Utils
@@ -25,7 +23,7 @@ import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widgets
 import Yesod hiding (joinPath)
 
-getEvents :: Handler [(EntryRow, Maybe Text)]
+getEvents :: Handler [EntryRow]
 getEvents = do
   today <- liftIO getCurrentZonedTime
   let month = CalendarDiffTime 1 $ secondsToNominalDiffTime 0
@@ -37,10 +35,7 @@ getEvents = do
           & queryBefore ?~ end
           & queryKind ?~ Event
           & querySort .~ (ByDate, SortAsc)
-  rSelect $ do
-    entry <- compile query
-    title <- selectTextMtdt Title $ entry ^. sqlEntryName
-    pure (entry, title)
+  rSelect $ compile query
 
 eventsWidget :: Handler Widget
 eventsWidget = do

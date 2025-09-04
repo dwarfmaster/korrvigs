@@ -63,21 +63,20 @@ applyTaskMtdt f =
       maybe id (setter ?~) (f (mtdtName attr) >>= fromJSONM)
 
 -- Load task from SQL
-loadTask :: (MonadKorrvigs m) => Id -> m (Maybe Task)
-loadTask i = do
+loadTask :: (MonadKorrvigs m) => Id -> Maybe Text -> m (Maybe Task)
+loadTask i title = do
   let si = sqlId i
   r <-
     rSelectOne $
-      (,,,,,)
+      (,,,,)
         <$> baseSelectTextMtdt TaskMtdt si
-        <*> selectTextMtdt Title si
         <*> selectMtdt TaskDeadline si
         <*> selectMtdt TaskScheduled si
         <*> selectMtdt TaskStarted si
         <*> selectMtdt TaskFinished si
   case r of
     Nothing -> pure Nothing
-    Just (tsk, title, deadline, scheduled, started, finished) -> do
+    Just (tsk, deadline, scheduled, started, finished) -> do
       let st = fromMaybe TaskTodo $ parseStatusName tsk
       let title' = fromMaybe ("@" <> unId i) title
       let deadline' = deadline >>= fromJSONM

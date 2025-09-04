@@ -99,7 +99,6 @@ selectTextMtdt mtdt i = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtd
       Nothing -> O.null
 
 -- Metadata list
-mkMtdt "Title" "title" [t|Text|]
 mkMtdt "Language" "language" [t|Text|]
 mkMtdt "Authors" "authors" [t|[Text]|]
 mkMtdt "Pages" "pages" [t|Int|]

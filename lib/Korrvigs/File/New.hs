@@ -127,7 +127,7 @@ applyNewOptions ne = do
   pure $ foldr (.) id [parents, maybe id (exDate ?~) dt, title, lang, mtdt]
   where
     parents = exParents %~ (++ (ne ^. neParents))
-    title = maybe id ((annoted . at (mtdtSqlName Title) ?~) . toJSON) $ joinNull T.null $ ne ^. neTitle
+    title = maybe id (exTitle ?~) $ joinNull T.null $ ne ^. neTitle
     lang = maybe id ((annoted . at (mtdtSqlName Language) ?~) . toJSON) $ ne ^. neLanguage
     mtdt = annoted %~ unCIMtdt . useMtdt ne . reCIMtdt
 

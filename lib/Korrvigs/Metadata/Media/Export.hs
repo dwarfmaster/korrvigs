@@ -62,9 +62,13 @@ rSelectBibData i =
       key <- rSelectMtdt BibtexKey si
       entry <- load i
       bd <-
-        BibData (mkBibKind tp) (fromMaybe (unId i) key)
-          <$> rSelectMtdt Title si
-          <*> (join . toList <$> rSelectMtdt Authors si)
+        BibData
+          (mkBibKind tp)
+          (fromMaybe (unId i) key)
+          (entry ^? _Just . entryTitle . _Just)
+          . join
+          . toList
+          <$> rSelectMtdt Authors si
           <*> rSelectMtdt Abstract si
           <*> ((listToMaybe =<<) <$> rSelectMtdt DOI si)
           <*> ((listToMaybe =<<) <$> rSelectMtdt ISBNMtdt si)

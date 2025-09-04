@@ -39,7 +39,7 @@ isPrefix :: Text -> MimeType -> Bool
 isPrefix prefix mime = T.isPrefixOf prefix $ Enc.decodeASCII mime
 
 run :: (MonadKorrvigs m) => Action -> Entry -> FilePath -> m ()
-run Miniature entry tgt = case entry ^. kindData of
+run Miniature entry tgt = case entry ^. entryKindData of
   FileD file | file ^. fileStatus == FileAbsent -> pure ()
   FileD file
     | isPrefix "image/" (file ^. fileMime) ->
@@ -50,7 +50,7 @@ run Miniature entry tgt = case entry ^. kindData of
         let ffmpeg = proc "ffmpeg" ["-i", "file:" <> file ^. filePath, "-vframes", "1", "-f", "image2", "-vf", "scale=200:-2", tgt]
          in liftIO $ void $ runSilent ffmpeg
   _ -> pure ()
-run Size entry tgt = case entry ^. kindData of
+run Size entry tgt = case entry ^. entryKindData of
   FileD file | file ^. fileStatus == FileAbsent -> pure ()
   FileD file
     | isPrefix "image/" (file ^. fileMime) -> do

@@ -25,7 +25,7 @@ embed _ event = do
       |]
     Right ical -> case ical ^. icEvent of
       Nothing ->
-        let i = event ^. eventEntry . name
+        let i = event ^. eventEntry . entryName
          in throwM $ KMiscError $ "Event entry " <> unId i <> " is not an event"
       Just ievent -> do
         let cal = event ^. eventCalendar

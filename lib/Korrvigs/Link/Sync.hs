@@ -75,7 +75,7 @@ remove lnk = do
 updateImpl :: (MonadKorrvigs m) => Link -> (LinkJSON -> m LinkJSON) -> m ()
 updateImpl link f = do
   let path = link ^. linkPath
-  let i = link ^. linkEntry . name
+  let i = link ^. linkEntry . entryName
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   njson <- f json
   liftIO $ writeFile path $ encode njson

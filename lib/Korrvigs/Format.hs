@@ -192,7 +192,7 @@ kindDataSpec Calendar = liftSpec _Calendar calSpec
 
 renderMtdt :: (MonadKorrvigs m, ExtraMetadata mtdt, Buildable m (MtdtType mtdt), FromJSON (MtdtType mtdt)) => mtdt -> Entry -> m [TextBuilder]
 renderMtdt mtdt entry =
-  rSelectMtdt mtdt (sqlId $ entry ^. name) >>= \case
+  rSelectMtdt mtdt (sqlId $ entry ^. entryName) >>= \case
     Nothing -> pure []
     Just v -> build v
 
@@ -202,10 +202,10 @@ mtdtSpec mtdt = FmtSpec $ M.singleton (mtdtSqlName mtdt) (renderMtdt mtdt)
 entrySpec :: (MonadKorrvigs m) => FormatSpec m Entry
 entrySpec =
   fromList
-    [ ("name", fromLens $ name . to unId),
+    [ ("name", fromLens $ entryName . to unId),
       ("kind", fromLens $ kind . to displayKind)
     ]
-    <> liftSpec (date . _Just) dateSpec
+    <> liftSpec (entryDate . _Just) dateSpec
     <> foldMap kindDataSpec [minBound .. maxBound]
     <> mtdtSpec Title
     <> mtdtSpec Language

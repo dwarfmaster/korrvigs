@@ -80,18 +80,18 @@ loadMetadata i = do
 
 dispatchRemove :: (MonadKorrvigs m) => (Id -> [Delete Int64] -> m ()) -> KindData -> m ()
 dispatchRemove rm (LinkD lnk) =
-  let i = lnk ^. linkEntry . name in rm i $ Link.sqlRemove i
+  let i = lnk ^. linkEntry . entryName in rm i $ Link.sqlRemove i
 dispatchRemove rm (NoteD note) =
-  let i = note ^. noteEntry . name in rm i $ Note.sqlRemove i
+  let i = note ^. noteEntry . entryName in rm i $ Note.sqlRemove i
 dispatchRemove rm (FileD file) =
-  let i = file ^. fileEntry . name in rm i $ File.sqlRemove i
+  let i = file ^. fileEntry . entryName in rm i $ File.sqlRemove i
 dispatchRemove rm (EventD ev) =
-  let i = ev ^. eventEntry . name in rm i $ Event.sqlRemove i
+  let i = ev ^. eventEntry . entryName in rm i $ Event.sqlRemove i
 dispatchRemove rm (CalendarD cal) =
-  let i = cal ^. calEntry . name in rm i $ Cal.sqlRemove i
+  let i = cal ^. calEntry . entryName in rm i $ Cal.sqlRemove i
 
 removeKindDB :: (MonadKorrvigs m) => Entry -> m ()
-removeKindDB entry = dispatchRemove (\_ dels -> atomicSQL $ \conn -> forM_ dels $ runDelete conn) $ entry ^. kindData
+removeKindDB entry = dispatchRemove (\_ dels -> atomicSQL $ \conn -> forM_ dels $ runDelete conn) $ entry ^. entryKindData
 
 genRemoveDB :: (MonadKorrvigs m) => Id -> [Delete Int64] -> m ()
 genRemoveDB i dels =
@@ -127,7 +127,7 @@ genRemoveDB i dels =
           }
 
 removeDB :: (MonadKorrvigs m) => Entry -> m ()
-removeDB entry = dispatchRemove genRemoveDB $ entry ^. kindData
+removeDB entry = dispatchRemove genRemoveDB $ entry ^. entryKindData
 
 data SyncData drow = SyncData
   { _syncEntryRow :: EntryRow,

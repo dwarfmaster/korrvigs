@@ -10,7 +10,7 @@ import Yesod
 
 embed :: Int -> Link -> Handler Widget
 embed lvl link = do
-  let i = link ^. linkEntry . name
+  let i = link ^. linkEntry . entryName
   abstract <- rSelectMtdt Abstract $ sqlId i
   rSelectMtdt Cover (sqlId i) >>= \case
     Just cid ->

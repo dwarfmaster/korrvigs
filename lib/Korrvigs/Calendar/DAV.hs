@@ -62,7 +62,7 @@ sync :: (MonadKorrvigs m) => (Text -> m ()) -> Text -> m Bool
 sync report pwd = fmap isJust $ runMaybeT $ do
   cals <- lift listCalendars
   forM_ cals $ \cal -> do
-    let i = cal ^. calEntry . name
+    let i = cal ^. calEntry . entryName
     lift $ report $ "> Syncing " <> unId i
     cdd <- lift $ setupCDD cal pwd
     nctag <-
@@ -88,7 +88,7 @@ pullAndMerge report cal cdd = do
       Right etags -> pure etags
   etags' <- lift $ rSelect $ do
     ev <- selectTable eventsTable
-    where_ $ ev ^. sqlEventCalendar .== sqlId (cal ^. calEntry . name)
+    where_ $ ev ^. sqlEventCalendar .== sqlId (cal ^. calEntry . entryName)
     let i = ev ^. sqlEventName
     res <- baseSelectTextMtdt DAVPath i
     etag <- baseSelectTextMtdt DAVETag i
@@ -143,7 +143,7 @@ pullAndMerge report cal cdd = do
                 & iceMtdt . at (mtdtName DAVETag) ?~ toJSON etag
         let ical = ical' & icEvent ?~ ievent
         i <- lift $ Ev.register ical
-        let basename = unId i <> "_" <> unId (cal ^. calEntry . name) <> ".ics"
+        let basename = unId i <> "_" <> unId (cal ^. calEntry . entryName) <> ".ics"
         let start = resolveICalTime ical <$> ievent ^. iceStart
         let day = localDay . zonedTimeToLocalTime <$> start
         rt <- lift eventsDirectory
@@ -167,7 +167,7 @@ mergeInto report i nical netag davref = do
     lift (load i) >>= \case
       Nothing -> lift (report $ "Failed to load " <> unId i) >> mzero
       Just entry -> pure entry
-  ev <- case entry ^. kindData of
+  ev <- case entry ^. entryKindData of
     EventD ev -> pure ev
     _ -> lift (report $ unId i <> " is not an event") >> mzero
   let path = ev ^. eventFile
@@ -207,7 +207,7 @@ pushNew :: (MonadKorrvigs m) => (Text -> m ()) -> Calendar -> DAV.CalDavData -> 
 pushNew report cal cdd = do
   newEvents <- lift $ rSelect $ do
     ev <- selectTable eventsTable
-    where_ $ ev ^. sqlEventCalendar .== sqlId (cal ^. calEntry . name)
+    where_ $ ev ^. sqlEventCalendar .== sqlId (cal ^. calEntry . entryName)
     let i = ev ^. sqlEventName
     davref <- selectMtdt DAVPath i
     where_ $ isNull davref

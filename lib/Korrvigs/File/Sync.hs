@@ -148,7 +148,7 @@ syncOne path = do
 
 updateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()
 updateImpl file f = do
-  let i = file ^. fileEntry . name
+  let i = file ^. fileEntry . entryName
   let meta = file ^. fileMeta
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   njson <- f json

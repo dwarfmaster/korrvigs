@@ -133,7 +133,7 @@ applyNewOptions ne = do
 
 update :: (MonadKorrvigs m) => File -> FilePath -> m ()
 update file nfile = do
-  let i = file ^. fileEntry . name
+  let i = file ^. fileEntry . entryName
   -- Replace file
   let oldpath = file ^. filePath
   liftIO $ removeFile oldpath

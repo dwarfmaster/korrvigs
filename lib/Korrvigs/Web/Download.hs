@@ -46,6 +46,6 @@ getEntryDownloadR (WId i) =
       public <- isPublic
       private <- isPrivate entry
       when (public && private) $ permissionDenied "Tried to access a private entry"
-      filenameHint i $ entry ^. kindData
-      downloadEntry $ entry ^. kindData
+      filenameHint i $ entry ^. entryKindData
+      downloadEntry $ entry ^. entryKindData
     Nothing -> notFound

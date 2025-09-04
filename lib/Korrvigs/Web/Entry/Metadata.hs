@@ -15,7 +15,7 @@ import Yesod
 
 widget :: Entry -> Handler Widget
 widget entry = do
-  let i = entry ^. name
+  let i = entry ^. entryName
   mtdt <- loadMetadata i
   mtdts <- mapM (\(key, val) -> (key,val,) <$> newIdent) $ M.toList mtdt
   pure $ do

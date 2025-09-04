@@ -33,7 +33,7 @@ runShare () (TargetEntry entry) = do
   let html = htmlUrl public publicDl render
   pure $ def & reactMsg ?~ html
   where
-    i = entry ^. name
+    i = entry ^. entryName
     htmlUrl public publicDl =
       [hamlet|
       <ul>
@@ -63,7 +63,7 @@ runShare () (TargetNoteCollection note col) = do
   let html = htmlUrl public render
   pure $ def & reactMsg ?~ html
   where
-    i = note ^. noteEntry . name
+    i = note ^. noteEntry . entryName
     htmlUrl public =
       [hamlet|
         <ul>
@@ -77,7 +77,7 @@ runShare () (TargetNoteSub note sb) = do
   let html = htmlUrl public render
   pure $ def & reactMsg ?~ html
   where
-    i = note ^. noteEntry . name
+    i = note ^. noteEntry . entryName
     htmlUrl public =
       [hamlet|
         <ul>
@@ -91,7 +91,7 @@ runShare () (TargetNoteCode note cd) = do
   let html = htmlUrl public render
   pure $ def & reactMsg ?~ html
   where
-    i = note ^. noteEntry . name
+    i = note ^. noteEntry . entryName
     htmlUrl public =
       [hamlet|
         <ul>

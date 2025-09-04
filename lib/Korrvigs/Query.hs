@@ -247,10 +247,10 @@ compileQuery query = do
   -- Treat lack of duration as duration 0
   forM_ (query ^. queryAfter) $ \dt ->
     let sqlDt = sqlZonedTime dt
-     in where_ $ flip (matchNullable $ sqlBool False) (entry ^. sqlEntryDate) $ \entryDate ->
+     in where_ $ flip (matchNullable $ sqlBool False) (entry ^. sqlEntryDate) $ \date ->
           matchNullable
-            (sqlDt .< entryDate)
-            (\entryDur -> sqlDt .< addInterval entryDate entryDur)
+            (sqlDt .< date)
+            (\dur -> sqlDt .< addInterval date dur)
             (entry ^. sqlEntryDuration)
   -- Check if the entry has a non-empty intersection with the polygon
   forM_ (query ^. queryGeo) $ \poly ->

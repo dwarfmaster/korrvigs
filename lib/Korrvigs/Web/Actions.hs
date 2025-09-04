@@ -132,12 +132,12 @@ genForm :: AForm Handler a -> (ActionTarget -> Text) -> (ActionTarget -> Route W
 genForm form title postUrl tgt = generateForm (postUrl tgt) (title tgt) form
 
 actUrl :: ActionLabel -> ActionTarget -> Route WebData
-actUrl lbl (TargetEntry entry) = ActEntryR (actName lbl) (WId $ entry ^. name)
+actUrl lbl (TargetEntry entry) = ActEntryR (actName lbl) (WId $ entry ^. entryName)
 actUrl lbl TargetHome = ActHomeR (actName lbl)
 actUrl lbl (TargetSearch _ _) = ActSearchR (actName lbl)
-actUrl lbl (TargetNoteCollection note col) = ActNoteColR (actName lbl) (WId $ note ^. noteEntry . name) col
-actUrl lbl (TargetNoteSub note sub) = ActNoteSubR (actName lbl) (WId $ note ^. noteEntry . name) sub
-actUrl lbl (TargetNoteCode note sub) = ActNoteCodeR (actName lbl) (WId $ note ^. noteEntry . name) sub
+actUrl lbl (TargetNoteCollection note col) = ActNoteColR (actName lbl) (WId $ note ^. noteEntry . entryName) col
+actUrl lbl (TargetNoteSub note sub) = ActNoteSubR (actName lbl) (WId $ note ^. noteEntry . entryName) sub
+actUrl lbl (TargetNoteCode note sub) = ActNoteCodeR (actName lbl) (WId $ note ^. noteEntry . entryName) sub
 
 actForm :: ActionLabel -> ActionTarget -> Handler Widget
 actForm l@LabRemove = genForm removeForm removeTitle $ actUrl l
@@ -247,7 +247,7 @@ postActNoteColR :: Text -> WebId -> Text -> Handler Value
 postActNoteColR nm (WId i) col =
   load i >>= \case
     Nothing -> notFound
-    Just entry -> case entry ^. kindData of
+    Just entry -> case entry ^. entryKindData of
       NoteD note -> do
         act <- parseActionName nm
         postHandler act $ TargetNoteCollection note col
@@ -257,7 +257,7 @@ postActNoteSubR :: Text -> WebId -> Text -> Handler Value
 postActNoteSubR nm (WId i) col =
   load i >>= \case
     Nothing -> notFound
-    Just entry -> case entry ^. kindData of
+    Just entry -> case entry ^. entryKindData of
       NoteD note -> do
         act <- parseActionName nm
         postHandler act $ TargetNoteSub note col
@@ -267,7 +267,7 @@ postActNoteCodeR :: Text -> WebId -> Text -> Handler Value
 postActNoteCodeR nm (WId i) col =
   load i >>= \case
     Nothing -> notFound
-    Just entry -> case entry ^. kindData of
+    Just entry -> case entry ^. entryKindData of
       NoteD note -> do
         act <- parseActionName nm
         postHandler act $ TargetNoteCode note col

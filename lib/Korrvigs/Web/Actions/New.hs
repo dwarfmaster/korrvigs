@@ -52,7 +52,7 @@ mkNewTitle suffix TargetHome = "Create " <> suffix
 mkNewTitle suffix _ = "Attach " <> suffix
 
 extractParent :: ActionTarget -> Maybe Id
-extractParent (TargetEntry entry) = Just $ entry ^. name
+extractParent (TargetEntry entry) = Just $ entry ^. entryName
 extractParent _ = Nothing
 
 mkReaction :: ActionTarget -> Text -> Id -> Handler ActionReaction
@@ -75,7 +75,7 @@ mkReaction (TargetEntry _) suffix i = do
       & reactClipboard ?~ unId i
 mkReaction (TargetSearch _ _) _ _ = pure def
 mkReaction (TargetNoteCollection note col) suffix i = do
-  void $ addToCollection (note ^. noteEntry . name) col (ColItemEntry i)
+  void $ addToCollection (note ^. noteEntry . entryName) col (ColItemEntry i)
   render <- getUrlRenderParams
   let htmlUrl =
         [hamlet|

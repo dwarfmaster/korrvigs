@@ -13,7 +13,7 @@ import qualified Korrvigs.Note.Sync as Note
 remove :: (MonadKorrvigs m) => Entry -> m ()
 remove entry = do
   removeDB entry
-  case entry ^. kindData of
+  case entry ^. entryKindData of
     NoteD note -> Note.remove note
     LinkD link -> Link.remove link
     FileD file -> File.remove file

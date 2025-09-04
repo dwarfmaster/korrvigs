@@ -38,7 +38,7 @@ calendarPath' cal = do
   pure $ joinPath [rt, calBasename cal]
 
 calendarPath :: (MonadKorrvigs m) => Calendar -> m FilePath
-calendarPath = calendarPath' . view (calEntry . name)
+calendarPath = calendarPath' . view (calEntry . entryName)
 
 syncCalJSON :: (MonadKorrvigs m) => Id -> CalJSON -> m (SyncData CalRow)
 syncCalJSON i json = do
@@ -85,7 +85,7 @@ updateFile i path f = do
 updateImpl :: (MonadKorrvigs m) => Calendar -> (CalJSON -> m CalJSON) -> m ()
 updateImpl cal f = do
   path <- calendarPath cal
-  let i = cal ^. calEntry . name
+  let i = cal ^. calEntry . entryName
   updateFile i path f
 
 updateMetadata :: (MonadKorrvigs m) => Calendar -> Map Text Value -> [Text] -> m ()

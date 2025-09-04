@@ -68,8 +68,8 @@ rSelectBibData i =
           <*> rSelectMtdt Abstract si
           <*> ((listToMaybe =<<) <$> rSelectMtdt DOI si)
           <*> ((listToMaybe =<<) <$> rSelectMtdt ISBNMtdt si)
-          <*> pure (entry ^? _Just . date . _Just . to greg . _2)
-          <*> pure (entry ^? _Just . date . _Just . to greg . _1)
+          <*> pure (entry ^? _Just . entryDate . _Just . to greg . _2)
+          <*> pure (entry ^? _Just . entryDate . _Just . to greg . _1)
           <*> rSelectMtdt Url si
           <*> rSelectMtdt Journal si
           <*> ((listToMaybe =<<) <$> rSelectMtdt Publisher si)

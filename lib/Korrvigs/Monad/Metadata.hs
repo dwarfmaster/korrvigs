@@ -32,8 +32,8 @@ import qualified Opaleye as O
 -- metadata to remove.
 updateMetadata :: (MonadKorrvigs m) => Entry -> Map Text Value -> [Text] -> m ()
 updateMetadata entry upd rm = do
-  let i = entry ^. name
-  case entry ^. kindData of
+  let i = entry ^. entryName
+  case entry ^. entryKindData of
     LinkD link -> Link.updateMetadata link upd rm
     FileD file -> File.updateMetadata file upd rm
     NoteD note -> Note.updateMetadata note upd rm
@@ -64,8 +64,8 @@ updateMetadata entry upd rm = do
 
 updateParents :: (MonadKorrvigs m) => Entry -> [Id] -> [Id] -> m ()
 updateParents entry toAdd toRm = do
-  let i = entry ^. name
-  case entry ^. kindData of
+  let i = entry ^. entryName
+  case entry ^. entryKindData of
     LinkD link -> Link.updateParents link toAdd toRm
     FileD file -> File.updateParents file toAdd toRm
     NoteD note -> Note.updateParents note toAdd toRm
@@ -93,8 +93,8 @@ updateParents entry toAdd toRm = do
 
 updateDate :: (MonadKorrvigs m) => Entry -> Maybe ZonedTime -> m ()
 updateDate entry ntime = do
-  let i = entry ^. name
-  case entry ^. kindData of
+  let i = entry ^. entryName
+  case entry ^. entryKindData of
     LinkD link -> Link.updateDate link ntime
     FileD file -> File.updateDate file ntime
     NoteD note -> Note.updateDate note ntime

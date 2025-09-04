@@ -42,7 +42,7 @@ mkReaction success i col = htmlUrl <$> getUrlRenderParams
 
 runCol :: (Id, Text) -> ActionTarget -> Handler ActionReaction
 runCol (i, col) (TargetEntry entry) = do
-  success <- addToCollection i col $ ColItemEntry $ entry ^. name
+  success <- addToCollection i col $ ColItemEntry $ entry ^. entryName
   html <- mkReaction success i col
   pure $ def & reactMsg ?~ html
 runCol (i, col) (TargetSearch q _) = do
@@ -50,7 +50,7 @@ runCol (i, col) (TargetSearch q _) = do
   html <- mkReaction success i col
   pure $ def & reactMsg ?~ html
 runCol (i, col) (TargetNoteCollection noteId noteCol) = do
-  success <- addToCollection i col $ ColItemInclude (noteId ^. noteEntry . name) noteCol
+  success <- addToCollection i col $ ColItemInclude (noteId ^. noteEntry . entryName) noteCol
   html <- mkReaction success i col
   pure $ def & reactMsg ?~ html
 runCol _ _ = pure def

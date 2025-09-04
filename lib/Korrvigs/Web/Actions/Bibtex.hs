@@ -28,7 +28,7 @@ bibtexTitle = const "Export BibTeX"
 runBibtex :: () -> ActionTarget -> Handler ActionReaction
 runBibtex () (TargetEntry entry) = do
   render <- getUrlRender
-  let url = EntryBibtexR $ WId $ entry ^. name
+  let url = EntryBibtexR $ WId $ entry ^. entryName
   pure $ def & reactRedirect ?~ render url
 runBibtex () TargetHome = pure def
 runBibtex () (TargetSearch q _) = do
@@ -37,7 +37,7 @@ runBibtex () (TargetSearch q _) = do
   pure $ def & reactRedirect ?~ render SearchBibtexR params
 runBibtex () (TargetNoteCollection note col) = do
   render <- getUrlRender
-  let url = NoteColBibtexR (WId $ note ^. noteEntry . name) col
+  let url = NoteColBibtexR (WId $ note ^. noteEntry . entryName) col
   pure $ def & reactRedirect ?~ render url
 runBibtex () (TargetNoteSub _ _) = pure def
 runBibtex () (TargetNoteCode _ _) = pure def

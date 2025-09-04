@@ -43,14 +43,14 @@ import Yesod hiding (Field)
 titleWidget :: Entry -> Text -> Handler Widget
 titleWidget entry contentId = do
   public <- isPublic
-  title <- rSelectTextMtdt Title $ sqlId $ entry ^. name
-  taskW <- Wdgs.taskWidget (entry ^. name) (SubLoc []) =<< loadTask (entry ^. name)
+  title <- rSelectTextMtdt Title $ sqlId $ entry ^. entryName
+  taskW <- Wdgs.taskWidget (entry ^. entryName) (SubLoc []) =<< loadTask (entry ^. entryName)
   medit <- if public then pure mempty else editWidget
-  downloadUrl <- Public.mkPublic $ EntryDownloadR $ WId $ entry ^. name
+  downloadUrl <- Public.mkPublic $ EntryDownloadR $ WId $ entry ^. entryName
   pure $ do
     case title of
       Just t -> setTitle $ toMarkup t
-      Nothing -> setTitle $ toMarkup $ "@" <> unId (entry ^. name)
+      Nothing -> setTitle $ toMarkup $ "@" <> unId (entry ^. entryName)
     [whamlet|
     ^{htmlKind $ entry ^. kind}
     <span .download-button>
@@ -60,23 +60,23 @@ titleWidget entry contentId = do
       ^{taskW}
       $maybe t <- title
         #{t}
-      <span .entry-name>
-        (#{unId $ entry ^. name})
+      <span .entry-entryName>
+        (#{unId $ entry ^. entryName})
       $maybe edit <- medit
         ^{edit}
   |]
   where
     editWidget :: Handler (Maybe Widget)
-    editWidget = case entry ^. kindData of
+    editWidget = case entry ^. entryKindData of
       LinkD _ -> pure Nothing
       FileD _ -> pure Nothing
       EventD _ -> pure Nothing
       CalendarD _ -> pure Nothing
-      NoteD _ -> Just <$> Note.editButton (entry ^. name) 0 Nothing contentId (SubLoc [])
+      NoteD _ -> Just <$> Note.editButton (entry ^. entryName) 0 Nothing contentId (SubLoc [])
 
 -- TODO make link to day viewer
 dateWidget :: Entry -> Handler Widget
-dateWidget entry = case entry ^. date of
+dateWidget entry = case entry ^. entryDate of
   Just time ->
     pure
       [whamlet|
@@ -86,7 +86,7 @@ dateWidget entry = case entry ^. date of
   Nothing -> pure mempty
 
 geometryWidget :: Entry -> Handler Widget
-geometryWidget entry = case entry ^. geo of
+geometryWidget entry = case entry ^. entryGeo of
   Nothing -> pure mempty
   Just geometry -> do
     detClass <- newIdent
@@ -137,7 +137,7 @@ refsWidget entry = do
     relEntries tbl isSub = do
       subs <- selectTable tbl
       pure (subs ^. source, subs ^. target, sqlBool isSub)
-    i = entry ^. name
+    i = entry ^. entryName
     notesCC :: Select (EntryRowSQL, EntryRowSQL, Field SqlBool)
     notesCC = do
       cc <-
@@ -183,7 +183,7 @@ refsWidget entry = do
       render <- getUrlRender
       base <- getBase
       let color =
-            if e ^. sqlEntryName == entry ^. name
+            if e ^. sqlEntryName == entry ^. entryName
               then base Base07
               else base $ colorKind $ e ^. sqlEntryKind
       pure
@@ -204,7 +204,7 @@ refsWidget entry = do
 
 subWidget :: Entry -> Handler Widget
 subWidget entry = do
-  let i = entry ^. name
+  let i = entry ^. entryName
   subs :: [(Id, Maybe Text)] <- rSelect $ orderBy ord $ do
     rel <- selectTable entriesSubTable
     where_ $ rel ^. target .== sqlId i
@@ -231,12 +231,12 @@ subWidget entry = do
 
 galleryWidget :: Entry -> Handler Widget
 galleryWidget entry =
-  rSelectMtdt Gallery (sqlId $ entry ^. name) >>= \case
+  rSelectMtdt Gallery (sqlId $ entry ^. entryName) >>= \case
     Nothing -> pure mempty
     Just gallery -> do
       let select = if gallery == "recursive" then selectRecSourcesFor else selectSourcesFor
       childs <- rSelect $ orderBy (ascNullsFirst (^. _1 . sqlEntryDate)) $ do
-        sub <- select entriesSubTable $ entry ^. name
+        sub <- select entriesSubTable $ entry ^. entryName
         subEntry <- selectTable entriesTable
         where_ $ sub .== subEntry ^. sqlEntryName
         where_ $ subEntry ^. sqlEntryKind .== sqlKind File
@@ -269,7 +269,7 @@ galleryWidget entry =
         sizeA
 
 contentWidget :: Entry -> Handler Widget
-contentWidget entry = case entry ^. kindData of
+contentWidget entry = case entry ^. entryKindData of
   LinkD link -> Link.content link
   NoteD note -> Note.content note
   FileD file -> File.content file
@@ -288,7 +288,7 @@ actWidget entry = do
 
 isPrivate :: Entry -> Handler Bool
 isPrivate entry =
-  rSelectTextMtdt Private (sqlId $ entry ^. name) >>= \case
+  rSelectTextMtdt Private (sqlId $ entry ^. entryName) >>= \case
     Nothing -> pure False
     _ -> pure True
 

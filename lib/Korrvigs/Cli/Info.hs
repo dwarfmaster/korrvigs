@@ -59,11 +59,11 @@ run (Cmd js i) =
 entryInfoSpec :: (Contravariant f, Applicative f) => [(Text, (TextBuilder -> f TextBuilder) -> (Entry, Metadata) -> f (Entry, Metadata))]
 entryInfoSpec =
   [ -- Generic info
-    ("name", _1 . name . to unId . to text),
+    ("name", _1 . entryName . to unId . to text),
     ("kind", _1 . kind . to displayKind . to text),
     ("title", _2 . ix (mtdtName Title) . _String . to text),
-    ("date", _1 . date . _Just . to iso8601Show . to string),
-    ("duration", _1 . duration . _Just . to iso8601Show . to string),
+    ("date", _1 . entryDate . _Just . to iso8601Show . to string),
+    ("duration", _1 . entryDuration . _Just . to iso8601Show . to string),
     ("pages", _2 . ix (mtdtName Pages) . _Integer . to decimal),
     ("width", _2 . ix (mtdtName Width) . _Integer . to decimal),
     ("height", _2 . ix (mtdtName Height) . _Integer . to decimal),

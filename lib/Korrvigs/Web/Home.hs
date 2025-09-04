@@ -57,7 +57,7 @@ favouritesWidget :: Handler Widget
 favouritesWidget = fromMaybeT notFoundWidget $ do
   let i = MkId "Favourites"
   entry <- hoistLift $ load i
-  note <- hoistMaybe $ entry ^? kindData . _NoteD
+  note <- hoistMaybe $ entry ^? entryKindData . _NoteD
   (widget, _) <- lift $ Note.embed 1 note
   pure widget
   where

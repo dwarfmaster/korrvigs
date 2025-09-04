@@ -82,11 +82,11 @@ kindDataKind (EventD _) = Event
 kindDataKind (CalendarD _) = Calendar
 
 data Entry = MkEntry
-  { _name :: Id,
-    _date :: Maybe ZonedTime,
-    _duration :: Maybe CalendarDiffTime,
-    _geo :: Maybe Geometry,
-    _kindData :: KindData
+  { _entryName :: Id,
+    _entryDate :: Maybe ZonedTime,
+    _entryDuration :: Maybe CalendarDiffTime,
+    _entryGeo :: Maybe Geometry,
+    _entryKindData :: KindData
   }
   deriving (Show)
 
@@ -99,22 +99,22 @@ makePrisms ''KindData
 makeLenses ''Entry
 
 kind :: Getter Entry Kind
-kind = kindData . to kindDataKind
+kind = entryKindData . to kindDataKind
 
 _Note :: Traversal' Entry Note
-_Note = kindData . _NoteD
+_Note = entryKindData . _NoteD
 
 _Link :: Traversal' Entry Link
-_Link = kindData . _LinkD
+_Link = entryKindData . _LinkD
 
 _File :: Traversal' Entry File
-_File = kindData . _FileD
+_File = entryKindData . _FileD
 
 _Event :: Traversal' Entry Event
-_Event = kindData . _EventD
+_Event = entryKindData . _EventD
 
 _Calendar :: Traversal' Entry Calendar
-_Calendar = kindData . _CalendarD
+_Calendar = entryKindData . _CalendarD
 
 class IsKindData a where
   kdEntry :: a -> Entry

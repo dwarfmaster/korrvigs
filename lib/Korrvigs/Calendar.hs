@@ -12,7 +12,7 @@ listCalendars :: (MonadKorrvigs m) => m [Calendar]
 listCalendars = do
   calIds <- rSelect $ view sqlCalName <$> selectTable calendarsTable
   calEntries <- mapM load calIds
-  let toCal entry = case entry ^. kindData of
+  let toCal entry = case entry ^. entryKindData of
         CalendarD cal -> Just cal
         _ -> Nothing
   pure $ mapMaybe (>>= toCal) calEntries

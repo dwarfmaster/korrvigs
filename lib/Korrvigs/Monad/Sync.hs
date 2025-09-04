@@ -162,7 +162,7 @@ syncFile :: (MonadKorrvigs m) => FilePath -> m ()
 syncFile path = identifyPath path >>= syncFileOfKind path
 
 syncOne :: (MonadKorrvigs m) => Entry -> m ()
-syncOne entry = case entry ^. kindData of
+syncOne entry = case entry ^. entryKindData of
   LinkD link -> syncFileOfKind (link ^. linkPath) Link
   NoteD note -> syncFileOfKind (note ^. notePath) Note
   FileD file -> syncFileOfKind (file ^. filePath) File

@@ -87,7 +87,7 @@ syncDocument i path doc = do
 updateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
 updateImpl note f = do
   let path = note ^. notePath
-  let i = note ^. noteEntry . name
+  let i = note ^. noteEntry . entryName
   doc <- readNote path >>= throwEither (KCantLoad i)
   ndoc <- f doc
   liftIO $ writeFile path $ writeNoteLazy ndoc

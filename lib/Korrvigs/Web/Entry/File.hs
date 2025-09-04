@@ -29,7 +29,7 @@ statusWidget = \case
 
 sourceFor :: File -> Widget
 sourceFor file =
-  let i = file ^. fileEntry . name
+  let i = file ^. fileEntry . entryName
    in let mime = Enc.decodeUtf8 $ file ^. fileMime
        in [whamlet|<source type=#{mime} src=@{EntryDownloadR $ WId i}>|]
 
@@ -43,7 +43,7 @@ videoWidget file =
 
 imgWidget :: File -> Handler Widget
 imgWidget file =
-  let i = file ^. fileEntry . name
+  let i = file ^. fileEntry . entryName
    in let url = EntryDownloadR $ WId i
        in pure
             [whamlet|
@@ -53,7 +53,7 @@ imgWidget file =
 
 textWidget :: File -> Handler Widget
 textWidget file =
-  let i = file ^. fileEntry . name
+  let i = file ^. fileEntry . entryName
    in let mime = Enc.decodeUtf8 $ file ^. fileMime
        in pure
             [whamlet|
@@ -63,7 +63,7 @@ textWidget file =
 
 pdfWidget :: File -> Handler Widget
 pdfWidget file =
-  let i = file ^. fileEntry . name
+  let i = file ^. fileEntry . entryName
    in pure [whamlet|<embed src=@{EntryDownloadR $ WId i} width=100% height=700 type="application/pdf">|]
 
 gpxWidget :: File -> Handler Widget

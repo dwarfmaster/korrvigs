@@ -240,7 +240,7 @@ run (Col (Just note) Nothing _) = do
 run (Col (Just note) (Just nm) Nothing) =
   load (MkId note) >>= \case
     Nothing -> throwM $ KMiscError $ note <> " is not a valid entry"
-    Just entry -> case entry ^. kindData of
+    Just entry -> case entry ^. entryKindData of
       NoteD ne ->
         readNote (ne ^. notePath) >>= \case
           Left err -> throwM $ KMiscError $ "Failed to load " <> T.pack (ne ^. notePath) <> ": " <> err

@@ -149,11 +149,11 @@ entryFromRow tkd row cstr = kd
     kd = cstr entry
     entry =
       MkEntry
-        { _name = row ^. sqlEntryName,
-          _date = row ^. sqlEntryDate,
-          _duration = row ^. sqlEntryDuration,
-          _geo = row ^. sqlEntryGeo,
-          _kindData = tkd kd
+        { _entryName = row ^. sqlEntryName,
+          _entryDate = row ^. sqlEntryDate,
+          _entryDuration = row ^. sqlEntryDuration,
+          _entryGeo = row ^. sqlEntryGeo,
+          _entryKindData = tkd kd
         }
 
 -- Deal with RelData

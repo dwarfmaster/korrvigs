@@ -47,7 +47,7 @@ getNoteR :: WebId -> Handler LT.Text
 getNoteR (WId i) =
   load i >>= \case
     Nothing -> notFound
-    Just entry -> case entry ^. kindData of
+    Just entry -> case entry ^. entryKindData of
       NoteD note -> liftIO $ LEnc.decodeUtf8 <$> BSL.readFile (note ^. notePath)
       _ -> notFound
 
@@ -55,7 +55,7 @@ postNoteR :: WebId -> Handler LT.Text
 postNoteR (WId i) =
   load i >>= \case
     Nothing -> notFound
-    Just entry -> case entry ^. kindData of
+    Just entry -> case entry ^. entryKindData of
       NoteD note -> do
         body <- runConduit $ rawRequestBody .| fold
         let txt = Enc.decodeUtf8 body
@@ -79,7 +79,7 @@ getNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text
 getNoteSubR (WId i) (WLoc loc) =
   load i >>= \case
     Nothing -> notFound
-    Just entry -> case entry ^. kindData of
+    Just entry -> case entry ^. entryKindData of
       NoteD note ->
         readNote (note ^. notePath) >>= \case
           Left err -> throwM $ KMiscError err
@@ -110,7 +110,7 @@ postNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text
 postNoteSubR (WId i) (WLoc loc) =
   load i >>= \case
     Nothing -> notFound
-    Just entry -> case entry ^. kindData of
+    Just entry -> case entry ^. entryKindData of
       NoteD note ->
         readNote (note ^. notePath) >>= \case
           Left err -> throwM $ KMiscError err
@@ -158,7 +158,7 @@ getNoteColR (WId i) col = do
 getNoteJson :: Id -> Text -> Handler Value
 getNoteJson i col = do
   entry <- load i >>= maybe notFound pure
-  note <- maybe notFound pure $ entry ^? kindData . _NoteD
+  note <- maybe notFound pure $ entry ^? entryKindData . _NoteD
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   items <- maybe notFound pure $ md ^? docContent . each . bkCollection col . _3
   pure $ toJSON items
@@ -166,7 +166,7 @@ getNoteJson i col = do
 getNoteWidget :: Id -> Text -> Handler Widget
 getNoteWidget i col = do
   entry <- load i >>= maybe notFound pure
-  note <- maybe notFound pure $ entry ^? kindData . _NoteD
+  note <- maybe notFound pure $ entry ^? entryKindData . _NoteD
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   (c, _, items) <- maybe notFound pure $ md ^? docContent . each . bkCollection col
   display <- runInputGet $ displayForm c
@@ -195,7 +195,7 @@ postNoteColR (WId i) col = do
 getNoteNamedSubR :: WebId -> Text -> Handler Html
 getNoteNamedSubR (WId i) sb = do
   entry <- load i >>= maybe notFound pure
-  note <- maybe notFound pure $ entry ^? kindData . _NoteD
+  note <- maybe notFound pure $ entry ^? entryKindData . _NoteD
   actions <- actionsWidget $ TargetNoteSub note sb
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   hd <- maybe notFound pure $ md ^? docContent . each . bkNamedSub sb
@@ -212,7 +212,7 @@ getNoteNamedSubR (WId i) sb = do
 getNoteNamedCodeR :: WebId -> Text -> Handler Html
 getNoteNamedCodeR (WId i) cd = do
   entry <- load i >>= maybe notFound pure
-  note <- maybe notFound pure $ entry ^? kindData . _NoteD
+  note <- maybe notFound pure $ entry ^? entryKindData . _NoteD
   actions <- actionsWidget $ TargetNoteCode note cd
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   (attrs, txt) <- maybe notFound pure $ md ^? docContent . each . bkNamedCode cd

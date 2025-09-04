@@ -97,7 +97,7 @@ loadCollection = concatMapM . loadCollectionItem
 noteCollection :: (MonadKorrvigs m) => Id -> Text -> m (Maybe [CollectionItem])
 noteCollection i col = runMaybeT $ do
   entry <- hoistLift $ load i
-  note <- hoistMaybe $ entry ^? kindData . _NoteD
+  note <- hoistMaybe $ entry ^? entryKindData . _NoteD
   md <- hoistEitherLift $ readNote $ note ^. notePath
   hoistMaybe $ md ^? docContent . each . bkCollection col . _3
 
@@ -115,7 +115,7 @@ loadCollectionItem _ (ColItemComment _) = pure []
 addToCollection :: (MonadKorrvigs m) => Id -> Text -> CollectionItem -> m Bool
 addToCollection i col item = fromMaybeT False $ do
   entry <- hoistLift $ load i
-  note <- hoistMaybe $ entry ^? kindData . _NoteD
+  note <- hoistMaybe $ entry ^? entryKindData . _NoteD
   md <- hoistEitherLift $ readNote $ note ^. notePath
   guard $ col `S.member` (md ^. docCollections)
   let md' = md & docContent . each . bkCollection col . _3 %~ (++ [item])

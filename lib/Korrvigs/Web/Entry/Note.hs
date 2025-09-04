@@ -115,7 +115,7 @@ embed lvl note = do
     Right md -> do
       subL <- fmap parseLoc <$> lookupGetParam "open"
       let msubL = either (const Nothing) Just =<< subL
-      embedContent True lvl msubL (note ^. noteEntry . name) (md ^. docContent) (md ^. docChecks)
+      embedContent True lvl msubL (note ^. noteEntry . entryName) (md ^. docContent) (md ^. docChecks)
 
 embedContent :: Bool -> Int -> Maybe AnyLoc -> Id -> [Block] -> Checks -> Handler (Widget, Checks)
 embedContent enableEdit lvl subL i cnt checks = do
@@ -411,7 +411,7 @@ embedBody i lvl =
   load i >>= \case
     Nothing -> pure (mempty, def)
     Just entry -> do
-      case entry ^. kindData of
+      case entry ^. entryKindData of
         LinkD link -> (,def) <$> Link.embed lvl link
         FileD file -> (,def) <$> File.embed lvl file
         EventD event -> (,def) <$> Event.embed lvl event

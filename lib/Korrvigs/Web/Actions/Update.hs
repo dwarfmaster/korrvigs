@@ -25,7 +25,7 @@ updateTitle :: ActionTarget -> Text
 updateTitle = const "Update"
 
 runUpdate :: FileInfo -> ActionTarget -> Handler ActionReaction
-runUpdate content (TargetEntry entry) = case entry ^. kindData of
+runUpdate content (TargetEntry entry) = case entry ^. entryKindData of
   FileD file -> withRunInIO $ \runIO ->
     withSystemTempDirectory "korrUpload" $ \dir -> do
       let filename = T.unpack $ fileName content
@@ -33,6 +33,6 @@ runUpdate content (TargetEntry entry) = case entry ^. kindData of
       fileMove content path
       runIO $ New.update file path
       render <- runIO getUrlRender
-      pure $ def & reactRedirect ?~ render (EntryR $ WId $ entry ^. name)
+      pure $ def & reactRedirect ?~ render (EntryR $ WId $ entry ^. entryName)
   _ -> pure def
 runUpdate _ _ = pure def

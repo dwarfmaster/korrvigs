@@ -84,6 +84,7 @@ queryParser :: Parser Query
 queryParser =
   Query
     <$> many (MkId <$> option str (metavar "ID" <> long "id" <> help "ID the entry must have"))
+    <*> optional (argument str (metavar "TITLE" <> help "Regex for title"))
     <*> optional (argument ftsQueryParser (metavar "FTS" <> help "Full text search"))
     <*> optional (option dayParser (long "before" <> help "Entry must have date before the provided date"))
     <*> optional (option dayParser (long "after" <> help "Entry must have date after the provided date"))

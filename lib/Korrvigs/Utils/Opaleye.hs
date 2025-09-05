@@ -84,3 +84,6 @@ sqlArrayLength = ap2 "array_length"
 
 sqlUnnest :: Field (SqlArray a) -> Select (Field a)
 sqlUnnest = sel1 "unnest"
+
+sqlMatchRegexCaseInsensitive :: Field SqlText -> Field SqlText -> Field SqlBool
+sqlMatchRegexCaseInsensitive = C.binOp (HPQ.OpOther "~*")

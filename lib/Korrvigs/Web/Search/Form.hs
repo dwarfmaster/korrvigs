@@ -146,7 +146,8 @@ liftMaybe _ _ = Nothing
 queryForm :: (Maybe LocalTime -> Maybe ZonedTime) -> Maybe Text -> FormInput Handler Query
 queryForm mktz prefix =
   Query []
-    <$> (getOpt <$> ireq checkBoxField (applyPrefix prefix "checkfts") <*> iopt ftsField (applyPrefix prefix "fts"))
+    <$> (getOpt <$> ireq checkBoxField (applyPrefix prefix "checktitle") <*> iopt textField (applyPrefix prefix "title"))
+    <*> (getOpt <$> ireq checkBoxField (applyPrefix prefix "checkfts") <*> iopt ftsField (applyPrefix prefix "fts"))
     <*> (getOpt <$> ireq checkBoxField (applyPrefix prefix "checkdate") <*> (mktz <$> iopt datetimeLocalField (applyPrefix prefix "before")))
     <*> (getOpt <$> ireq checkBoxField (applyPrefix prefix "checkdate") <*> (mktz <$> iopt datetimeLocalField (applyPrefix prefix "after")))
     <*> pure Nothing
@@ -196,7 +197,8 @@ getParameters prefix q display =
     mtdtAttrs :: (Text, JsonQuery) -> [(Text, Text)]
     mtdtAttrs (key, jsq) = [("mtdtKey", key), ("mtdtVal", renderJSQuery jsq)]
     basicAttrs =
-      maybe [] (\fts -> [("checkfts", "on"), ("fts", FTS.renderQuery fts)]) (q ^. queryText)
+      maybe [] (\tit -> [("checktitle", "on"), ("title", tit)]) (q ^. queryTitle)
+        ++ maybe [] (\fts -> [("checkfts", "on"), ("fts", FTS.renderQuery fts)]) (q ^. queryText)
         ++ maybe [] (\bf -> [("checkdate", "on"), ("before", displayTime bf)]) (q ^. queryBefore)
         ++ maybe [] (\af -> maybe [("checkdate", "on")] (const []) (q ^. queryBefore) ++ [("after", displayTime af)]) (q ^. queryAfter)
         ++ maybe [] (\(V2 lng lat, dist) -> [("checkgeo", "on"), ("geolng", T.pack $ show lng), ("geolat", T.pack $ show lat), ("geodist", T.pack $ show $ dist / 1000.0)]) (q ^. queryDist)

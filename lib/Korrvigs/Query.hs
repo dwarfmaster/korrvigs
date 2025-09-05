@@ -110,6 +110,7 @@ data QueryRel = QueryRel
 
 data Query = Query
   { _queryId :: [Id],
+    _queryTitle :: Maybe Text, -- PSQL regexp as described here: https://www.postgresql.org/docs/current/functions-matching.html#FUNCTIONS-POSIX-REGEXP
     _queryText :: Maybe FTS.Query,
     _queryBefore :: Maybe ZonedTime,
     _queryAfter :: Maybe ZonedTime,
@@ -127,7 +128,7 @@ data Query = Query
   deriving (Show)
 
 instance Default Query where
-  def = Query def def def def def def def def def def def def def def
+  def = Query def def def def def def def def def def def def def def def
 
 makeLenses ''Query
 makeLenses ''QueryRel
@@ -185,6 +186,7 @@ instance ToJSON Query where
         "mtdt" .= (q ^. queryMtdt),
         "sort" .= (q ^. querySort)
       ]
+        ++ optKP "title" (q ^. queryTitle)
         ++ optKP "text" (q ^. queryText)
         ++ optKP "before" (q ^. queryBefore)
         ++ optKP "after" (q ^. queryAfter)
@@ -201,6 +203,7 @@ instance FromJSON Query where
   parseJSON = withObject "Query" $ \obj ->
     Query . fmap MkId
       <$> obj .: "id"
+      <*> obj .:? "title"
       <*> obj .:? "text"
       <*> obj .:? "before"
       <*> obj .:? "after"
@@ -236,6 +239,9 @@ compileQuery query = do
       foldr1 (.||) $
         fmap (\i -> sqlId i .== entry ^. sqlEntryName) $
           query ^. queryId
+  -- Title search (case-insensitive regex match)
+  forM_ (query ^. queryTitle) $ \regex ->
+    where_ $ matchNullable (sqlBool False) (`sqlMatchRegexCaseInsensitive` sqlStrictText regex) $ entry ^. sqlEntryTitle
   -- FTS search
   forM_ (query ^. queryText) $ \txt ->
     where_ $ FTS.sqlQuery txt @@? entry ^. sqlEntryText

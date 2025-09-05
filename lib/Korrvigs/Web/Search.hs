@@ -51,6 +51,18 @@ selectConditional checkId cls =
   })
 |]
 
+titleForm :: Maybe Text -> Maybe Text -> Handler Widget
+titleForm prefix title = do
+  checkId <- newIdent
+  pure $ do
+    [whamlet|
+      <details .search-group *{sattr "open" $ isJust title}>
+        <summary>
+          <input ##{checkId} type=checkbox name=#{applyPrefix prefix "checktitle"} *{sattr "checked" $ isJust title}>
+            Title regex
+        <input type=text name=#{applyPrefix prefix "title"} *{mattr title "value" id}>
+    |]
+
 ftsForm :: Maybe Text -> Maybe FTS.Query -> Handler Widget
 ftsForm prefix fts = do
   checkId <- newIdent
@@ -270,6 +282,7 @@ queryRelWidget prefix nm qrel = do
 
 queryWidget :: Maybe Text -> Query -> Handler Widget
 queryWidget prefix query = do
+  title <- titleForm prefix $ query ^. queryTitle
   fts <- ftsForm prefix $ query ^. queryText
   time <- timeForm prefix (query ^. queryAfter) (query ^. queryBefore)
   geom <- geoForm prefix $ query ^. queryDist
@@ -283,6 +296,7 @@ queryWidget prefix query = do
         pure (subOf, parentOf)
       else pure (mempty, mempty)
   pure $ do
+    title
     fts
     time
     geom
@@ -309,10 +323,10 @@ searchForm query display = do
     |]
 
 fixOrder :: Query -> Query
-fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
+fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
   Just (pt, _) -> q & querySort . _1 .~ ByDistanceTo pt
   Nothing -> q & querySort .~ def
-fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
+fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
   Just fts -> q & querySort . _1 .~ ByTSRank fts
   Nothing -> q & querySort .~ def
 fixOrder q = q

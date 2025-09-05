@@ -21,6 +21,7 @@ import Korrvigs.Query
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search.Form
+import Opaleye
 import Yesod
 
 getSearchBibtexR :: Handler TypedContent
@@ -35,7 +36,11 @@ getSearchBibtexR = do
 
 getEntryBibtexR :: WebId -> Handler TypedContent
 getEntryBibtexR (WId i) = do
-  subs <- rSelect $ selectSourcesFor entriesSubTable i
+  subs <- rSelect $ do
+    src <- fromName (selectSourcesFor entriesSubTable) $ sqlId i
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryId .== src
+    pure $ entry ^. sqlEntryName
   getBibtex (unId i) subs
 
 getNoteColBibtexR :: WebId -> Text -> Handler TypedContent
@@ -52,7 +57,11 @@ getNoteColBibtexR (WId i) col = do
     loadIDs (ColItemQuery q) = rSelect $ do
       entry <- compile q
       pure $ entry ^. sqlEntryName
-    loadIDs (ColItemSubOf ni) = rSelect $ selectSourcesFor entriesSubTable ni
+    loadIDs (ColItemSubOf ni) = rSelect $ do
+      src <- fromName (selectSourcesFor entriesSubTable) $ sqlId ni
+      entry <- selectTable entriesTable
+      where_ $ entry ^. sqlEntryId .== src
+      pure $ entry ^. sqlEntryName
     loadIDs (ColItemComment _) = pure []
 
 getBibtex :: Text -> [Id] -> Handler TypedContent

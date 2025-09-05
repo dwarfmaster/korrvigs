@@ -53,14 +53,14 @@ instance Default OptionalSQLDataSQL where
 optDef :: OptionalSQLDataSQL
 optDef = def
 
-otherQuery :: Collection -> EntryRowSQL -> Select OptionalSQLDataSQL
+otherQuery :: Collection -> EntryRowSQLR -> Select OptionalSQLDataSQL
 otherQuery display entry = case display of
   ColGallery -> do
-    void $ selComp (entry ^. sqlEntryName) "miniature"
-    sz <- selComp (entry ^. sqlEntryName) "size"
+    void $ selComp (entry ^. sqlEntryId) "miniature"
+    sz <- selComp (entry ^. sqlEntryId) "size"
     mime <- optional $ do
       file <- selectTable filesTable
-      where_ $ (file ^. sqlFileName) .== (entry ^. sqlEntryName)
+      where_ $ (file ^. sqlFileId) .== (entry ^. sqlEntryId)
       pure $ file ^. sqlFileMime
     pure $
       optDef
@@ -68,18 +68,18 @@ otherQuery display entry = case display of
         & optMime .~ mime
   ColNetwork -> pure optDef
   ColTaskList -> do
-    tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryName
+    tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryId
     pure $ optDef & optTask .~ tsk
   _ -> do
     pure optDef
 
-runQuery :: (MonadKorrvigs m) => Collection -> Query -> m [(EntryRow, OptionalSQLData)]
+runQuery :: (MonadKorrvigs m) => Collection -> Query -> m [(EntryRowR, OptionalSQLData)]
 runQuery display query = rSelect $ do
   entry <- compile query
   other <- otherQuery display entry
   pure (entry, other)
 
-expandID :: (MonadKorrvigs m) => Collection -> Id -> m [(EntryRow, OptionalSQLData)]
+expandID :: (MonadKorrvigs m) => Collection -> Id -> m [(EntryRowR, OptionalSQLData)]
 expandID display i = do
   res <- rSelectOne $ do
     entry <- selectTable entriesTable
@@ -88,7 +88,7 @@ expandID display i = do
     pure (entry, other)
   pure $ toList res
 
-loadCollection :: (MonadKorrvigs m) => Collection -> [CollectionItem] -> m [(EntryRow, OptionalSQLData)]
+loadCollection :: (MonadKorrvigs m) => Collection -> [CollectionItem] -> m [(EntryRowR, OptionalSQLData)]
 loadCollection = concatMapM . loadCollectionItem
 
 noteCollection :: (MonadKorrvigs m) => Id -> Text -> m (Maybe [CollectionItem])
@@ -98,7 +98,7 @@ noteCollection i col = runMaybeT $ do
   md <- hoistEitherLift $ readNote $ note ^. notePath
   hoistMaybe $ md ^? docContent . each . bkCollection col . _3
 
-loadCollectionItem :: (MonadKorrvigs m) => Collection -> CollectionItem -> m [(EntryRow, OptionalSQLData)]
+loadCollectionItem :: (MonadKorrvigs m) => Collection -> CollectionItem -> m [(EntryRowR, OptionalSQLData)]
 loadCollectionItem c (ColItemEntry i) = expandID c i
 loadCollectionItem c (ColItemInclude i included) = fromMaybeT [] $ do
   col <- hoistMaybe =<< lift (noteCollection i included)
@@ -122,14 +122,16 @@ addToCollection i col item = fromMaybeT False $ do
 
 allCollections :: (MonadKorrvigs m) => m [(Id, Text)]
 allCollections = rSelect $ do
+  entry <- selectTable entriesTable
   note <- selectTable notesTable
+  where_ $ entry ^. sqlEntryId .== (note ^. sqlNoteId)
   col <- sqlUnnest $ note ^. sqlNoteCollections
-  pure (note ^. sqlNoteName, col)
+  pure (entry ^. sqlEntryName, col)
 
 collectionsFor :: (MonadKorrvigs m) => Id -> m [Text]
-collectionsFor i = fmap (fromMaybe []) $ rSelectOne $ do
+collectionsFor i = fmap (fromMaybe []) $ rSelectOne $ flip fromName (sqlId i) $ \sqlI -> do
   note <- selectTable notesTable
-  where_ $ note ^. sqlNoteName .== sqlId i
+  where_ $ note ^. sqlNoteId .== sqlI
   pure $ note ^. sqlNoteCollections
 
 capture :: (MonadKorrvigs m) => Id -> m Bool

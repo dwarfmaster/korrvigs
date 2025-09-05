@@ -44,7 +44,7 @@ titleWidget :: Entry -> Text -> Handler Widget
 titleWidget entry contentId = do
   public <- isPublic
   let title = entry ^. entryTitle
-  taskW <- Wdgs.taskWidget (entry ^. entryName) (SubLoc []) =<< loadTask (entry ^. entryName) title
+  taskW <- Wdgs.taskWidget (entry ^. entryName) (SubLoc []) =<< loadTask (entry ^. entryName) (entry ^. entryId) title
   medit <- if public then pure mempty else editWidget
   downloadUrl <- Public.mkPublic $ EntryDownloadR $ WId $ entry ^. entryName
   pure $ do
@@ -131,14 +131,14 @@ refsWidget entry = do
       })
       |]
   where
-    cmp :: EntryRow -> EntryRow -> Ordering
+    cmp :: EntryRowR -> EntryRowR -> Ordering
     cmp row1 row2 = compare (row1 ^. sqlEntryName) (row2 ^. sqlEntryName)
-    relEntries :: Table a RelRowSQL -> Bool -> Select (Field SqlText, Field SqlText, Field SqlBool)
+    relEntries :: Table a RelRowSQL -> Bool -> Select (Field SqlInt4, Field SqlInt4, Field SqlBool)
     relEntries tbl isSub = do
       subs <- selectTable tbl
       pure (subs ^. source, subs ^. target, sqlBool isSub)
     i = entry ^. entryName
-    notesCC :: Select (EntryRowSQL, EntryRowSQL, Field SqlBool)
+    notesCC :: Select (EntryRowSQLR, EntryRowSQLR, Field SqlBool)
     notesCC = do
       cc <-
         connectedComponentGraph
@@ -147,10 +147,11 @@ refsWidget entry = do
           (view _2)
           ( \(eid1, eid2, isSub) orient -> do
               e1 <- selectTable entriesTable
-              where_ $ e1 ^. sqlEntryName .== eid1
-              where_ $ (e1 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event] .|| eid1 .== sqlId i
+              where_ $ e1 ^. sqlEntryId .== eid1
+              let nm1 = e1 ^. sqlEntryName
+              where_ $ (e1 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event] .|| nm1 .== sqlId i
               e2 <- selectTable entriesTable
-              where_ $ e2 ^. sqlEntryName .== eid2
+              where_ $ e2 ^. sqlEntryId .== eid2
               where_ $ (e2 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event]
               hub1 <- O.not . isNull <$> selectTextMtdt HubMtdt eid1
               hub2 <- O.not . isNull <$> selectTextMtdt HubMtdt eid2
@@ -159,25 +160,25 @@ refsWidget entry = do
                   .|| (orient .&& (O.not hub2 .|| hub1))
               where_ $
                 O.not isSub
-                  .|| eid1
+                  .|| nm1
                   .== sqlId i
                   .|| O.not (isPair e1 e2 [(Event, Calendar)])
           )
-          (pure (sqlId i, sqlId i, sqlBool True))
+          (pure (sqlInt4 $ entry ^. entryId, sqlInt4 $ entry ^. entryId, sqlBool True))
       e1 <- selectTable entriesTable
-      where_ $ (e1 ^. sqlEntryName) .== (cc ^. _1)
+      where_ $ (e1 ^. sqlEntryId) .== (cc ^. _1)
       e2 <- selectTable entriesTable
-      where_ $ (e2 ^. sqlEntryName) .== (cc ^. _2)
+      where_ $ (e2 ^. sqlEntryId) .== (cc ^. _2)
       pure (e1, e2, cc ^. _3)
-    isPair :: EntryRowSQL -> EntryRowSQL -> [(Kind, Kind)] -> Field SqlBool
+    isPair :: EntryRowSQLR -> EntryRowSQLR -> [(Kind, Kind)] -> Field SqlBool
     isPair e1 e2 = foldr (\kds b -> b .|| checkPair e1 e2 kds) (sqlBool False)
-    checkPair :: EntryRowSQL -> EntryRowSQL -> (Kind, Kind) -> Field SqlBool
+    checkPair :: EntryRowSQLR -> EntryRowSQLR -> (Kind, Kind) -> Field SqlBool
     checkPair e1 e2 (kd1, kd2) =
       (e1 ^. sqlEntryKind)
         .== sqlKind kd1
         .&& (e2 ^. sqlEntryKind)
         .== sqlKind kd2
-    mkNode :: EntryRow -> Handler (Text, Text, Network.NodeStyle)
+    mkNode :: EntryRowR -> Handler (Text, Text, Network.NodeStyle)
     mkNode e = do
       style <- Network.defNodeStyle
       render <- getUrlRender
@@ -196,7 +197,7 @@ refsWidget entry = do
         )
     subStyle edgeStyle base = edgeStyle & Network.edgeColor .~ base edgeSubColor
     refStyle edgeStyle base = edgeStyle & Network.edgeColor .~ base edgeRefColor
-    mkEdge :: Network.EdgeStyle -> (Base16Index -> Text) -> (EntryRow, EntryRow, Bool) -> (Text, Text, Network.EdgeStyle)
+    mkEdge :: Network.EdgeStyle -> (Base16Index -> Text) -> (EntryRowR, EntryRowR, Bool) -> (Text, Text, Network.EdgeStyle)
     mkEdge edgeStyle base (r1, r2, isSub) =
       let mkStyle = if isSub then subStyle else refStyle
        in let style = mkStyle edgeStyle base
@@ -204,12 +205,12 @@ refsWidget entry = do
 
 subWidget :: Entry -> Handler Widget
 subWidget entry = do
-  let i = entry ^. entryName
+  let i = entry ^. entryId
   subs :: [(Id, Maybe Text)] <- rSelect $ orderBy ord $ do
     e <- selectTable entriesTable
     rel <- selectTable entriesSubTable
-    where_ $ (e ^. sqlEntryName) .== rel ^. source
-    where_ $ rel ^. target .== sqlId i
+    where_ $ (e ^. sqlEntryId) .== rel ^. source
+    where_ $ rel ^. target .== sqlInt4 i
     pure (e ^. sqlEntryName, e ^. sqlEntryTitle)
   pure $
     if null subs
@@ -237,15 +238,15 @@ galleryWidget entry =
     Just gallery -> do
       let select = if gallery == "recursive" then selectRecSourcesFor else selectSourcesFor
       childs <- rSelect $ orderBy (ascNullsFirst (^. _1 . sqlEntryDate)) $ do
-        sub <- select entriesSubTable $ entry ^. entryName
+        sub <- select entriesSubTable $ sqlInt4 $ entry ^. entryId
         subEntry <- selectTable entriesTable
-        where_ $ sub .== subEntry ^. sqlEntryName
+        where_ $ sub .== subEntry ^. sqlEntryId
         where_ $ subEntry ^. sqlEntryKind .== sqlKind File
         void $ selComp sub "miniature"
         sz <- selComp sub "size"
         mime <- optional $ do
           file <- selectTable filesTable
-          where_ $ file ^. sqlFileName .== sub
+          where_ $ file ^. sqlFileId .== sub
           pure $ file ^. sqlFileMime
         pure (subEntry, mime, sz ^. sqlCompAction)
       if null childs
@@ -261,7 +262,7 @@ galleryWidget entry =
               ^{photoswipe}
         |]
   where
-    mkEntry :: (EntryRow, Maybe Text, Action) -> Handler (Maybe PhotoSwipe.PhotoswipeEntry)
+    mkEntry :: (EntryRowR, Maybe Text, Action) -> Handler (Maybe PhotoSwipe.PhotoswipeEntry)
     mkEntry (e, mime, sizeA) =
       PhotoSwipe.miniatureEntry
         mime

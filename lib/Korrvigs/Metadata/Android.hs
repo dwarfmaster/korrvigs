@@ -45,11 +45,13 @@ makeLenses ''AndroidPhone
 listPhones :: (MonadKorrvigs m) => m (Map Text AndroidPhone)
 listPhones = do
   phonesSQL <- rSelect $ do
+    entry <- selectTable entriesTable
     adb <- selectTable entriesMetadataTable
+    where_ $ entry ^. sqlEntryId .== (adb ^. sqlEntry)
     where_ $ adb ^. sqlKey .== sqlStrictText (mtdtSqlName Adb)
     watching <- selectMtdt AndroidWatching $ adb ^. sqlEntry
     ignored <- selectMtdt AndroidIgnored $ adb ^. sqlEntry
-    pure (adb ^. sqlEntry, adb ^. sqlValue, watching, ignored)
+    pure (entry ^. sqlEntryName, adb ^. sqlValue, watching, ignored)
   let phones = mapMaybe extractPhone phonesSQL
   pure $ M.fromList $ (view androidAdb &&& id) <$> phones
   where
@@ -78,7 +80,8 @@ listFilesForPhone phone = do
     where_ $ from ^. sqlKey .== sqlStrictText (mtdtSqlName FromAndroid)
     where_ $ from ^. sqlValue .== sqlTextToJson (sqlId phone)
     path <- baseSelectTextMtdt FromAndroidPath $ from ^. sqlEntry
-    pure (from ^. sqlEntry, path)
+    nm <- nameFor $ from ^. sqlEntry
+    pure (nm, path)
   pure $ S.fromList $ uncurry AndroidFile <$> filesSQL
 
 capturedDir :: (MonadKorrvigs m) => m FilePath

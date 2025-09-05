@@ -23,7 +23,7 @@ import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widgets
 import Yesod hiding (joinPath)
 
-getEvents :: Handler [EntryRow]
+getEvents :: Handler [EntryRowR]
 getEvents = do
   today <- liftIO getCurrentZonedTime
   let month = CalendarDiffTime 1 $ secondsToNominalDiffTime 0

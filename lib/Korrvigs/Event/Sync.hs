@@ -86,9 +86,9 @@ syncEvent i calendar ics ifile ical = do
            in let diff = diffUTCTime (zonedTimeToUTC ndTime) (zonedTimeToUTC st)
                in Just $ calendarTimeTime diff
         _ -> calendarTimeTime <$> ical ^. iceDuration
-  let erow = EntryRow i Event tm dur geom Nothing (ical ^. iceSummary) :: EntryRow
-  let mrows = uncurry (MetadataRow i) <$> M.toList mtdt :: [MetadataRow]
-  let evrow = EventRow i calendar ics (ical ^. iceUid) :: EventRow
+  let erow = EntryRow Nothing Event i tm dur geom Nothing (ical ^. iceSummary) :: EntryRowW
+  let mrows = M.toList mtdt
+  let evrow sqlI = EventRow sqlI calendar ics (ical ^. iceUid) :: EventRow
   let txt = T.intercalate " " $ catMaybes [ical ^. iceComment, ical ^. iceSummary, ical ^. iceDescription]
   let txt' = if T.null txt then Nothing else Just txt
   pure $ SyncData erow evrow mrows txt' (ical ^. iceSummary) (calendar : ical ^. iceParents) [] M.empty

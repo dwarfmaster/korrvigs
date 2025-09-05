@@ -82,7 +82,8 @@ kindDataKind (EventD _) = Event
 kindDataKind (CalendarD _) = Calendar
 
 data Entry = MkEntry
-  { _entryName :: Id,
+  { _entryId :: Int,
+    _entryName :: Id,
     _entryDate :: Maybe ZonedTime,
     _entryDuration :: Maybe CalendarDiffTime,
     _entryGeo :: Maybe Geometry,

@@ -166,13 +166,14 @@ resolveId :: Text -> Bool -> KorrM (Maybe Id)
 resolveId i False =
   rSelectOne $ do
     note <- selectTable notesTable
-    where_ $ note ^. sqlNoteName .== sqlStrictText i
-    pure $ note ^. sqlNoteName
+    nm <- nameFor $ note ^. sqlNoteId
+    where_ $ nm .== sqlStrictText i
+    pure nm
 resolveId path True =
   rSelectOne $ do
     note <- selectTable notesTable
     where_ $ note ^. sqlNotePath .== sqlStrictText path
-    pure $ note ^. sqlNoteName
+    nameFor $ note ^. sqlNoteId
 
 formatNote :: FilePath -> Bool -> KorrM ()
 formatNote path inline = do

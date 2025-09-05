@@ -46,7 +46,7 @@ instance Default ToFields MimeType (Field SqlText) where
 
 -- Files table
 data FileRowImpl a b c d e = FileRow
-  { _sqlFileName :: a,
+  { _sqlFileId :: a,
     _sqlFilePath :: b,
     _sqlFileMeta :: c,
     _sqlFileStatus :: d,
@@ -56,12 +56,12 @@ data FileRowImpl a b c d e = FileRow
 makeLenses ''FileRowImpl
 $(makeAdaptorAndInstanceInferrable "pFileRow" ''FileRowImpl)
 
-type FileRow = FileRowImpl Id FilePath FilePath FileStatus MimeType
+type FileRow = FileRowImpl Int FilePath FilePath FileStatus MimeType
 
-mkFileRow :: Id -> FilePath -> FilePath -> FileStatus -> MimeType -> FileRow
+mkFileRow :: Int -> FilePath -> FilePath -> FileStatus -> MimeType -> FileRow
 mkFileRow = FileRow
 
-type FileRowSQL = FileRowImpl (Field SqlText) (Field SqlText) (Field SqlText) (Field SqlFileStatus) (Field SqlText)
+type FileRowSQL = FileRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlFileStatus) (Field SqlText)
 
 instance Default ToFields FileRow FileRowSQL where
   def = pFileRow $ FileRow def def def def def
@@ -87,8 +87,8 @@ fileFromRow frow entry =
       _fileMime = frow ^. sqlFileMime
     }
 
-sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> File) -> Entry) -> m (Maybe Entry)
-sqlLoad = genSqlLoad filesTable (view sqlFileName) fileFromRow
+sqlLoad :: (MonadKorrvigs m) => Int -> ((Entry -> File) -> Entry) -> m (Maybe Entry)
+sqlLoad = genSqlLoad filesTable (view sqlFileId) fileFromRow
 
-sqlRemove :: Id -> [Delete Int64]
-sqlRemove = genSqlRemove filesTable $ view sqlFileName
+sqlRemove :: Int -> [Delete Int64]
+sqlRemove = genSqlRemove filesTable $ view sqlFileId

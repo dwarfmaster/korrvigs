@@ -40,7 +40,7 @@ instance FromJSON Action where
   parseJSON = withObject "Action" $ \act -> do
     kd <- act .: "kind"
     case kd of
-      String "builtin" -> Builtin <$> (MkId <$> act .: "target") <*> act .: "value"
+      String "builtin" -> Builtin . MkId <$> (act .: "target") <*> act .: "value"
       String "cached" -> Cached <$> act .: "type" <*> (maybe empty pure . digestFromText =<< act .: "hash")
       String str -> fail $ T.unpack $ "\"" <> str <> "\" is not a valid computation kind name"
       obj -> unexpected obj
@@ -58,9 +58,9 @@ data CompRowImpl a b c = CompRow
 makeLenses ''CompRowImpl
 $(makeAdaptorAndInstanceInferrable "pCompRow" ''CompRowImpl)
 
-type CompRow = CompRowImpl Id Text Action
+type CompRow = CompRowImpl Int Text Action
 
-type CompRowSQL = CompRowImpl (Field SqlText) (Field SqlText) (Field SqlJsonb)
+type CompRowSQL = CompRowImpl (Field SqlInt4) (Field SqlText) (Field SqlJsonb)
 
 instance DefaultFromField SqlJsonb Action where
   defaultFromField = extract . fromJSON <$> defaultFromField
@@ -80,7 +80,7 @@ computationsTable =
         (tableField "name")
         (tableField "action")
 
-selComp :: Field SqlText -> Text -> Select CompRowSQL
+selComp :: Field SqlInt4 -> Text -> Select CompRowSQL
 selComp i nm = do
   cmp <- selectTable computationsTable
   where_ $ cmp ^. sqlCompEntry .== i

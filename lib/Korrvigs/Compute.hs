@@ -82,7 +82,8 @@ storeCachedJson v = do
 lookupComp :: (MonadKorrvigs m) => Id -> Text -> m (Maybe Action)
 lookupComp i nm = rSelectOne $ do
   act <- selectTable computationsTable
-  where_ $ act ^. sqlCompEntry .== sqlId i
+  name <- nameFor $ act ^. sqlCompEntry
+  where_ $ name .== sqlId i
   where_ $ act ^. sqlCompName .== sqlStrictText nm
   pure $ act ^. sqlCompAction
 

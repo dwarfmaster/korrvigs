@@ -85,7 +85,7 @@ queryYtDlp url = do
             mtdt <- selectTable entriesMetadataTable
             where_ $ mtdt ^. sqlKey .== sqlStrictText (mtdtSqlName Url)
             where_ $ mtdt ^. sqlValue .== sqlValueJSONB upUrl
-            pure $ mtdt ^. sqlEntry
+            nameFor $ mtdt ^. sqlEntry
           else pure Nothing
       void $ liftIO $ waitForProcess p
       void $ liftIO $ hClose devNull

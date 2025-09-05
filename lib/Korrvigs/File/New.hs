@@ -133,7 +133,7 @@ applyNewOptions ne = do
 
 update :: (MonadKorrvigs m) => File -> FilePath -> m ()
 update file nfile = do
-  let i = file ^. fileEntry . entryName
+  let i = file ^. fileEntry . entryId
   -- Replace file
   let oldpath = file ^. filePath
   liftIO $ removeFile oldpath
@@ -160,7 +160,7 @@ update file nfile = do
                 . (sqlFileMeta .~ sqlString newmeta)
                 . (sqlFileStatus .~ sqlFS status)
                 . (sqlFileMime .~ sqlStrictText mimeTxt),
-            uWhere = \row -> row ^. sqlFileName .== sqlId i,
+            uWhere = \row -> row ^. sqlFileId .== sqlInt4 i,
             uReturning = rCount
           }
 

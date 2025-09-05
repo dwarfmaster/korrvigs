@@ -27,7 +27,7 @@ setParent author =
         mtdt <- selectTable entriesMetadataTable
         where_ $ mtdt ^. sqlKey .== sqlStrictText (mtdtSqlName Url)
         where_ $ mtdt ^. sqlValue .== sqlValueJSONB auth
-        pure $ mtdt ^. sqlEntry
+        nameFor $ mtdt ^. sqlEntry
       let ex = case parent of
             Nothing -> mempty
             Just parentId -> Endo $ neParents %~ (parentId :)

@@ -59,20 +59,6 @@ rSelectOne query =
     [r] -> pure $ Just r
     _ -> pure Nothing
 
--- Returns True if the insertion was successful
-addEntry :: (MonadKorrvigs m) => EntryRow -> m Bool
-addEntry entry =
-  pgSQL >>= \conn -> liftIO $ do
-    cnt <-
-      runInsert conn $
-        Insert
-          { iTable = entriesTable,
-            iRows = [toFields entry],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-    pure $ cnt == 1
-
 newId :: (MonadKorrvigs m) => IdMaker -> m Id
 newId = newId' S.empty
 

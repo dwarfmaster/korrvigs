@@ -16,6 +16,7 @@ import Data.Time.LocalTime
 import Korrvigs.Calendar.SQL
 import Korrvigs.Entry.Ident
 import Korrvigs.Entry.New
+import Korrvigs.Entry.SQL
 import Korrvigs.Event.ICalendar
 import Korrvigs.Event.Sync
 import Korrvigs.File.New
@@ -43,7 +44,8 @@ new :: (MonadKorrvigs m) => NewEvent -> m Id
 new opts = do
   calExists <- fmap (not . null) $ rSelectOne $ do
     cal <- selectTable calendarsTable
-    where_ $ cal ^. sqlCalName .== sqlId (opts ^. nevCalendar)
+    nm <- nameFor $ cal ^. sqlCalId
+    where_ $ nm .== sqlId (opts ^. nevCalendar)
   unless calExists $ throwM $ KMiscError $ "Calendar \"" <> unId (opts ^. nevCalendar) <> "\" does not exists"
   rt <- eventsDirectory
   tz <- liftIO getCurrentTimeZone

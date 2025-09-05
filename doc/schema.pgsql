@@ -5,41 +5,42 @@ EXCEPTION
 END $$;
 
 CREATE TABLE IF NOT EXISTS entries (
-  name TEXT NOT NULL UNIQUE,
+  id SERIAL PRIMARY KEY,
   kind KIND NOT NULL,
+  name TEXT NOT NULL UNIQUE,
   date TIMESTAMP WITH TIME ZONE,
   duration INTERVAL,
   geo GEOGRAPHY,
   text TSVECTOR,
   title TEXT,
   CONSTRAINT entries_ref
-    UNIQUE(name,kind)
+    UNIQUE(id,kind)
 );
 
 CREATE TABLE IF NOT EXISTS entries_metadata (
-  name TEXT NOT NULL REFERENCES entries(name),
+  entry INTEGER NOT NULL REFERENCES entries(id),
   key TEXT NOT NULL,
   value JSONB NOT NULL,
   CONSTRAINT entries_metadata_ref
-    UNIQUE(name,key)
+    UNIQUE(entry,key)
 );
 
 CREATE TABLE IF NOT EXISTS entries_sub (
-  child TEXT NOT NULL REFERENCES entries(name),
-  parent TEXT NOT NULL REFERENCES entries(name),
+  child INTEGER NOT NULL REFERENCES entries(id),
+  parent INTEGER NOT NULL REFERENCES entries(id),
   CONSTRAINT entries_sub_unique
     UNIQUE(child,parent)
 );
 
 CREATE TABLE IF NOT EXISTS entries_ref_to (
-  referer TEXT NOT NULL REFERENCES entries(name),
-  referee TEXT NOT NULL REFERENCES entries(name),
+  referer INTEGER NOT NULL REFERENCES entries(id),
+  referee INTEGER NOT NULL REFERENCES entries(id),
   CONSTRAINT entries_ref_unique
     UNIQUE(referer,referee)
 );
 
 CREATE TABLE IF NOT EXISTS computations (
-  entry TEXT NOT NULL REFERENCES entries(name),
+  entry INTEGER NOT NULL REFERENCES entries(id),
   name TEXT NOT NULL,
   action JSONB NOT NULL,
   CONSTRAINT computations_ref_unique
@@ -47,22 +48,22 @@ CREATE TABLE IF NOT EXISTS computations (
 );
 
 CREATE TABLE IF NOT EXISTS notes (
-  name TEXT NOT NULL PRIMARY KEY,
+  id INTEGER NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'note'),
   path TEXT NOT NULL,
   collections TEXT[] NOT NULL,
   CONSTRAINT notes_entries
-    FOREIGN KEY (name,kind) references entries(name,kind)
+    FOREIGN KEY (id,kind) references entries(id,kind)
 );
 
 CREATE TABLE IF NOT EXISTS links (
-  name TEXT NOT NULL PRIMARY KEY,
+  id INTEGER NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'link'),
   protocol TEXT NOT NULL,
   ref TEXT NOT NULL,
   file TEXT NOT NULL,
   CONSTRAINT notes_entries
-    FOREIGN KEY (name,kind) references entries(name,kind)
+    FOREIGN KEY (id,kind) references entries(id,kind)
 );
 
 DO $$ BEGIN
@@ -72,32 +73,32 @@ EXCEPTION
 END $$;
 
 CREATE TABLE IF NOT EXISTS files (
-  name TEXT NOT NULL PRIMARY KEY,
+  id INTEGER NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'file'),
   path TEXT NOT NULL,
   meta TEXT NOT NULL,
   status FILESTATUS NOT NULL,
   mime TEXT NOT NULL,
   CONSTRAINT files_entries
-    FOREIGN KEY (name,kind) references entries(name,kind)
+    FOREIGN KEY (id,kind) references entries(id,kind)
 );
 
 CREATE TABLE IF NOT EXISTS events (
-  name TEXT NOT NULL PRIMARY KEY,
+  id INTEGER NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'event'),
   calendar TEXT NOT NULL,
   file TEXT NOT NULL,
   uid TEXT NOT NULL,
   CONSTRAINT events_entries
-    FOREIGN KEY (name,kind) references entries(name,kind)
+    FOREIGN KEY (id,kind) references entries(id,kind)
 );
 
 CREATE TABLE IF NOT EXISTS calendars (
-  name TEXT NOT NULL PRIMARY KEY,
+  id INTEGER NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'calendar'),
   server TEXT NOT NULL,
   usr TEXT NOT NULL,
   calname TEXT NOT NULL,
   CONSTRAINT calendars_entries
-    FOREIGN KEY (name,kind) references entries(name,kind)
+    FOREIGN KEY (id,kind) references entries(id,kind)
 );

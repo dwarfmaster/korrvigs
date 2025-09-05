@@ -14,7 +14,7 @@ import Korrvigs.Monad.Utils
 import Opaleye
 
 data EventRowImpl a b c d = EventRow
-  { _sqlEventName :: a,
+  { _sqlEventId :: a,
     _sqlEventCalendar :: b,
     _sqlEventFile :: c,
     _sqlEventUID :: d
@@ -23,12 +23,12 @@ data EventRowImpl a b c d = EventRow
 makeLenses ''EventRowImpl
 $(makeAdaptorAndInstanceInferrable "pEventRow" ''EventRowImpl)
 
-type EventRow = EventRowImpl Id Id FilePath Text
+type EventRow = EventRowImpl Int Id FilePath Text
 
-mkEventRow :: Id -> Id -> FilePath -> Text -> EventRow
+mkEventRow :: Int -> Id -> FilePath -> Text -> EventRow
 mkEventRow = EventRow
 
-type EventRowSQL = EventRowImpl (Field SqlText) (Field SqlText) (Field SqlText) (Field SqlText)
+type EventRowSQL = EventRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlText)
 
 instance Default ToFields EventRow EventRowSQL where
   def = pEventRow $ EventRow def def def def
@@ -46,8 +46,8 @@ eventsTable =
 eventFromRow :: EventRow -> Entry -> Event
 eventFromRow erow entry = MkEvent entry (erow ^. sqlEventCalendar) (erow ^. sqlEventFile) (erow ^. sqlEventUID)
 
-sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Event) -> Entry) -> m (Maybe Entry)
-sqlLoad = genSqlLoad eventsTable (view sqlEventName) eventFromRow
+sqlLoad :: (MonadKorrvigs m) => Int -> ((Entry -> Event) -> Entry) -> m (Maybe Entry)
+sqlLoad = genSqlLoad eventsTable (view sqlEventId) eventFromRow
 
-sqlRemove :: Id -> [Delete Int64]
-sqlRemove = genSqlRemove eventsTable $ view sqlEventName
+sqlRemove :: Int -> [Delete Int64]
+sqlRemove = genSqlRemove eventsTable $ view sqlEventId

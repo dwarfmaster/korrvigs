@@ -8,7 +8,7 @@ import Control.Monad.IO.Class
 import Data.List (find, foldl', singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (isJust)
+import Data.Maybe
 import Data.Profunctor.Product.Default
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -80,6 +80,14 @@ runSyncOn File = runSync (displayKind File) FileS.filesTable File.sync
 runSyncOn Event = runSync (displayKind Event) EventS.eventsTable Event.sync
 runSyncOn Calendar = runSync (displayKind Calendar) CalS.calendarsTable Cal.sync
 
+nameToIdMap :: (MonadKorrvigs m) => m (Map Id Int)
+nameToIdMap = do
+  nameIds <- rSelect $ (view sqlEntryName &&& view sqlEntryId) <$> selectTable entriesTable
+  pure $ M.fromList nameIds
+
+prepare :: Map Id Int -> (Id, Id) -> Maybe (Int, Int)
+prepare mp (nm1, nm2) = (,) <$> M.lookup nm1 mp <*> M.lookup nm2 mp
+
 sync :: (MonadKorrvigs m) => m ()
 sync = do
   conn <- pgSQL
@@ -106,7 +114,10 @@ sync = do
   let refBindings = mkBindings $ view _2 <$> rels
   dbT <- measureTime_ $ do
     forM_ rels $ view _3
-    atomicInsert [insertSubOf subBindings, insertRefTo refBindings]
+    nameToId <- nameToIdMap
+    let subs = mapMaybe (prepare nameToId) subBindings
+    let refs = mapMaybe (prepare nameToId) refBindings
+    atomicInsert [insertSubOf subs, insertRefTo refs]
   liftIO $ putStrLn $ "Updated database in " <> dbT
   where
     mkBindings :: Map a [a] -> [(a, a)]
@@ -144,7 +155,12 @@ syncFileImpl ::
   m ()
 syncFileImpl i tbl sdt = do
   syncSQL tbl sdt
-  syncRelsSQL i (sdt ^. syncParents) (sdt ^. syncRefs)
+  nameToId <- nameToIdMap
+  forM_ (M.lookup i nameToId) $ \sqlI ->
+    syncRelsSQL
+      sqlI
+      (mapMaybe (`M.lookup` nameToId) $ sdt ^. syncParents)
+      (mapMaybe (`M.lookup` nameToId) $ sdt ^. syncRefs)
 
 syncFileOfKind :: (MonadKorrvigs m) => FilePath -> Kind -> m ()
 syncFileOfKind path Link =

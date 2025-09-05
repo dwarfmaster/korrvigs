@@ -6,6 +6,7 @@ import Control.Monad (when)
 import Control.Monad.IO.Class
 import Data.Aeson (Value, eitherDecode, encode)
 import Data.ByteString.Lazy (readFile, writeFile)
+import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -38,9 +39,9 @@ syncLinkJSON i path json = do
   let dur = json ^. lkjsDuration
   let geom = json ^. lkjsGeo
   let title = json ^. lkjsTitle
-  let erow = EntryRow i Link tm dur geom Nothing title :: EntryRow
-  let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
-  let lrow = LinkRow i (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
+  let erow = EntryRow Nothing Link i tm dur geom Nothing title :: EntryRowW
+  let mtdtrows = first CI.mk <$> M.toList mtdt :: [(CI Text, Value)]
+  let lrow sqlI = LinkRow sqlI (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
   pure $ SyncData erow lrow mtdtrows (json ^. lkjsText) title (MkId <$> json ^. lkjsParents) [] M.empty
 
 syncLink :: (MonadKorrvigs m) => FilePath -> m (SyncData LinkRow)

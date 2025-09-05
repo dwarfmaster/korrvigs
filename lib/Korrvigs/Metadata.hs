@@ -46,7 +46,7 @@ insertMtdt ::
   Map (CI Text) Value
 insertMtdt mtdt val = M.insert (mtdtName mtdt) $ toJSON val
 
-baseSelectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlText -> Select (Field SqlJsonb)
+baseSelectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlInt4 -> Select (Field SqlJsonb)
 baseSelectMtdt mtdt i = do
   m <- selectTable entriesMetadataTable
   where_ $ (m ^. sqlEntry) .== i
@@ -59,7 +59,7 @@ rSelectMtdt ::
   Field SqlText ->
   m (Maybe (MtdtType mtdt))
 rSelectMtdt mtdt i =
-  rSelectOne (baseSelectMtdt mtdt i) <&> \case
+  rSelectOne (fromName (baseSelectMtdt mtdt) i) <&> \case
     Nothing -> Nothing
     Just js -> case fromJSON js of
       Success v -> v
@@ -72,11 +72,11 @@ rSelectListMtdt ::
   m (MtdtType mtdt)
 rSelectListMtdt mtdt i = fromMaybe [] <$> rSelectMtdt mtdt i
 
-selectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlText -> Select (FieldNullable SqlJsonb)
+selectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlInt4 -> Select (FieldNullable SqlJsonb)
 selectMtdt mtdt i =
   fmap maybeFieldsToNullable $ optional $ limit 1 $ baseSelectMtdt mtdt i
 
-baseSelectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlText -> Select (Field SqlText)
+baseSelectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlInt4 -> Select (Field SqlText)
 baseSelectTextMtdt mtdt i = fromNullableSelect $ do
   m <- selectTable entriesMetadataTable
   where_ $ (m ^. sqlEntry) .== i
@@ -88,9 +88,9 @@ rSelectTextMtdt ::
   mtdt ->
   Field SqlText ->
   m (Maybe Text)
-rSelectTextMtdt mtdt i = rSelectOne (baseSelectTextMtdt mtdt i)
+rSelectTextMtdt mtdt i = rSelectOne (fromName (baseSelectTextMtdt mtdt) i)
 
-selectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlText -> Select (FieldNullable SqlText)
+selectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlInt4 -> Select (FieldNullable SqlText)
 selectTextMtdt mtdt i = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtdt mtdt i
   where
     joinMField :: MaybeFields (Field a) -> FieldNullable a

@@ -77,10 +77,10 @@ syncDocument i path doc = do
   let tm = fromJSON' =<< mtdt ^. at "date"
   let dur = fromJSON' =<< mtdt ^. at "duration"
   let title = fromJSON' =<< mtdt ^. at "title"
-  let erow = EntryRow i Note tm dur geom Nothing title :: EntryRow
+  let erow = EntryRow Nothing Note i tm dur geom Nothing title :: EntryRowW
   let mtdt' = foldr M.delete mtdt ["geometry", "date", "duration", "title"]
-  let mrows = uncurry (MetadataRow i) <$> M.toList mtdt' :: [MetadataRow]
-  let nrow = NoteRow i path (S.toList $ doc ^. docCollections) :: NoteRow
+  let mrows = M.toList mtdt'
+  let nrow sqlI = NoteRow sqlI path (S.toList $ doc ^. docCollections) :: NoteRow
   let txt = renderDocument doc
   pure $ SyncData erow nrow mrows (Just txt) title (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) M.empty
 

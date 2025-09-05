@@ -89,10 +89,11 @@ pullAndMerge report cal cdd = do
   etags' <- lift $ rSelect $ do
     ev <- selectTable eventsTable
     where_ $ ev ^. sqlEventCalendar .== sqlId (cal ^. calEntry . entryName)
-    let i = ev ^. sqlEventName
+    let i = ev ^. sqlEventId
     res <- baseSelectTextMtdt DAVPath i
     etag <- baseSelectTextMtdt DAVETag i
-    pure (res, (i, etag))
+    nm <- nameFor i
+    pure (res, (nm, etag))
   let etags = M.fromList $ (DavRc *** (MkId *** DavTag)) <$> etags'
 
   -- Get data for all new and changed
@@ -131,7 +132,7 @@ pullAndMerge report cal cdd = do
     mi <- lift $ rSelectOne $ do
       ev <- selectTable eventsTable
       where_ $ ev ^. sqlEventUID .== sqlStrictText (ievent' ^. iceUid)
-      pure $ ev ^. sqlEventName
+      nameFor $ ev ^. sqlEventId
     case mi of
       Just i -> do
         lift $ report $ "Merging with " <> unId i
@@ -208,10 +209,11 @@ pushNew report cal cdd = do
   newEvents <- lift $ rSelect $ do
     ev <- selectTable eventsTable
     where_ $ ev ^. sqlEventCalendar .== sqlId (cal ^. calEntry . entryName)
-    let i = ev ^. sqlEventName
+    let i = ev ^. sqlEventId
     davref <- selectMtdt DAVPath i
     where_ $ isNull davref
-    pure (i, ev ^. sqlEventFile)
+    nm <- nameFor i
+    pure (nm, ev ^. sqlEventFile)
   lift $ report $ ">> Uploading " <> T.pack (show $ length newEvents) <> " new events"
   forM_ newEvents $ \(i, file) -> do
     lift $ report $ ">>> Uploading " <> unId i

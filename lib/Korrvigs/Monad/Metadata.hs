@@ -12,6 +12,7 @@ import Data.Aeson
 import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Time.LocalTime
@@ -32,21 +33,21 @@ import qualified Opaleye as O
 -- metadata to remove.
 updateMetadata :: (MonadKorrvigs m) => Entry -> Map Text Value -> [Text] -> m ()
 updateMetadata entry upd rm = do
-  let i = entry ^. entryName
+  let sqlI = entry ^. entryId
   case entry ^. entryKindData of
     LinkD link -> Link.updateMetadata link upd rm
     FileD file -> File.updateMetadata file upd rm
     NoteD note -> Note.updateMetadata note upd rm
     EventD event -> Event.updateMetadata event upd rm
     CalendarD cal -> Cal.updateMetadata cal upd rm
-  let rows = mkRow i <$> M.toList upd
+  let rows = mkRow sqlI <$> M.toList upd
   atomicSQL $ \conn -> do
     let todelete = sqlArray sqlStrictText $ rm ++ M.keys upd
     void $
       runDelete conn $
         Delete
           { dTable = entriesMetadataTable,
-            dWhere = \mtdt -> sqlElem (mtdt ^. sqlKey) todelete .&& mtdt ^. sqlEntry .== sqlId i,
+            dWhere = \mtdt -> sqlElem (mtdt ^. sqlKey) todelete .&& mtdt ^. sqlEntry .== sqlInt4 sqlI,
             dReturning = rCount
           }
     void $
@@ -59,26 +60,33 @@ updateMetadata entry upd rm = do
           }
   when (any (\m -> CI.mk m `S.member` indexedMetadata) $ M.keys upd ++ rm) $ syncOne entry
   where
-    mkRow :: Id -> (Text, Value) -> MetadataRowSQL
-    mkRow i (key, val) = MetadataRow (sqlId i) (sqlStrictText key) (sqlValueJSONB val)
+    mkRow :: Int -> (Text, Value) -> MetadataRowSQL
+    mkRow i (key, val) = MetadataRow (sqlInt4 i) (sqlStrictText key) (sqlValueJSONB val)
 
 updateParents :: (MonadKorrvigs m) => Entry -> [Id] -> [Id] -> m ()
 updateParents entry toAdd toRm = do
-  let i = entry ^. entryName
+  let sqlI = entry ^. entryId
   case entry ^. entryKindData of
     LinkD link -> Link.updateParents link toAdd toRm
     FileD file -> File.updateParents file toAdd toRm
     NoteD note -> Note.updateParents note toAdd toRm
     EventD event -> Event.updateParents event toAdd toRm
     CalendarD cal -> Cal.updateParents cal toAdd toRm
-  let rows = RelRow i <$> toAdd
+  rmSql <- fmap catMaybes $ forM toRm $ \rm -> rSelectOne $ do
+    e <- selectTable entriesTable
+    where_ $ e ^. sqlEntryName .== sqlId rm
+    pure $ e ^. sqlEntryId
+  rows :: [RelRow] <- fmap catMaybes $ forM toAdd $ \add -> rSelectOne $ do
+    e <- selectTable entriesTable
+    where_ $ e ^. sqlEntryName .== sqlId add
+    pure $ RelRow (sqlInt4 sqlI) (e ^. sqlEntryId)
   atomicSQL $ \conn -> do
     unless (null toRm) $
       void $
         runDelete conn $
           Delete
             { dTable = entriesSubTable,
-              dWhere = \sub -> sub ^. source .== sqlId i .&& sqlElem (sub ^. target) (sqlArray sqlId toRm),
+              dWhere = \sub -> sub ^. source .== sqlInt4 sqlI .&& sqlElem (sub ^. target) (sqlArray sqlInt4 rmSql),
               dReturning = rCount
             }
     unless (null toAdd) $
@@ -93,7 +101,7 @@ updateParents entry toAdd toRm = do
 
 updateDate :: (MonadKorrvigs m) => Entry -> Maybe ZonedTime -> m ()
 updateDate entry ntime = do
-  let i = entry ^. entryName
+  let sqlI = entry ^. entryId
   case entry ^. entryKindData of
     LinkD link -> Link.updateDate link ntime
     FileD file -> File.updateDate file ntime
@@ -105,8 +113,8 @@ updateDate entry ntime = do
       runUpdate conn $
         Update
           { uTable = entriesTable,
-            uUpdateWith = sqlEntryDate .~ maybe O.null (toNullable . sqlZonedTime) ntime,
-            uWhere = \e -> e ^. sqlEntryName .== sqlId i,
+            uUpdateWith = updateEasy $ sqlEntryDate .~ maybe O.null (toNullable . sqlZonedTime) ntime,
+            uWhere = \e -> e ^. sqlEntryId .== sqlInt4 sqlI,
             uReturning = rCount
           }
 
@@ -114,6 +122,7 @@ listCompute :: (MonadKorrvigs m) => Id -> m (Map Text Action)
 listCompute i = do
   acts <- rSelect $ do
     cmp <- selectTable computationsTable
-    where_ $ cmp ^. sqlCompEntry .== sqlId i
+    name <- nameFor $ cmp ^. sqlCompEntry
+    where_ $ name .== sqlId i
     pure (cmp ^. sqlCompName, cmp ^. sqlCompAction)
   pure $ M.fromList acts

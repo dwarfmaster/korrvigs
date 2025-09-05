@@ -33,7 +33,7 @@ import Opaleye hiding (Field, not)
 import qualified Opaleye as O
 import Yesod
 
-displayEntry :: EntryRow -> Handler Html
+displayEntry :: EntryRowR -> Handler Html
 displayEntry entry = do
   public <- isPublic
   kd <- htmlKind' $ entry ^. sqlEntryKind
@@ -52,7 +52,7 @@ displayEntry entry = do
       Just t -> [hamlet|#{t}|]
       Nothing -> [hamlet|@#{unId $ entry ^. sqlEntryName}|]
 
-displayResults :: Collection -> Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayResults :: Collection -> Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayResults ColList = displayList
 displayResults ColMap = displayMap
 displayResults ColGallery = displayGallery
@@ -64,11 +64,11 @@ displayResults ColBiblio = displayUnsupported ColBiblio
 displayResults ColKanban = displayUnsupported ColKanban
 displayResults ColTaskList = displayTaskList
 
-displayUnsupported :: Collection -> Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayUnsupported :: Collection -> Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayUnsupported col _ _ =
   pure [whamlet|<p>#{show col} is not supported yet|]
 
-displayList :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayList :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayList _ entries' = do
   let entries = fst <$> entries'
   entriesH <- mapM displayEntry entries
@@ -80,12 +80,12 @@ displayList _ entries' = do
             #{entry}
     |]
 
-displayMap :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayMap :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayMap _ entries = do
   items <- mapM mkItem entries
   pure $ leafletWidget "resultmap" $ catMaybes items
   where
-    mkItem :: (EntryRow, OptionalSQLData) -> Handler (Maybe MapItem)
+    mkItem :: (EntryRowR, OptionalSQLData) -> Handler (Maybe MapItem)
     mkItem (entry, _) = case entry ^. sqlEntryGeo of
       Just geom -> do
         html <- displayEntry entry
@@ -98,19 +98,20 @@ displayMap _ entries = do
               }
       Nothing -> pure Nothing
 
-displayGraph :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayGraph :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayGraph _ entries = do
   nodes <- mapM mkNode entries
-  subs <- rSelect $ do
-    sub <- selectTable entriesSubTable
-    where_ $ sqlElem (sub ^. source) candidates
-    where_ $ sqlElem (sub ^. target) candidates
-    pure (sub ^. source, sub ^. target)
-  refs <- rSelect $ do
-    ref <- selectTable entriesRefTable
-    where_ $ sqlElem (ref ^. source) candidates
-    where_ $ sqlElem (ref ^. target) candidates
-    pure (ref ^. source, ref ^. target)
+  let selectPairs tbl = do
+        rel <- selectTable tbl
+        where_ $ sqlElem (rel ^. source) candidates
+        where_ $ sqlElem (rel ^. target) candidates
+        srcE <- selectTable entriesTable
+        where_ $ srcE ^. sqlEntryId .== (rel ^. source)
+        dstE <- selectTable entriesTable
+        where_ $ dstE ^. sqlEntryId .== (rel ^. target)
+        pure (srcE ^. sqlEntryName, dstE ^. sqlEntryName)
+  subs <- rSelect $ selectPairs entriesSubTable
+  refs <- rSelect $ selectPairs entriesRefTable
   base <- getBase
   edgeStyle <- Network.defEdgeStyle
   let subStyle = edgeStyle & Network.edgeColor .~ base edgeSubColor
@@ -118,9 +119,9 @@ displayGraph _ entries = do
   let edges = (mkEdge subStyle <$> subs) ++ (mkEdge refStyle <$> refs)
   Network.network "network" nodes edges
   where
-    candidates :: O.Field (SqlArray SqlText)
-    candidates = sqlArray sqlId $ view (_1 . sqlEntryName) <$> entries
-    mkNode :: (EntryRow, OptionalSQLData) -> Handler (Text, Text, Network.NodeStyle)
+    candidates :: O.Field (SqlArray SqlInt4)
+    candidates = sqlArray sqlInt4 $ view (_1 . sqlEntryId) <$> entries
+    mkNode :: (EntryRowR, OptionalSQLData) -> Handler (Text, Text, Network.NodeStyle)
     mkNode (entry, _) = do
       public <- isPublic
       style <- Network.defNodeStyle
@@ -142,13 +143,13 @@ displayGraph _ entries = do
     mkEdge :: Network.EdgeStyle -> (Id, Id) -> (Text, Text, Network.EdgeStyle)
     mkEdge style (src, dst) = (unId src, unId dst, style)
 
-displayTimeline :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayTimeline :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayTimeline _ entries = do
   items <- mapM mkItem entries
   timelineId <- newIdent
   Timeline.timeline timelineId $ catMaybes items
   where
-    mkItem :: (EntryRow, OptionalSQLData) -> Handler (Maybe Timeline.Item)
+    mkItem :: (EntryRowR, OptionalSQLData) -> Handler (Maybe Timeline.Item)
     mkItem (entry, _) = do
       public <- isPublic
       render <- getUrlRender
@@ -171,7 +172,7 @@ displayTimeline _ entries = do
                     Timeline._itemTarget = mrender $ EntryR $ WId $ entry ^. sqlEntryName
                   }
 
-displayGallery :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayGallery :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayGallery isCol entries = do
   public <- isPublic
   items <- forM entries $ \e -> case e ^. _2 . optSizeAction of
@@ -192,7 +193,7 @@ displayGallery isCol entries = do
     PhotoSwipe.photoswipeHeader
     gallery
 
-displayFuzzy :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayFuzzy :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayFuzzy _ entries = do
   items <- forM entries $ Fuse.itemFromEntry . (view sqlEntryName &&& view sqlEntryTitle) . fst
   fuse <- Fuse.widget items
@@ -200,7 +201,7 @@ displayFuzzy _ entries = do
     Fuse.header
     fuse
 
-displayCalendar :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayCalendar :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayCalendar _ entries = do
   events <- forM entries $ Cal.entryToEvent . fst
   cal <- Cal.widget $ catMaybes events
@@ -208,7 +209,7 @@ displayCalendar _ entries = do
     Cal.header
     cal
 
-displayTaskList :: Bool -> [(EntryRow, OptionalSQLData)] -> Handler Widget
+displayTaskList :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayTaskList _ entries = do
   public <- isPublic
   items <- mapM (uncurry $ mkItem public) entries
@@ -221,7 +222,7 @@ displayTaskList _ entries = do
           ^{item}
     |]
   where
-    mkItem :: Bool -> EntryRow -> OptionalSQLData -> Handler Widget
+    mkItem :: Bool -> EntryRowR -> OptionalSQLData -> Handler Widget
     mkItem public entry dat = do
       let i = entry ^. sqlEntryName
       cb <- checkbox i $ dat ^. optTask

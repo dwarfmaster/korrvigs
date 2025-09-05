@@ -53,7 +53,7 @@ new url options = do
   li <- rSelect $ do
     entry <- selectTable linksTable
     where_ $ entry ^. sqlLinkRef .== sqlStrictText url
-    pure $ entry ^. sqlLinkName
+    nameFor $ entry ^. sqlLinkId
   case li of
     (i : _) -> pure i
     [] -> create url options

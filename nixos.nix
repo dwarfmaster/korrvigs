@@ -176,6 +176,7 @@ in {
           $PSQL ${pgUser} -d ${psql.database} -c 'CREATE EXTENSION IF NOT EXISTS address_standardizer'
           $PSQL ${pgUser} -d ${psql.database} -f ${./doc/schema.pgsql}
           $PSQL ${pgUser} -d ${psql.database} -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${cfg.user}'
+          $PSQL ${pgUser} -d ${psql.database} -c 'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${cfg.user}'
         '';
       };
     })

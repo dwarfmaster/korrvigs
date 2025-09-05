@@ -36,7 +36,7 @@ instance ToJSON CalendarEvent where
         ++ maybe [] (\url -> ["url" .= url]) (ev ^. evUrl)
         ++ maybe [] (\col -> ["color" .= col]) (ev ^. evColor)
 
-entryToEvent :: EntryRow -> Handler (Maybe CalendarEvent)
+entryToEvent :: EntryRowR -> Handler (Maybe CalendarEvent)
 entryToEvent entry = runMaybeT $ do
   let title = entry ^. sqlEntryTitle
   render <- lift getUrlRender

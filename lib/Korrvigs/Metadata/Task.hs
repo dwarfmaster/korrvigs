@@ -11,6 +11,7 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON (fromJSONM)
+import Opaleye (sqlInt4)
 
 data TaskStatus
   = TaskTodo
@@ -63,9 +64,9 @@ applyTaskMtdt f =
       maybe id (setter ?~) (f (mtdtName attr) >>= fromJSONM)
 
 -- Load task from SQL
-loadTask :: (MonadKorrvigs m) => Id -> Maybe Text -> m (Maybe Task)
-loadTask i title = do
-  let si = sqlId i
+loadTask :: (MonadKorrvigs m) => Id -> Int -> Maybe Text -> m (Maybe Task)
+loadTask i sqlI title = do
+  let si = sqlInt4 sqlI
   r <-
     rSelectOne $
       (,,,,)

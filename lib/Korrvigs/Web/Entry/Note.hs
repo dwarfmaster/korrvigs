@@ -279,7 +279,8 @@ compileBlock' (EmbedHeader i) = do
   lnk <- lift $ embedLnk i
   lvl <- use currentLevel
   (widget, checks, title) <- lift $ embedBody i $ lvl + 1
-  task <- lift $ loadTask i title
+  sqlI <- lift $ rSelectOne (fromName pure $ sqlId i) >>= throwMaybe (KMiscError $ "Couldn't load " <> unId i)
+  task <- lift $ loadTask i sqlI title
   taskW <- lift $ Wdgs.taskWidget i (SubLoc []) task
   titleW <- lift $ compileHeader (lvl + 1) [whamlet|^{taskW} #{fromMaybe "" title} ^{checksDisplay checks} ^{lnk}|]
   pure $ do
@@ -571,7 +572,8 @@ compileInline (Link attr inls tgt) = do
     True -> do
       isFile <- lift $ rSelectOne $ do
         file <- selectTable filesTable
-        where_ $ file ^. sqlFileName .== sqlId tgt
+        nm <- nameFor $ file ^. sqlFileId
+        where_ $ nm .== sqlId tgt
         pure ()
       case isFile of
         Nothing -> pure (inlsH, inlsW)

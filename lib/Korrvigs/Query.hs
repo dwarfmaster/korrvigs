@@ -219,18 +219,18 @@ instance FromJSON Query where
       <*> obj .:? "maxresults"
 
 -- Match all that are related by the relation table to the result of the query
-compileRel :: EntryRowSQL -> Table a RelRowSQL -> Bool -> QueryRel -> Select ()
+compileRel :: EntryRowSQLR -> Table a RelRowSQL -> Bool -> QueryRel -> Select ()
 compileRel entry tbl direct q = limit 1 $ do
   otherEntry <- compileQuery $ q ^. relOther
-  candidate <- closure (selectTable tbl) src tgt $ otherEntry ^. sqlEntryName
-  where_ $ entry ^. sqlEntryName .== candidate
+  candidate <- closure (selectTable tbl) src tgt $ otherEntry ^. sqlEntryId
+  where_ $ entry ^. sqlEntryId .== candidate
   where
     src = if direct then view source else view target
     tgt = if direct then view target else view source
     closure = if q ^. relRec then transitiveClosure else transitiveClosureStep
 
 -- Returns the IDs of the matched entries
-compileQuery :: Query -> Select EntryRowSQL
+compileQuery :: Query -> Select EntryRowSQLR
 compileQuery query = do
   entry <- selectTable entriesTable
   -- Id
@@ -277,7 +277,7 @@ compileQuery query = do
   -- Checks againts metadata
   forM_ (query ^. queryMtdt) $ \q -> do
     mtdt <- selectTable entriesMetadataTable
-    where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryName)
+    where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryId)
     where_ $ mtdt ^. sqlKey .== sqlStrictText (q ^. _1)
     where_ $ compileJsonQuery (q ^. _2) (toNullable $ mtdt ^. sqlValue)
   -- Relations
@@ -287,7 +287,7 @@ compileQuery query = do
   forM_ (query ^. queryMentionedBy) $ compileRel entry entriesRefTable True
   pure entry
 
-compile :: Query -> Select EntryRowSQL
+compile :: Query -> Select EntryRowSQLR
 compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ compileQuery query
   where
     dir :: (SqlOrd b) => SortOrder -> (a -> Field b) -> Order a
@@ -295,7 +295,7 @@ compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ com
     dir SortDesc = desc
     largeTime :: ZonedTime
     largeTime = ZonedTime (LocalTime (fromOrdinalDate 9999 1) (TimeOfDay 0 0 0)) utc
-    sort :: (SortCriterion, SortOrder) -> Select EntryRowSQL -> Select EntryRowSQL
+    sort :: (SortCriterion, SortOrder) -> Select EntryRowSQLR -> Select EntryRowSQLR
     sort (ById, ord) = orderBy $ dir ord $ \e -> e ^. sqlEntryName
     sort (ByTSRank q, ord) =
       orderBy $ dir ord $ \e ->
@@ -316,7 +316,7 @@ compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ com
           (e ^. sqlEntryDate)
     infinity :: Double
     infinity = 1 / 0
-    lmt :: Maybe Int -> Select EntryRowSQL -> Select EntryRowSQL
+    lmt :: Maybe Int -> Select EntryRowSQLR -> Select EntryRowSQLR
     lmt = maybe id limit
 
 compileJsonQuery :: JsonQuery -> FieldNullable SqlJsonb -> Field SqlBool

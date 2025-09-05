@@ -15,7 +15,7 @@ import Korrvigs.Monad.Utils
 import Opaleye
 
 data LinkRowImpl a b c d = LinkRow
-  { _sqlLinkName :: a,
+  { _sqlLinkId :: a,
     _sqlLinkProtocol :: b,
     _sqlLinkRef :: c,
     _sqlLinkFile :: d
@@ -24,12 +24,12 @@ data LinkRowImpl a b c d = LinkRow
 makeLenses ''LinkRowImpl
 $(makeAdaptorAndInstanceInferrable "pLinkRow" ''LinkRowImpl)
 
-type LinkRow = LinkRowImpl Id Text Text FilePath
+type LinkRow = LinkRowImpl Int Text Text FilePath
 
-mkLinkRow :: Id -> Text -> Text -> FilePath -> LinkRow
+mkLinkRow :: Int -> Text -> Text -> FilePath -> LinkRow
 mkLinkRow = LinkRow
 
-type LinkRowSQL = LinkRowImpl (Field SqlText) (Field SqlText) (Field SqlText) (Field SqlText)
+type LinkRowSQL = LinkRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlText)
 
 instance Default ToFields LinkRow LinkRowSQL where
   def = pLinkRow $ LinkRow def def def def
@@ -53,8 +53,8 @@ linkFromRow row entry =
       _linkPath = row ^. sqlLinkFile
     }
 
-sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Link) -> Entry) -> m (Maybe Entry)
-sqlLoad = genSqlLoad linksTable (view sqlLinkName) linkFromRow
+sqlLoad :: (MonadKorrvigs m) => Int -> ((Entry -> Link) -> Entry) -> m (Maybe Entry)
+sqlLoad = genSqlLoad linksTable (view sqlLinkId) linkFromRow
 
-sqlRemove :: Id -> [Delete Int64]
-sqlRemove = genSqlRemove linksTable $ view sqlLinkName
+sqlRemove :: Int -> [Delete Int64]
+sqlRemove = genSqlRemove linksTable $ view sqlLinkId

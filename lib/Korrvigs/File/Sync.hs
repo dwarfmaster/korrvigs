@@ -143,9 +143,9 @@ syncOne path = do
   let tm = json ^. exDate
   let dur = json ^. exDuration
   let title = json ^. exTitle
-  let erow = EntryRow i File tm dur geom Nothing title :: EntryRow
-  let mtdtrows = uncurry (MetadataRow i) . first CI.mk <$> M.toList mtdt :: [MetadataRow]
-  let frow = FileRow i path (metaPath path) status mime :: FileRow
+  let erow = EntryRow Nothing File i tm dur geom Nothing title :: EntryRowW
+  let mtdtrows = first CI.mk <$> M.toList mtdt
+  let frow sqlI = FileRow sqlI path (metaPath path) status mime :: FileRow
   let txt = json ^. exText
   let sdt = SyncData erow frow mtdtrows txt title (json ^. exParents) [] cmps
   pure sdt

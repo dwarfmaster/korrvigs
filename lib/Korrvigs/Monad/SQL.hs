@@ -1,5 +1,6 @@
 module Korrvigs.Monad.SQL
   ( load,
+    loadSql,
     loadMetadata,
     removeKindDB,
     removeDB,
@@ -19,6 +20,7 @@ where
 
 import Control.Lens
 import Control.Monad
+import Data.Aeson
 import Data.Aeson.Lens
 import Data.CaseInsensitive (CI)
 import Data.Foldable
@@ -51,8 +53,27 @@ indexedMetadata =
     [ mtdtName Abstract
     ]
 
-mkEntry :: (IsKindData a) => EntryRow -> (Entry -> a) -> Entry
+mkEntry :: (IsKindData a) => EntryRowR -> (Entry -> a) -> Entry
 mkEntry row = kdEntry . entryFromRow kdKindData row
+
+loadImpl :: (MonadKorrvigs m) => Maybe EntryRowR -> m (Maybe Entry)
+loadImpl Nothing = pure Nothing
+loadImpl (Just row) =
+  let sqlI = row ^. sqlEntryId
+   in case row ^. sqlEntryKind of
+        Note -> Note.sqlLoad sqlI $ mkEntry row
+        Link -> Link.sqlLoad sqlI $ mkEntry row
+        File -> File.sqlLoad sqlI $ mkEntry row
+        Event -> Event.sqlLoad sqlI $ mkEntry row
+        Calendar -> Cal.sqlLoad sqlI $ mkEntry row
+
+loadSql :: (MonadKorrvigs m) => Int -> m (Maybe Entry)
+loadSql sqlI = do
+  mrow <- rSelectOne $ do
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryId .== sqlInt4 sqlI
+    pure entry
+  loadImpl mrow
 
 load :: (MonadKorrvigs m) => Id -> m (Maybe Entry)
 load i = do
@@ -60,40 +81,34 @@ load i = do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryName .== sqlId i
     pure entry
-  case mrow of
-    Nothing -> pure Nothing
-    Just row -> do
-      case row ^. sqlEntryKind of
-        Note -> Note.sqlLoad i $ mkEntry row
-        Link -> Link.sqlLoad i $ mkEntry row
-        File -> File.sqlLoad i $ mkEntry row
-        Event -> Event.sqlLoad i $ mkEntry row
-        Calendar -> Cal.sqlLoad i $ mkEntry row
+  loadImpl mrow
 
 loadMetadata :: (MonadKorrvigs m) => Id -> m Metadata
 loadMetadata i = do
   mtdt <- rSelect $ do
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryName .== sqlId i
     mtdtRow <- selectTable entriesMetadataTable
-    where_ $ mtdtRow ^. sqlEntry .== sqlId i
+    where_ $ mtdtRow ^. sqlEntry .== (entry ^. sqlEntryId)
     pure (mtdtRow ^. sqlKey, mtdtRow ^. sqlValue)
   pure $ M.fromList mtdt
 
-dispatchRemove :: (MonadKorrvigs m) => (Id -> [Delete Int64] -> m ()) -> KindData -> m ()
+dispatchRemove :: (MonadKorrvigs m) => (Int -> [Delete Int64] -> m ()) -> KindData -> m ()
 dispatchRemove rm (LinkD lnk) =
-  let i = lnk ^. linkEntry . entryName in rm i $ Link.sqlRemove i
+  let i = lnk ^. linkEntry . entryId in rm i $ Link.sqlRemove i
 dispatchRemove rm (NoteD note) =
-  let i = note ^. noteEntry . entryName in rm i $ Note.sqlRemove i
+  let i = note ^. noteEntry . entryId in rm i $ Note.sqlRemove i
 dispatchRemove rm (FileD file) =
-  let i = file ^. fileEntry . entryName in rm i $ File.sqlRemove i
+  let i = file ^. fileEntry . entryId in rm i $ File.sqlRemove i
 dispatchRemove rm (EventD ev) =
-  let i = ev ^. eventEntry . entryName in rm i $ Event.sqlRemove i
+  let i = ev ^. eventEntry . entryId in rm i $ Event.sqlRemove i
 dispatchRemove rm (CalendarD cal) =
-  let i = cal ^. calEntry . entryName in rm i $ Cal.sqlRemove i
+  let i = cal ^. calEntry . entryId in rm i $ Cal.sqlRemove i
 
 removeKindDB :: (MonadKorrvigs m) => Entry -> m ()
 removeKindDB entry = dispatchRemove (\_ dels -> atomicSQL $ \conn -> forM_ dels $ runDelete conn) $ entry ^. entryKindData
 
-genRemoveDB :: (MonadKorrvigs m) => Id -> [Delete Int64] -> m ()
+genRemoveDB :: (MonadKorrvigs m) => Int -> [Delete Int64] -> m ()
 genRemoveDB i dels =
   atomicSQL $ \conn -> do
     forM_ dels $ runDelete conn
@@ -101,28 +116,28 @@ genRemoveDB i dels =
       runDelete conn $
         Delete
           { dTable = entriesMetadataTable,
-            dWhere = \mrow -> mrow ^. sqlEntry .== sqlId i,
+            dWhere = \mrow -> mrow ^. sqlEntry .== sqlInt4 i,
             dReturning = rCount
           }
     void $
       runDelete conn $
         Delete
           { dTable = entriesSubTable,
-            dWhere = \row -> row ^. source .== sqlId i,
+            dWhere = \row -> row ^. source .== sqlInt4 i,
             dReturning = rCount
           }
     void $
       runDelete conn $
         Delete
           { dTable = entriesRefTable,
-            dWhere = \row -> row ^. source .== sqlId i,
+            dWhere = \row -> row ^. source .== sqlInt4 i,
             dReturning = rCount
           }
     void $
       runDelete conn $
         Delete
           { dTable = entriesTable,
-            dWhere = \erow -> erow ^. sqlEntryName .== sqlId i,
+            dWhere = \erow -> erow ^. sqlEntryId .== sqlInt4 i,
             dReturning = rCount
           }
 
@@ -130,9 +145,9 @@ removeDB :: (MonadKorrvigs m) => Entry -> m ()
 removeDB entry = dispatchRemove genRemoveDB $ entry ^. entryKindData
 
 data SyncData drow = SyncData
-  { _syncEntryRow :: EntryRow,
-    _syncDataRow :: drow,
-    _syncMtdtRows :: [MetadataRow],
+  { _syncEntryRow :: EntryRowW,
+    _syncDataRow :: Int -> drow,
+    _syncMtdtRows :: [(CI Text, Value)],
     _syncTextContent :: Maybe Text,
     _syncTitle :: Maybe Text,
     _syncParents :: [Id],
@@ -146,12 +161,12 @@ syncSQL :: (MonadKorrvigs m, Default ToFields hs sql) => Table sql sql -> SyncDa
 syncSQL tbl dt = atomicSQL $ \conn -> do
   let i = dt ^. syncEntryRow . sqlEntryName
   -- Update entry
-  mprev :: [EntryRow] <- runSelect conn $ limit 1 $ do
+  mprev :: [EntryRowR] <- runSelect conn $ limit 1 $ do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryName .== sqlId i
     pure entry
-  case listToMaybe mprev of
-    Nothing ->
+  sqlI <- case listToMaybe mprev of
+    Nothing -> do
       void $
         runInsert conn $
           Insert
@@ -160,51 +175,40 @@ syncSQL tbl dt = atomicSQL $ \conn -> do
               iReturning = rCount,
               iOnConflict = Just doNothing
             }
+      sqlI <- runSelect conn $ limit 1 $ fromName pure $ sqlId i
+      pure $ fromJust $ listToMaybe sqlI
     Just prev -> do
+      let sqlI = prev ^. sqlEntryId
       case prev ^. sqlEntryKind of
-        Link -> mapM_ (runDelete conn) $ Link.sqlRemove i
-        Note -> mapM_ (runDelete conn) $ Note.sqlRemove i
-        File -> mapM_ (runDelete conn) $ File.sqlRemove i
-        Event -> mapM_ (runDelete conn) $ Event.sqlRemove i
-        Calendar -> mapM_ (runDelete conn) $ Cal.sqlRemove i
+        Link -> mapM_ (runDelete conn) $ Link.sqlRemove sqlI
+        Note -> mapM_ (runDelete conn) $ Note.sqlRemove sqlI
+        File -> mapM_ (runDelete conn) $ File.sqlRemove sqlI
+        Event -> mapM_ (runDelete conn) $ Event.sqlRemove sqlI
+        Calendar -> mapM_ (runDelete conn) $ Cal.sqlRemove sqlI
       void $
         runUpdate conn $
           Update
             { uTable = entriesTable,
               uUpdateWith = const $ toFields $ dt ^. syncEntryRow,
-              uWhere = \row -> row ^. sqlEntryName .== sqlId i,
+              uWhere = \row -> row ^. sqlEntryId .== sqlInt4 sqlI,
               uReturning = rCount
             }
+      pure sqlI
+  -- Insert into kind specific table
   void $
     runInsert conn $
       Insert
         { iTable = tbl,
-          iRows = [toFields $ dt ^. syncDataRow],
-          iReturning = rCount,
-          iOnConflict = Just doNothing
-        }
-  -- Update metadata
-  void $
-    runDelete conn $
-      Delete
-        { dTable = entriesMetadataTable,
-          dWhere = \mtdt -> mtdt ^. sqlEntry .== sqlId i,
-          dReturning = rCount
-        }
-  void $
-    runInsert conn $
-      Insert
-        { iTable = entriesMetadataTable,
-          iRows = toFields <$> dt ^. syncMtdtRows,
+          iRows = [toFields $ dt ^. syncDataRow $ sqlI],
           iReturning = rCount,
           iOnConflict = Just doNothing
         }
   -- Optionally set textContent
-  let mtdtVal = (^? sqlValue . _String) <$> filter (\r -> (r ^. sqlKey) `S.member` indexedMetadata) (dt ^. syncMtdtRows)
+  let mtdtVal = (^? _2 . _String) <$> filter (\r -> (r ^. _1) `S.member` indexedMetadata) (dt ^. syncMtdtRows)
   let txtContent = T.intercalate " " . mconcat $ toList <$> (dt ^. syncTextContent : dt ^. syncTitle : mtdtVal)
   unless (T.null txtContent) $ do
     -- Find language
-    let lang = (^. sqlValue) <$> find (\mrow -> mrow ^. sqlKey == mtdtName Language) (dt ^. syncMtdtRows)
+    let lang = (^. _2) <$> find (\mrow -> mrow ^. _1 == mtdtName Language) (dt ^. syncMtdtRows)
     let parser = case lang of
           Just "fr" -> tsParseFrench
           _ -> tsParseEnglish
@@ -213,17 +217,33 @@ syncSQL tbl dt = atomicSQL $ \conn -> do
       runUpdate conn $
         Update
           { uTable = entriesTable,
-            uUpdateWith = sqlEntryText .~ toNullable (parser $ sqlStrictText txtContent),
-            uWhere = \row -> row ^. sqlEntryName .== sqlId i,
+            uUpdateWith = updateEasy $ sqlEntryText .~ toNullable (parser $ sqlStrictText txtContent),
+            uWhere = \row -> row ^. sqlEntryId .== sqlInt4 sqlI,
             uReturning = rCount
           }
+  -- Update metadata
+  void $
+    runDelete conn $
+      Delete
+        { dTable = entriesMetadataTable,
+          dWhere = \mtdt -> mtdt ^. sqlEntry .== sqlInt4 sqlI,
+          dReturning = rCount
+        }
+  void $
+    runInsert conn $
+      Insert
+        { iTable = entriesMetadataTable,
+          iRows = toFields . uncurry (MetadataRow sqlI) <$> dt ^. syncMtdtRows,
+          iReturning = rCount,
+          iOnConflict = Just doNothing
+        }
   -- Update computations
-  let compRows = uncurry (CompRow i) <$> M.toList (dt ^. syncCompute)
+  let compRows = uncurry (CompRow sqlI) <$> M.toList (dt ^. syncCompute)
   void $
     runDelete conn $
       Delete
         { dTable = computationsTable,
-          dWhere = \comp -> comp ^. sqlCompEntry .== sqlId i,
+          dWhere = \comp -> comp ^. sqlCompEntry .== sqlInt4 sqlI,
           dReturning = rCount
         }
   void $
@@ -235,14 +255,14 @@ syncSQL tbl dt = atomicSQL $ \conn -> do
           iOnConflict = Just doNothing
         }
 
-syncRelsSQL :: (MonadKorrvigs m) => Id -> [Id] -> [Id] -> m ()
+syncRelsSQL :: (MonadKorrvigs m) => Int -> [Int] -> [Int] -> m ()
 syncRelsSQL i subsOf relsTo = atomicSQL $ \conn -> do
   -- Sync parents
   void $
     runDelete conn $
       Delete
         { dTable = entriesSubTable,
-          dWhere = \sb -> sb ^. source .== sqlId i,
+          dWhere = \sb -> sb ^. source .== sqlInt4 i,
           dReturning = rCount
         }
   unless (null subsOf) $
@@ -255,7 +275,7 @@ syncRelsSQL i subsOf relsTo = atomicSQL $ \conn -> do
     runDelete conn $
       Delete
         { dTable = entriesRefTable,
-          dWhere = \sb -> sb ^. source .== sqlId i,
+          dWhere = \sb -> sb ^. source .== sqlInt4 i,
           dReturning = rCount
         }
   unless (null relsTo) $

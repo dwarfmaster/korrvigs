@@ -16,13 +16,16 @@ getEntryCacheR :: WebId -> Handler Value
 getEntryCacheR (WId i) = do
   comps :: [Text] <- rSelect $ do
     cmp <- selectTable computationsTable
-    where_ $ cmp ^. sqlCompEntry .== sqlId i
+    nm <- nameFor $ cmp ^. sqlCompEntry
+    where_ $ nm .== sqlId i
     pure $ cmp ^. sqlCompName
   pure $ toJSON comps
 
 getEntryComputeR :: WebId -> Text -> Handler TypedContent
 getEntryComputeR (WId i) cmpName = do
-  mcmp <- rSelectOne (view sqlCompAction <$> selComp (sqlId i) cmpName)
+  mcmp <- rSelectOne $ do
+    sqlI <- fromName pure $ sqlId i
+    view sqlCompAction <$> selComp sqlI cmpName
   cmp <- maybe notFound pure mcmp
   path <- lazyRun i cmpName cmp
   let cmpType = actionData cmp ^. adatType

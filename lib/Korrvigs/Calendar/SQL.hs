@@ -15,7 +15,7 @@ import Korrvigs.Utils.Crypto ()
 import Opaleye
 
 data CalRowImpl a b c d = CalRow
-  { _sqlCalName :: a,
+  { _sqlCalId :: a,
     _sqlCalServer :: b,
     _sqlCalUser :: c,
     _sqlCalCalName :: d
@@ -24,12 +24,12 @@ data CalRowImpl a b c d = CalRow
 makeLenses ''CalRowImpl
 $(makeAdaptorAndInstanceInferrable "pCalRow" ''CalRowImpl)
 
-type CalRow = CalRowImpl Id Text Text Text
+type CalRow = CalRowImpl Int Text Text Text
 
-mkCalRow :: Id -> Text -> Text -> Text -> CalRow
+mkCalRow :: Int -> Text -> Text -> Text -> CalRow
 mkCalRow = CalRow
 
-type CalRowSQL = CalRowImpl (Field SqlText) (Field SqlText) (Field SqlText) (Field SqlText)
+type CalRowSQL = CalRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlText)
 
 instance Default ToFields CalRow CalRowSQL where
   def = pCalRow $ CalRow def def def def
@@ -53,8 +53,8 @@ calFromRow row entry =
       _calName = row ^. sqlCalCalName
     }
 
-sqlLoad :: (MonadKorrvigs m) => Id -> ((Entry -> Calendar) -> Entry) -> m (Maybe Entry)
-sqlLoad = genSqlLoad calendarsTable (view sqlCalName) calFromRow
+sqlLoad :: (MonadKorrvigs m) => Int -> ((Entry -> Calendar) -> Entry) -> m (Maybe Entry)
+sqlLoad = genSqlLoad calendarsTable (view sqlCalId) calFromRow
 
-sqlRemove :: Id -> [Delete Int64]
-sqlRemove = genSqlRemove calendarsTable $ view sqlCalName
+sqlRemove :: Int -> [Delete Int64]
+sqlRemove = genSqlRemove calendarsTable $ view sqlCalId

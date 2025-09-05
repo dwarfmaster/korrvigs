@@ -68,7 +68,7 @@ instance ToJSON FileMetadata where
         ++ maybe [] ((: []) . ("date" .=)) (mtdt ^. exDate)
         ++ maybe [] ((: []) . ("duration" .=)) (mtdt ^. exDuration)
         ++ maybe [] ((: []) . ("geometry" .=)) (mtdt ^. exGeo)
-        ++ maybe [] ((: []) . ("title" .=)) (mtdt ^. exDate)
+        ++ maybe [] ((: []) . ("title" .=)) (mtdt ^. exTitle)
         ++ maybe [] ((: []) . ("textContent" .=)) (mtdt ^. exText)
 
 metaPath :: FilePath -> FilePath

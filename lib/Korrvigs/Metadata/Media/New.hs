@@ -33,7 +33,7 @@ import Korrvigs.Metadata.Media.Ontology
 import qualified Korrvigs.Metadata.Media.OpenLibrary as OL
 import qualified Korrvigs.Metadata.Media.Pandoc as Pd
 import qualified Korrvigs.Metadata.Media.Steam as Steam
-import qualified Korrvigs.Metadata.Media.YtDlp as Yt
+import qualified Korrvigs.Metadata.Media.Youtube as Yt
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections (capture)
@@ -102,7 +102,7 @@ dispatchMedia nm = do
               mkDispatcher "OMDB" (pure . OMDB.parseQuery) OMDB.queryOMDB,
               mkDispatcher "IGDB" (pure . IGDB.parseQuery) IGDB.queryIGDB,
               mkDispatcher "MusicBrainz" (pure . MB.parseQuery) MB.queryMB,
-              mkDispatcher "YtDlp" (pure . Yt.parseQuery) Yt.queryYtDlp,
+              mkDispatcher "Youtube" (pure . Yt.parseQuery) Yt.queryYoutube,
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 

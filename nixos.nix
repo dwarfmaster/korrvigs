@@ -58,7 +58,6 @@ overlay: {
     pkgs.pandoc
     pkgs.imagemagick
     pkgs.ffmpeg
-    pkgs.yt-dlp
   ];
 in {
   options.programs.korrvigs = {

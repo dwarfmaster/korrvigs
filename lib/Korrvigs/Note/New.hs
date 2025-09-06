@@ -78,12 +78,10 @@ create note = do
   idmk' <- applyNewEntry nentry (imk "note")
   let idmk = idmk' & idTitle ?~ title
   i <- newId idmk
-  let parents = nentry ^. neParents
   let mtdt =
         useMtdt nentry $
           mconcat
             [ maybe M.empty (M.singleton (mtdtName Language) . toJSON) (nentry ^. neLanguage),
-              if null parents then M.empty else M.singleton (CI.mk "parents") (toJSON $ unId <$> parents),
               maybe M.empty (M.singleton (CI.mk "date") . toJSON) (nentry ^. neDate)
             ]
   let doc =

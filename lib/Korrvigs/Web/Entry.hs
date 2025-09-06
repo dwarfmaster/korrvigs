@@ -60,7 +60,7 @@ titleWidget entry contentId = do
       ^{taskW}
       $maybe t <- title
         #{t}
-      <span .entry-entryName>
+      <span .entry-name>
         (#{unId $ entry ^. entryName})
       $maybe edit <- medit
         ^{edit}

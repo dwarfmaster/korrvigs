@@ -187,6 +187,7 @@ importRIS :: BSL.ByteString -> IO (Map Text (NewEntry -> NewEntry))
 importRIS = importPandoc readRIS
 
 importRef :: Text -> IO (Maybe (NewEntry -> NewEntry))
+importRef url | "http" `T.isPrefixOf` url = pure Nothing
 importRef txt = do
   let bsl = LEnc.encodeUtf8 $ LT.fromStrict txt
   bib <- importBibtex bsl

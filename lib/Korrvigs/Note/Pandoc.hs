@@ -193,7 +193,7 @@ readNoteFromText reader txt =
 parsePandoc :: Pandoc -> A.Document
 parsePandoc (Pandoc mtdt bks) = run act meta bks
   where
-    meta = M.map parseMetaValue $ unMeta mtdt
+    meta = M.filterWithKey (\k _ -> k /= "title") $ M.map parseMetaValue $ unMeta mtdt
     act = do
       title <- parseInlines $ docTitle mtdt
       let rendered = renderInlines title

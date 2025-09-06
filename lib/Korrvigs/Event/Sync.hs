@@ -140,3 +140,8 @@ updateParents event toAdd toRm =
   updateImpl event $ pure . (icEvent . _Just . iceParents %~ updParents)
   where
     updParents = (toAdd ++) . filter (not . flip elem toRm)
+
+updateRef :: (MonadKorrvigs m) => Event -> Id -> Maybe Id -> m ()
+updateRef ev old new = updateImpl ev $ pure . (icEvent . _Just . iceParents %~ upd) . (icEvent . _Just . iceMtdt %~ updateInMetadata old new)
+  where
+    upd = maybe id (:) new . filter (/= old)

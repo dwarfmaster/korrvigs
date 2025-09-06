@@ -21,7 +21,7 @@ removeTitle = const "Remove"
 runRemove :: Bool -> ActionTarget -> Handler ActionReaction
 runRemove False _ = pure $ def & reactMsg ?~ [shamlet|<p>Check the box to remove entry|]
 runRemove True (TargetEntry entry) = do
-  remove entry
+  removeDWIM entry
   render <- getUrlRender
   pure $ def & reactRedirect ?~ render HomeR
 runRemove True _ = pure def

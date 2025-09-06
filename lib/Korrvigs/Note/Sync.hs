@@ -10,19 +10,21 @@ import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.LocalTime
 import Korrvigs.Entry
-import Korrvigs.Kind
+import Korrvigs.Kind hiding (Link)
 import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers
 import Korrvigs.Note.Pandoc
 import Korrvigs.Note.Render (writeNoteLazy)
 import Korrvigs.Note.SQL
+import Korrvigs.Query
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
 import System.Directory (doesFileExist)
@@ -108,3 +110,70 @@ updateParents note toAdd toRm = updateImpl note $ pure . upd
 updateDate :: (MonadKorrvigs m) => Note -> Maybe ZonedTime -> m ()
 updateDate note ntime =
   updateImpl note $ pure . (docMtdt . at "date" .~ (toJSON <$> ntime))
+
+updateRef :: (MonadKorrvigs m) => Note -> Id -> Maybe Id -> m ()
+updateRef note old new =
+  updateImpl note $
+    pure
+      . (docMtdt %~ updateInMetadata old new)
+      . (docParents %~ upd)
+      . (docContent %~ mapMaybe (updateRefBlock old new))
+  where
+    upd = maybe id S.insert new . S.delete old
+
+updateRefBlock :: Id -> Maybe Id -> Block -> Maybe Block
+updateRefBlock old new (Para inls) = pure $ Para $ updateRefInline old new =<< inls
+updateRefBlock old new (LineBlock inls) =
+  pure $ LineBlock $ (>>= updateRefInline old new) <$> inls
+updateRefBlock old new (OrderedList cases) =
+  pure $ OrderedList $ mapMaybe (updateRefBlock old new) <$> cases
+updateRefBlock old new (BulletList cases) =
+  pure $ BulletList $ mapMaybe (updateRefBlock old new) <$> cases
+updateRefBlock old new (DefinitionList cases) =
+  pure $ DefinitionList $ updateCase <$> cases
+  where
+    updateCase (inls, bks) = (updateRefInline old new =<< inls, mapMaybe (updateRefBlock old new) <$> bks)
+updateRefBlock old new (Figure attr caption bks) =
+  pure $ Figure attr (mapMaybe (updateRefBlock old new) caption) (mapMaybe (updateRefBlock old new) bks)
+updateRefBlock old new (Embed i) | i == old = Embed <$> new
+updateRefBlock old new (EmbedHeader i) | i == old = EmbedHeader <$> new
+updateRefBlock old new (Collection col i items) =
+  pure $ Collection col i $ mapMaybe updateItem items
+  where
+    updateItem (ColItemEntry it) | it == old = ColItemEntry <$> new
+    updateItem (ColItemInclude it txt) | it == old = ColItemInclude <$> new <*> pure txt
+    updateItem (ColItemQuery q) = pure $ ColItemQuery $ updateQuery old new q
+    updateItem (ColItemSubOf it) | it == old = ColItemSubOf <$> new
+    updateItem c = pure c
+updateRefBlock old new (Sub hd) =
+  pure $ Sub $ hd & hdContent %~ mapMaybe (updateRefBlock old new)
+updateRefBlock old new (Table tbl) =
+  pure $ Table $ tbl & tableCells . each . cellData %~ mapMaybe (updateRefBlock old new)
+updateRefBlock _ _ bk = pure bk
+
+updateRefInline :: Id -> Maybe Id -> Inline -> [Inline]
+updateRefInline old new (Styled style inls) =
+  pure $ Styled style $ updateRefInline old new =<< inls
+updateRefInline old new (Link attr inls i)
+  | old == i =
+      let ninls = updateRefInline old new =<< inls
+       in case new of
+            Nothing -> ninls
+            Just nw -> [Link attr ninls nw]
+updateRefInline old new (PlainLink (Just inls) uri) =
+  pure $ PlainLink (Just $ updateRefInline old new =<< inls) uri
+updateRefInline old new (Sidenote bks) =
+  pure $ Sidenote $ mapMaybe (updateRefBlock old new) bks
+updateRefInline _ _ inl = [inl]
+
+updateQuery :: Id -> Maybe Id -> Query -> Query
+updateQuery old new q =
+  q
+    & queryId %~ mapMaybe upd
+    & querySubOf . _Just . relOther %~ updateQuery old new
+    & queryParentOf . _Just . relOther %~ updateQuery old new
+    & queryMentioning . _Just . relOther %~ updateQuery old new
+    & queryMentionedBy . _Just . relOther %~ updateQuery old new
+  where
+    upd i | i == old = new
+    upd i = Just i

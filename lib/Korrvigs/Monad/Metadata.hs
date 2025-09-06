@@ -3,6 +3,7 @@ module Korrvigs.Monad.Metadata
     updateParents,
     updateDate,
     listCompute,
+    updateRef,
   )
 where
 
@@ -23,7 +24,7 @@ import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
 import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad.Class
-import Korrvigs.Monad.SQL (indexedMetadata)
+import Korrvigs.Monad.SQL (indexedMetadata, load)
 import Korrvigs.Monad.Sync (syncOne)
 import qualified Korrvigs.Note.Sync as Note
 import Opaleye hiding (not, null)
@@ -126,3 +127,48 @@ listCompute i = do
     where_ $ name .== sqlId i
     pure (cmp ^. sqlCompName, cmp ^. sqlCompAction)
   pure $ M.fromList acts
+
+updateRef :: (MonadKorrvigs m) => Entry -> Id -> Maybe Id -> m ()
+updateRef entry old new = do
+  case entry ^. entryKindData of
+    LinkD link -> Link.updateRef link old new
+    FileD file -> File.updateRef file old new
+    NoteD note -> Note.updateRef note old new
+    EventD ev -> Event.updateRef ev old new
+    CalendarD cal -> Cal.updateRef cal old new
+  oldEntry <- load old >>= throwMaybe (KCantLoad old "Failed to load entry to replace")
+  newEntry <- forM new $ \nwId -> load nwId >>= throwMaybe (KCantLoad nwId "Failed to load replicing entry")
+  rels :: [Int] <- rSelect $ selectSourcesFor entriesRefTable $ sqlInt4 $ oldEntry ^. entryId
+  subs :: [Int] <- rSelect $ selectSourcesFor entriesSubTable $ sqlInt4 $ oldEntry ^. entryId
+  atomicSQL $ \conn -> do
+    void $
+      runDelete conn $
+        Delete
+          { dTable = entriesRefTable,
+            dWhere = \ref -> ref ^. target .== sqlInt4 (oldEntry ^. entryId),
+            dReturning = rCount
+          }
+    void $
+      runDelete conn $
+        Delete
+          { dTable = entriesSubTable,
+            dWhere = \ref -> ref ^. target .== sqlInt4 (oldEntry ^. entryId),
+            dReturning = rCount
+          }
+    forM_ newEntry $ \ne -> do
+      void $
+        runInsert conn $
+          Insert
+            { iTable = entriesRefTable,
+              iRows = toFields . flip RelRow (ne ^. entryId) <$> rels,
+              iReturning = rCount,
+              iOnConflict = Just doNothing
+            }
+      void $
+        runInsert conn $
+          Insert
+            { iTable = entriesSubTable,
+              iRows = toFields . flip RelRow (ne ^. entryId) <$> subs,
+              iReturning = rCount,
+              iOnConflict = Just doNothing
+            }

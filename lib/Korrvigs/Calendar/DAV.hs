@@ -28,8 +28,7 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 import Korrvigs.Monad.Metadata
-import Korrvigs.Monad.Remove (remove)
-import Korrvigs.Monad.Sync (syncFileOfKind)
+import Korrvigs.Monad.Sync (remove, syncFileOfKind)
 import qualified Korrvigs.Utils.DAV.Cal as DAV
 import Korrvigs.Utils.DAV.Web (DavRessource (..), DavTag (..))
 import qualified Korrvigs.Utils.DAV.Web as Web

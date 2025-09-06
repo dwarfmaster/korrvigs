@@ -15,6 +15,7 @@ module Korrvigs.Monad.SQL
     syncParents,
     syncRefs,
     indexedMetadata,
+    updateInMetadata,
   )
 where
 
@@ -23,6 +24,7 @@ import Control.Monad
 import Data.Aeson
 import Data.Aeson.Lens
 import Data.CaseInsensitive (CI)
+import qualified Data.CaseInsensitive as CI
 import Data.Foldable
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -52,6 +54,32 @@ indexedMetadata =
   S.fromList
     [ mtdtName Abstract
     ]
+
+idMetadata :: Set (CI Text)
+idMetadata =
+  S.fromList
+    [ mtdtName Cover
+    ]
+
+class FromCI a where
+  fromCI :: CI Text -> a
+
+instance FromCI Text where
+  fromCI = CI.foldedCase
+
+instance FromCI (CI Text) where
+  fromCI = id
+
+updateInMetadata :: (FromCI a, Ord a) => Id -> Maybe Id -> Map a Value -> Map a Value
+updateInMetadata old new mtdt = foldr updateOne mtdt $ S.toList idMetadata
+  where
+    updateOne nm' m = case M.lookup nm m of
+      Just (String v) | v == unId old -> case new of
+        Nothing -> M.delete nm m
+        Just nv -> M.insert nm (toJSON $ unId nv) m
+      _ -> m
+      where
+        nm = fromCI nm'
 
 mkEntry :: (IsKindData a) => EntryRowR -> (Entry -> a) -> Entry
 mkEntry row = kdEntry . entryFromRow kdKindData row

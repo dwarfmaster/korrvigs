@@ -96,3 +96,8 @@ updateParents link toAdd toRm = updateImpl link $ pure . updParents
 
 updateDate :: (MonadKorrvigs m) => Link -> Maybe ZonedTime -> m ()
 updateDate link ntime = updateImpl link $ pure . (lkjsDate .~ ntime)
+
+updateRef :: (MonadKorrvigs m) => Link -> Id -> Maybe Id -> m ()
+updateRef link old new = updateImpl link $ pure . (lkjsParents %~ upd) . (lkjsMetadata %~ updateInMetadata old new)
+  where
+    upd = maybe id (\i -> (unId i :)) new . filter (/= unId old)

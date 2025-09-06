@@ -1,4 +1,4 @@
-module Korrvigs.Monad.Sync (sync, syncFile, syncFileOfKind, syncOne) where
+module Korrvigs.Monad.Sync (sync, syncFile, syncFileOfKind, syncOne, remove) where
 
 import Conduit (throwM)
 import Control.Arrow ((&&&))
@@ -27,7 +27,6 @@ import Korrvigs.Kind
 import qualified Korrvigs.Link.SQL as LinkS
 import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad.Class
-import Korrvigs.Monad.Remove
 import Korrvigs.Monad.SQL
 import qualified Korrvigs.Note.SQL as NoteS
 import qualified Korrvigs.Note.Sync as Note
@@ -36,6 +35,16 @@ import Korrvigs.Utils.Time (measureTime, measureTime_)
 import Opaleye hiding (not, null)
 import System.FilePath
 import Prelude hiding (putStrLn)
+
+remove :: (MonadKorrvigs m) => Entry -> m ()
+remove entry = do
+  removeDB entry
+  case entry ^. entryKindData of
+    NoteD note -> Note.remove note
+    LinkD link -> Link.remove link
+    FileD file -> File.remove file
+    EventD ev -> Event.remove ev
+    CalendarD cal -> Cal.remove cal
 
 loadIDsFor :: forall m. (MonadKorrvigs m) => Text -> (FilePath -> Id) -> m (Set FilePath) -> m (Map Id [FilePath])
 loadIDsFor kdTxt extractId doList = do

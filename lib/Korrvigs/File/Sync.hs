@@ -170,3 +170,8 @@ updateParents file toAdd toRm =
 
 updateDate :: (MonadKorrvigs m) => File -> Maybe ZonedTime -> m ()
 updateDate file ntime = updateImpl file $ pure . (exDate .~ ntime)
+
+updateRef :: (MonadKorrvigs m) => File -> Id -> Maybe Id -> m ()
+updateRef file old new = updateImpl file $ pure . (exParents %~ upd) . (annoted %~ updateInMetadata old new)
+  where
+    upd = maybe id (:) new . filter (/= old)

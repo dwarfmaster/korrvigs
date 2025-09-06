@@ -28,7 +28,8 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 import Korrvigs.Monad.Metadata
-import Korrvigs.Monad.Sync (remove, syncFileOfKind)
+import Korrvigs.Monad.Remove
+import Korrvigs.Monad.Sync (syncFileOfKind)
 import qualified Korrvigs.Utils.DAV.Cal as DAV
 import Korrvigs.Utils.DAV.Web (DavRessource (..), DavTag (..))
 import qualified Korrvigs.Utils.DAV.Web as Web
@@ -114,7 +115,7 @@ pullAndMerge report cal cdd = do
       lift (load i) >>= \case
         Just ev -> pure ev
         Nothing -> lift (report $ "Failed to load event " <> unId i) >> mzero
-    lift $ remove ev
+    lift $ removeDWIM ev
 
   -- Download new events
   lift $ report $ ">> Creating " <> T.pack (show $ M.size new) <> " new events"

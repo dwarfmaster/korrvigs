@@ -177,3 +177,7 @@ updateQuery old new q =
   where
     upd i | i == old = new
     upd i = Just i
+
+updateTitle :: (MonadKorrvigs m) => Note -> Maybe Text -> m ()
+updateTitle _ Nothing = pure ()
+updateTitle note (Just ntitle) = updateImpl note $ pure . (docTitle .~ ntitle)

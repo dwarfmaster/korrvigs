@@ -175,3 +175,6 @@ updateRef :: (MonadKorrvigs m) => File -> Id -> Maybe Id -> m ()
 updateRef file old new = updateImpl file $ pure . (exParents %~ upd) . (annoted %~ updateInMetadata old new)
   where
     upd = maybe id (:) new . filter (/= old)
+
+updateTitle :: (MonadKorrvigs m) => File -> Maybe Text -> m ()
+updateTitle file ntitle = updateImpl file $ pure . (exTitle .~ ntitle)

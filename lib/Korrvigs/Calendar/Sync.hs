@@ -108,3 +108,6 @@ updateRef :: (MonadKorrvigs m) => Calendar -> Id -> Maybe Id -> m ()
 updateRef cal old new = updateImpl cal $ pure . (cljsParents %~ upd) . (cljsMetadata %~ updateInMetadata old new)
   where
     upd = maybe id (\i -> (unId i :)) new . filter (/= unId old)
+
+updateTitle :: (MonadKorrvigs m) => Calendar -> Maybe Text -> m ()
+updateTitle cal ntitle = updateImpl cal $ pure . (cljsTitle .~ ntitle)

@@ -109,6 +109,7 @@ in
     ln -s ${./ressources/icons/bib.png} $out/icons/bib.png
     ln -s ${./ressources/icons/downloads.png} $out/icons/downloads.png
     ln -s ${./ressources/icons/rss.png} $out/icons/rss.png
+    ln -s ${./ressources/icons/title.png} $out/icons/title.png
     mkdir -p $out/font
     cp ${charis}/web/*.woff2 $out/font
   ''

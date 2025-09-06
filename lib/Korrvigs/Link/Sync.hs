@@ -101,3 +101,6 @@ updateRef :: (MonadKorrvigs m) => Link -> Id -> Maybe Id -> m ()
 updateRef link old new = updateImpl link $ pure . (lkjsParents %~ upd) . (lkjsMetadata %~ updateInMetadata old new)
   where
     upd = maybe id (\i -> (unId i :)) new . filter (/= unId old)
+
+updateTitle :: (MonadKorrvigs m) => Link -> Maybe Text -> m ()
+updateTitle link ntitle = updateImpl link $ pure . (lkjsTitle .~ ntitle)

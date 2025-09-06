@@ -32,6 +32,7 @@ import Korrvigs.Web.Actions.Parent
 import Korrvigs.Web.Actions.RSS
 import Korrvigs.Web.Actions.Remove
 import Korrvigs.Web.Actions.Share
+import Korrvigs.Web.Actions.Title
 import Korrvigs.Web.Actions.Update
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -56,6 +57,8 @@ data ActionLabel
   | LabExport
   | LabCollection
   | LabBibtex
+  | LabUpdateTitle
+  | LabRmTitle
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 mkIcon :: Text -> Base16Index -> (Route WebData, Base16Index)
@@ -77,6 +80,8 @@ actIcon LabEventSync = mkIcon "eventsync" Base0E
 actIcon LabExport = mkIcon "export" Base0E
 actIcon LabCollection = mkIcon "collection" Base0B
 actIcon LabBibtex = mkIcon "bib" Base0E
+actIcon LabUpdateTitle = mkIcon "title" Base0E
+actIcon LabRmTitle = mkIcon "title" Base08
 
 actName :: ActionLabel -> Text
 actName LabRemove = "remove"
@@ -94,6 +99,8 @@ actName LabEventSync = "eventsync"
 actName LabExport = "export"
 actName LabCollection = "collection"
 actName LabBibtex = "exportbib"
+actName LabUpdateTitle = "updatetitle"
+actName LabRmTitle = "rmtitle"
 
 actWidget :: Text -> ActionLabel -> Widget
 actWidget formId act = do
@@ -155,6 +162,8 @@ actForm l@LabEventSync = genForm syncEvForm syncEvTitle $ actUrl l
 actForm l@LabExport = genForm exportForm exportTitle $ actUrl l
 actForm l@LabCollection = genForm colForm colTitle $ actUrl l
 actForm l@LabBibtex = genForm bibtexForm bibtexTitle $ actUrl l
+actForm l@LabUpdateTitle = genForm titleForm titleTitle $ actUrl l
+actForm l@LabRmTitle = genForm rmTitleForm rmTitleTitle $ actUrl l
 
 runPost :: AForm Handler a -> (a -> ActionTarget -> Handler ActionReaction) -> ActionTarget -> Handler ActionReaction
 runPost form runner tgt = do
@@ -195,6 +204,8 @@ actPost LabEventSync = runPost syncEvForm runSyncEv
 actPost LabExport = runPost exportForm runExport
 actPost LabCollection = runPost colForm runCol
 actPost LabBibtex = runPost bibtexForm runBibtex
+actPost LabUpdateTitle = runPost titleForm runTitle
+actPost LabRmTitle = runPost rmTitleForm runRmTitle
 
 actCond :: ActionLabel -> ActionTarget -> Bool
 actCond LabRemove = removeTarget
@@ -212,6 +223,8 @@ actCond LabEventSync = syncEvTarget
 actCond LabExport = exportTarget
 actCond LabCollection = colTarget
 actCond LabBibtex = bibtexTarget
+actCond LabUpdateTitle = titleTarget
+actCond LabRmTitle = rmTitleTarget
 
 postHandler :: ActionLabel -> ActionTarget -> Handler Value
 postHandler lbl tgt = toJSON <$> actPost lbl tgt

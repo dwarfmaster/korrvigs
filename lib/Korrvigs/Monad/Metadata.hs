@@ -2,6 +2,7 @@ module Korrvigs.Monad.Metadata
   ( updateMetadata,
     updateParents,
     updateDate,
+    updateTitle,
     listCompute,
     updateRef,
   )
@@ -9,6 +10,7 @@ where
 
 import Control.Lens
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
@@ -22,6 +24,7 @@ import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
+import qualified Korrvigs.Kind as Kd
 import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL (indexedMetadata, load)
@@ -172,3 +175,23 @@ updateRef entry old new = do
               iReturning = rCount,
               iOnConflict = Just doNothing
             }
+
+updateTitle :: (MonadKorrvigs m) => Entry -> Maybe Text -> m ()
+updateTitle entry ntitle = do
+  case entry ^. entryKindData of
+    LinkD link -> Link.updateTitle link ntitle
+    FileD file -> File.updateTitle file ntitle
+    NoteD note -> Note.updateTitle note ntitle
+    EventD ev -> Event.updateTitle ev ntitle
+    CalendarD cal -> Cal.updateTitle cal ntitle
+  unless (isNothing ntitle && entry ^. kind == Kd.Note) $
+    withSQL $ \conn -> do
+      void $
+        liftIO $
+          runUpdate conn $
+            Update
+              { uTable = entriesTable,
+                uUpdateWith = updateEasy $ sqlEntryTitle .~ maybe O.null (toNullable . sqlStrictText) ntitle,
+                uWhere = \e -> e ^. sqlEntryId .== sqlInt4 (entry ^. entryId),
+                uReturning = rCount
+              }

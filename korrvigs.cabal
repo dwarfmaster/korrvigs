@@ -176,6 +176,7 @@ library korrvigs-lib
     Korrvigs.Web.Actions.Remove
     Korrvigs.Web.Actions.RSS
     Korrvigs.Web.Actions.Share
+    Korrvigs.Web.Actions.Title
     Korrvigs.Web.Actions.Update
     Korrvigs.Web.Backend
     Korrvigs.Web.Bibtex

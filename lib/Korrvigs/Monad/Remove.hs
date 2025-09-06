@@ -37,14 +37,14 @@ removeDWIM entry = do
   forM_ comps $ \cmp -> do
     file <- rootFile (entry ^. entryName) (cmp ^. _1) (cmp ^. _2)
     recursiveRemoveFile rt file
-  conn <- pgSQL
-  void $
-    liftIO $
-      runDelete conn $
-        Delete
-          { dTable = computationsTable,
-            dWhere = \cmp -> cmp ^. sqlCompEntry .== sqlInt4 (entry ^. entryId),
-            dReturning = rCount
-          }
+  withSQL $ \conn ->
+    void $
+      liftIO $
+        runDelete conn $
+          Delete
+            { dTable = computationsTable,
+              dWhere = \cmp -> cmp ^. sqlCompEntry .== sqlInt4 (entry ^. entryId),
+              dReturning = rCount
+            }
   -- Remove the entry itself
   remove entry

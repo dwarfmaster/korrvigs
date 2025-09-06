@@ -35,7 +35,7 @@ instance Exception KorrvigsError
 -- Tokens are read-write data not persisted across restarts, but shared
 -- across the entire application
 class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
-  pgSQL :: m Connection
+  withSQL :: (Connection -> m a) -> m a -- Ensure only one concurrent communication with postgreSQL
   root :: m FilePath
   manager :: m Manager
   captureRoot :: m FilePath
@@ -44,13 +44,11 @@ class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   storeToken :: (ToJSON tok) => Text -> tok -> m ()
 
 setupPsql :: (MonadKorrvigs m) => m ()
-setupPsql = do
-  conn <- pgSQL
+setupPsql = withSQL $ \conn ->
   void $ liftIO $ Simple.execute_ conn "SET intervalstyle = 'iso_8601'"
 
 rSelect :: (Default FromFields fields haskell, MonadKorrvigs m) => Select fields -> m [haskell]
-rSelect query = do
-  conn <- pgSQL
+rSelect query = withSQL $ \conn ->
   liftIO $ runSelect conn query
 
 rSelectOne :: (Default FromFields fields haskell, MonadKorrvigs m) => Select fields -> m (Maybe haskell)
@@ -80,8 +78,7 @@ throwEither err (Left t) = throwM $ err t
 throwEither _ (Right v) = pure v
 
 atomicSQL :: (MonadKorrvigs m) => (Connection -> IO a) -> m a
-atomicSQL act = do
-  conn <- pgSQL
+atomicSQL act = withSQL $ \conn ->
   liftIO $ withTransaction conn $ act conn
 
 atomicInsert :: (MonadKorrvigs m) => [Insert a] -> m ()

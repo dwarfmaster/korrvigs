@@ -99,8 +99,8 @@ prepare mp (nm1, nm2) = (,) <$> M.lookup nm1 mp <*> M.lookup nm2 mp
 
 sync :: (MonadKorrvigs m) => m ()
 sync = do
-  conn <- pgSQL
-  void $ liftIO $ Simple.execute_ conn "truncate entries_sub, entries_ref_to, computations"
+  withSQL $ \conn ->
+    void $ liftIO $ Simple.execute_ conn "truncate entries_sub, entries_ref_to, computations"
   ids <- loadIDs
   let conflict = M.toList $ M.filter ((>= 2) . length) ids
   unless (null conflict) $ throwM $ KDuplicateId conflict

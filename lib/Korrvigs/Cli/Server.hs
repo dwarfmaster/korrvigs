@@ -37,7 +37,6 @@ parser =
 run :: Cmd -> KorrM ()
 run cmd = do
   rt <- root
-  conn <- pgSQL
   defaultPort <- view $ korrWeb . webPort
   let prt = fromMaybe defaultPort $ cmd ^. port
   theme <- view $ korrWeb . webTheme
@@ -51,10 +50,13 @@ run cmd = do
   creds <- view korrCreds
   ref <- view korrManager
   toks <- view korrTokens
+  conn <- view korrConnection
+  lock <- view korrSQLLock
   liftIO $
     warp prt $
       WebData
         { web_connection = conn,
+          web_sql_lock = lock,
           web_root = rt,
           web_theme = theme16 theme,
           web_static = stc,

@@ -1,5 +1,6 @@
 module Korrvigs.Web.Backend where
 
+import Control.Concurrent.MVar
 import Control.Concurrent.STM
 import Data.Binary.Builder
 import Data.ByteString (ByteString)
@@ -24,6 +25,7 @@ import Yesod.Static
 
 data WebData = WebData
   { web_connection :: Connection,
+    web_sql_lock :: MVar (),
     web_root :: FilePath,
     web_theme :: Base16Index -> Text,
     web_static :: Static,
@@ -128,7 +130,13 @@ instance RenderMessage WebData FormMessage where
   renderMessage _ _ = defaultFormMessage
 
 instance MonadKorrvigs Handler where
-  pgSQL = getsYesod web_connection
+  withSQL act = do
+    lock <- getsYesod web_sql_lock
+    liftIO $ takeMVar lock
+    conn <- getsYesod web_connection
+    r <- act conn
+    liftIO $ putMVar lock ()
+    pure r
   root = getsYesod web_root
   captureRoot = getsYesod web_capture_root
   getCredential c = do

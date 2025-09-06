@@ -3,6 +3,7 @@
 module Korrvigs.Cli.Monad where
 
 import Conduit (MonadThrow, MonadUnliftIO, throwM)
+import Control.Concurrent.MVar
 import Control.Concurrent.STM
 import Control.Exception
 import Control.Lens hiding ((.=))
@@ -35,6 +36,7 @@ data WebState = WState
 
 data KorrState = KState
   { _korrConnection :: Connection,
+    _korrSQLLock :: MVar (),
     _korrRoot :: FilePath,
     _korrCaptureRoot :: FilePath,
     _korrWeb :: WebState,
@@ -62,7 +64,13 @@ newtype KorrM a = KorrM (ReaderT KorrState IO a)
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader KorrState, MonadThrow, MonadUnliftIO)
 
 instance MonadKorrvigs KorrM where
-  pgSQL = view korrConnection
+  withSQL act = do
+    lock <- view korrSQLLock
+    liftIO $ takeMVar lock
+    conn <- view korrConnection
+    r <- act conn
+    liftIO $ putMVar lock ()
+    pure r
   root = view korrRoot
   captureRoot = view korrCaptureRoot
   getCredential c = do
@@ -86,9 +94,11 @@ runKorrM config act = do
     Just credsPath -> fromMaybe M.empty . decode <$> BSL.readFile credsPath
   ref <- newIORef Nothing
   toks <- newTVarIO M.empty
+  lock <- newMVar ()
   let state =
         KState
           { _korrConnection = conn,
+            _korrSQLLock = lock,
             _korrRoot = config ^. kconfigRoot,
             _korrCaptureRoot = config ^. kconfigCaptureRoot,
             _korrWeb =

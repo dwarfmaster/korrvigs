@@ -149,20 +149,20 @@ update file nfile = do
   liftIO $ renameFile oldmeta newmeta
   -- Update SQL
   let status = if annex then FilePresent else FilePlain
-  conn <- pgSQL
-  liftIO $
-    void $
-      runUpdate conn $
-        Update
-          { uTable = filesTable,
-            uUpdateWith =
-              (sqlFilePath .~ sqlString newpath)
-                . (sqlFileMeta .~ sqlString newmeta)
-                . (sqlFileStatus .~ sqlFS status)
-                . (sqlFileMime .~ sqlStrictText mimeTxt),
-            uWhere = \row -> row ^. sqlFileId .== sqlInt4 i,
-            uReturning = rCount
-          }
+  withSQL $ \conn ->
+    liftIO $
+      void $
+        runUpdate conn $
+          Update
+            { uTable = filesTable,
+              uUpdateWith =
+                (sqlFilePath .~ sqlString newpath)
+                  . (sqlFileMeta .~ sqlString newmeta)
+                  . (sqlFileStatus .~ sqlFS status)
+                  . (sqlFileMime .~ sqlStrictText mimeTxt),
+              uWhere = \row -> row ^. sqlFileId .== sqlInt4 i,
+              uReturning = rCount
+            }
 
 fromAndroid :: (MonadKorrvigs m) => (Text, FilePath) -> m (NewFile -> NewFile)
 fromAndroid (adb, rel) = fmap (fromMaybe id) $ runMaybeT $ do

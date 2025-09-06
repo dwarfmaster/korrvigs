@@ -213,11 +213,12 @@ syncSQL tbl dt = atomicSQL $ \conn -> do
         File -> mapM_ (runDelete conn) $ File.sqlRemove sqlI
         Event -> mapM_ (runDelete conn) $ Event.sqlRemove sqlI
         Calendar -> mapM_ (runDelete conn) $ Cal.sqlRemove sqlI
+      let entryRow = dt ^. syncEntryRow & sqlEntryId ?~ sqlI
       void $
         runUpdate conn $
           Update
             { uTable = entriesTable,
-              uUpdateWith = const $ toFields $ dt ^. syncEntryRow,
+              uUpdateWith = const $ toFields entryRow,
               uWhere = \row -> row ^. sqlEntryId .== sqlInt4 sqlI,
               uReturning = rCount
             }

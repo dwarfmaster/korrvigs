@@ -128,9 +128,8 @@ displayResultOptions = mkOption <$> [minBound .. maxBound]
     mkOption ColNetwork = Option "network" ColNetwork "5"
     mkOption ColFuzzy = Option "fuzzy" ColFuzzy "6"
     mkOption ColCalendar = Option "calendar" ColCalendar "7"
-    mkOption ColBiblio = Option "biblio" ColBiblio "8"
-    mkOption ColKanban = Option "kanban" ColKanban "9"
-    mkOption ColTaskList = Option "tasklist" ColTaskList "10"
+    mkOption ColKanban = Option "kanban" ColKanban "8"
+    mkOption ColTaskList = Option "tasklist" ColTaskList "9"
 
 displayResultsField :: Field Handler Collection
 displayResultsField = selectField $ pure $ mkOptionList displayResultOptions

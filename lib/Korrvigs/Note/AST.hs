@@ -66,7 +66,6 @@ data Collection
   | ColNetwork
   | ColFuzzy
   | ColCalendar
-  | ColBiblio
   | ColKanban
   | ColTaskList
   deriving (Show, Eq, Ord, Bounded, Enum)

@@ -234,7 +234,6 @@ renderCollection col nm =
       ColFuzzy -> "fuzzy"
       ColCalendar -> "calendar"
       ColKanban -> "kanban"
-      ColBiblio -> "biblio"
       ColTaskList -> "tasklist"
 
 surrounded :: Text -> RenderM a -> RenderM a

@@ -326,7 +326,6 @@ parseColName hd = do
     "fuzzy" -> pure A.ColFuzzy
     "calendar" -> pure A.ColCalendar
     "kanban" -> pure A.ColKanban
-    "biblio" -> pure A.ColBiblio
     "tasklist" -> pure A.ColTaskList
     _ -> pure A.ColList
   pure (col, colname)

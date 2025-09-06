@@ -60,7 +60,6 @@ displayResults ColTimeline = displayTimeline
 displayResults ColNetwork = displayGraph
 displayResults ColFuzzy = displayFuzzy
 displayResults ColCalendar = displayCalendar
-displayResults ColBiblio = displayUnsupported ColBiblio
 displayResults ColKanban = displayUnsupported ColKanban
 displayResults ColTaskList = displayTaskList
 

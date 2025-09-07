@@ -37,6 +37,7 @@ korrvigsRoutes =
 /entry/#WebId/bibtex EntryBibtexR GET
 
 -- Note getting
+/note NoteFuzzyR GET
 /note/#WebId/sub NoteR GET POST
 /note/#WebId/sub/#WebAnyLoc NoteSubR GET POST
 /note/#WebId/col/#Text NoteColR GET POST

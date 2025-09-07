@@ -1,5 +1,6 @@
 module Korrvigs.Web.Note
-  ( getNoteR,
+  ( getNoteFuzzyR,
+    getNoteR,
     postNoteR,
     getNoteSubR,
     postNoteSubR,
@@ -12,7 +13,8 @@ module Korrvigs.Web.Note
   )
 where
 
-import Conduit
+import Conduit hiding (fuse)
+import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad
 import qualified Data.ByteString as BS
@@ -36,6 +38,7 @@ import Korrvigs.Note.Pandoc
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Entry.Note (embedContent)
+import qualified Korrvigs.Web.Fuse as Fuse
 import Korrvigs.Web.Note.Col
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -43,6 +46,7 @@ import Korrvigs.Web.Routes
 import Korrvigs.Web.Search
 import Korrvigs.Web.Search.Form
 import Korrvigs.Web.Search.Results
+import Opaleye
 import System.IO
 import Yesod hiding (check)
 
@@ -237,3 +241,15 @@ getNoteNamedCodeR (WId i) cd = do
     PhotoSwipe.photoswipeHeader
     unless public actions
     widget
+
+getNoteFuzzyR :: Handler Html
+getNoteFuzzyR = do
+  notes :: [EntryRowR] <- rSelect $ do
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryKind .== sqlKind Note
+    pure entry
+  items <- forM notes $ Fuse.itemFromEntry . (view sqlEntryName &&& view sqlEntryTitle)
+  fuse <- Fuse.widget items
+  defaultLayout $ do
+    Fuse.header
+    fuse

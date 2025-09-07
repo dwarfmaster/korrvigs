@@ -50,16 +50,21 @@ hdIsEntry SearchR = True
 hdIsEntry (EntryR _) = True
 hdIsEntry (EntryDownloadR _) = True
 hdIsEntry (EntryMtdtR _) = True
-hdIsEntry (NoteR _) = True
-hdIsEntry (NoteSubR _ _) = True
-hdIsEntry (NoteColR _ _) = True
-hdIsEntry (NoteColEditR _ _) = True
 hdIsEntry _ = False
+
+hdIsNote :: Route WebData -> Bool
+hdIsNote NoteFuzzyR = True
+hdIsNote (NoteR _) = True
+hdIsNote (NoteSubR _ _) = True
+hdIsNote (NoteColR _ _) = True
+hdIsNote (NoteColEditR _ _) = True
+hdIsNote _ = False
 
 headerContent :: [(Text, Route WebData, Route WebData -> Bool)]
 headerContent =
   [ ("Home", HomeR, (== HomeR)),
     ("Entry", SearchR, hdIsEntry),
+    ("Note", NoteFuzzyR, hdIsNote),
     ("Git", GitR, (== GitR))
   ]
 

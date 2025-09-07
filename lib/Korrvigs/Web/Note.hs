@@ -7,6 +7,8 @@ module Korrvigs.Web.Note
     postNoteColR,
     getNoteNamedSubR,
     getNoteNamedCodeR,
+    getNoteColEditR,
+    postNoteColEditR,
   )
 where
 
@@ -34,6 +36,7 @@ import Korrvigs.Note.Pandoc
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Entry.Note (embedContent)
+import Korrvigs.Web.Note.Col
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
@@ -182,6 +185,15 @@ getNoteWidget i col = do
         <form action=@{NoteColR (WId i) col} method=get>
           ^{displayW}
           <input type=submit value="Change display">
+      |]
+      [whamlet|
+        <ul>
+          <li>
+            <a href=@{EntryR $ WId i}>
+              Back to entry
+          <li>
+            <a href=@{NoteColEditR (WId i) col}>
+              Edit
       |]
     entries
 

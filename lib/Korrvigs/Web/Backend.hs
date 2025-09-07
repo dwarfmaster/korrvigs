@@ -53,6 +53,7 @@ hdIsEntry (EntryMtdtR _) = True
 hdIsEntry (NoteR _) = True
 hdIsEntry (NoteSubR _ _) = True
 hdIsEntry (NoteColR _ _) = True
+hdIsEntry (NoteColEditR _ _) = True
 hdIsEntry _ = False
 
 headerContent :: [(Text, Route WebData, Route WebData -> Bool)]

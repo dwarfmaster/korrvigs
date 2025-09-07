@@ -41,6 +41,7 @@ korrvigsRoutes =
 /note/#WebId/sub/#WebAnyLoc NoteSubR GET POST
 /note/#WebId/col/#Text NoteColR GET POST
 /note/#WebId/col/#Text/bibtex NoteColBibtexR GET
+/note/#WebId/col/#Text/edit NoteColEditR GET POST
 /note/#WebId/named/sub/#Text NoteNamedSubR GET
 /note/#WebId/named/code/#Text NoteNamedCodeR GET
 

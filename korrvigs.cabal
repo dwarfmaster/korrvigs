@@ -196,6 +196,7 @@ library korrvigs-lib
     Korrvigs.Web.Leaflet
     Korrvigs.Web.Metadata
     Korrvigs.Web.Note
+    Korrvigs.Web.Note.Col
     Korrvigs.Web.PhotoSwipe
     Korrvigs.Web.Public
     Korrvigs.Web.Public.Crypto

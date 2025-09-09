@@ -89,6 +89,7 @@ data SortCriterion
   | ByTSRank FTS.Query
   | ByDistanceTo Point
   | ById
+  | ByTitle
   deriving (Eq, Show)
 
 instance Default SortCriterion where
@@ -159,6 +160,7 @@ instance ToJSON SortCriterion where
   toJSON (ByTSRank q) = object ["criterion" .= ("tsrank" :: Text), "query" .= q]
   toJSON (ByDistanceTo pt) = object ["criterion" .= ("distance" :: Text), "point" .= pt]
   toJSON ById = object ["criterion" .= ("id" :: Text)]
+  toJSON ByTitle = object ["criterion" .= ("title" :: Text)]
 
 instance FromJSON SortCriterion where
   parseJSON = withObject "SortCriterion" $ \obj ->
@@ -167,6 +169,7 @@ instance FromJSON SortCriterion where
       "tsrank" -> ByTSRank <$> obj .: "query"
       "distance" -> ByDistanceTo <$> obj .: "point"
       "id" -> pure ById
+      "title" -> pure ByTitle
       s -> fail $ s <> " is not a valid sort criterion"
 
 instance ToJSON SortOrder where
@@ -293,6 +296,9 @@ compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ com
     dir :: (SqlOrd b) => SortOrder -> (a -> Field b) -> Order a
     dir SortAsc = asc
     dir SortDesc = desc
+    dirNullsLast :: (SqlOrd b) => SortOrder -> (a -> Field_ n b) -> Order a
+    dirNullsLast SortAsc = ascNullsLast
+    dirNullsLast SortDesc = descNullsLast
     largeTime :: ZonedTime
     largeTime = ZonedTime (LocalTime (fromOrdinalDate 9999 1) (TimeOfDay 0 0 0)) utc
     sort :: (SortCriterion, SortOrder) -> Select EntryRowSQLR -> Select EntryRowSQLR
@@ -314,6 +320,8 @@ compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ com
         fromNullable
           (sqlZonedTime largeTime)
           (e ^. sqlEntryDate)
+    sort (ByTitle, ord) =
+      orderBy $ dirNullsLast ord $ view sqlEntryTitle
     infinity :: Double
     infinity = 1 / 0
     lmt :: Maybe Int -> Select EntryRowSQLR -> Select EntryRowSQLR

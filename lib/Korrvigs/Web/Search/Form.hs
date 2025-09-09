@@ -78,7 +78,7 @@ kindField = radioField' $ pure $ mkOptionList $ mkOption <$> [minBound .. maxBou
 sortOptions :: [Option (SortCriterion, SortOrder)]
 sortOptions = zipWith mkOption [1 ..] opts
   where
-    opts = (,) <$> [ById, ByDate, ByDistanceTo (V2 0 0), ByTSRank (FTS.Phrase [])] <*> [SortAsc, SortDesc]
+    opts = (,) <$> [ByTitle, ById, ByDate, ByDistanceTo (V2 0 0), ByTSRank (FTS.Phrase [])] <*> [SortAsc, SortDesc]
     mkOption :: Int -> (SortCriterion, SortOrder) -> Option (SortCriterion, SortOrder)
     mkOption i (crit, order) =
       Option
@@ -90,6 +90,7 @@ sortOptions = zipWith mkOption [1 ..] opts
     dCrit ById = "Id"
     dCrit (ByTSRank _) = "Text rank"
     dCrit (ByDistanceTo _) = "Distance"
+    dCrit ByTitle = "Title"
     dOrd SortAsc = "ascending"
     dOrd SortDesc = "descending"
 

@@ -215,10 +215,11 @@ compileBlock' (CodeBlock attr code) = do
       ✎
   |]
   let cdId = attr ^. attrId
+  attrs <- compileAttr attr
   pure $ do
     when edit js
     [whamlet|
-  <div ##{divId} .sourceCode *{compileAttr attr}>
+  <div ##{divId} .sourceCode *{attrs}>
     ^{editW}
     $if not (T.null cdId)
       <a href=@{NoteNamedCodeR (WId entry) cdId} .open-code>
@@ -257,9 +258,10 @@ compileBlock' (DefinitionList items) = do
 compileBlock' (Figure attr caption fig) = do
   figW <- compileBlocks fig
   captionW <- compileBlocks caption
+  attrs <- compileAttr attr
   pure
     [whamlet|
-  <figure *{compileAttr attr}>
+  <figure *{attrs}>
     ^{figW}
     <figcaption>^{captionW}
   |]
@@ -302,9 +304,11 @@ compileBlock' (Collection col nm items) = do
   let checks = foldr (updChecks . snd) def dat
   wdg <- lift $ displayResults col True dat
   i <- use currentEntry
-  cl <- lift $ colWidget i nm wdg
+  rtLevel <- use hdRootLevel
+  webId <- if rtLevel > 1 then newIdent else pure nm
+  cl <- lift $ colWidget i webId wdg
   pure $ do
-    propagateChecks nm checks
+    propagateChecks webId checks
     cl
   where
     updChecks :: OptionalSQLData -> Checks -> Checks
@@ -346,14 +350,15 @@ compileBlock' (Sub hd) = do
   openedLoc <- use openedSub
   let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
   let taskClass :: [Text] = ["task-section" | isJust (hd ^. hdTask)]
-  let classes = compileAttrWithClasses (collapsedClass ++ taskClass) $ hd ^. hdAttr
+  classes <- compileAttrWithClasses (collapsedClass ++ taskClass) $ hd ^. hdAttr
   pure $ void $ Wdgs.mkSection lvl classes [("id", editIdent)] hdW contentW
 compileBlock' (Table tbl) = do
   tableW <- compileTable (tbl ^. tableHeader) (tbl ^. tableFooter) (tbl ^. tableCells)
   captionW <- compileBlocks $ tbl ^. tableCaption
+  attrs <- compileAttr $ tbl ^. tableAttr
   pure
     [whamlet|
-  <figure *{compileAttr $ tbl ^. tableAttr}>
+  <figure *{attrs}>
     <table>
       ^{tableW}
     <figcaption>
@@ -418,13 +423,15 @@ embedBody i lvl =
         CalendarD cal -> (,def,title) <$> Cal.embed lvl cal
         NoteD note -> (\(w, c) -> (w, c, title)) <$> embed lvl note
 
-compileAttrWithClasses :: [Text] -> Attr -> [(Text, Text)]
-compileAttrWithClasses cls attr =
-  [("id", attr ^. attrId) | not (T.null $ attr ^. attrId)]
-    ++ [("class", T.intercalate " " $ cls ++ (attr ^. attrClasses))]
-    ++ M.toList (attr ^. attrMtdt)
+compileAttrWithClasses :: [Text] -> Attr -> CompileM [(Text, Text)]
+compileAttrWithClasses cls attr = do
+  rtLevel <- use hdRootLevel
+  pure $
+    [("id", attr ^. attrId) | not (T.null $ attr ^. attrId) && rtLevel == 1]
+      ++ [("class", T.intercalate " " $ cls ++ (attr ^. attrClasses))]
+      ++ M.toList (attr ^. attrMtdt)
 
-compileAttr :: Attr -> [(Text, Text)]
+compileAttr :: Attr -> CompileM [(Text, Text)]
 compileAttr = compileAttrWithClasses []
 
 compileAttr' :: Attr -> Html -> Html

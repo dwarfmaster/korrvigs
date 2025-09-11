@@ -9,6 +9,7 @@ module Korrvigs.Link.New
 where
 
 import Conduit (throwM)
+import Control.Applicative
 import Control.Arrow (first)
 import Control.Lens hiding (noneOf)
 import Data.Aeson
@@ -37,6 +38,7 @@ import Korrvigs.Utils.DateTree
 import Korrvigs.Utils.JSON
 import Network.URI
 import Opaleye
+import System.FilePath
 
 data NewLink = NewLink
   { _nlEntry :: NewEntry,
@@ -84,7 +86,9 @@ create url options = case parseURI (T.unpack url) of
         let parents = unId <$> nentry ^. neParents
         let json = LinkJSON protocol link mtdtJson dt Nothing Nothing txt title parents
         idmk' <- applyNewEntry nentry (imk "link")
-        let idmk = idmk' & idTitle .~ title
+        let idmk =
+              idmk'
+                & idTitle .~ (title <|> Just (T.pack $ takeBaseName $ uriPath uri))
         i <- newId idmk
         rt <- linkJSONPath
         let jsonTT = linkJSONTreeType

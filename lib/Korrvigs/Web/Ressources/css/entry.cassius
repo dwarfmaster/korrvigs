@@ -302,3 +302,13 @@ mjx-container
   overflow-y: scroll
   summary
     font-variant: small-caps
+
+.aggregate-count
+  border-radius: 0.75em
+  font-size: 75%
+  font-weight: bold
+  padding-left: 0.25em
+  padding-right: 0.25em
+  margin-bottom: 0.2em
+  background-color: var(--base04)
+  color: var(--base00)

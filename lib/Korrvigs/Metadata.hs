@@ -107,3 +107,6 @@ mkMtdt "Width" "width" [t|Int|]
 mkMtdt "Gallery" "gallery" [t|Text|]
 mkMtdt "Private" "private" [t|Text|]
 mkMtdt "HubMtdt" "hub" [t|Text|]
+
+-- RSS metadata
+mkMtdt "AggregateCount" "aggregate-count" [t|Int|]

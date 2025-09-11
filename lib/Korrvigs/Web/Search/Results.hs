@@ -17,6 +17,7 @@ import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Note (Collection (..))
+import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.FullCalendar as Cal
@@ -224,12 +225,16 @@ displayTaskList _ entries = do
     mkItem :: Bool -> EntryRowR -> OptionalSQLData -> Handler Widget
     mkItem public entry dat = do
       let i = entry ^. sqlEntryName
+      let mAgCount :: Maybe Int = dat ^. optAggregCount >>= fromJSONM
       cb <- checkbox i $ dat ^. optTask
       pure
         [whamlet|
         <li>
           ^{cb}
           #{T.pack " "}
+          $maybe agCount <- mAgCount
+            <span .aggregate-count>
+              #{show agCount}
           $if public
             ^{plainTitle i (view sqlEntryTitle entry)}
           $else

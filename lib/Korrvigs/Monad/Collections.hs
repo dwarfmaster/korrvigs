@@ -8,6 +8,7 @@ import Control.Monad.Extra
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
+import Data.Aeson
 import Data.Default
 import Data.Foldable
 import Data.Maybe
@@ -31,24 +32,25 @@ import Opaleye hiding (Field)
 import qualified Opaleye as O
 import System.IO
 
-data OptionalSQLDataImpl a b c = OptionalSQLData
+data OptionalSQLDataImpl a b c d = OptionalSQLData
   { _optSizeAction :: a,
     _optTask :: b,
-    _optMime :: c
+    _optMime :: c,
+    _optAggregCount :: d
   }
 
 makeLenses ''OptionalSQLDataImpl
 $(makeAdaptorAndInstanceInferrable "pOptSQLData" ''OptionalSQLDataImpl)
 
-type OptionalSQLData = OptionalSQLDataImpl (Maybe Action) (Maybe Text) (Maybe Text)
+type OptionalSQLData = OptionalSQLDataImpl (Maybe Action) (Maybe Text) (Maybe Text) (Maybe Value)
 
-type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlJsonb) (FieldNullable SqlText) (MaybeFields (O.Field SqlText))
+type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlJsonb) (FieldNullable SqlText) (MaybeFields (O.Field SqlText)) (FieldNullable SqlJsonb)
 
 instance Default OptionalSQLData where
-  def = OptionalSQLData Nothing Nothing Nothing
+  def = OptionalSQLData Nothing Nothing Nothing Nothing
 
 instance Default OptionalSQLDataSQL where
-  def = OptionalSQLData O.null O.null O.nothingFields
+  def = OptionalSQLData O.null O.null O.nothingFields O.null
 
 optDef :: OptionalSQLDataSQL
 optDef = def
@@ -69,7 +71,8 @@ otherQuery display entry = case display of
   ColNetwork -> pure optDef
   ColTaskList -> do
     tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryId
-    pure $ optDef & optTask .~ tsk
+    agCount <- selectMtdt AggregateCount $ entry ^. sqlEntryId
+    pure $ optDef & optTask .~ tsk & optAggregCount .~ agCount
   _ -> do
     pure optDef
 

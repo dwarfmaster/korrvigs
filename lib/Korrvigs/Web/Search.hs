@@ -8,6 +8,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
+import Korrvigs.Entry
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
@@ -59,7 +60,7 @@ titleForm prefix title = do
       <details .search-group *{sattr "open" $ isJust title}>
         <summary>
           <input ##{checkId} type=checkbox name=#{applyPrefix prefix "checktitle"} *{sattr "checked" $ isJust title}>
-            Title regex
+          Title regex
         <input type=text name=#{applyPrefix prefix "title"} *{mattr title "value" id}>
     |]
 
@@ -223,6 +224,25 @@ geoForm prefix dist = do
     mapNameJS = rawJS mapName
     markerName = applyPrefix prefix "SearchMarker"
 
+incolForm :: Maybe Text -> Maybe QueryInCollection -> Handler Widget
+incolForm prefix incol = do
+  checkId <- newIdent
+  colEntryId <- newIdent
+  colNameId <- newIdent
+  pure
+    [whamlet|
+    <details .search-group *{sattr "open" $ isJust incol}>
+      <summary>
+        <input ##{checkId} type=checkbox name=#{applyPrefix prefix "checkincol"} *{sattr "checked" $ isJust incol}>
+        In collection
+      <label for=#{colEntryId}>
+        Entry:
+      <input ##{colEntryId} type=text name=#{applyPrefix prefix "incolentry"} *{mattr incol "value" (unId . view colEntry)}> 
+      <label for=#{colNameId}>
+        Name:
+      <input ##{colNameId} type=text name=#{applyPrefix prefix "incolname"} *{mattr incol "value" (view colName)}>
+  |]
+
 sortForm :: Query -> Handler Widget
 sortForm q =
   pure
@@ -288,6 +308,7 @@ queryWidget prefix query = do
   geom <- geoForm prefix $ query ^. queryDist
   kd <- kindForm prefix $ query ^. queryKind
   mtdt <- mtdtForm prefix $ query ^. queryMtdt
+  incol <- incolForm prefix $ query ^. queryInCollection
   (subOf, parentOf) <-
     if isNothing prefix
       then do
@@ -302,6 +323,7 @@ queryWidget prefix query = do
     geom
     kd
     mtdt
+    incol
     subOf
     parentOf
 
@@ -323,10 +345,10 @@ searchForm query display = do
     |]
 
 fixOrder :: Query -> Query
-fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
+fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
   Just (pt, _) -> q & querySort . _1 .~ ByDistanceTo pt
   Nothing -> q & querySort .~ def
-fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
+fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
   Just fts -> q & querySort . _1 .~ ByTSRank fts
   Nothing -> q & querySort .~ def
 fixOrder q = q

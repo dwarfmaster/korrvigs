@@ -19,6 +19,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Format
 import Data.Time.LocalTime
+import Korrvigs.Entry
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Kind
 import Korrvigs.Note.AST (Collection (..))
@@ -163,12 +164,23 @@ queryForm mktz prefix =
             <$> ireq checkBoxField (applyPrefix prefix "checkmtdt")
             <*> (zip <$> ireq keysField (applyPrefix prefix "mtdtKey") <*> ireq valuesField (applyPrefix prefix "mtdtVal"))
         )
+    <*> ( getOpt
+            <$> ireq checkBoxField (applyPrefix prefix "checkincol")
+            <*> ( mkInCol
+                    <$> iopt textField (applyPrefix prefix "incolname")
+                    <*> iopt textField (applyPrefix prefix "incolentry")
+                )
+        )
     <*> maybe (queryRelForm mktz "sub") (const $ pure Nothing) prefix
     <*> maybe (queryRelForm mktz "parent") (const $ pure Nothing) prefix
     <*> pure Nothing
     <*> pure Nothing
     <*> (fromMaybe (ByDate, SortDesc) <$> iopt optsField "sortopts")
     <*> (join <$> iopt maxResultsField "maxresults")
+  where
+    mkInCol :: Maybe Text -> Maybe Text -> Maybe QueryInCollection
+    mkInCol (Just name) (Just i) = Just $ QueryInCol name $ MkId i
+    mkInCol _ _ = Nothing
 
 queryRelForm :: (Maybe LocalTime -> Maybe ZonedTime) -> Text -> FormInput Handler (Maybe QueryRel)
 queryRelForm mktz prefix =
@@ -204,6 +216,7 @@ getParameters prefix q display =
         ++ maybe [] (\(V2 lng lat, dist) -> [("checkgeo", "on"), ("geolng", T.pack $ show lng), ("geolat", T.pack $ show lat), ("geodist", T.pack $ show $ dist / 1000.0)]) (q ^. queryDist)
         ++ maybe [] (\kd -> [("checkkind", "on"), ("kind", displayKind kd)]) (q ^. queryKind)
         ++ (if null (q ^. queryMtdt) then [] else ("checkmtdt", "on") : concatMap mtdtAttrs (q ^. queryMtdt))
+        ++ maybe [] (\incol -> [("checkincol", "on"), ("incolname", incol ^. colName), ("incolentry", unId $ incol ^. colEntry)]) (q ^. queryInCollection)
     relAttrs p = maybe [] (\r -> [(applyPrefix (Just p) "rec", displayBool $ r ^. relRec), (applyPrefix (Just p) "check", "on")] ++ getParameters (Just p) (r ^. relOther) display)
     subAttrs = relAttrs "sub" $ q ^. querySubOf
     parentAttrs = relAttrs "parent" $ q ^. queryParentOf

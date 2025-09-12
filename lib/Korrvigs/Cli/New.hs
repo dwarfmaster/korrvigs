@@ -1,4 +1,4 @@
-module Korrvigs.Cli.New (newEntryOptions) where
+module Korrvigs.Cli.New (newEntryOptions, parseCollection) where
 
 import Control.Arrow (first)
 import Control.Monad

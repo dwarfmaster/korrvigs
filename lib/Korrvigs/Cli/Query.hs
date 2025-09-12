@@ -15,6 +15,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Korrvigs.Cli.Info as Info
 import Korrvigs.Cli.Monad
+import Korrvigs.Cli.New (parseCollection)
 import Korrvigs.Entry
 import qualified Korrvigs.FTS as FTS
 import qualified Korrvigs.Format as Fmt
@@ -74,6 +75,12 @@ criterionParser = eitherReader $ \case
   "id" -> Right ById
   _ -> Left "Sort must be either by date or by id"
 
+colParser :: ReadM QueryInCollection
+colParser =
+  eitherReader $ \s -> case parseCollection $ T.pack s of
+    Nothing -> Left "Could not parse id#col"
+    Just (i, c) -> Right $ QueryInCol c i
+
 sortParser :: Parser (SortCriterion, SortOrder)
 sortParser =
   (,)
@@ -92,6 +99,7 @@ queryParser =
     <*> optional (option withinParser (long "within" <> help "Filter entries within a certain distance in meters from a point"))
     <*> optional (option kindParser (long "kind" <> help "Entry must be of provided kind"))
     <*> many (option mtdtQueryParser (long "mtdt" <> help "Add metadata conditions"))
+    <*> optional (option colParser (long "incol" <> help "Entries must be in collection"))
     <*> pure Nothing
     <*> pure Nothing
     <*> pure Nothing

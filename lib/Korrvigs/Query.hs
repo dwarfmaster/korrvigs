@@ -18,6 +18,7 @@ import Korrvigs.FTS ((@@?))
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
+import Korrvigs.Note.SQL
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Opaleye hiding (null)
@@ -109,6 +110,12 @@ data QueryRel = QueryRel
   }
   deriving (Show)
 
+data QueryInCollection = QueryInCol
+  { _colName :: Text,
+    _colEntry :: Id
+  }
+  deriving (Show)
+
 data Query = Query
   { _queryId :: [Id],
     _queryTitle :: Maybe Text, -- PSQL regexp as described here: https://www.postgresql.org/docs/current/functions-matching.html#FUNCTIONS-POSIX-REGEXP
@@ -119,6 +126,7 @@ data Query = Query
     _queryDist :: Maybe (Point, Double),
     _queryKind :: Maybe Kind,
     _queryMtdt :: [(Text, JsonQuery)],
+    _queryInCollection :: Maybe QueryInCollection,
     _querySubOf :: Maybe QueryRel,
     _queryParentOf :: Maybe QueryRel,
     _queryMentioning :: Maybe QueryRel,
@@ -129,10 +137,11 @@ data Query = Query
   deriving (Show)
 
 instance Default Query where
-  def = Query def def def def def def def def def def def def def def def
+  def = Query def def def def def def def def def def def def def def def def
 
 makeLenses ''Query
 makeLenses ''QueryRel
+makeLenses ''QueryInCollection
 
 instance ToJSON JsonQuery where
   toJSON = toJSON . renderJSQuery
@@ -182,6 +191,19 @@ instance FromJSON SortOrder where
     "descending" -> pure SortDesc
     s -> fail $ T.unpack s <> " is not a valid sort order"
 
+instance ToJSON QueryInCollection where
+  toJSON incol =
+    object
+      [ "name" .= (incol ^. colName),
+        "entry" .= unId (incol ^. colEntry)
+      ]
+
+instance FromJSON QueryInCollection where
+  parseJSON = withObject "QueryInCollection" $ \obj ->
+    QueryInCol
+      <$> obj .: "name"
+      <*> (MkId <$> obj .: "entry")
+
 instance ToJSON Query where
   toJSON q =
     object $
@@ -196,6 +218,7 @@ instance ToJSON Query where
         ++ optKP "geo" (q ^. queryGeo)
         ++ optKP "distance" (q ^. queryDist)
         ++ optKP "kind" (q ^. queryKind)
+        ++ optKP "collection" (q ^. queryInCollection)
         ++ optKP "subof" (q ^. querySubOf)
         ++ optKP "parentof" (q ^. queryParentOf)
         ++ optKP "mentioning" (q ^. queryMentioning)
@@ -214,6 +237,7 @@ instance FromJSON Query where
       <*> obj .:? "distance"
       <*> obj .:? "kind"
       <*> obj .: "mtdt"
+      <*> obj .:? "collection"
       <*> obj .:? "subof"
       <*> obj .:? "parentof"
       <*> obj .:? "mentioning"
@@ -283,6 +307,13 @@ compileQuery query = do
     where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryId)
     where_ $ mtdt ^. sqlKey .== sqlStrictText (q ^. _1)
     where_ $ compileJsonQuery (q ^. _2) (toNullable $ mtdt ^. sqlValue)
+  -- Collection
+  forM_ (query ^. queryInCollection) $ \incol -> do
+    col <- selectTable notesCollectionsTable
+    sqlI <- fromName pure $ sqlId $ incol ^. colEntry
+    where_ $ col ^. sqlNoteColId .== sqlI
+    where_ $ col ^. sqlNoteColName .== sqlStrictText (incol ^. colName)
+    where_ $ col ^. sqlNoteColEntry .== (entry ^. sqlEntryName)
   -- Relations
   forM_ (query ^. querySubOf) $ compileRel entry entriesSubTable False
   forM_ (query ^. queryParentOf) $ compileRel entry entriesSubTable True

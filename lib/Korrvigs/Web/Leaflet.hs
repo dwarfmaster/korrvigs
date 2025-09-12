@@ -43,8 +43,11 @@ jsPath = rawJS . jsList jsPoint
 jsPolygon :: Polygon -> RawJavascript
 jsPolygon (Polygon poly hls) = rawJS $ jsList (jsList jsPoint) $ poly : hls
 
+defaultCenter :: Point
+defaultCenter = V2 2.359775 48.915611
+
 computeCenter :: [Geometry] -> Point
-computeCenter [] = V2 2.359775 48.915611
+computeCenter [] = defaultCenter
 computeCenter geoms = sum pts / V2 npts npts
   where
     pts :: [V2 Double]
@@ -52,12 +55,27 @@ computeCenter geoms = sum pts / V2 npts npts
     npts :: Double
     npts = fromIntegral $ length pts
 
+computeBounds :: [Geometry] -> (Point, Point)
+computeBounds geoms = case pts of
+  [] -> (defaultCenter, defaultCenter)
+  (pt : opts) -> foldr insertPoint (pt, pt) opts
+  where
+    pts :: [V2 Double]
+    pts = geoms >>= points
+    insertPoint :: Point -> (Point, Point) -> (Point, Point)
+    insertPoint pt (mn, mx) =
+      ( V2 (min (pt ^. _x) (mn ^. _x)) (min (pt ^. _y) (mn ^. _y)),
+        V2 (max (pt ^. _x) (mx ^. _x)) (max (pt ^. _y) (mx ^. _y))
+      )
+
 leafletWidget :: Text -> [MapItem] -> Widget
 leafletWidget i items = do
   let mp = rawJS i
   Rcs.leaflet StaticR
   [whamlet|<div ##{i}>|]
-  let (V2 centerY centerX) = computeCenter $ (^. mitGeo) <$> items
+  let geos = view mitGeo <$> items
+  let (V2 centerY centerX) = computeCenter geos
+  let (V2 boundMinY boundMinX, V2 boundMaxY boundMaxX) = computeBounds geos
   toWidget
     [julius|
     var #{mp} = L.map(#{i}).setView([#{rawJS $ show centerX}, #{rawJS $ show centerY}], 13)
@@ -65,6 +83,7 @@ leafletWidget i items = do
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(#{mp});
+    #{mp}.fitBounds([[#{rawJS $ show boundMinX}, #{rawJS $ show boundMinY}], [#{rawJS $ show boundMaxX}, #{rawJS $ show boundMaxY}]], { maxZoom: 13 }); 
   |]
   toWidget
     [cassius|

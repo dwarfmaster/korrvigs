@@ -11,9 +11,9 @@ import Control.Monad.Trans.Maybe
 import Data.Aeson
 import Data.Default
 import Data.Foldable
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
-import qualified Data.Set as S
 import Data.Text (Text)
 import Korrvigs.Compute.Action
 import Korrvigs.Entry
@@ -117,7 +117,7 @@ addToCollection i col item = fromMaybeT False $ do
   entry <- hoistLift $ load i
   note <- hoistMaybe $ entry ^? entryKindData . _NoteD
   md <- hoistEitherLift $ readNote $ note ^. notePath
-  guard $ col `S.member` (md ^. docCollections)
+  guard $ col `M.member` (md ^. docCollections)
   let md' = md & docContent . each . bkCollection col . _3 %~ (++ [item])
   file <- liftIO $ openFile (note ^. notePath) WriteMode
   r <- lift $ writeNote file md'

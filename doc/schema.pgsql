@@ -56,6 +56,12 @@ CREATE TABLE IF NOT EXISTS notes (
     FOREIGN KEY (id,kind) references entries(id,kind)
 );
 
+CREATE TABLE IF NOT EXISTS notes_collections (
+  id INTEGER NOT NULL REFERENCES notes(id),
+  name TEXT NOT NULL,
+  entry TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS links (
   id INTEGER NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'link'),

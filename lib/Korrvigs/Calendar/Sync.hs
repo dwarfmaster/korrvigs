@@ -7,6 +7,7 @@ import Control.Monad.IO.Class
 import Data.Aeson
 import Data.ByteString.Lazy (readFile, writeFile)
 import qualified Data.CaseInsensitive as CI
+import Data.List hiding (insert)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Set (Set)
@@ -19,6 +20,7 @@ import Korrvigs.Calendar.SQL
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
+import Opaleye (Insert (..), doNothing, rCount, toFields)
 import System.Directory
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
@@ -40,7 +42,7 @@ calendarPath' cal = do
 calendarPath :: (MonadKorrvigs m) => Calendar -> m FilePath
 calendarPath = calendarPath' . view (calEntry . entryName)
 
-syncCalJSON :: (MonadKorrvigs m) => Id -> CalJSON -> m (SyncData CalRow)
+syncCalJSON :: (MonadKorrvigs m) => Id -> CalJSON -> m SyncData
 syncCalJSON i json = do
   let mtdt = json ^. cljsMetadata
   let tm = json ^. cljsDate
@@ -50,9 +52,16 @@ syncCalJSON i json = do
   let erow = EntryRow Nothing Calendar i tm dur geom Nothing title :: EntryRowW
   let mtdtrows = first CI.mk <$> M.toList mtdt
   let crow sqlI = CalRow sqlI (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
-  pure $ SyncData erow crow mtdtrows (json ^. cljsText) title (MkId <$> json ^. cljsParents) [] M.empty
+  let insert sqlI =
+        Insert
+          { iTable = calendarsTable,
+            iRows = [toFields $ crow sqlI],
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
+  pure $ SyncData erow (singleton . insert) mtdtrows (json ^. cljsText) title (MkId <$> json ^. cljsParents) [] M.empty
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData CalRow)
+syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
 syncOne path = do
   let i = calIdFromPath path
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
@@ -67,7 +76,7 @@ allCalendars = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allCalendars
 
-sync :: (MonadKorrvigs m) => m (Map Id (SyncData CalRow))
+sync :: (MonadKorrvigs m) => m (Map Id SyncData)
 sync =
   M.fromList <$> (allCalendars >>= mapM (sequence . (calIdFromPath &&& syncOne)))
 

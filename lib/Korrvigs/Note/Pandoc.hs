@@ -49,7 +49,7 @@ data BlockStackZipper = BSZ
     _bszChecks :: A.Checks,
     _bszLeft :: [WithParent A.Block],
     _bszTasks :: [Task],
-    _bszCollections :: Set Text,
+    _bszCollections :: Map Text [Id],
     _bszNamedSubs :: Set Text,
     _bszNamedCode :: Set Text,
     _bszParent :: Maybe BlockStackZipper
@@ -73,7 +73,7 @@ pushBlock :: WithParent A.Block -> ParseM ()
 pushBlock blk = stack . bszLeft %= (blk :)
 
 pushHeader :: Int -> A.Attr -> ParseM ()
-pushHeader lvl attr = stack %= BSZ lvl attr "" Nothing S.empty def [] [] S.empty S.empty S.empty . Just
+pushHeader lvl attr = stack %= BSZ lvl attr "" Nothing S.empty def [] [] M.empty S.empty S.empty . Just
 
 headerLvl :: ParseM Int
 headerLvl = use $ stack . bszLevel
@@ -134,7 +134,7 @@ popHeader = do
       stack .= parent
       stack . bszRefTo %= S.union (bsz ^. bszRefTo)
       stack . bszTasks %= (++ (toList (bsz ^. bszTask) ++ bsz ^. bszTasks))
-      stack . bszCollections %= S.union (bsz ^. bszCollections)
+      stack . bszCollections %= M.union (bsz ^. bszCollections)
       propagateChecks bsz
       pushBlock $ \doc hd -> A.Sub (bszToHeader bsz doc hd)
       pure True
@@ -169,7 +169,7 @@ run act mtdt bks =
     cimtdt = M.fromList $ first CI.mk <$> M.toList mtdt
     st =
       execState (act >> iterateWhile id popHeader) $
-        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] [] S.empty S.empty S.empty Nothing)
+        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] [] M.empty S.empty S.empty Nothing)
 
 readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
 readNote pth = liftIO $ do
@@ -247,9 +247,9 @@ parseBlock (RawBlock (Format fmt) i)
       [] -> pure $ pure $ A.Collection A.ColList "TODO" []
       (hd : ids) -> do
         (col, colname) <- parseColName hd
-        stack . bszCollections %= S.insert colname
         let items = parseColItem <$> ids
         let directItems = mapMaybe extractItem items
+        stack . bszCollections %= M.insert colname directItems
         forM_ directItems refTo
         pure . pure . A.Collection col colname $ items
 parseBlock (RawBlock _ _) = pure []

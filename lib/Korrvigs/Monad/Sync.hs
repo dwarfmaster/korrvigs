@@ -9,26 +9,20 @@ import Data.List (find, foldl', singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
-import Data.Profunctor.Product.Default
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
-import qualified Korrvigs.Calendar.SQL as CalS
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Entry
-import qualified Korrvigs.Event.SQL as EventS
 import qualified Korrvigs.Event.Sync as Event
-import qualified Korrvigs.File.SQL as FileS
 import qualified Korrvigs.File.Sync as File
 import Korrvigs.Kind
-import qualified Korrvigs.Link.SQL as LinkS
 import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL
-import qualified Korrvigs.Note.SQL as NoteS
 import qualified Korrvigs.Note.Sync as Note
 import Korrvigs.Utils.Cycle
 import Korrvigs.Utils.Time (measureTime, measureTime_)
@@ -72,22 +66,21 @@ sqlIDs = do
   pure $ M.fromList $ (MkId &&& const []) <$> ids
 
 runSync ::
-  (MonadKorrvigs m, Default ToFields r sql) =>
+  (MonadKorrvigs m) =>
   Text ->
-  Table sql sql ->
-  m (Map Id (SyncData r)) ->
+  m (Map Id SyncData) ->
   m (Map Id ([Id], [Id], m ()))
-runSync kdTxt tbl dt = do
+runSync kdTxt dt = do
   (tm, r) <- measureTime dt
   liftIO $ putStrLn $ kdTxt <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
-  pure $ (\sdt -> (sdt ^. syncParents, sdt ^. syncRefs, syncSQL tbl sdt)) <$> r
+  pure $ (\sdt -> (sdt ^. syncParents, sdt ^. syncRefs, syncSQL sdt)) <$> r
 
 runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id ([Id], [Id], m ()))
-runSyncOn Link = runSync (displayKind Link) LinkS.linksTable Link.sync
-runSyncOn Note = runSync (displayKind Note) NoteS.notesTable Note.sync
-runSyncOn File = runSync (displayKind File) FileS.filesTable File.sync
-runSyncOn Event = runSync (displayKind Event) EventS.eventsTable Event.sync
-runSyncOn Calendar = runSync (displayKind Calendar) CalS.calendarsTable Cal.sync
+runSyncOn Link = runSync (displayKind Link) Link.sync
+runSyncOn Note = runSync (displayKind Note) Note.sync
+runSyncOn File = runSync (displayKind File) File.sync
+runSyncOn Event = runSync (displayKind Event) Event.sync
+runSyncOn Calendar = runSync (displayKind Calendar) Cal.sync
 
 nameToIdMap :: (MonadKorrvigs m) => m (Map Id Int)
 nameToIdMap = do
@@ -157,13 +150,12 @@ identifyPath path = do
     kdRoot Calendar = Cal.calendarsDirectory
 
 syncFileImpl ::
-  (MonadKorrvigs m, Default ToFields hs sql) =>
+  (MonadKorrvigs m) =>
   Id ->
-  Table sql sql ->
-  SyncData hs ->
+  SyncData ->
   m ()
-syncFileImpl i tbl sdt = do
-  syncSQL tbl sdt
+syncFileImpl i sdt = do
+  syncSQL sdt
   nameToId <- nameToIdMap
   forM_ (M.lookup i nameToId) $ \sqlI ->
     syncRelsSQL
@@ -173,15 +165,15 @@ syncFileImpl i tbl sdt = do
 
 syncFileOfKind :: (MonadKorrvigs m) => FilePath -> Kind -> m ()
 syncFileOfKind path Link =
-  syncFileImpl (Link.linkIdFromPath path) LinkS.linksTable =<< Link.syncOne path
+  syncFileImpl (Link.linkIdFromPath path) =<< Link.syncOne path
 syncFileOfKind path Note =
-  syncFileImpl (Note.noteIdFromPath path) NoteS.notesTable =<< Note.syncOne path
+  syncFileImpl (Note.noteIdFromPath path) =<< Note.syncOne path
 syncFileOfKind path File =
-  syncFileImpl (File.fileIdFromPath path) FileS.filesTable =<< File.syncOne path
+  syncFileImpl (File.fileIdFromPath path) =<< File.syncOne path
 syncFileOfKind path Event =
-  syncFileImpl (fst $ Event.eventIdFromPath path) EventS.eventsTable =<< Event.syncOne path
+  syncFileImpl (fst $ Event.eventIdFromPath path) =<< Event.syncOne path
 syncFileOfKind path Calendar =
-  syncFileImpl (Cal.calIdFromPath path) CalS.calendarsTable =<< Cal.syncOne path
+  syncFileImpl (Cal.calIdFromPath path) =<< Cal.syncOne path
 
 syncFile :: (MonadKorrvigs m) => FilePath -> m ()
 syncFile path = identifyPath path >>= syncFileOfKind path

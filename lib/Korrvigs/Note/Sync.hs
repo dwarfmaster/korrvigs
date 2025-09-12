@@ -27,6 +27,7 @@ import Korrvigs.Note.SQL
 import Korrvigs.Query
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
+import Opaleye (Insert (..), doNothing, rCount, toFields)
 import System.Directory (doesFileExist)
 import System.FilePath (joinPath, takeBaseName)
 import Prelude hiding (writeFile)
@@ -57,7 +58,7 @@ allNotes = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allNotes
 
-sync :: (MonadKorrvigs m) => m (Map Id (SyncData NoteRow))
+sync :: (MonadKorrvigs m) => m (Map Id SyncData)
 sync =
   M.fromList <$> (allNotes >>= mapM (sequence . (noteIdFromPath &&& syncOne)))
 
@@ -66,13 +67,13 @@ fromJSON' v = case fromJSON v of
   Success x -> Just x
   Error _ -> Nothing
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData NoteRow)
+syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
 syncOne path = do
   let i = noteIdFromPath path
   doc <- readNote path >>= throwEither (KCantLoad i)
   syncDocument i path doc
 
-syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Document -> m (SyncData NoteRow)
+syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Document -> m SyncData
 syncDocument i path doc = do
   let mtdt = doc ^. docMtdt
   let geom = fromJSON' =<< mtdt ^. at "geometry"
@@ -82,9 +83,24 @@ syncDocument i path doc = do
   let erow = EntryRow Nothing Note i tm dur geom Nothing title :: EntryRowW
   let mtdt' = foldr M.delete mtdt ["geometry", "date", "duration"]
   let mrows = M.toList mtdt'
-  let nrow sqlI = NoteRow sqlI path (S.toList $ doc ^. docCollections) :: NoteRow
+  let nrow sqlI = NoteRow sqlI path (M.keys $ doc ^. docCollections) :: NoteRow
+  let insertNoteRow sqlI =
+        Insert
+          { iTable = notesTable,
+            iRows = [toFields $ nrow sqlI],
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
+  let crows sqlI = (\(col, items) -> NoteColRow sqlI col <$> items) =<< M.toList (doc ^. docCollections) :: [NoteColRow]
+  let insertColRows sqlI =
+        Insert
+          { iTable = notesCollectionsTable,
+            iRows = toFields <$> crows sqlI,
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
   let txt = renderDocument doc
-  pure $ SyncData erow nrow mrows (Just txt) title (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) M.empty
+  pure $ SyncData erow (\sqlI -> [insertNoteRow sqlI, insertColRows sqlI]) mrows (Just txt) title (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) M.empty
 
 updateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
 updateImpl note f = do

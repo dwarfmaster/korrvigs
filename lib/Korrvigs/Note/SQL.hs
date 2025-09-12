@@ -13,6 +13,7 @@ import Korrvigs.Monad.Class
 import Korrvigs.Monad.Utils
 import Opaleye
 
+-- notes table
 data NoteRowImpl a b c = NoteRow
   { _sqlNoteId :: a,
     _sqlNotePath :: b,
@@ -41,6 +42,33 @@ notesTable =
         (tableField "path")
         (tableField "collections")
 
+-- notes_collections table
+data NoteColRowImpl a b c = NoteColRow
+  { _sqlNoteColId :: a,
+    _sqlNoteColName :: b,
+    _sqlNoteColEntry :: c
+  }
+
+makeLenses ''NoteColRowImpl
+$(makeAdaptorAndInstanceInferrable "pNoteColRow" ''NoteColRowImpl)
+
+type NoteColRow = NoteColRowImpl Int Text Id
+
+type NoteColRowSQL = NoteColRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText)
+
+instance Default ToFields NoteColRow NoteColRowSQL where
+  def = pNoteColRow $ NoteColRow def def def
+
+notesCollectionsTable :: Table NoteColRowSQL NoteColRowSQL
+notesCollectionsTable =
+  table "notes_collections" $
+    pNoteColRow $
+      NoteColRow
+        (tableField "id")
+        (tableField "name")
+        (tableField "entry")
+
+-- Functions
 noteFromRow :: NoteRow -> Entry -> Note
 noteFromRow nrow entry = MkNote entry (nrow ^. sqlNotePath)
 
@@ -48,4 +76,6 @@ sqlLoad :: (MonadKorrvigs m) => Int -> ((Entry -> Note) -> Entry) -> m (Maybe En
 sqlLoad = genSqlLoad notesTable (view sqlNoteId) noteFromRow
 
 sqlRemove :: Int -> [Delete Int64]
-sqlRemove = genSqlRemove notesTable $ view sqlNoteId
+sqlRemove i =
+  genSqlRemove notesTable (view sqlNoteId) i
+    ++ genSqlRemove notesCollectionsTable (view sqlNoteColId) i

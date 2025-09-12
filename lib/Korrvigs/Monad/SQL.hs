@@ -8,7 +8,7 @@ module Korrvigs.Monad.SQL
     syncSQL,
     syncRelsSQL,
     syncEntryRow,
-    syncDataRow,
+    syncDataRows,
     syncMtdtRows,
     syncTextContent,
     syncTitle,
@@ -29,7 +29,6 @@ import Data.Foldable
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
-import Data.Profunctor.Product.Default
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
@@ -172,9 +171,9 @@ genRemoveDB i dels =
 removeDB :: (MonadKorrvigs m) => Entry -> m ()
 removeDB entry = dispatchRemove genRemoveDB $ entry ^. entryKindData
 
-data SyncData drow = SyncData
+data SyncData = SyncData
   { _syncEntryRow :: EntryRowW,
-    _syncDataRow :: Int -> drow,
+    _syncDataRows :: Int -> [Insert Int64],
     _syncMtdtRows :: [(CI Text, Value)],
     _syncTextContent :: Maybe Text,
     _syncTitle :: Maybe Text,
@@ -185,8 +184,8 @@ data SyncData drow = SyncData
 
 makeLenses ''SyncData
 
-syncSQL :: (MonadKorrvigs m, Default ToFields hs sql) => Table sql sql -> SyncData hs -> m ()
-syncSQL tbl dt = atomicSQL $ \conn -> do
+syncSQL :: (MonadKorrvigs m) => SyncData -> m ()
+syncSQL dt = atomicSQL $ \conn -> do
   let i = dt ^. syncEntryRow . sqlEntryName
   -- Update entry
   mprev :: [EntryRowR] <- runSelect conn $ limit 1 $ do
@@ -224,14 +223,7 @@ syncSQL tbl dt = atomicSQL $ \conn -> do
             }
       pure sqlI
   -- Insert into kind specific table
-  void $
-    runInsert conn $
-      Insert
-        { iTable = tbl,
-          iRows = [toFields $ dt ^. syncDataRow $ sqlI],
-          iReturning = rCount,
-          iOnConflict = Just doNothing
-        }
+  forM_ (dt ^. syncDataRows $ sqlI) $ runInsert conn
   -- Optionally set textContent
   let mtdtVal = (^? _2 . _String) <$> filter (\r -> (r ^. _1) `S.member` indexedMetadata) (dt ^. syncMtdtRows)
   let txtContent = T.intercalate " " . mconcat $ toList <$> (dt ^. syncTextContent : dt ^. syncTitle : mtdtVal)

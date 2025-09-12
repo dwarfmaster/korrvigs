@@ -37,7 +37,7 @@ data Document = Document
     _docTasks :: [Task],
     _docChecks :: Checks,
     _docParents :: Set Id,
-    _docCollections :: Set Text,
+    _docCollections :: Map Text [Id],
     _docNamedSubs :: Set Text,
     _docNamedCode :: Set Text
   }
@@ -54,7 +54,7 @@ data Header = Header
     _hdContent :: [Block],
     _hdParent :: Maybe Header,
     _hdDocument :: Document,
-    _hdCollections :: Set Text
+    _hdCollections :: Map Text [Id]
   }
   deriving (Show)
 

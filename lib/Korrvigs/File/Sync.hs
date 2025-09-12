@@ -9,6 +9,7 @@ import Data.Aeson.Types
 import Data.ByteString.Lazy (readFile, writeFile)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
+import Data.List hiding (insert)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Set (Set)
@@ -27,6 +28,7 @@ import Korrvigs.Monad
 import Korrvigs.Utils (recursiveRemoveFile, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree
 import Network.Mime
+import Opaleye (Insert (..), doNothing, rCount, toFields)
 import System.Directory
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
@@ -126,11 +128,11 @@ computeFromMime i mime = cmp $ Enc.decodeASCII mime
       | otherwise = M.empty
     miniature = M.singleton "miniature" $ Act.Builtin i Miniature
 
-sync :: (MonadKorrvigs m) => m (Map Id (SyncData FileRow))
+sync :: (MonadKorrvigs m) => m (Map Id SyncData)
 sync =
   M.fromList <$> (allFiles >>= mapM (sequence . (fileIdFromPath &&& syncOne)))
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData FileRow)
+syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
 syncOne path = do
   let i = fileIdFromPath path
   let meta = metaPath path
@@ -143,11 +145,18 @@ syncOne path = do
   let tm = json ^. exDate
   let dur = json ^. exDuration
   let title = json ^. exTitle
-  let erow = EntryRow Nothing File i tm dur geom Nothing title :: EntryRowW
+  let erow = EntryRow Nothing File i tm dur geom Nothing title
   let mtdtrows = first CI.mk <$> M.toList mtdt
   let frow sqlI = FileRow sqlI path (metaPath path) status mime :: FileRow
+  let insert sqlI =
+        Insert
+          { iTable = filesTable,
+            iRows = [toFields $ frow sqlI],
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
   let txt = json ^. exText
-  let sdt = SyncData erow frow mtdtrows txt title (json ^. exParents) [] cmps
+  let sdt = SyncData erow (singleton . insert) mtdtrows txt title (json ^. exParents) [] cmps
   pure sdt
 
 updateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()

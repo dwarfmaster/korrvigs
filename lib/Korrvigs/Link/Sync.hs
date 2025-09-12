@@ -8,6 +8,7 @@ import Data.Aeson (Value, eitherDecode, encode)
 import Data.ByteString.Lazy (readFile, writeFile)
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
+import Data.List hiding (insert)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Set (Set)
@@ -22,6 +23,7 @@ import Korrvigs.Link.SQL
 import Korrvigs.Monad
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree (listFiles)
+import Opaleye (Insert (..), doNothing, rCount, toFields)
 import System.Directory (doesFileExist)
 import System.FilePath (takeBaseName)
 import Prelude hiding (readFile, writeFile)
@@ -32,7 +34,7 @@ linksDirectory = linkJSONPath
 linkIdFromPath :: FilePath -> Id
 linkIdFromPath = MkId . T.pack . takeBaseName
 
-syncLinkJSON :: (MonadKorrvigs m) => Id -> FilePath -> LinkJSON -> m (SyncData LinkRow)
+syncLinkJSON :: (MonadKorrvigs m) => Id -> FilePath -> LinkJSON -> m SyncData
 syncLinkJSON i path json = do
   let mtdt = json ^. lkjsMetadata
   let tm = json ^. lkjsDate
@@ -41,10 +43,17 @@ syncLinkJSON i path json = do
   let title = json ^. lkjsTitle
   let erow = EntryRow Nothing Link i tm dur geom Nothing title :: EntryRowW
   let mtdtrows = first CI.mk <$> M.toList mtdt :: [(CI Text, Value)]
-  let lrow sqlI = LinkRow sqlI (json ^. lkjsProtocol) (json ^. lkjsLink) path :: LinkRow
-  pure $ SyncData erow lrow mtdtrows (json ^. lkjsText) title (MkId <$> json ^. lkjsParents) [] M.empty
+  let lrow sqlI = LinkRow sqlI (json ^. lkjsProtocol) (json ^. lkjsLink) path
+  let insert sqlI =
+        Insert
+          { iTable = linksTable,
+            iRows = [toFields $ lrow sqlI],
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
+  pure $ SyncData erow (singleton . insert) mtdtrows (json ^. lkjsText) title (MkId <$> json ^. lkjsParents) [] M.empty
 
-syncLink :: (MonadKorrvigs m) => FilePath -> m (SyncData LinkRow)
+syncLink :: (MonadKorrvigs m) => FilePath -> m SyncData
 syncLink path = do
   let i = linkIdFromPath path
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
@@ -60,11 +69,11 @@ allJSONs = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allJSONs
 
-sync :: (MonadKorrvigs m) => m (Map Id (SyncData LinkRow))
+sync :: (MonadKorrvigs m) => m (Map Id SyncData)
 sync =
   M.fromList <$> (allJSONs >>= mapM (sequence . (linkIdFromPath &&& syncLink)))
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m (SyncData LinkRow)
+syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
 syncOne = syncLink
 
 remove :: (MonadKorrvigs m) => Link -> m ()

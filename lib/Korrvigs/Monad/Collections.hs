@@ -94,10 +94,7 @@ otherQuery display entry = case display of
       pure (sz ^. sqlCompAction, mime)
 
 runQuery :: (MonadKorrvigs m) => Collection -> Query -> m [(EntryRowR, OptionalSQLData)]
-runQuery display query = rSelect $ do
-  entry <- compile query
-  other <- otherQuery display entry
-  pure (entry, other)
+runQuery display query = rSelect $ compile query $ otherQuery display
 
 expandID :: (MonadKorrvigs m) => Collection -> Id -> m [(EntryRowR, OptionalSQLData)]
 expandID display i = do

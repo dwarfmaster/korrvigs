@@ -30,8 +30,8 @@ getSearchBibtexR = do
   let mktz = fmap $ flip ZonedTime tz
   query <- runInputGet $ queryForm mktz Nothing
   ids <- rSelect $ do
-    entry <- compile query
-    pure $ entry ^. sqlEntryName
+    entry <- compile query $ const $ pure ()
+    pure $ entry ^. _1 . sqlEntryName
   getBibtex "query" ids
 
 getEntryBibtexR :: WebId -> Handler TypedContent
@@ -55,8 +55,8 @@ getNoteColBibtexR (WId i) col = do
       ids <- mapM loadIDs $ fromMaybe [] items
       pure $ mconcat ids
     loadIDs (ColItemQuery q) = rSelect $ do
-      entry <- compile q
-      pure $ entry ^. sqlEntryName
+      entry <- compile q $ const $ pure ()
+      pure $ entry ^. _1 . sqlEntryName
     loadIDs (ColItemSubOf ni) = rSelect $ do
       src <- fromName (selectSourcesFor entriesSubTable) $ sqlId ni
       entry <- selectTable entriesTable

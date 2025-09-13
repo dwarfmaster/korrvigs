@@ -35,7 +35,7 @@ getEvents = do
           & queryBefore ?~ end
           & queryKind ?~ Event
           & querySort .~ (ByDate, SortAsc)
-  rSelect $ compile query
+  rSelect $ fst <$> compile query (const $ pure ())
 
 eventsWidget :: Handler Widget
 eventsWidget = do

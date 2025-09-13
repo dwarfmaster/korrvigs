@@ -129,8 +129,8 @@ run cmd = do
       putStrLn $ "Failed to parse format: " <> T.unpack err
       exitFailure
   ids <- rSelect $ do
-    entry <- compile $ cmd ^. query
-    pure $ entry ^. sqlEntryName
+    entry <- compile (cmd ^. query) (pure . view sqlEntryName)
+    pure $ entry ^. _2
   forM_ ids $ \i ->
     load i >>= \case
       Nothing -> liftIO $ TIO.putStrLn $ "Failed to load " <> unId i

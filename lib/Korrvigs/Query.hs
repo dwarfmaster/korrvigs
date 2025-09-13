@@ -321,8 +321,11 @@ compileQuery query = do
   forM_ (query ^. queryMentionedBy) $ compileRel entry entriesRefTable True
   pure entry
 
-compile :: Query -> Select EntryRowSQLR
-compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ compileQuery query
+compile :: Query -> (EntryRowSQLR -> Select a) -> Select (EntryRowSQLR, a)
+compile query other = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ do
+  entry <- compileQuery query
+  o <- other entry
+  pure (entry, o)
   where
     dir :: (SqlOrd b) => SortOrder -> (a -> Field b) -> Order a
     dir SortAsc = asc
@@ -332,30 +335,30 @@ compile query = lmt (query ^. queryMaxResults) $ sort (query ^. querySort) $ com
     dirNullsLast SortDesc = descNullsLast
     largeTime :: ZonedTime
     largeTime = ZonedTime (LocalTime (fromOrdinalDate 9999 1) (TimeOfDay 0 0 0)) utc
-    sort :: (SortCriterion, SortOrder) -> Select EntryRowSQLR -> Select EntryRowSQLR
-    sort (ById, ord) = orderBy $ dir ord $ \e -> e ^. sqlEntryName
+    sort :: (SortCriterion, SortOrder) -> Select (EntryRowSQLR, a) -> Select (EntryRowSQLR, a)
+    sort (ById, ord) = orderBy $ dir ord $ \e -> e ^. _1 . sqlEntryName
     sort (ByTSRank q, ord) =
       orderBy $ dir ord $ \e ->
         matchNullable
           (sqlDouble infinity)
           (FTS.tsRank (FTS.sqlQuery q))
-          (e ^. sqlEntryText)
+          (e ^. _1 . sqlEntryText)
     sort (ByDistanceTo pt, ord) =
       orderBy $ dir ord $ \e ->
         matchNullable
           (sqlDouble infinity)
           (\g -> stDistance (sqlPoint pt) g (sqlBool True))
-          (e ^. sqlEntryGeo)
+          (e ^. _1 . sqlEntryGeo)
     sort (ByDate, ord) =
       orderBy $ dir ord $ \e ->
         fromNullable
           (sqlZonedTime largeTime)
-          (e ^. sqlEntryDate)
+          (e ^. _1 . sqlEntryDate)
     sort (ByTitle, ord) =
-      orderBy $ dirNullsLast ord $ view sqlEntryTitle
+      orderBy $ dirNullsLast ord $ view $ _1 . sqlEntryTitle
     infinity :: Double
     infinity = 1 / 0
-    lmt :: Maybe Int -> Select EntryRowSQLR -> Select EntryRowSQLR
+    lmt :: Maybe Int -> Select a -> Select a
     lmt = maybe id limit
 
 compileJsonQuery :: JsonQuery -> FieldNullable SqlJsonb -> Field SqlBool

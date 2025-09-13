@@ -235,6 +235,7 @@ renderCollection col nm =
       ColCalendar -> "calendar"
       ColKanban -> "kanban"
       ColTaskList -> "tasklist"
+      ColLibrary -> "library"
 
 surrounded :: Text -> RenderM a -> RenderM a
 surrounded del act = do

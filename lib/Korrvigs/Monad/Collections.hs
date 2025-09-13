@@ -19,6 +19,7 @@ import Korrvigs.Compute.Action
 import Korrvigs.Entry
 import Korrvigs.File.SQL
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL
@@ -32,25 +33,26 @@ import Opaleye hiding (Field)
 import qualified Opaleye as O
 import System.IO
 
-data OptionalSQLDataImpl a b c d = OptionalSQLData
+data OptionalSQLDataImpl a b c d e = OptionalSQLData
   { _optSizeAction :: a,
     _optTask :: b,
     _optMime :: c,
-    _optAggregCount :: d
+    _optAggregCount :: d,
+    _optCover :: e
   }
 
 makeLenses ''OptionalSQLDataImpl
 $(makeAdaptorAndInstanceInferrable "pOptSQLData" ''OptionalSQLDataImpl)
 
-type OptionalSQLData = OptionalSQLDataImpl (Maybe Action) (Maybe Text) (Maybe Text) (Maybe Value)
+type OptionalSQLData = OptionalSQLDataImpl (Maybe Action) (Maybe Text) (Maybe Text) (Maybe Value) (Maybe Text)
 
-type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlJsonb) (FieldNullable SqlText) (MaybeFields (O.Field SqlText)) (FieldNullable SqlJsonb)
+type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlJsonb) (FieldNullable SqlText) (MaybeFields (O.Field SqlText)) (FieldNullable SqlJsonb) (FieldNullable SqlText)
 
 instance Default OptionalSQLData where
-  def = OptionalSQLData Nothing Nothing Nothing Nothing
+  def = OptionalSQLData Nothing Nothing Nothing Nothing Nothing
 
 instance Default OptionalSQLDataSQL where
-  def = OptionalSQLData O.null O.null O.nothingFields O.null
+  def = OptionalSQLData O.null O.null O.nothingFields O.null O.null
 
 optDef :: OptionalSQLDataSQL
 optDef = def
@@ -58,23 +60,38 @@ optDef = def
 otherQuery :: Collection -> EntryRowSQLR -> Select OptionalSQLDataSQL
 otherQuery display entry = case display of
   ColGallery -> do
-    void $ selComp (entry ^. sqlEntryId) "miniature"
-    sz <- selComp (entry ^. sqlEntryId) "size"
-    mime <- optional $ do
-      file <- selectTable filesTable
-      where_ $ (file ^. sqlFileId) .== (entry ^. sqlEntryId)
-      pure $ file ^. sqlFileMime
+    (sz, mime) <- galleryQueryFor $ entry ^. sqlEntryId
     pure $
       optDef
-        & optSizeAction .~ toNullable (sz ^. sqlCompAction)
+        & optSizeAction .~ toNullable sz
         & optMime .~ mime
   ColNetwork -> pure optDef
   ColTaskList -> do
     tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryId
     agCount <- selectMtdt AggregateCount $ entry ^. sqlEntryId
     pure $ optDef & optTask .~ tsk & optAggregCount .~ agCount
+  ColLibrary -> do
+    cover <- baseSelectTextMtdt Cover (entry ^. sqlEntryId)
+    coverId <- fromName pure cover
+    (sz, mime) <- galleryQueryFor coverId
+    tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryId
+    pure $
+      optDef
+        & optCover .~ toNullable cover
+        & optSizeAction .~ toNullable sz
+        & optMime .~ mime
+        & optTask .~ tsk
   _ -> do
     pure optDef
+  where
+    galleryQueryFor sqlI = do
+      void $ selComp sqlI "miniature"
+      sz <- selComp sqlI "size"
+      mime <- optional $ do
+        file <- selectTable filesTable
+        where_ $ (file ^. sqlFileId) .== sqlI
+        pure $ file ^. sqlFileMime
+      pure (sz ^. sqlCompAction, mime)
 
 runQuery :: (MonadKorrvigs m) => Collection -> Query -> m [(EntryRowR, OptionalSQLData)]
 runQuery display query = rSelect $ do

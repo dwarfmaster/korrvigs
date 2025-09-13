@@ -68,6 +68,7 @@ data Collection
   | ColCalendar
   | ColKanban
   | ColTaskList
+  | ColLibrary
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data CollectionItem

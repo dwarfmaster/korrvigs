@@ -7,6 +7,8 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
+import Data.Default
+import Data.Foldable
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -17,6 +19,7 @@ import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Note (Collection (..))
+import Korrvigs.Utils
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
@@ -63,6 +66,7 @@ displayResults ColFuzzy = displayFuzzy
 displayResults ColCalendar = displayCalendar
 displayResults ColKanban = displayUnsupported ColKanban
 displayResults ColTaskList = displayTaskList
+displayResults ColLibrary = displayLibrary
 
 displayUnsupported :: Collection -> Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayUnsupported col _ _ =
@@ -188,10 +192,30 @@ displayGallery isCol entries = do
           >>= hoistMaybe
       pure $ if public then entry & PhotoSwipe.swpRedirect .~ Nothing else entry
     Nothing -> pure Nothing
-  gallery <- PhotoSwipe.photoswipe (not isCol) $ catMaybes items
+  gallery <- PhotoSwipe.photoswipe (def & PhotoSwipe.swpGroup .~ not isCol) $ catMaybes items
   pure $ do
     PhotoSwipe.photoswipeHeader
     gallery
+
+displayLibrary :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
+displayLibrary _ entries = do
+  public <- isPublic
+  items <- forM entries $ \e -> runMaybeT $ do
+    sizeA <- hoistMaybe $ e ^. _2 . optSizeAction
+    coverId <- hoistMaybe $ MkId <$> e ^. _2 . optCover
+    entry <- hoistLift $ PhotoSwipe.miniatureEntry (e ^. _2 . optMime) Nothing coverId sizeA
+    let title :: [(Text, Text)] = [("title", t) | t <- toList $ e ^. _1 . sqlEntryTitle]
+    caption <- lift $ mkTaskItem public (e ^. _1) (e ^. _2)
+    pure $
+      entry
+        & PhotoSwipe.swpCaption .~ [whamlet|<p *{title}>^{caption}|]
+        & PhotoSwipe.swpRedirect .~ (if public then Nothing else Just (EntryR $ WId $ e ^. _1 . sqlEntryName))
+  library <- PhotoSwipe.photoswipe (def & PhotoSwipe.swpLibrary .~ True) $ catMaybes items
+  pure $ do
+    Rcs.entryStyle
+    PhotoSwipe.photoswipeHeader
+    Rcs.checkboxCode
+    library
 
 displayFuzzy :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayFuzzy _ entries = do
@@ -212,35 +236,36 @@ displayCalendar _ entries = do
 displayTaskList :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayTaskList _ entries = do
   public <- isPublic
-  items <- mapM (uncurry $ mkItem public) entries
+  items <- mapM (uncurry $ mkTaskItem public) entries
   pure $ do
     Rcs.entryStyle
     Rcs.checkboxCode
     [whamlet|
       <ul>
         $forall item <- items
-          ^{item}
+          <li>
+            ^{item}
     |]
+
+mkTaskItem :: Bool -> EntryRowR -> OptionalSQLData -> Handler Widget
+mkTaskItem public entry dat = do
+  let i = entry ^. sqlEntryName
+  let mAgCount :: Maybe Int = dat ^. optAggregCount >>= fromJSONM
+  cb <- checkbox i $ dat ^. optTask
+  pure
+    [whamlet|
+    ^{cb}
+    #{T.pack " "}
+    $maybe agCount <- mAgCount
+      <span .aggregate-count>
+        #{show agCount}
+    $if public
+      ^{plainTitle i (view sqlEntryTitle entry)}
+    $else
+      <a href=@{EntryR $ WId i}>
+        ^{plainTitle i (view sqlEntryTitle entry)}
+  |]
   where
-    mkItem :: Bool -> EntryRowR -> OptionalSQLData -> Handler Widget
-    mkItem public entry dat = do
-      let i = entry ^. sqlEntryName
-      let mAgCount :: Maybe Int = dat ^. optAggregCount >>= fromJSONM
-      cb <- checkbox i $ dat ^. optTask
-      pure
-        [whamlet|
-        <li>
-          ^{cb}
-          #{T.pack " "}
-          $maybe agCount <- mAgCount
-            <span .aggregate-count>
-              #{show agCount}
-          $if public
-            ^{plainTitle i (view sqlEntryTitle entry)}
-          $else
-            <a href=@{EntryR $ WId i}>
-              ^{plainTitle i (view sqlEntryTitle entry)}
-      |]
     plainTitle :: Id -> Maybe Text -> Widget
     plainTitle i title =
       [whamlet|

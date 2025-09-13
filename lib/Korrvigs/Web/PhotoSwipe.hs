@@ -1,6 +1,8 @@
 module Korrvigs.Web.PhotoSwipe where
 
 import Control.Lens
+import Control.Monad
+import Data.Default
 import Data.List.NonEmpty (NonEmpty (..), groupBy)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -16,6 +18,7 @@ import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Public.Crypto as Public
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
+import Text.Cassius
 import Yesod
 import Yesod.Static
 
@@ -126,16 +129,61 @@ displayDate (Just d) = T.pack $ formatTime defaultTimeLocale "%e %B %0Y - %A" d
 displayDateOfGroup :: NonEmpty PhotoswipeEntry -> Text
 displayDateOfGroup (e :| _) = displayDate $ view swpDate e
 
-photoswipe :: Bool -> [PhotoswipeEntry] -> Handler Widget
+libraryCSS :: p -> Css
+libraryCSS =
+  [cassius|
+    .library-item
+      display: inline-block
+      border-radius: 0.1em
+      border: 2px solid var(--base06)
+      margin: 0.2em
+      width: 10em
+      height: 12em
+    .library-miniature
+      width: 10em
+      height: 10em
+      display: flex
+      align-items: center
+      justify-content: center
+      img
+        max-width: 9.5em
+        max-height: 9.5em
+    .library-caption
+      padding: 0.1em
+      width: 100%
+      height: 2em
+      text-align: center
+      font-size: small
+      overflow: hidden
+      p
+        margin: 0
+        text-align: left
+  |]
+
+data PhotoswipeSettings = PhotoswipeSettings
+  { _swpGroup :: Bool,
+    _swpLibrary :: Bool
+  }
+
+makeLenses ''PhotoswipeSettings
+
+instance Default PhotoswipeSettings where
+  def = PhotoswipeSettings False False
+
+photoswipe :: PhotoswipeSettings -> [PhotoswipeEntry] -> Handler Widget
 photoswipe _ [] = pure mempty
-photoswipe togroup (item : items) = do
+photoswipe settings (item : items) = do
+  let togroup = settings ^. swpGroup
+  let displayLib = settings ^. swpLibrary
   i <- newIdent
   public <- isPublic
   let getUrl = if public then view swpUrlPublic else view swpUrl
   let getMiniature = if public then view swpMiniaturePublic else view swpMiniature
   let grouped = if togroup then groupEntries (item : items) else [item :| items]
+  let widgetFn = if displayLib then libWidget else itemWidget
   pure $ do
-    toWidget [julius|setupPhotoswipeFor(#{i})|]
+    when displayLib $ toWidget libraryCSS
+    toWidget [julius|setupPhotoswipeFor(#{i});|]
     toWidget
       [cassius|
       ##{i}
@@ -150,7 +198,7 @@ photoswipe togroup (item : items) = do
         [whamlet|
         <div ##{i} .pswp-gallery>
           $forall item <- group 
-            ^{itemWidget getUrl getMiniature item}
+            ^{widgetFn getUrl getMiniature item}
       |]
       _ ->
         [whamlet|
@@ -160,20 +208,27 @@ photoswipe togroup (item : items) = do
               <summary>
                 #{displayDateOfGroup group}
               $forall item <- group 
-                ^{itemWidget getUrl getMiniature item}
+                ^{widgetFn getUrl getMiniature item}
       |]
   where
     itemTarget getUrl entry = fromMaybe (getUrl entry) (entry ^. swpRedirect)
-    itemWidget getUrl getMiniature it = case it ^. swpType of
-      PSPicture ->
-        [whamlet|
-        <a href=@{getUrl it} data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-korrvigs-target=@{itemTarget getUrl it} target="_blank">
+    videoAttrs :: PhotoswipeEntry -> [(Text, Text)]
+    videoAttrs it = case it ^. swpType of
+      PSPicture -> []
+      PSVideo _ -> [("data-pswp-type", "video")]
+    mkLink :: (PhotoswipeEntry -> Route WebData) -> (PhotoswipeEntry -> Route WebData) -> PhotoswipeEntry -> Widget -> Widget
+    mkLink getUrl getMiniature it widget =
+      [whamlet|
+        <a href=@{getUrl it} data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-korrvigs-target=@{itemTarget getUrl it} target="_blank" *{videoAttrs it}>
           <img loading=lazy src=@{getMiniature it} alt="">
-          ^{_swpCaption it}
-        |]
-      PSVideo _ ->
-        [whamlet|
-        <a href=@{getUrl it} data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-pswp-type=video data-korrvigs-target=@{itemTarget getUrl it} target="_blank">
-          <img loading=lazy src=@{getMiniature it} alt="">
-          ^{_swpCaption it}
-        |]
+          ^{widget}
+      |]
+    itemWidget getUrl getMiniature it = mkLink getUrl getMiniature it $ _swpCaption it
+    libWidget getUrl getMiniature it =
+      [whamlet|
+        <div .library-item>
+          <div .library-miniature>
+            ^{mkLink getUrl getMiniature it mempty}
+          <div .library-caption>
+            ^{_swpCaption it}
+      |]

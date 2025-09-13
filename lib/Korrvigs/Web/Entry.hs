@@ -2,6 +2,7 @@ module Korrvigs.Web.Entry (getEntryR, isPrivate) where
 
 import Control.Lens hiding (children)
 import Control.Monad
+import Data.Default
 import Data.List
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe
@@ -253,7 +254,7 @@ galleryWidget entry =
         then pure mempty
         else do
           entries <- mapM mkEntry childs
-          photoswipe <- PhotoSwipe.photoswipe False $ catMaybes entries
+          photoswipe <- PhotoSwipe.photoswipe def $ catMaybes entries
           pure
             [whamlet|
           <details .common-details>

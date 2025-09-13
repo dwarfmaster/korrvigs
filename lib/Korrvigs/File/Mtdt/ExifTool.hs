@@ -13,8 +13,10 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.Calendar
 import Data.Time.Format
-import Data.Time.LocalTime
+import Data.Time.Format.ISO8601
+import Data.Time.LocalTime hiding (getTimeZone)
 import Korrvigs.File.Sync
 import Korrvigs.Geometry
 import Korrvigs.Metadata
@@ -61,7 +63,7 @@ extract path _ = do
       pure id
     Right mtdt -> do
       let mappings = M.unionsWith (<>) $ (\(category, name, value) -> M.singleton name ((category, value) :| [])) <$> mtdt
-      pure $ foldr ((.) . ($ mappings)) id [getTitle, getPageCount, getDate, getDimensions, getPosition]
+      pure $ foldr ((.) . ($ mappings)) id [getTitle, getPageCount, getTimeZone, getDate, getDimensions, getPosition]
 
 seqLookup :: (Ord a) => Map a b -> [a] -> Maybe b
 seqLookup _ [] = Nothing
@@ -86,6 +88,23 @@ getDate mtdt = case seqLookup mtdt ["DateTimeOriginal", "CreateDate", "GpxMetada
      in let results = (\f -> parseTimeM True defaultTimeLocale f (T.unpack dt)) <$> formats :: [Maybe ZonedTime]
          in maybe id (exDate ?~) $ asum results
   Nothing -> id
+
+getTimeZone :: Mapping -> Extractor
+getTimeZone mtdt = case seqLookup mtdt ["OffsetTimeOriginal", "OffsetTimeDigitized", "OffsetTime"] of
+  Just ((_, tz) :| _) -> case formatParseM (timeOffsetFormat ExtendedFormat) $ T.unpack tz of
+    Just offset -> exDate . _Just %~ setTimezone offset
+    Nothing -> exDate . _Just %~ setDefaultTimezone
+  Nothing -> exDate . _Just %~ setDefaultTimezone
+  where
+    setTimezone :: TimeZone -> ZonedTime -> ZonedTime
+    setTimezone tz (ZonedTime local _) = ZonedTime local tz
+    setDefaultTimezone :: ZonedTime -> ZonedTime
+    setDefaultTimezone (ZonedTime (LocalTime day time) _) =
+      let (_, mth, d) = toGregorian day
+       in let tz = if (mth, d) < (March, 30) || (mth, d) >= (October, 26) then utc1 else utc2
+           in ZonedTime (LocalTime day time) tz
+    utc1 = TimeZone 60 False "CEST"
+    utc2 = TimeZone 120 True "CEST"
 
 getDimensions :: Mapping -> Extractor
 getDimensions mtdt = case (M.lookup "ImageWidth" mtdt, M.lookup "ImageHeight" mtdt) of

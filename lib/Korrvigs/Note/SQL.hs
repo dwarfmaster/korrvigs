@@ -77,5 +77,5 @@ sqlLoad = genSqlLoad notesTable (view sqlNoteId) noteFromRow
 
 sqlRemove :: Int -> [Delete Int64]
 sqlRemove i =
-  genSqlRemove notesTable (view sqlNoteId) i
-    ++ genSqlRemove notesCollectionsTable (view sqlNoteColId) i
+  genSqlRemove notesCollectionsTable (view sqlNoteColId) i
+    ++ genSqlRemove notesTable (view sqlNoteId) i

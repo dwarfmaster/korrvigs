@@ -35,9 +35,16 @@ import Korrvigs.Utils.Pandoc (pdExtractMtdt)
 import Network.HTTP.Simple
 import Network.HTTP.Types.Status
 import Network.Mime
+import Network.URI
 import Text.HTML.TagSoup
 import Text.Pandoc hiding (Link, getCurrentTimeZone)
 import Text.Parsec hiding ((<|>))
+
+makeURIAbsolute :: Text -> Text -> Text
+makeURIAbsolute _ ressource | T.head ressource /= '/' = ressource
+makeURIAbsolute url ressource = case parseURI $ T.unpack url of
+  Nothing -> ressource
+  Just uri -> T.pack $ uriToString id (uri {uriPath = T.unpack ressource}) ""
 
 rightToMaybe :: Either a b -> Maybe b
 rightToMaybe (Left _) = Nothing
@@ -61,12 +68,13 @@ contentTypeP = do
 isHttpException :: SomeException -> Bool
 isHttpException e = isJust (fromException e :: Maybe HttpException)
 
-extractImage :: Text -> Endo NewEntry
-extractImage url = Endo $ neCover %~ maybe (Just url) Just
+extractImage :: Text -> Text -> Endo NewEntry
+extractImage website url =
+  Endo $ neCover %~ maybe (Just $ makeURIAbsolute website url) Just
 
 -- Map property name to metadata name and extractor
-htmlMetas :: Map Text (Text -> Endo NewEntry)
-htmlMetas =
+htmlMetas :: Text -> Map Text (Text -> Endo NewEntry)
+htmlMetas url =
   M.fromList
     [ -- Standard metadata
       ("author", extractList Authors),
@@ -75,7 +83,7 @@ htmlMetas =
       ("og:title", extractTitle),
       ("og:description", extractText Abstract),
       ("og:locale", extractLanguage),
-      ("og:image", extractImage),
+      ("og:image", extractImage url),
       -- Twitter
       ("twitter:title", extractTitle),
       ("twitter:description", extractText Abstract)
@@ -182,14 +190,13 @@ extractHTMLMeta url txt =
           guard $ snd tp == "application/rss+xml" || snd tp == "application/atom+xml"
           ref <- snd <$> find ((== "href") . fst) attrs
           guard $ T.length ref > 0
-          let uri = if T.head ref == '/' then url <> T.tail ref else ref
-          pure $ Endo $ setMtdtValueLazy Feed uri
+          pure $ Endo $ setMtdtValueLazy Feed $ makeURIAbsolute url ref
     matchRSS _ = mempty
     matchMeta :: Tag Text -> Endo NewEntry
     matchMeta (TagOpen "meta" attrs) = fromMaybe mempty $ do
       nm <- lookup "name" attrs <|> lookup "property" attrs
       content <- lookup "content" attrs
-      extractor <- M.lookup nm htmlMetas
+      extractor <- M.lookup nm $ htmlMetas url
       pure $ extractor content
     matchMeta _ = mempty
     matchTitle :: [Tag Text] -> Endo NewEntry

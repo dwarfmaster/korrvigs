@@ -88,23 +88,25 @@ insertOneItem it = findAndInsert
     findAndInsert (oit : oits) = oit : findAndInsert oits
 
 importFromAtom :: Atom.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
-importFromAtom feed = (setTitle . setAuthors, importFromEntry <$> Atom.feedEntries feed)
+importFromAtom feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.feedEntries feed)
   where
     setTitle = synjsTitle ?~ extractText (Atom.feedTitle feed)
     setAuthors = synjsMetadata . at (mtdtSqlName Authors) ?~ toJSON (Atom.personName <$> Atom.feedAuthors feed)
-    importFromEntry :: Atom.Entry -> SyndicatedItem
-    importFromEntry entry =
+    importFromEntry :: Atom.Entry -> Maybe SyndicatedItem
+    importFromEntry entry = do
       let dt = T.unpack $ Atom.entryUpdated entry
-       in let date8601 = iso8601ParseM dt
-           in let date8601' = zonedTimeToUTC <$> iso8601ParseM dt
-               in let date822 = parseTimeM True defaultTimeLocale rfc822DateFormat dt
-                   in SyndicatedItem
-                        { _synitTitle = extractText $ Atom.entryTitle entry,
-                          _synitUrl = Atom.entryId entry,
-                          _synitGUID = Nothing,
-                          _synitDate = date8601 <|> date8601' <|> date822,
-                          _synitInstance = Nothing
-                        }
+      let date8601 = iso8601ParseM dt
+      let date8601' = zonedTimeToUTC <$> iso8601ParseM dt
+      let date822 = parseTimeM True defaultTimeLocale rfc822DateFormat dt
+      url <- Atom.linkHref <$> listToMaybe (Atom.entryLinks entry)
+      pure $
+        SyndicatedItem
+          { _synitTitle = extractText $ Atom.entryTitle entry,
+            _synitUrl = url,
+            _synitGUID = Just $ Atom.entryId entry,
+            _synitDate = date8601 <|> date8601' <|> date822,
+            _synitInstance = Nothing
+          }
 
 extractText :: Atom.TextContent -> Text
 extractText (Atom.TextString txt) = txt

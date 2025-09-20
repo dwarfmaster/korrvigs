@@ -16,9 +16,10 @@ embed lvl link = do
     Just cid ->
       pure
         [whamlet|
-      $maybe a <- abstract
-        <p>
-          #{a}
+      $if lvl == 0
+        $maybe a <- abstract
+          <p>
+            #{a}
       <a href=#{ref}>
         <img src=@{EntryDownloadR $ WId $ MkId cid} style="width: 100%">
     |]
@@ -26,10 +27,10 @@ embed lvl link = do
       pure
         [whamlet|
       <a href=#{ref}>#{ref}
-      $maybe a <- abstract
-        <p>
-          #{a}
       $if lvl == 0
+        $maybe a <- abstract
+          <p>
+            #{a}
         <iframe width=100% height=700 src=#{ref}>
     |]
   where

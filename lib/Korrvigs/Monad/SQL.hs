@@ -58,7 +58,8 @@ indexedMetadata =
 idMetadata :: Set (CI Text)
 idMetadata =
   S.fromList
-    [ mtdtName Cover
+    [ mtdtName Cover,
+      mtdtName SyndicateMtdt
     ]
 
 class FromCI a where

@@ -57,7 +57,11 @@ runImportRSS _ _ = pure def
 -- | ____/ \__, |_| |_|\__,_|_|\___\__,_|\__\___|
 --         |___/
 syndicateTarget :: ActionTarget -> ActionCond
-syndicateTarget (TargetEntry _) = ActCondQuery $ def & queryMtdt .~ [(mtdtSqlName Feed, TypeQuery JSIsText)]
+syndicateTarget (TargetEntry _) =
+  ActCondAnd
+    [ ActCondQuery $ def & queryMtdt .~ [(mtdtSqlName Feed, TypeQuery JSIsText)],
+      ActCondNot $ ActCondQuery $ def & queryMtdt .~ [(mtdtSqlName SyndicateMtdt, AnyQuery)]
+    ]
 syndicateTarget _ = ActCondNever
 
 syndicateForm :: AForm Handler ()
@@ -71,6 +75,7 @@ runSyndicate () (TargetEntry entry) = do
   feed <- rSelectOne (baseSelectTextMtdt Feed $ sqlInt4 $ entry ^. entryId) >>= throwMaybe (KMiscError $ "Entry " <> unId (entry ^. entryName) <> " has no feed metadata")
   let ns = NewSyndicate (def & neParents .~ [entry ^. entryName]) feed Nothing
   i <- new ns
+  updateMetadata entry (M.singleton (mtdtSqlName SyndicateMtdt) (toJSON $ unId i)) []
   render <- getUrlRenderParams
   pure $ def & reactMsg ?~ [hamlet|<p>Create syndicate <a href=@{EntryR $ WId i}>@#{unId i}|] render
 runSyndicate () _ = pure def

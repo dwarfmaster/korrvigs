@@ -109,4 +109,5 @@ mkMtdt "Private" "private" [t|Text|]
 mkMtdt "HubMtdt" "hub" [t|Text|]
 
 -- RSS metadata
+mkMtdt "SyndicateMtdt" "syndicate" [t|Text|]
 mkMtdt "AggregateCount" "aggregate-count" [t|Int|]

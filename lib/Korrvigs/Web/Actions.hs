@@ -15,8 +15,10 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.Catch (catch)
 import Data.Default
+import Data.Foldable
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Monoid
 import Data.Text (Text)
 import Data.Time.LocalTime
 import Korrvigs.Entry
@@ -40,7 +42,7 @@ import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search.Form
-import Opaleye hiding (runUpdate)
+import Opaleye hiding (not, runUpdate)
 import Yesod
 import Yesod.Static
 
@@ -215,12 +217,12 @@ actPost LabBibtex = runPost bibtexForm runBibtex
 actPost LabUpdateTitle = runPost titleForm runTitle
 actPost LabRmTitle = runPost rmTitleForm runRmTitle
 
-runActCond :: (ActionTarget -> ActionCond) -> ActionTarget -> Handler Bool
-runActCond f tgt = case (f tgt, targetId tgt) of
-  (ActCondNever, _) -> pure False
-  (ActCondAlways, _) -> pure True
-  (ActCondQuery _, Nothing) -> pure False
-  (ActCondQuery q, Just sqlI) -> do
+evaluateCond :: ActionTarget -> ActionCond -> Handler Bool
+evaluateCond _ ActCondNever = pure False
+evaluateCond _ ActCondAlways = pure True
+evaluateCond tgt (ActCondQuery q) = case targetId tgt of
+  Nothing -> pure False
+  Just sqlI -> do
     r <- rSelectOne $ do
       (e, ()) <- compile q $ const $ pure ()
       where_ $ e ^. sqlEntryId .== sqlInt4 sqlI
@@ -232,6 +234,15 @@ runActCond f tgt = case (f tgt, targetId tgt) of
     targetId (TargetNoteSub note _) = Just $ note ^. noteEntry . entryId
     targetId (TargetNoteCode note _) = Just $ note ^. noteEntry . entryId
     targetId _ = Nothing
+evaluateCond tgt (ActCondAnd cds) =
+  getAll . fold <$> mapM (fmap All . evaluateCond tgt) cds
+evaluateCond tgt (ActCondOr cds) =
+  getAny . fold <$> mapM (fmap Any . evaluateCond tgt) cds
+evaluateCond tgt (ActCondNot cd) =
+  not <$> evaluateCond tgt cd
+
+runActCond :: (ActionTarget -> ActionCond) -> ActionTarget -> Handler Bool
+runActCond f tgt = evaluateCond tgt $ f tgt
 
 actCond :: ActionLabel -> ActionTarget -> Handler Bool
 actCond LabRemove = runActCond removeTarget

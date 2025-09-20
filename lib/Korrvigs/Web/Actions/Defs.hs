@@ -23,6 +23,9 @@ data ActionCond
   = ActCondNever
   | ActCondAlways
   | ActCondQuery Query
+  | ActCondOr [ActionCond]
+  | ActCondAnd [ActionCond]
+  | ActCondNot ActionCond
 
 data ActionReaction = ActionReaction
   { _reactMsg :: Maybe Html,

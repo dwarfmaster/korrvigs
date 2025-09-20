@@ -87,7 +87,7 @@ syncSynJSON i path json = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  let irows sqlI = flip fmap (json ^. synjsItems) $ \item -> SyndicateItemRow sqlI (item ^. synitTitle) (item ^. synitUrl) (item ^. synitGUID) (item ^. synitDate) (unId <$> item ^. synitInstance) :: SyndicateItemRow
+  let irows sqlI = flip fmap (zip [1 ..] $ json ^. synjsItems) $ \(sq, item) -> SyndicateItemRow sqlI sq (item ^. synitTitle) (item ^. synitUrl) (item ^. synitGUID) (item ^. synitDate) (unId <$> item ^. synitInstance) :: SyndicateItemRow
   let insertItemRows sqlI =
         Insert
           { iTable = syndicatedItemsTable,

@@ -69,7 +69,7 @@ run syn =
       pure True
 
 mergeItemsInto :: [SyndicatedItem] -> [SyndicatedItem] -> [SyndicatedItem]
-mergeItemsInto = foldr insertOneItem
+mergeItemsInto = foldr insertOneItem . reverse
 
 insertOneItem :: SyndicatedItem -> [SyndicatedItem] -> [SyndicatedItem]
 insertOneItem it = findAndInsert

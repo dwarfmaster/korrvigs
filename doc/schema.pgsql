@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS syndicates (
 
 CREATE TABLE IF NOT EXISTS syndicated_items (
   syndicate INTEGER NOT NULL REFERENCES syndicates(id),
+  sequence INTEGER NOT NULL,
   title TEXT NOT NULL,
   url TEXT NOT NULL,
   guid TEXT,

@@ -87,6 +87,14 @@ insertOneItem it = findAndInsert
     findAndInsert (oit : oits) | isSame it oit = merge it oit : oits
     findAndInsert (oit : oits) = oit : findAndInsert oits
 
+parseDate :: Text -> Maybe UTCTime
+parseDate date =
+  iso8601ParseM dt
+    <|> (zonedTimeToUTC <$> iso8601ParseM dt)
+    <|> parseTimeM True defaultTimeLocale rfc822DateFormat dt
+  where
+    dt = T.unpack date
+
 importFromAtom :: Atom.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
 importFromAtom feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.feedEntries feed)
   where
@@ -94,17 +102,14 @@ importFromAtom feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.fe
     setAuthors = synjsMetadata . at (mtdtSqlName Authors) ?~ toJSON (Atom.personName <$> Atom.feedAuthors feed)
     importFromEntry :: Atom.Entry -> Maybe SyndicatedItem
     importFromEntry entry = do
-      let dt = T.unpack $ Atom.entryUpdated entry
-      let date8601 = iso8601ParseM dt
-      let date8601' = zonedTimeToUTC <$> iso8601ParseM dt
-      let date822 = parseTimeM True defaultTimeLocale rfc822DateFormat dt
+      let dt = fromMaybe (Atom.entryUpdated entry) $ Atom.entryPublished entry
       url <- Atom.linkHref <$> listToMaybe (Atom.entryLinks entry)
       pure $
         SyndicatedItem
           { _synitTitle = extractText $ Atom.entryTitle entry,
             _synitUrl = url,
             _synitGUID = Just $ Atom.entryId entry,
-            _synitDate = date8601 <|> date8601' <|> date822,
+            _synitDate = parseDate dt,
             _synitInstance = Nothing
           }
 
@@ -137,7 +142,7 @@ importFromRSS time feed = (setTitle . setDesc . setTTL, mapMaybe importFromItem 
           { _synitTitle = title,
             _synitUrl = url,
             _synitGUID = RSS.rssGuidValue <$> RSS.rssItemGuid item,
-            _synitDate = parseTimeM True defaultTimeLocale rfc822DateFormat . T.unpack =<< RSS.rssItemPubDate item,
+            _synitDate = parseDate =<< RSS.rssItemPubDate item,
             _synitInstance = Nothing
           }
 

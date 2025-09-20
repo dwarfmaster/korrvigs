@@ -12,6 +12,7 @@ import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad.Class
 import Korrvigs.Monad.Utils
+import Korrvigs.Syndicate.Item
 import Korrvigs.Utils.Crypto ()
 import Opaleye
 
@@ -95,6 +96,16 @@ syndicatedItemsTable =
         (tableField "guid")
         (tableField "date")
         (tableField "instance")
+
+synItemFromRow :: SyndicateItemRow -> SyndicatedItem
+synItemFromRow row =
+  SyndicatedItem
+    { _synitTitle = row ^. sqlSynItTitle,
+      _synitUrl = row ^. sqlSynItUrl,
+      _synitGUID = row ^. sqlSynItGUID,
+      _synitDate = row ^. sqlSynItDate,
+      _synitInstance = MkId <$> row ^. sqlSynItInstance
+    }
 
 -- Functions
 

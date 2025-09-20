@@ -214,6 +214,7 @@ library korrvigs-lib
     Korrvigs.Web.Search
     Korrvigs.Web.Search.Form
     Korrvigs.Web.Search.Results
+    Korrvigs.Web.Syn
     Korrvigs.Web.Utils
     Korrvigs.Web.Vis.Network
     Korrvigs.Web.Vis.Timeline

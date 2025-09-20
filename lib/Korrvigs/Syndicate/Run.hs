@@ -74,12 +74,6 @@ mergeItemsInto = foldr insertOneItem . reverse
 insertOneItem :: SyndicatedItem -> [SyndicatedItem] -> [SyndicatedItem]
 insertOneItem it = findAndInsert
   where
-    isSame :: SyndicatedItem -> SyndicatedItem -> Bool
-    isSame it1 it2 =
-      let guid1 = it1 ^. synitGUID
-       in let guid2 = it2 ^. synitGUID
-           in (isJust guid1 && guid1 == guid2)
-                || (isNothing guid1 && isNothing guid2 && it1 ^. synitUrl == it2 ^. synitUrl)
     merge :: SyndicatedItem -> SyndicatedItem -> SyndicatedItem
     merge new old = new & synitInstance .~ old ^. synitInstance
     findAndInsert :: [SyndicatedItem] -> [SyndicatedItem]

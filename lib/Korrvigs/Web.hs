@@ -15,6 +15,7 @@ import Korrvigs.Web.Note
 import Korrvigs.Web.Public
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search
+import Korrvigs.Web.Syn
 import Yesod
 
 mkYesodDispatch "WebData" korrvigsRoutes

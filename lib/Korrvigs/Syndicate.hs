@@ -1,0 +1,1 @@
+module Korrvigs.Syndicate where

@@ -27,6 +27,7 @@ import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Entry.Metadata as Mtdt
 import qualified Korrvigs.Web.Entry.Note as Note
+import qualified Korrvigs.Web.Entry.Syndicate as Syn
 import Korrvigs.Web.Leaflet
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Public.Crypto as Public
@@ -73,6 +74,7 @@ titleWidget entry contentId = do
       FileD _ -> pure Nothing
       EventD _ -> pure Nothing
       CalendarD _ -> pure Nothing
+      SyndicateD _ -> pure Nothing
       NoteD _ -> Just <$> Note.editButton (entry ^. entryName) 0 Nothing contentId (SubLoc [])
 
 -- TODO make link to day viewer
@@ -278,6 +280,7 @@ contentWidget entry = case entry ^. entryKindData of
   FileD file -> File.content file
   EventD event -> Event.content event
   CalendarD cal -> Cal.content cal
+  SyndicateD syn -> Syn.content syn
 
 actWidget :: Entry -> Handler Widget
 actWidget entry = do

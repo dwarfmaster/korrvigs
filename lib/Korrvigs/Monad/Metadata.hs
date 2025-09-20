@@ -30,6 +30,7 @@ import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL (indexedMetadata, load)
 import Korrvigs.Monad.Sync (syncOne)
 import qualified Korrvigs.Note.Sync as Note
+import qualified Korrvigs.Syndicate.Sync as Syn
 import Opaleye hiding (not, null)
 import qualified Opaleye as O
 
@@ -44,6 +45,7 @@ updateMetadata entry upd rm = do
     NoteD note -> Note.updateMetadata note upd rm
     EventD event -> Event.updateMetadata event upd rm
     CalendarD cal -> Cal.updateMetadata cal upd rm
+    SyndicateD syn -> Syn.updateMetadata syn upd rm
   let rows = mkRow sqlI <$> M.toList upd
   atomicSQL $ \conn -> do
     let todelete = sqlArray sqlStrictText $ rm ++ M.keys upd
@@ -76,6 +78,7 @@ updateParents entry toAdd toRm = do
     NoteD note -> Note.updateParents note toAdd toRm
     EventD event -> Event.updateParents event toAdd toRm
     CalendarD cal -> Cal.updateParents cal toAdd toRm
+    SyndicateD syn -> Syn.updateParents syn toAdd toRm
   rmSql <- fmap catMaybes $ forM toRm $ \rm -> rSelectOne $ do
     e <- selectTable entriesTable
     where_ $ e ^. sqlEntryName .== sqlId rm
@@ -112,6 +115,7 @@ updateDate entry ntime = do
     NoteD note -> Note.updateDate note ntime
     EventD _ -> undefined
     CalendarD cal -> Cal.updateDate cal ntime
+    SyndicateD syn -> Syn.updateDate syn ntime
   atomicSQL $ \conn -> do
     void $
       runUpdate conn $
@@ -139,6 +143,7 @@ updateRef entry old new = do
     NoteD note -> Note.updateRef note old new
     EventD ev -> Event.updateRef ev old new
     CalendarD cal -> Cal.updateRef cal old new
+    SyndicateD syn -> Syn.updateRef syn old new
   oldEntry <- load old >>= throwMaybe (KCantLoad old "Failed to load entry to replace")
   newEntry <- forM new $ \nwId -> load nwId >>= throwMaybe (KCantLoad nwId "Failed to load replicing entry")
   rels :: [Int] <- rSelect $ selectSourcesFor entriesRefTable $ sqlInt4 $ oldEntry ^. entryId
@@ -184,6 +189,7 @@ updateTitle entry ntitle = do
     NoteD note -> Note.updateTitle note ntitle
     EventD ev -> Event.updateTitle ev ntitle
     CalendarD cal -> Cal.updateTitle cal ntitle
+    SyndicateD syn -> Syn.updateTitle syn ntitle
   unless (isNothing ntitle && entry ^. kind == Kd.Note) $
     withSQL $ \conn -> do
       void $

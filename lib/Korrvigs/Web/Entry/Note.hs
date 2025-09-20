@@ -24,11 +24,12 @@ import qualified Korrvigs.Web.Entry.Calendar as Cal
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Link as Link
+import qualified Korrvigs.Web.Entry.Syndicate as Syn
 import Korrvigs.Web.Public.Crypto (mkPublic)
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search.Results
-import Korrvigs.Web.Widgets (applyAttr)
+import Korrvigs.Web.Widgets (applyAttr, openIcon)
 import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye hiding (min, not, null)
 import Text.Blaze hiding ((!))
@@ -36,7 +37,6 @@ import qualified Text.Blaze.Html5 as Html
 import qualified Text.Blaze.Html5.Attributes as Attr
 import Text.Julius hiding (js)
 import Yesod hiding (Attr, get, (.=))
-import Yesod.Static hiding (embed)
 
 data CompileState = CState
   { _noteCounter :: Int,
@@ -365,12 +365,6 @@ compileBlock' (Table tbl) = do
       ^{captionW}
   |]
 
-openIcon :: Widget
-openIcon =
-  [whamlet|
-  <img width=16 height=16 style="display: inline; vertical-align: -10%;" src=@{StaticR $ StaticRoute ["icons", "open-white.png"] []}>
-|]
-
 colWidget :: Id -> Text -> Widget -> Handler Widget
 colWidget i nm widget = do
   pure
@@ -422,6 +416,7 @@ embedBody i lvl =
         EventD event -> (,def,title) <$> Event.embed lvl event
         CalendarD cal -> (,def,title) <$> Cal.embed lvl cal
         NoteD note -> (\(w, c) -> (w, c, title)) <$> embed lvl note
+        SyndicateD syn -> (,def,title) <$> Syn.embed lvl syn
 
 compileAttrWithClasses :: [Text] -> Attr -> CompileM [(Text, Text)]
 compileAttrWithClasses cls attr = do

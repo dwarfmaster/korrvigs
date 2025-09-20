@@ -12,6 +12,7 @@ data Kind
   | File
   | Event
   | Calendar
+  | Syndicate
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- Singletons
@@ -34,6 +35,7 @@ instance ToJSON Kind where
   toJSON File = "file"
   toJSON Event = "event"
   toJSON Calendar = "calendar"
+  toJSON Syndicate = "syndicate"
 
 instance FromJSON Kind where
   parseJSON = withText "Kind" $ \case
@@ -42,4 +44,5 @@ instance FromJSON Kind where
     "file" -> pure File
     "event" -> pure Event
     "calendar" -> pure Calendar
+    "syndicate" -> pure Syndicate
     s -> fail $ T.unpack s <> " is not a valid kind"

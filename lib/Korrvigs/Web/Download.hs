@@ -27,6 +27,8 @@ downloadEntry (EventD event) =
 downloadEntry (CalendarD cal) = do
   path <- calendarPath cal
   pure $ toTypedContent (typeJson, ContentFile path Nothing)
+downloadEntry (SyndicateD syn) =
+  pure $ toTypedContent (typeJson, ContentFile (syn ^. synPath) Nothing)
 
 suggestExtension :: KindData -> Text
 suggestExtension (LinkD _) = ".json"
@@ -34,6 +36,7 @@ suggestExtension (FileD file) = T.pack $ takeExtension $ file ^. filePath
 suggestExtension (NoteD _) = ".md"
 suggestExtension (EventD _) = ".ics"
 suggestExtension (CalendarD _) = ".json"
+suggestExtension (SyndicateD _) = ".json"
 
 filenameHint :: Id -> KindData -> Handler ()
 filenameHint i dat =

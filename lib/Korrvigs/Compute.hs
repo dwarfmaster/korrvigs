@@ -116,6 +116,7 @@ checkEntry i = do
     LinkD lnk -> hashFile $ lnk ^. linkPath
     NoteD note -> hashFile $ note ^. notePath
     EventD ev -> hashFile $ ev ^. eventFile
+    SyndicateD syn -> hashFile $ syn ^. synPath
     CalendarD cal -> do
       path <- Cal.calendarPath cal
       hashFile path

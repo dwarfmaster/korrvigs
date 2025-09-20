@@ -142,6 +142,11 @@ library korrvigs-lib
     Korrvigs.Note.SQL
     Korrvigs.Note.Sync
     Korrvigs.Query
+    Korrvigs.Syndicate
+    Korrvigs.Syndicate.Item
+    Korrvigs.Syndicate.JSON
+    Korrvigs.Syndicate.SQL
+    Korrvigs.Syndicate.Sync
     Korrvigs.Utils
     Korrvigs.Utils.Base16
     Korrvigs.Utils.Crypto
@@ -189,6 +194,7 @@ library korrvigs-lib
     Korrvigs.Web.Entry.Link
     Korrvigs.Web.Entry.Metadata
     Korrvigs.Web.Entry.Note
+    Korrvigs.Web.Entry.Syndicate
     Korrvigs.Web.FullCalendar
     Korrvigs.Web.Fuse
     Korrvigs.Web.Git

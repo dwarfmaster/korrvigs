@@ -24,6 +24,7 @@ import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL
 import qualified Korrvigs.Note.Sync as Note
+import qualified Korrvigs.Syndicate.Sync as Syn
 import Korrvigs.Utils.Cycle
 import Korrvigs.Utils.Time (measureTime, measureTime_)
 import Opaleye hiding (not, null)
@@ -39,6 +40,7 @@ remove entry = do
     FileD file -> File.remove file
     EventD ev -> Event.remove ev
     CalendarD cal -> Cal.remove cal
+    SyndicateD syn -> Syn.remove syn
 
 loadIDsFor :: forall m. (MonadKorrvigs m) => Text -> (FilePath -> Id) -> m (Set FilePath) -> m (Map Id [FilePath])
 loadIDsFor kdTxt extractId doList = do
@@ -52,6 +54,7 @@ loadIDsOn Note = loadIDsFor (displayKind Note) Note.noteIdFromPath Note.list
 loadIDsOn File = loadIDsFor (displayKind File) File.fileIdFromPath File.list
 loadIDsOn Event = loadIDsFor (displayKind Event) (fst . Event.eventIdFromPath) Event.list
 loadIDsOn Calendar = loadIDsFor (displayKind Calendar) Cal.calIdFromPath Cal.list
+loadIDsOn Syndicate = loadIDsFor (displayKind Syndicate) Syn.synIdFromPath Syn.list
 
 loadIDs :: (MonadKorrvigs m) => m (Map Id [FilePath])
 loadIDs = do
@@ -81,6 +84,7 @@ runSyncOn Note = runSync (displayKind Note) Note.sync
 runSyncOn File = runSync (displayKind File) File.sync
 runSyncOn Event = runSync (displayKind Event) Event.sync
 runSyncOn Calendar = runSync (displayKind Calendar) Cal.sync
+runSyncOn Syndicate = runSync (displayKind Syndicate) Syn.sync
 
 nameToIdMap :: (MonadKorrvigs m) => m (Map Id Int)
 nameToIdMap = do
@@ -148,6 +152,7 @@ identifyPath path = do
     kdRoot File = File.filesDirectory
     kdRoot Event = Event.eventsDirectory
     kdRoot Calendar = Cal.calendarsDirectory
+    kdRoot Syndicate = Syn.syndicatesDirectory
 
 syncFileImpl ::
   (MonadKorrvigs m) =>
@@ -174,6 +179,8 @@ syncFileOfKind path Event =
   syncFileImpl (fst $ Event.eventIdFromPath path) =<< Event.syncOne path
 syncFileOfKind path Calendar =
   syncFileImpl (Cal.calIdFromPath path) =<< Cal.syncOne path
+syncFileOfKind path Syndicate =
+  syncFileImpl (Syn.synIdFromPath path) =<< Syn.syncOne path
 
 syncFile :: (MonadKorrvigs m) => FilePath -> m ()
 syncFile path = identifyPath path >>= syncFileOfKind path
@@ -185,3 +192,4 @@ syncOne entry = case entry ^. entryKindData of
   FileD file -> syncFileOfKind (file ^. filePath) File
   EventD event -> syncFileOfKind (event ^. eventFile) Event
   CalendarD cal -> Cal.calendarPath cal >>= flip syncFileOfKind Calendar
+  SyndicateD syn -> syncFileOfKind (syn ^. synPath) Syndicate

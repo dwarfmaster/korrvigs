@@ -1,5 +1,5 @@
 DO $$ BEGIN
-  CREATE TYPE KIND AS ENUM ('note', 'link', 'file', 'event', 'calendar');
+  CREATE TYPE KIND AS ENUM ('note', 'link', 'file', 'event', 'calendar', 'syndicate');
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
@@ -107,4 +107,26 @@ CREATE TABLE IF NOT EXISTS calendars (
   calname TEXT NOT NULL,
   CONSTRAINT calendars_entries
     FOREIGN KEY (id,kind) references entries(id,kind)
+);
+
+CREATE TABLE IF NOT EXISTS syndicates (
+  id INTEGER NOT NULL PRIMARY KEY,
+  kind KIND NOT NULL CHECK(kind = 'syndicate'),
+  url TEXT NOT NULL,
+  path TEXT NOT NULL,
+  etag TEXT,
+  filter_entry TEXT,
+  filter_code TEXT,
+  expiration TIMESTAMP WITH TIME ZONE,
+  CONSTRAINT syndicates_entries
+    FOREIGN KEY (id,kind) references entries(id,kind)
+);
+
+CREATE TABLE IF NOT EXISTS syndicated_items (
+  syndicate INTEGER NOT NULL REFERENCES syndicates(id),
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  guid TEXT NOT NULL UNIQUE,
+  date TIMESTAMP WITH TIME ZONE,
+  instance TEXT
 );

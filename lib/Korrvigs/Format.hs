@@ -183,12 +183,20 @@ calSpec =
         ("user", fromLens calUser)
       ]
 
+synSpec :: (MonadKorrvigs m) => FormatSpec m Syndicate
+synSpec =
+  fromList
+    [ ("path", fromLens $ synPath . to T.pack),
+      ("url", fromLens synUrl)
+    ]
+
 kindDataSpec :: (MonadKorrvigs m) => Kind -> FormatSpec m Entry
 kindDataSpec Link = liftSpec _Link linkSpec
 kindDataSpec Note = liftSpec _Note noteSpec
 kindDataSpec File = liftSpec _File fileSpec
 kindDataSpec Event = liftSpec _Event eventSpec
 kindDataSpec Calendar = liftSpec _Calendar calSpec
+kindDataSpec Syndicate = liftSpec _Syndicate synSpec
 
 renderMtdt :: (MonadKorrvigs m, ExtraMetadata mtdt, Buildable m (MtdtType mtdt), FromJSON (MtdtType mtdt)) => mtdt -> Entry -> m [TextBuilder]
 renderMtdt mtdt entry =

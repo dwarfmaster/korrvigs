@@ -46,6 +46,7 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad.Class
 import qualified Korrvigs.Note.SQL as Note
+import qualified Korrvigs.Syndicate.SQL as Syn
 import Opaleye hiding (null)
 
 indexedMetadata :: Set (CI Text)
@@ -93,6 +94,7 @@ loadImpl (Just row) =
         File -> File.sqlLoad sqlI $ mkEntry row
         Event -> Event.sqlLoad sqlI $ mkEntry row
         Calendar -> Cal.sqlLoad sqlI $ mkEntry row
+        Syndicate -> Syn.sqlLoad sqlI $ mkEntry row
 
 loadSql :: (MonadKorrvigs m) => Int -> m (Maybe Entry)
 loadSql sqlI = do
@@ -131,6 +133,8 @@ dispatchRemove rm (EventD ev) =
   let i = ev ^. eventEntry . entryId in rm i $ Event.sqlRemove i
 dispatchRemove rm (CalendarD cal) =
   let i = cal ^. calEntry . entryId in rm i $ Cal.sqlRemove i
+dispatchRemove rm (SyndicateD syn) =
+  let i = syn ^. synEntry . entryId in rm i $ Syn.sqlRemove i
 
 removeKindDB :: (MonadKorrvigs m) => Entry -> m ()
 removeKindDB entry = dispatchRemove (\_ dels -> atomicSQL $ \conn -> forM_ dels $ runDelete conn) $ entry ^. entryKindData
@@ -212,6 +216,7 @@ syncSQL dt = atomicSQL $ \conn -> do
         File -> mapM_ (runDelete conn) $ File.sqlRemove sqlI
         Event -> mapM_ (runDelete conn) $ Event.sqlRemove sqlI
         Calendar -> mapM_ (runDelete conn) $ Cal.sqlRemove sqlI
+        Syndicate -> mapM_ (runDelete conn) $ Syn.sqlRemove sqlI
       let entryRow = dt ^. syncEntryRow & sqlEntryId ?~ sqlI
       void $
         runUpdate conn $

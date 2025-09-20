@@ -27,6 +27,7 @@ import Korrvigs.Note.SQL
 import Korrvigs.Query
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
+import Korrvigs.Utils.JSON
 import Opaleye (Insert (..), doNothing, rCount, toFields)
 import System.Directory (doesFileExist)
 import System.FilePath (joinPath, takeBaseName)
@@ -62,11 +63,6 @@ sync :: (MonadKorrvigs m) => m (Map Id SyncData)
 sync =
   M.fromList <$> (allNotes >>= mapM (sequence . (noteIdFromPath &&& syncOne)))
 
-fromJSON' :: (FromJSON a) => Value -> Maybe a
-fromJSON' v = case fromJSON v of
-  Success x -> Just x
-  Error _ -> Nothing
-
 syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
 syncOne path = do
   let i = noteIdFromPath path
@@ -76,9 +72,9 @@ syncOne path = do
 syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Document -> m SyncData
 syncDocument i path doc = do
   let mtdt = doc ^. docMtdt
-  let geom = fromJSON' =<< mtdt ^. at "geometry"
-  let tm = fromJSON' =<< mtdt ^. at "date"
-  let dur = fromJSON' =<< mtdt ^. at "duration"
+  let geom = fromJSONM =<< mtdt ^. at "geometry"
+  let tm = fromJSONM =<< mtdt ^. at "date"
+  let dur = fromJSONM =<< mtdt ^. at "duration"
   let title = Just $ doc ^. docTitle
   let erow = EntryRow Nothing Note i tm dur geom Nothing title :: EntryRowW
   let mtdt' = foldr M.delete mtdt ["geometry", "date", "duration"]

@@ -117,3 +117,9 @@ checkBox ck postRoute = do
 
 applyAttr :: Attribute -> Html -> Html
 applyAttr attr html = html Blz.! attr
+
+openIcon :: Widget
+openIcon =
+  [whamlet|
+  <img width=16 height=16 style="display: inline; vertical-align: -10%;" src=@{StaticR $ StaticRoute ["icons", "open-white.png"] []}>
+|]

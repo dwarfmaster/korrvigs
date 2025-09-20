@@ -9,6 +9,7 @@ import Data.CaseInsensitive (CI)
 import Data.Map (Map)
 import Data.Text (Text)
 import Data.Time (CalendarDiffTime, ZonedTime)
+import Data.Time.Clock (UTCTime)
 import Korrvigs.Entry.Ident
 import Korrvigs.Geometry
 import Korrvigs.Kind
@@ -66,12 +67,23 @@ data Calendar = MkCalendar
   }
   deriving (Show)
 
+data Syndicate = MkSyndicate
+  { _synEntry :: Entry,
+    _synUrl :: Text,
+    _synPath :: FilePath,
+    _synETag :: Maybe Text,
+    _synFilter :: Maybe (Id, Text),
+    _synExpiration :: Maybe UTCTime
+  }
+  deriving (Show)
+
 data KindData
   = LinkD Link
   | NoteD Note
   | FileD File
   | EventD Event
   | CalendarD Calendar
+  | SyndicateD Syndicate
   deriving (Show)
 
 kindDataKind :: KindData -> Kind
@@ -80,6 +92,7 @@ kindDataKind (NoteD _) = Note
 kindDataKind (FileD _) = File
 kindDataKind (EventD _) = Event
 kindDataKind (CalendarD _) = Calendar
+kindDataKind (SyndicateD _) = Syndicate
 
 data Entry = MkEntry
   { _entryId :: Int,
@@ -97,6 +110,7 @@ makeLenses ''Event
 makeLenses ''Note
 makeLenses ''Link
 makeLenses ''File
+makeLenses ''Syndicate
 makePrisms ''KindData
 makeLenses ''Entry
 
@@ -117,6 +131,9 @@ _Event = entryKindData . _EventD
 
 _Calendar :: Traversal' Entry Calendar
 _Calendar = entryKindData . _CalendarD
+
+_Syndicate :: Traversal' Entry Syndicate
+_Syndicate = entryKindData . _SyndicateD
 
 class IsKindData a where
   kdEntry :: a -> Entry
@@ -147,3 +164,8 @@ instance IsKindData Calendar where
   kdEntry = view calEntry
   kdKind = const Calendar
   kdKindData = CalendarD
+
+instance IsKindData Syndicate where
+  kdEntry = view synEntry
+  kdKind = const Syndicate
+  kdKindData = SyndicateD

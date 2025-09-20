@@ -53,6 +53,7 @@ kindNames Note = "note"
 kindNames File = "file"
 kindNames Event = "event"
 kindNames Calendar = "calendar"
+kindNames Syndicate = "syndicate"
 
 kindParser :: ReadM Kind
 kindParser = eitherReader $ \s -> case M.lookup s names of

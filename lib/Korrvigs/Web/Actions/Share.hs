@@ -11,13 +11,13 @@ import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Search.Form as Search
 import Yesod
 
-shareTarget :: ActionTarget -> Bool
-shareTarget (TargetEntry _) = True
-shareTarget TargetHome = False
-shareTarget (TargetSearch _ _) = True
-shareTarget (TargetNoteCollection _ _) = True
-shareTarget (TargetNoteSub _ _) = True
-shareTarget (TargetNoteCode _ _) = True
+shareTarget :: ActionTarget -> ActionCond
+shareTarget (TargetEntry _) = ActCondAlways
+shareTarget TargetHome = ActCondNever
+shareTarget (TargetSearch _ _) = ActCondAlways
+shareTarget (TargetNoteCollection _ _) = ActCondAlways
+shareTarget (TargetNoteSub _ _) = ActCondAlways
+shareTarget (TargetNoteCode _ _) = ActCondAlways
 
 shareForm :: AForm Handler ()
 shareForm = pure ()

@@ -11,11 +11,11 @@ import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import Yesod
 
-colTarget :: ActionTarget -> Bool
-colTarget (TargetEntry _) = True
-colTarget (TargetSearch _ _) = True
-colTarget (TargetNoteCollection _ _) = True
-colTarget _ = False
+colTarget :: ActionTarget -> ActionCond
+colTarget (TargetEntry _) = ActCondAlways
+colTarget (TargetSearch _ _) = ActCondAlways
+colTarget (TargetNoteCollection _ _) = ActCondAlways
+colTarget _ = ActCondNever
 
 colForm :: AForm Handler (Id, Text)
 colForm =

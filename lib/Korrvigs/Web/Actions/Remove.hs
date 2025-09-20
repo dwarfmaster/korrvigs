@@ -8,9 +8,9 @@ import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import Yesod
 
-removeTarget :: ActionTarget -> Bool
-removeTarget (TargetEntry _) = True
-removeTarget _ = False
+removeTarget :: ActionTarget -> ActionCond
+removeTarget (TargetEntry _) = ActCondAlways
+removeTarget _ = ActCondNever
 
 removeForm :: AForm Handler Bool
 removeForm = areq checkBoxField "Delete ?" (Just False)

@@ -39,13 +39,13 @@ makeLenses ''NewFile
 makeLenses ''NewFileDl
 makeLenses ''NewMedia
 
-newTarget :: ActionTarget -> Bool
-newTarget (TargetEntry _) = True
-newTarget TargetHome = True
-newTarget (TargetSearch _ _) = False
-newTarget (TargetNoteCollection _ _) = True
-newTarget (TargetNoteSub _ _) = False
-newTarget (TargetNoteCode _ _) = False
+newTarget :: ActionTarget -> ActionCond
+newTarget (TargetEntry _) = ActCondAlways
+newTarget TargetHome = ActCondAlways
+newTarget (TargetSearch _ _) = ActCondNever
+newTarget (TargetNoteCollection _ _) = ActCondAlways
+newTarget (TargetNoteSub _ _) = ActCondNever
+newTarget (TargetNoteCode _ _) = ActCondNever
 
 mkNewTitle :: Text -> ActionTarget -> Text
 mkNewTitle suffix TargetHome = "Create " <> suffix

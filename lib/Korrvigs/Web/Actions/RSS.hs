@@ -15,9 +15,9 @@ import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import Yesod
 
-importRssTarget :: ActionTarget -> Bool
-importRssTarget (TargetEntry _) = True
-importRssTarget _ = False
+importRssTarget :: ActionTarget -> ActionCond
+importRssTarget (TargetEntry _) = ActCondAlways
+importRssTarget _ = ActCondNever
 
 importRssForm :: AForm Handler Text
 importRssForm = areq textField "URL" Nothing

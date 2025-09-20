@@ -13,13 +13,13 @@ import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import Yesod
 
-titleTarget :: ActionTarget -> Bool
-titleTarget (TargetEntry _) = True
-titleTarget _ = False
+titleTarget :: ActionTarget -> ActionCond
+titleTarget (TargetEntry _) = ActCondAlways
+titleTarget _ = ActCondNever
 
-rmTitleTarget :: ActionTarget -> Bool
-rmTitleTarget (TargetEntry entry) = entry ^. kind /= Note && isJust (entry ^. entryTitle)
-rmTitleTarget _ = False
+rmTitleTarget :: ActionTarget -> ActionCond
+rmTitleTarget (TargetEntry entry) | entry ^. kind /= Note && isJust (entry ^. entryTitle) = ActCondAlways
+rmTitleTarget _ = ActCondNever
 
 titleForm :: AForm Handler Text
 titleForm = areq textField "Title" Nothing

@@ -11,13 +11,13 @@ import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Search.Form as Search
 import Yesod
 
-bibtexTarget :: ActionTarget -> Bool
-bibtexTarget (TargetEntry _) = True
-bibtexTarget TargetHome = False
-bibtexTarget (TargetSearch _ _) = True
-bibtexTarget (TargetNoteCollection _ _) = True
-bibtexTarget (TargetNoteSub _ _) = False
-bibtexTarget (TargetNoteCode _ _) = False
+bibtexTarget :: ActionTarget -> ActionCond
+bibtexTarget (TargetEntry _) = ActCondAlways
+bibtexTarget TargetHome = ActCondNever
+bibtexTarget (TargetSearch _ _) = ActCondAlways
+bibtexTarget (TargetNoteCollection _ _) = ActCondAlways
+bibtexTarget (TargetNoteSub _ _) = ActCondNever
+bibtexTarget (TargetNoteCode _ _) = ActCondNever
 
 bibtexForm :: AForm Handler ()
 bibtexForm = pure ()

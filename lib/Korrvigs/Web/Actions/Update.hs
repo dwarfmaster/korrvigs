@@ -14,9 +14,9 @@ import System.FilePath
 import System.IO.Temp
 import Yesod hiding (joinPath)
 
-updateTarget :: ActionTarget -> Bool
-updateTarget (TargetEntry entry) | entry ^. kind == File = True
-updateTarget _ = False
+updateTarget :: ActionTarget -> ActionCond
+updateTarget (TargetEntry entry) | entry ^. kind == File = ActCondAlways
+updateTarget _ = ActCondNever
 
 updateForm :: AForm Handler FileInfo
 updateForm = fileAFormReq ("" {fsLabel = "File"})

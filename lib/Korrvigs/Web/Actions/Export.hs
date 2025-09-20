@@ -8,9 +8,9 @@ import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import Yesod
 
-exportTarget :: ActionTarget -> Bool
-exportTarget (TargetSearch _ _) = True
-exportTarget _ = False
+exportTarget :: ActionTarget -> ActionCond
+exportTarget (TargetSearch _ _) = ActCondAlways
+exportTarget _ = ActCondNever
 
 exportForm :: AForm Handler ()
 exportForm = pure ()

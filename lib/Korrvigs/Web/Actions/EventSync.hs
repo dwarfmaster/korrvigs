@@ -9,9 +9,9 @@ import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import Yesod
 
-syncEvTarget :: ActionTarget -> Bool
-syncEvTarget TargetHome = True
-syncEvTarget _ = False
+syncEvTarget :: ActionTarget -> ActionCond
+syncEvTarget TargetHome = ActCondAlways
+syncEvTarget _ = ActCondNever
 
 syncEvForm :: AForm Handler Text
 syncEvForm = areq passwordField "dav-password" Nothing

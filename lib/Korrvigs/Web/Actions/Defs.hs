@@ -19,6 +19,11 @@ data ActionTarget
   | TargetNoteSub Note Text
   | TargetNoteCode Note Text
 
+data ActionCond
+  = ActCondNever
+  | ActCondAlways
+  | ActCondQuery Query
+
 data ActionReaction = ActionReaction
   { _reactMsg :: Maybe Html,
     _reactClipboard :: Maybe Text,

@@ -12,9 +12,9 @@ import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import Yesod
 
-parentTarget :: ActionTarget -> Bool
-parentTarget (TargetEntry _) = True
-parentTarget _ = False
+parentTarget :: ActionTarget -> ActionCond
+parentTarget (TargetEntry _) = ActCondAlways
+parentTarget _ = ActCondNever
 
 parentForm :: AForm Handler Id
 parentForm = MkId <$> areq textField "Parent" Nothing

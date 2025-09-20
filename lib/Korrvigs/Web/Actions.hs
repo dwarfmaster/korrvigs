@@ -16,11 +16,13 @@ import Control.Monad
 import Control.Monad.Catch (catch)
 import Data.Default
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Note.AST
+import Korrvigs.Query
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Actions.Bibtex
 import Korrvigs.Web.Actions.Collection
@@ -38,6 +40,7 @@ import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search.Form
+import Opaleye hiding (runUpdate)
 import Yesod
 import Yesod.Static
 
@@ -207,24 +210,42 @@ actPost LabBibtex = runPost bibtexForm runBibtex
 actPost LabUpdateTitle = runPost titleForm runTitle
 actPost LabRmTitle = runPost rmTitleForm runRmTitle
 
-actCond :: ActionLabel -> ActionTarget -> Bool
-actCond LabRemove = removeTarget
-actCond LabNewFile = newTarget
-actCond LabNewFileDownload = newTarget
-actCond LabNewNote = newTarget
-actCond LabNewLink = newTarget
-actCond LabNewMedia = newTarget
-actCond LabShare = shareTarget
-actCond LabParentAdd = parentTarget
-actCond LabParentRm = parentTarget
-actCond LabUpdate = updateTarget
-actCond LabImportRSS = importRssTarget
-actCond LabEventSync = syncEvTarget
-actCond LabExport = exportTarget
-actCond LabCollection = colTarget
-actCond LabBibtex = bibtexTarget
-actCond LabUpdateTitle = titleTarget
-actCond LabRmTitle = rmTitleTarget
+runActCond :: (ActionTarget -> ActionCond) -> ActionTarget -> Handler Bool
+runActCond f tgt = case (f tgt, targetId tgt) of
+  (ActCondNever, _) -> pure False
+  (ActCondAlways, _) -> pure True
+  (ActCondQuery _, Nothing) -> pure False
+  (ActCondQuery q, Just sqlI) -> do
+    r <- rSelectOne $ do
+      (e, ()) <- compile q $ const $ pure ()
+      where_ $ e ^. sqlEntryId .== sqlInt4 sqlI
+      pure ()
+    pure $ isJust r
+  where
+    targetId (TargetEntry e) = Just $ e ^. entryId
+    targetId (TargetNoteCollection note _) = Just $ note ^. noteEntry . entryId
+    targetId (TargetNoteSub note _) = Just $ note ^. noteEntry . entryId
+    targetId (TargetNoteCode note _) = Just $ note ^. noteEntry . entryId
+    targetId _ = Nothing
+
+actCond :: ActionLabel -> ActionTarget -> Handler Bool
+actCond LabRemove = runActCond removeTarget
+actCond LabNewFile = runActCond newTarget
+actCond LabNewFileDownload = runActCond newTarget
+actCond LabNewNote = runActCond newTarget
+actCond LabNewLink = runActCond newTarget
+actCond LabNewMedia = runActCond newTarget
+actCond LabShare = runActCond shareTarget
+actCond LabParentAdd = runActCond parentTarget
+actCond LabParentRm = runActCond parentTarget
+actCond LabUpdate = runActCond updateTarget
+actCond LabImportRSS = runActCond importRssTarget
+actCond LabEventSync = runActCond syncEvTarget
+actCond LabExport = runActCond exportTarget
+actCond LabCollection = runActCond colTarget
+actCond LabBibtex = runActCond bibtexTarget
+actCond LabUpdateTitle = runActCond titleTarget
+actCond LabRmTitle = runActCond rmTitleTarget
 
 postHandler :: ActionLabel -> ActionTarget -> Handler Value
 postHandler lbl tgt = toJSON <$> actPost lbl tgt
@@ -290,6 +311,7 @@ actionsWidget :: ActionTarget -> Handler Widget
 actionsWidget tgt = do
   templatesId <- newIdent
   containerId <- newIdent
+  actions <- listActions
   widgets <- forM actions $ \act -> do
     form <- actForm act tgt
     formId <- newIdent
@@ -320,4 +342,4 @@ actionsWidget tgt = do
       <div #actions-form-container>
     |]
   where
-    actions = filter (`actCond` tgt) [minBound .. maxBound]
+    listActions = filterM (`actCond` tgt) [minBound .. maxBound]

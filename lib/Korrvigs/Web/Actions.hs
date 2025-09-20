@@ -59,6 +59,7 @@ data ActionLabel
   | LabUpdate
   | LabImportRSS
   | LabNewSyndicate
+  | LabRunSyndicate
   | LabEventSync
   | LabExport
   | LabCollection
@@ -83,6 +84,7 @@ actIcon LabParentRm = mkIcon "parent" Base08
 actIcon LabUpdate = mkIcon "upload" Base0E
 actIcon LabImportRSS = mkIcon "rss" Base0B
 actIcon LabNewSyndicate = mkIcon "rss" Base0E
+actIcon LabRunSyndicate = mkIcon "rss" Base0E
 actIcon LabEventSync = mkIcon "eventsync" Base0E
 actIcon LabExport = mkIcon "export" Base0E
 actIcon LabCollection = mkIcon "collection" Base0B
@@ -103,6 +105,7 @@ actName LabParentRm = "rmparent"
 actName LabUpdate = "update"
 actName LabImportRSS = "importrss"
 actName LabNewSyndicate = "newsyndicate"
+actName LabRunSyndicate = "runsyndicate"
 actName LabEventSync = "eventsync"
 actName LabExport = "export"
 actName LabCollection = "collection"
@@ -167,6 +170,7 @@ actForm l@LabParentRm = genForm parentForm parentRmTitle $ actUrl l
 actForm l@LabUpdate = genForm updateForm updateTitle $ actUrl l
 actForm l@LabImportRSS = genForm importRssForm importRssTitle $ actUrl l
 actForm l@LabNewSyndicate = genForm syndicateForm syndicateTitle $ actUrl l
+actForm l@LabRunSyndicate = genForm runSyndicateForm runSyndicateTitle $ actUrl l
 actForm l@LabEventSync = genForm syncEvForm syncEvTitle $ actUrl l
 actForm l@LabExport = genForm exportForm exportTitle $ actUrl l
 actForm l@LabCollection = genForm colForm colTitle $ actUrl l
@@ -210,6 +214,7 @@ actPost LabParentRm = runPost parentForm runParentRm
 actPost LabUpdate = runPost updateForm runUpdate
 actPost LabImportRSS = runPost importRssForm runImportRSS
 actPost LabNewSyndicate = runPost syndicateForm runSyndicate
+actPost LabRunSyndicate = runPost runSyndicateForm runRunSyndicate
 actPost LabEventSync = runPost syncEvForm runSyncEv
 actPost LabExport = runPost exportForm runExport
 actPost LabCollection = runPost colForm runCol
@@ -257,6 +262,7 @@ actCond LabParentRm = runActCond parentTarget
 actCond LabUpdate = runActCond updateTarget
 actCond LabImportRSS = runActCond importRssTarget
 actCond LabNewSyndicate = runActCond syndicateTarget
+actCond LabRunSyndicate = runActCond runSyndicateTarget
 actCond LabEventSync = runActCond syncEvTarget
 actCond LabExport = runActCond exportTarget
 actCond LabCollection = runActCond colTarget

@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS syndicated_items (
   syndicate INTEGER NOT NULL REFERENCES syndicates(id),
   title TEXT NOT NULL,
   url TEXT NOT NULL,
-  guid TEXT NOT NULL UNIQUE,
+  guid TEXT,
   date TIMESTAMP WITH TIME ZONE,
   instance TEXT
 );

@@ -76,9 +76,9 @@ data SyndicateItemRowImpl a b c d e f = SyndicateItemRow
 makeLenses ''SyndicateItemRowImpl
 makeAdaptorAndInstanceInferrable "pSynItRow" ''SyndicateItemRowImpl
 
-type SyndicateItemRow = SyndicateItemRowImpl Int Text Text Text (Maybe ZonedTime) (Maybe Text)
+type SyndicateItemRow = SyndicateItemRowImpl Int Text Text (Maybe Text) (Maybe ZonedTime) (Maybe Text)
 
-type SyndicateItemRowSQL = SyndicateItemRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlText)
+type SyndicateItemRowSQL = SyndicateItemRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText) (FieldNullable SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlText)
 
 instance Default ToFields SyndicateItemRow SyndicateItemRowSQL where
   def = pSynItRow $ SyndicateItemRow def def def def def def

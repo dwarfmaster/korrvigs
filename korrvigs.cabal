@@ -146,6 +146,7 @@ library korrvigs-lib
     Korrvigs.Syndicate.Item
     Korrvigs.Syndicate.JSON
     Korrvigs.Syndicate.New
+    Korrvigs.Syndicate.Run
     Korrvigs.Syndicate.SQL
     Korrvigs.Syndicate.Sync
     Korrvigs.Utils

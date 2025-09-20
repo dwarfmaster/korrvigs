@@ -7,7 +7,6 @@ import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
 import Data.Time.Clock
-import Data.Time.LocalTime
 import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -76,7 +75,7 @@ data SyndicateItemRowImpl a b c d e f = SyndicateItemRow
 makeLenses ''SyndicateItemRowImpl
 makeAdaptorAndInstanceInferrable "pSynItRow" ''SyndicateItemRowImpl
 
-type SyndicateItemRow = SyndicateItemRowImpl Int Text Text (Maybe Text) (Maybe ZonedTime) (Maybe Text)
+type SyndicateItemRow = SyndicateItemRowImpl Int Text Text (Maybe Text) (Maybe UTCTime) (Maybe Text)
 
 type SyndicateItemRowSQL = SyndicateItemRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText) (FieldNullable SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlText)
 

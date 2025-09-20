@@ -14,6 +14,7 @@ import qualified Data.Text.Encoding as Enc
 import Data.Time.Clock
 import Data.Time.Format
 import Data.Time.Format.ISO8601
+import Data.Time.LocalTime
 import Data.XML.Types
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -95,14 +96,15 @@ importFromAtom feed = (setTitle . setAuthors, importFromEntry <$> Atom.feedEntri
     importFromEntry entry =
       let dt = T.unpack $ Atom.entryUpdated entry
        in let date8601 = iso8601ParseM dt
-           in let date822 = parseTimeM True defaultTimeLocale rfc822DateFormat dt
-               in SyndicatedItem
-                    { _synitTitle = extractText $ Atom.entryTitle entry,
-                      _synitUrl = Atom.entryId entry,
-                      _synitGUID = Nothing,
-                      _synitDate = date8601 <|> date822,
-                      _synitInstance = Nothing
-                    }
+           in let date8601' = zonedTimeToUTC <$> iso8601ParseM dt
+               in let date822 = parseTimeM True defaultTimeLocale rfc822DateFormat dt
+                   in SyndicatedItem
+                        { _synitTitle = extractText $ Atom.entryTitle entry,
+                          _synitUrl = Atom.entryId entry,
+                          _synitGUID = Nothing,
+                          _synitDate = date8601 <|> date8601' <|> date822,
+                          _synitInstance = Nothing
+                        }
 
 extractText :: Atom.TextContent -> Text
 extractText (Atom.TextString txt) = txt

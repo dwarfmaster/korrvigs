@@ -3,14 +3,14 @@ module Korrvigs.Syndicate.Item where
 import Control.Lens hiding ((.=))
 import Data.Aeson
 import Data.Text (Text)
-import Data.Time.LocalTime
+import Data.Time.Clock
 import Korrvigs.Entry
 
 data SyndicatedItem = SyndicatedItem
   { _synitTitle :: Text,
     _synitUrl :: Text,
     _synitGUID :: Maybe Text,
-    _synitDate :: Maybe ZonedTime,
+    _synitDate :: Maybe UTCTime,
     _synitInstance :: Maybe Id
   }
 

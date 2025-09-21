@@ -15,7 +15,6 @@ import qualified Data.Text as T
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
-import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Note (Collection (..))
@@ -251,7 +250,7 @@ mkTaskItem :: Bool -> EntryRowR -> OptionalSQLData -> Handler Widget
 mkTaskItem public entry dat = do
   let i = entry ^. sqlEntryName
   let mAgCount :: Maybe Int = dat ^. optAggregCount >>= fromJSONM
-  cb <- checkbox i $ dat ^. optTask
+  cb <- Wdgs.checkBoxDWIM i $ dat ^. optTask
   pure
     [whamlet|
     ^{cb}
@@ -274,10 +273,3 @@ mkTaskItem public entry dat = do
       $nothing
         @#{unId i}
     |]
-    checkbox :: Id -> Maybe Text -> Handler Widget
-    checkbox _ Nothing = pure mempty
-    checkbox i (Just tsName) = case parseStatusName tsName of
-      Just ts -> do
-        (h, w, _) <- Wdgs.checkBox ts (EntryMtdtR $ WId i)
-        pure $ w >> toWidget h
-      Nothing -> pure mempty

@@ -115,6 +115,14 @@ checkBox ck postRoute = do
     checkImg TaskDone = StaticR $ StaticRoute ["icons", "checkbox-done.svg"] []
     checkImg TaskDont = StaticR $ StaticRoute ["icons", "checkbox-dont.svg"] []
 
+checkBoxDWIM :: Id -> Maybe Text -> Handler Widget
+checkBoxDWIM _ Nothing = pure mempty
+checkBoxDWIM i (Just tsName) = case parseStatusName tsName of
+  Just ts -> do
+    (h, w, _) <- checkBox ts (EntryMtdtR $ WId i)
+    pure $ w >> toWidget h
+  Nothing -> pure mempty
+
 applyAttr :: Attribute -> Html -> Html
 applyAttr attr html = html Blz.! attr
 

@@ -2,6 +2,7 @@ module Korrvigs.Web.Entry.Syndicate where
 
 import Control.Lens
 import Control.Monad
+import Data.Default
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
@@ -20,24 +21,21 @@ import Opaleye hiding (not)
 import qualified Opaleye as O
 import Yesod hiding (Field)
 
+data RenderSpec = RenderSpec
+  { _renderOnlyNew :: Bool,
+    _renderShowSyndicate :: Bool
+  }
+
+makeLenses ''RenderSpec
+
+instance Default RenderSpec where
+  def = RenderSpec False False
+
 embed :: Int -> Syndicate -> Handler Widget
 embed lvl syn = do
   let url = syn ^. synUrl
+  itemsWidget <- renderItems [syn] def
   public <- isPublic
-  itemsSQL :: [(Text, Text, Maybe Id, Maybe UTCTime, Int, Maybe Text)] <- rSelect $ orderBy (descNullsFirst $ view _4) $ do
-    item <- selectTable syndicatedItemsTable
-    where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
-    task <- fmap joinMField $ optional $ limit 1 $ fromNullableSelect $ do
-      task <- selectTable entriesMetadataTable
-      entry <- selectTable entriesTable
-      where_ $ matchNullable (sqlBool False) (entry ^. sqlEntryName .==) (item ^. sqlSynItInstance)
-      where_ $ task ^. sqlKey .== sqlStrictText (mtdtSqlName TaskMtdt)
-      where_ $ task ^. sqlEntry .== (entry ^. sqlEntryId)
-      pure $ sqlJsonToText $ toNullable $ task ^. sqlValue
-    pure (item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItInstance, item ^. sqlSynItDate, item ^. sqlSynItSequence, task)
-  items <- forM itemsSQL $ \item -> do
-    cb <- maybe (pure mempty) (flip checkBoxDWIM $ item ^. _6) $ item ^. _3
-    pure $ item & _6 .~ cb
   pure $ do
     Rcs.checkboxCode
     [whamlet|
@@ -54,19 +52,54 @@ embed lvl syn = do
                 #{unId entry}
             #
             #{code}
+    ^{itemsWidget}
+  |]
+
+renderItems :: [Syndicate] -> RenderSpec -> Handler Widget
+renderItems syns spec = do
+  let onlyNew = spec ^. renderOnlyNew
+  let showTitle = spec ^. renderShowSyndicate
+  public <- isPublic
+  itemsSQL :: [(Text, Text, Text, Maybe Id, Maybe UTCTime, Int, Maybe Text, Maybe Text)] <-
+    rSelect $ orderBy (descNullsFirst $ view _5) $ do
+      (synName, synId, synTitle :: FieldNullable SqlText) <- values $ (\entry -> (sqlId $ entry ^. entryName, sqlInt4 $ entry ^. entryId, toFields $ entry ^. entryTitle)) . view synEntry <$> syns
+      item <- selectTable syndicatedItemsTable
+      where_ $ item ^. sqlSynItSyndicate .== synId
+      task <- fmap joinMField $ optional $ limit 1 $ fromNullableSelect $ do
+        task <- selectTable entriesMetadataTable
+        entry <- selectTable entriesTable
+        where_ $ matchNullable (sqlBool False) (entry ^. sqlEntryName .==) (item ^. sqlSynItInstance)
+        where_ $ task ^. sqlKey .== sqlStrictText (mtdtSqlName TaskMtdt)
+        where_ $ task ^. sqlEntry .== (entry ^. sqlEntryId)
+        pure $ sqlJsonToText $ toNullable $ task ^. sqlValue
+      when onlyNew $ where_ $ isNull $ item ^. sqlSynItInstance
+      pure (synName, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItInstance, item ^. sqlSynItDate, item ^. sqlSynItSequence, task, synTitle)
+  items <- forM itemsSQL $ \item -> do
+    cb <- maybe (pure mempty) (flip checkBoxDWIM $ item ^. _7) $ item ^. _4
+    pure $ item & _7 .~ cb
+  pure
+    [whamlet|
     <ul>
-      $forall (title,url,inst,_,sq,cb) <- items
+      $forall (synName,title,url,inst,_,sq,cb,synTitle) <- items
         <li>
           $if not public
             ^{cb}
             #{T.pack " "}
+            $if showTitle
+              <a href=@{EntryR $ WId $ MkId synName}>
+                [
+                $maybe title <- synTitle
+                  #{title}
+                $nothing
+                  @#{synName}
+                ]
           <a href=#{url}>#{title}
           $if not public
             $maybe i <- inst
               <a href=@{EntryR $ WId i}>
                 ^{openIcon}
             $nothing
-              <a href=@{SynItemR (WId $ view (synEntry . entryName) syn) sq}>
+              <a href=@{SynItemR (WId $ MkId synName) sq}>
                 ⤓
   |]
   where

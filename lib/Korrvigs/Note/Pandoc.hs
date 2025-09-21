@@ -252,6 +252,13 @@ parseBlock (RawBlock (Format fmt) i)
         stack . bszCollections %= M.insert colname directItems
         forM_ directItems refTo
         pure . pure . A.Collection col colname $ items
+  | CI.mk fmt == "syndicate" = case T.lines i of
+      [] -> pure $ pure $ A.Syndicate "TODO" False []
+      (hd : ids) -> do
+        let (onlyNew, nm) = case T.stripPrefix "+" hd of
+              Just suffix -> (True, suffix)
+              Nothing -> (False, hd)
+        pure $ pure $ A.Syndicate nm onlyNew $ MkId <$> ids
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks
 parseBlock (OrderedList _ bks) =

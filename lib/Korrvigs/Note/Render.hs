@@ -194,6 +194,12 @@ renderBlock (Collection col nm ids) = do
   renderCollection col nm
   forM_ ids $ \colItem -> renderColItem colItem >> flush >> newline
   writeText "```"
+renderBlock (Syndicate nm onlyNew ids) = do
+  writeText "```{=syndicate}" >> flush >> newline
+  when onlyNew $ writeText "+"
+  writeText nm >> flush >> newline
+  forM_ ids $ \i -> writeText (unId i) >> flush >> newline
+  writeText "```"
 renderBlock (Sub header) = do
   writeText $ mconcat $ replicate (header ^. hdLevel) "#"
   writeText " "

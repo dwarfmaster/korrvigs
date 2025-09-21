@@ -320,6 +320,24 @@ compileBlock' (Collection col nm items) = do
       Just TaskDone -> ckDone %~ (+ 1)
       Just TaskDont -> ckDont %~ (+ 1)
       Nothing -> id
+compileBlock' (Syndicate nm onlyNew ids) = do
+  entries <- fmap catMaybes $ forM ids $ lift . load
+  let syns = mapMaybe (^? _Syndicate) entries
+  itemsWidget <-
+    lift $
+      Syn.renderItems syns $
+        def
+          & Syn.renderOnlyNew .~ onlyNew
+          & Syn.renderShowSyndicate .~ True
+  rtLevel <- use hdRootLevel
+  webId <- if rtLevel > 1 then newIdent else pure nm
+  pure
+    [whamlet|
+    <details .collection ##{webId} open="true">
+      <summary>
+        ##{nm}
+      ^{itemsWidget}
+  |]
 compileBlock' (Sub hd) = do
   -- Compute level shift
   rtLvl <- use hdRootLevel

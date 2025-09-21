@@ -92,7 +92,7 @@ parseDate date =
 importFromAtom :: Atom.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
 importFromAtom feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.feedEntries feed)
   where
-    setTitle = synjsTitle ?~ extractText (Atom.feedTitle feed)
+    setTitle = synjsTitle %~ Just . fromMaybe (extractText $ Atom.feedTitle feed)
     setAuthors = synjsMetadata . at (mtdtSqlName Authors) ?~ toJSON (Atom.personName <$> Atom.feedAuthors feed)
     importFromEntry :: Atom.Entry -> Maybe SyndicatedItem
     importFromEntry entry = do
@@ -124,7 +124,7 @@ importFromRSS :: UTCTime -> RSS.RSS -> (SyndicateJSON -> SyndicateJSON, [Syndica
 importFromRSS time feed = (setTitle . setDesc . setTTL, mapMaybe importFromItem $ RSS.rssItems channel)
   where
     channel = RSS.rssChannel feed
-    setTitle = synjsTitle ?~ RSS.rssTitle channel
+    setTitle = synjsTitle %~ Just . fromMaybe (RSS.rssTitle channel)
     setDesc = synjsMetadata . at (mtdtSqlName Abstract) ?~ toJSON (RSS.rssDescription channel)
     setTTL = maybe id (\ttl -> synjsExpiration ?~ addUTCTime (fromInteger $ ttl * 60) time) $ RSS.rssTTL channel
     importFromItem :: RSS.RSSItem -> Maybe SyndicatedItem
@@ -144,7 +144,7 @@ importFromRSS1 :: RSS1.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem]
 importFromRSS1 feed = (setTitle . setDesc, importFromItem <$> RSS1.feedItems feed)
   where
     channel = RSS1.feedChannel feed
-    setTitle = synjsTitle ?~ RSS1.channelTitle channel
+    setTitle = synjsTitle %~ Just . fromMaybe (RSS1.channelTitle channel)
     setDesc = synjsMetadata . at (mtdtSqlName Abstract) ?~ toJSON (RSS1.channelDesc channel)
     importFromItem :: RSS1.Item -> SyndicatedItem
     importFromItem item =

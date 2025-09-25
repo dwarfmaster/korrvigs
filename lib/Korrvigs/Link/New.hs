@@ -12,8 +12,7 @@ import Conduit (throwM)
 import Control.Applicative
 import Control.Arrow (first)
 import Control.Lens hiding (noneOf)
-import Data.Aeson
-import Data.Aeson.Encoding (encodingToLazyByteString, value)
+import Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
 import qualified Data.Map as M
@@ -92,7 +91,7 @@ create url options = case parseURI (T.unpack url) of
         i <- newId idmk
         rt <- linkJSONPath
         let jsonTT = linkJSONTreeType
-        let content = encodingToLazyByteString . value $ toJSON json
+        let content = encodePretty json
         pth <- storeFile rt jsonTT (nentry ^. neDate) (unId i <> ".json") $ FileLazy content
         syncFileOfKind pth Link
         applyCollections nentry i

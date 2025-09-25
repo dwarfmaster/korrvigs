@@ -5,6 +5,7 @@ import Control.Lens hiding ((.=))
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Aeson.Types
 import Data.ByteString.Lazy (readFile, writeFile)
 import qualified Data.CaseInsensitive as CI
@@ -165,7 +166,7 @@ updateImpl file f = do
   let meta = file ^. fileMeta
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   njson <- f json
-  liftIO $ writeFile meta $ encode njson
+  liftIO $ writeFile meta $ encodePretty njson
 
 updateMetadata :: (MonadKorrvigs m) => File -> Map Text Value -> [Text] -> m ()
 updateMetadata file upd rm = do

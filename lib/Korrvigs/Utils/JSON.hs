@@ -2,6 +2,7 @@ module Korrvigs.Utils.JSON where
 
 import Control.Monad.IO.Class
 import Data.Aeson
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Aeson.Text (encodeToTextBuilder)
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.UTF8 as BSL8
@@ -16,6 +17,10 @@ import Text.Julius (RawJavascript, rawJS)
 writeJsonToFile :: (MonadIO m, ToJSON x) => FilePath -> x -> m ()
 writeJsonToFile path val =
   liftIO $ LBS.writeFile path $ LEnc.encodeUtf8 $ Bld.toLazyText $ encodeToTextBuilder val
+
+writePrettyJsonToFile :: (MonadIO m, ToJSON x) => FilePath -> x -> m ()
+writePrettyJsonToFile path val =
+  liftIO $ LBS.writeFile path $ encodePretty val
 
 fromJSONM :: (FromJSON a) => Value -> Maybe a
 fromJSONM v = case fromJSON v of

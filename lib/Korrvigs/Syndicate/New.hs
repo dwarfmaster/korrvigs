@@ -3,8 +3,7 @@ module Korrvigs.Syndicate.New where
 import Control.Arrow (first)
 import Control.Lens hiding (noneOf)
 import Control.Monad
-import Data.Aeson (toJSON)
-import Data.Aeson.Encoding (encodingToLazyByteString, value)
+import Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
 import qualified Data.Map as M
@@ -72,7 +71,7 @@ create ns = do
   i <- newId idmk
   rt <- synJSONPath
   let jsonTT = synTreeType
-  let content = encodingToLazyByteString . value $ toJSON json
+  let content = encodePretty json
   pth <- storeFile rt jsonTT (nentry ^. neDate) (unId i <> ".json") $ FileLazy content
   syncFileOfKind pth Syndicate
   applyCollections nentry i

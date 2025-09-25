@@ -4,7 +4,8 @@ import Control.Arrow (first, (&&&))
 import Control.Lens
 import Control.Monad (when)
 import Control.Monad.IO.Class
-import Data.Aeson (Value, eitherDecode, encode)
+import Data.Aeson (Value, eitherDecode)
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.ByteString.Lazy (readFile, writeFile)
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
@@ -89,7 +90,7 @@ updateImpl link f = do
   let i = link ^. linkEntry . entryName
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   njson <- f json
-  liftIO $ writeFile path $ encode njson
+  liftIO $ writeFile path $ encodePretty njson
 
 updateMetadata :: (MonadKorrvigs m) => Link -> Map Text Value -> [Text] -> m ()
 updateMetadata link upd rm = updateImpl link $ pure . updMtdt

@@ -18,7 +18,7 @@ import Control.Lens hiding (noneOf)
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Data.Aeson (toJSON)
-import Data.Aeson.Text (encodeToLazyText)
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
@@ -30,7 +30,6 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
-import qualified Data.Text.Lazy.IO as TLIO
 import Data.Time.LocalTime
 import qualified Korrvigs.Compute as Cpt
 import Korrvigs.Entry
@@ -207,7 +206,7 @@ new path' options' = do
       else liftIO $ FileLazy <$> BSL.readFile path
   stored <- storeFile dir filesTreeType day nm content
   let metapath = metaPath stored
-  liftIO $ TLIO.writeFile metapath $ encodeToLazyText mtdt
+  liftIO $ BSL.writeFile metapath $ encodePretty mtdt
   rt <- root
   when alreadyAnnexed $ void $ runSilentK (proc "git" ["annex", "fix", stored]) {cwd = Just rt}
   syncFileOfKind stored File

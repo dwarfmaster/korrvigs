@@ -16,7 +16,7 @@ import Korrvigs.File.New
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync (syncFileOfKind)
-import Korrvigs.Utils.JSON (writeJsonToFile)
+import Korrvigs.Utils.JSON (writePrettyJsonToFile)
 import System.Directory
 
 data NewCalendar = NewCalendar
@@ -56,7 +56,7 @@ new nc = do
             _cljsParents = unId <$> nentry ^. neParents
           }
   path <- calendarPath' i
-  writeJsonToFile path json
+  writePrettyJsonToFile path json
   -- Sync
   syncFileOfKind path Calendar
   applyCollections nentry i

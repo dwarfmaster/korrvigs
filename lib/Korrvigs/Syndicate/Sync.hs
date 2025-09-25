@@ -5,6 +5,7 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.ByteString.Lazy (readFile, writeFile)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
@@ -102,7 +103,7 @@ updateFile :: (MonadKorrvigs m) => Id -> FilePath -> (SyndicateJSON -> m Syndica
 updateFile i path f = do
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
   njson <- f json
-  liftIO $ writeFile path $ encode njson
+  liftIO $ writeFile path $ encodePretty njson
 
 updateImpl :: (MonadKorrvigs m) => Syndicate -> (SyndicateJSON -> m SyndicateJSON) -> m ()
 updateImpl syn = updateFile (syn ^. synEntry . entryName) (syn ^. synPath)

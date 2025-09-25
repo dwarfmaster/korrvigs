@@ -153,8 +153,6 @@ prepareNewMedia nm = do
 new :: (MonadKorrvigs m) => NewMedia -> m Id
 new nm = do
   nmed <- prepareNewMedia nm
-  i <- case nmed of
+  case nmed of
     NewLinkMedia url nl -> Link.new url nl
     NewNoteMedia nn -> Note.new nn
-  applyCapture (nm ^. nmEntry) i
-  pure i

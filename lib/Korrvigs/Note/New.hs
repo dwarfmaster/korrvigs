@@ -102,7 +102,5 @@ create note = do
   rt <- noteDirectory
   path <- storeFile rt noteTreeType (nentry ^. neDate) (unId i <> ".md") $ FileLazy bs
   syncFileOfKind path Note
-  applyCollections nentry i
-  applyChildren nentry i
-  applyCapture nentry i
+  applyOnNewEntry nentry i
   pure i

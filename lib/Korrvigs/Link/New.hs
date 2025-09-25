@@ -94,7 +94,5 @@ create url options = case parseURI (T.unpack url) of
         let content = encodePretty json
         pth <- storeFile rt jsonTT (nentry ^. neDate) (unId i <> ".json") $ FileLazy content
         syncFileOfKind pth Link
-        applyCollections nentry i
-        applyChildren nentry i
-        applyCapture nentry i
+        applyOnNewEntry nentry i
         pure i

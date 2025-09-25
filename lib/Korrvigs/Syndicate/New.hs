@@ -74,8 +74,7 @@ create ns = do
   let content = encodePretty json
   pth <- storeFile rt jsonTT (nentry ^. neDate) (unId i <> ".json") $ FileLazy content
   syncFileOfKind pth Syndicate
-  applyCollections nentry i
-  applyChildren nentry i
+  applyOnNewEntry nentry i
   pure i
 
 newFromItem :: (MonadKorrvigs m) => Syndicate -> Int -> m Id

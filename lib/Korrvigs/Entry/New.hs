@@ -12,9 +12,7 @@ module Korrvigs.Entry.New
     useDate,
     useMtdt,
     applyNewEntry,
-    applyCollections,
-    applyChildren,
-    applyCapture,
+    applyOnNewEntry,
     setMtdtValue,
     setMtdtValueLazy,
     setMtdtValueV,
@@ -107,6 +105,12 @@ applyChildren ne i = do
 applyCapture :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
 applyCapture ne i =
   when (null (ne ^. neCollections) && null (ne ^. neParents)) $ void $ capture i
+
+applyOnNewEntry :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
+applyOnNewEntry ne i = do
+  applyCollections ne i
+  applyChildren ne i
+  applyCapture ne i
 
 setMtdtValue :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => mtdt -> MtdtType mtdt -> NewEntry -> NewEntry
 setMtdtValue mtdt = setMtdtValueV mtdt . toJSON

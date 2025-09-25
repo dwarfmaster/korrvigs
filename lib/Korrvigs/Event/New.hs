@@ -122,7 +122,5 @@ new opts = do
   let day = localDay . zonedTimeToLocalTime . resolveICalTime ncal <$> ncal ^? icEvent . _Just . iceStart . _Just
   path <- storeFile rt eventTreeType day filename $ FileLazy $ renderICalFile ncal
   syncFileOfKind path Event
-  applyCollections nentry i
-  applyChildren nentry i
-  applyCapture nentry i
+  applyOnNewEntry nentry i
   pure i

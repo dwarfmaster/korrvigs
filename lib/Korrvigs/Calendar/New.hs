@@ -59,7 +59,5 @@ new nc = do
   writePrettyJsonToFile path json
   -- Sync
   syncFileOfKind path Calendar
-  applyCollections nentry i
-  applyChildren nentry i
-  applyCapture nentry i
+  applyOnNewEntry nentry i
   pure i

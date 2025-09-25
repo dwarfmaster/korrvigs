@@ -300,6 +300,16 @@ queryRelWidget prefix nm qrel = do
       ^{query}
   |]
 
+showHiddenWidget :: Maybe Text -> Bool -> Handler Widget
+showHiddenWidget prefix showHidden = do
+  hiddenId <- newIdent
+  pure
+    [whamlet|
+    <input ##{hiddenId} type=checkbox name=#{applyPrefix prefix "showhidden"} *{sattr "checked" showHidden}>
+    <label for=#{hiddenId}>
+      Show hidden entries
+  |]
+
 queryWidget :: Maybe Text -> Query -> Handler Widget
 queryWidget prefix query = do
   title <- titleForm prefix $ query ^. queryTitle
@@ -309,6 +319,7 @@ queryWidget prefix query = do
   kd <- kindForm prefix $ query ^. queryKind
   mtdt <- mtdtForm prefix $ query ^. queryMtdt
   incol <- incolForm prefix $ query ^. queryInCollection
+  showHidden <- showHiddenWidget prefix $ query ^. queryShowHidden
   (subOf, parentOf) <-
     if isNothing prefix
       then do
@@ -317,6 +328,7 @@ queryWidget prefix query = do
         pure (subOf, parentOf)
       else pure (mempty, mempty)
   pure $ do
+    showHidden
     title
     fts
     time
@@ -345,10 +357,10 @@ searchForm query display = do
     |]
 
 fixOrder :: Query -> Query
-fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
+fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ (ByDistanceTo _, _) _) = case q ^. queryDist of
   Just (pt, _) -> q & querySort . _1 .~ ByDistanceTo pt
   Nothing -> q & querySort .~ def
-fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
+fixOrder q@(Query _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ (ByTSRank _, _) _) = case q ^. queryText of
   Just fts -> q & querySort . _1 .~ ByTSRank fts
   Nothing -> q & querySort .~ def
 fixOrder q = q

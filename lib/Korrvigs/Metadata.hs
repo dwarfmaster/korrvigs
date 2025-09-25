@@ -107,6 +107,7 @@ mkMtdt "Width" "width" [t|Int|]
 mkMtdt "Gallery" "gallery" [t|Text|]
 mkMtdt "Private" "private" [t|Text|]
 mkMtdt "HubMtdt" "hub" [t|Text|]
+mkMtdt "Hidden" "hidden" [t|Text|]
 
 -- RSS metadata
 mkMtdt "SyndicateMtdt" "syndicate" [t|Text|]

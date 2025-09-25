@@ -176,6 +176,7 @@ queryForm mktz prefix =
     <*> maybe (queryRelForm mktz "parent") (const $ pure Nothing) prefix
     <*> pure Nothing
     <*> pure Nothing
+    <*> ireq checkBoxField (applyPrefix prefix "showhidden")
     <*> (fromMaybe (ByDate, SortDesc) <$> iopt optsField "sortopts")
     <*> (join <$> iopt maxResultsField "maxresults")
   where
@@ -218,6 +219,7 @@ getParameters prefix q display =
         ++ maybe [] (\kd -> [("checkkind", "on"), ("kind", displayKind kd)]) (q ^. queryKind)
         ++ (if null (q ^. queryMtdt) then [] else ("checkmtdt", "on") : concatMap mtdtAttrs (q ^. queryMtdt))
         ++ maybe [] (\incol -> [("checkincol", "on"), ("incolname", incol ^. colName), ("incolentry", unId $ incol ^. colEntry)]) (q ^. queryInCollection)
+        ++ [("showhidden", if q ^. queryShowHidden then "on" else "off")]
     relAttrs p = maybe [] (\r -> [(applyPrefix (Just p) "rec", displayBool $ r ^. relRec), (applyPrefix (Just p) "check", "on")] ++ getParameters (Just p) (r ^. relOther) display)
     subAttrs = relAttrs "sub" $ q ^. querySubOf
     parentAttrs = relAttrs "parent" $ q ^. queryParentOf

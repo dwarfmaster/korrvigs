@@ -18,6 +18,7 @@ import Korrvigs.FTS ((@@?))
 import qualified Korrvigs.FTS as FTS
 import Korrvigs.Geometry
 import Korrvigs.Kind
+import Korrvigs.Metadata
 import Korrvigs.Note.SQL
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
@@ -131,13 +132,14 @@ data Query = Query
     _queryParentOf :: Maybe QueryRel,
     _queryMentioning :: Maybe QueryRel,
     _queryMentionedBy :: Maybe QueryRel,
+    _queryShowHidden :: Bool,
     _querySort :: (SortCriterion, SortOrder),
     _queryMaxResults :: Maybe Int
   }
   deriving (Show)
 
 instance Default Query where
-  def = Query def def def def def def def def def def def def def def def def
+  def = Query def def def def def def def def def def def def def def False def def
 
 makeLenses ''Query
 makeLenses ''QueryRel
@@ -209,7 +211,8 @@ instance ToJSON Query where
     object $
       [ "id" .= (unId <$> q ^. queryId),
         "mtdt" .= (q ^. queryMtdt),
-        "sort" .= (q ^. querySort)
+        "sort" .= (q ^. querySort),
+        "hidden" .= (q ^. queryShowHidden)
       ]
         ++ optKP "title" (q ^. queryTitle)
         ++ optKP "text" (q ^. queryText)
@@ -242,6 +245,7 @@ instance FromJSON Query where
       <*> obj .:? "parentof"
       <*> obj .:? "mentioning"
       <*> obj .:? "mentionedby"
+      <*> obj .: "hidden"
       <*> obj .: "sort"
       <*> obj .:? "maxresults"
 
@@ -319,6 +323,10 @@ compileQuery query = do
   forM_ (query ^. queryParentOf) $ compileRel entry entriesSubTable True
   forM_ (query ^. queryMentioning) $ compileRel entry entriesRefTable False
   forM_ (query ^. queryMentionedBy) $ compileRel entry entriesRefTable True
+  -- Hide hidden by default
+  unless (query ^. queryShowHidden) $ do
+    hidden <- selectTextMtdt Hidden $ entry ^. sqlEntryId
+    where_ $ isNull hidden
   pure entry
 
 compile :: Query -> (EntryRowSQLR -> Select a) -> Select (EntryRowSQLR, a)

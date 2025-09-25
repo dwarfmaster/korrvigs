@@ -105,6 +105,7 @@ queryParser =
     <*> pure Nothing
     <*> pure Nothing
     <*> pure Nothing
+    <*> switch (long "show-hidden" <> help "Show hidden entries in search result")
     <*> sortParser
     <*> optional (option auto (long "limit" <> help "Limit the number of results"))
 

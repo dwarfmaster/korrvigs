@@ -214,6 +214,7 @@ new path' options' = do
   when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path'
   applyCollections nentry i
   applyChildren nentry i
+  applyCapture nentry i
   comps <- listCompute i
   forM_ comps Cpt.run
   pure i

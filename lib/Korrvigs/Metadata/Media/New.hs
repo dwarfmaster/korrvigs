@@ -10,7 +10,6 @@ where
 
 import Conduit (throwM)
 import Control.Lens
-import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson.Lens
 import Data.Foldable
@@ -36,7 +35,6 @@ import qualified Korrvigs.Metadata.Media.Steam as Steam
 import qualified Korrvigs.Metadata.Media.Youtube as Yt
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
-import Korrvigs.Monad.Collections (capture)
 import qualified Korrvigs.Note.New as Note
 
 data NewMedia = NewMedia
@@ -158,5 +156,5 @@ new nm = do
   i <- case nmed of
     NewLinkMedia url nl -> Link.new url nl
     NewNoteMedia nn -> Note.new nn
-  void $ capture i
+  applyCapture (nm ^. nmEntry) i
   pure i

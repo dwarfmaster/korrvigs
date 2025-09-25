@@ -124,4 +124,5 @@ new opts = do
   syncFileOfKind path Event
   applyCollections nentry i
   applyChildren nentry i
+  applyCapture nentry i
   pure i

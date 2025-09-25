@@ -104,4 +104,5 @@ create note = do
   syncFileOfKind path Note
   applyCollections nentry i
   applyChildren nentry i
+  applyCapture nentry i
   pure i

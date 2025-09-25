@@ -97,4 +97,5 @@ create url options = case parseURI (T.unpack url) of
         syncFileOfKind pth Link
         applyCollections nentry i
         applyChildren nentry i
+        applyCapture nentry i
         pure i

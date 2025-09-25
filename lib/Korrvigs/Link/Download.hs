@@ -23,6 +23,8 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
+import Data.Time.Format.ISO8601
+import Data.Time.LocalTime
 import qualified Data.Vector as V
 import Korrvigs.Entry.New
 import qualified Korrvigs.Link.Download.Books as Books
@@ -86,7 +88,9 @@ htmlMetas url =
       ("og:image", extractImage url),
       -- Twitter
       ("twitter:title", extractTitle),
-      ("twitter:description", extractText Abstract)
+      ("twitter:description", extractText Abstract),
+      -- Article
+      ("article:published_time", extractISO8601)
     ]
   where
     extractTitle t = Endo $ neTitle %~ maybe (Just t) Just
@@ -98,6 +102,10 @@ htmlMetas url =
       | "en_" `T.isPrefixOf` loc = Endo $ setMtdtValueLazy Language "en"
       | "fr_" `T.isPrefixOf` loc = Endo $ setMtdtValueLazy Language "fr"
       | otherwise = mempty
+    extractISO8601 :: Text -> Endo NewEntry
+    extractISO8601 dt = case iso8601ParseM $ T.unpack dt of
+      Nothing -> mempty
+      Just zt -> Endo $ neDate ?~ localDay (zonedTimeToLocalTime zt)
 
 data LDJsonData = LDJsonData
   { _ldContext :: Text,

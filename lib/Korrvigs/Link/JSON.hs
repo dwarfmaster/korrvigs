@@ -61,7 +61,7 @@ instance ToJSON LinkJSON where
         "metadata" .= mtdt,
         "parents" .= prts
       ]
-        ++ maybe [] ((: []) . ("data" .=)) dt
+        ++ maybe [] ((: []) . ("date" .=)) dt
         ++ maybe [] ((: []) . ("duration" .=)) dur
         ++ maybe [] ((: []) . ("geometry" .=)) geo
         ++ maybe [] ((: []) . ("textContent" .=)) txt

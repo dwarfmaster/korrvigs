@@ -95,7 +95,7 @@ photoswipeHeader = do
           const PhotoSwipeVideoPlugin = video.default;
           const lightbox = new PhotoSwipeLightbox({
             gallery: "#" + id,
-            children: 'a',
+            children: 'a.photoswipe-entry',
             pswpModule: () => import('@{StaticR $ StaticRoute ["photoswipe", "photoswipe.esm.js"] []}')
           });
           const videoPlugin = new PhotoSwipeVideoPlugin(lightbox, {});
@@ -219,7 +219,7 @@ photoswipe settings (item : items) = do
     mkLink :: (PhotoswipeEntry -> Route WebData) -> (PhotoswipeEntry -> Route WebData) -> PhotoswipeEntry -> Widget -> Widget
     mkLink getUrl getMiniature it widget =
       [whamlet|
-        <a href=@{getUrl it} data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-korrvigs-target=@{itemTarget getUrl it} target="_blank" *{videoAttrs it}>
+        <a href=@{getUrl it} .photoswipe-entry data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-korrvigs-target=@{itemTarget getUrl it} target="_blank" *{videoAttrs it}>
           <img loading=lazy src=@{getMiniature it} alt="">
           ^{widget}
       |]

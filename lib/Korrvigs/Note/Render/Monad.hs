@@ -132,7 +132,7 @@ registerLink txt uri = do
   let wds = T.words $ T.map sanitize $ toASCIIFuzzy txt
   let stub = T.pack $ take 3 $ C.toLower . T.head <$> wds
   lks <- use linksUsed
-  let candidates = stub : ((stub <>) . T.pack . show <$> ([1 ..] :: [Int]))
+  let candidates = [stub | not (T.null stub)] ++ ((stub <>) . T.pack . show <$> ([1 ..] :: [Int]))
   let key = fromJust $ find (\c -> not $ S.member c lks) candidates
   links %= ((key, uri) :)
   linksUsed %= S.insert key

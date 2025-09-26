@@ -1,20 +1,29 @@
 module Korrvigs.Syndicate.New where
 
+import Control.Applicative
 import Control.Arrow (first)
 import Control.Lens hiding (noneOf)
+import Control.Monad
+import Control.Monad.IO.Class
 import Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
+import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.New
 import Korrvigs.Kind
+import Korrvigs.Link.SQL
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import qualified Korrvigs.Metadata.Media.New as Media
 import Korrvigs.Monad
+import qualified Korrvigs.Monad.Metadata as Mtdt
 import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.SQL
@@ -75,6 +84,19 @@ create ns = do
   applyOnNewEntry nentry i
   pure i
 
+lookupFromUrl :: (MonadKorrvigs m) => Text -> m (Maybe Id)
+lookupFromUrl url = do
+  lnk <- rSelectOne $ do
+    lnk <- selectTable linksTable
+    where_ $ lnk ^. sqlLinkRef .== sqlStrictText url
+    nameFor $ lnk ^. sqlLinkId
+  entry <- rSelectOne $ do
+    entry <- selectTable entriesTable
+    u <- baseSelectTextMtdt Url $ entry ^. sqlEntryId
+    where_ $ u .== sqlStrictText url
+    pure $ entry ^. sqlEntryName
+  pure $ entry <|> lnk
+
 newFromItem :: (MonadKorrvigs m) => Syndicate -> Int -> m Id
 newFromItem syn itemSeq = do
   let sqlI = syn ^. synEntry . entryId
@@ -87,16 +109,26 @@ newFromItem syn itemSeq = do
   case item ^. sqlSynItInstance of
     Just i -> pure $ MkId i
     Nothing -> do
-      let nmedia =
-            Media.NewMedia
-              { Media._nmEntry =
-                  def
-                    & neTitle ?~ (item ^. sqlSynItTitle)
-                    & neDate %~ maybe id (const . Just . utctDay) (item ^. sqlSynItDate),
-                Media._nmInput = item ^. sqlSynItUrl,
-                Media._nmType = Nothing,
-                Media._nmCapture = True
-              }
-      i <- Media.new nmedia
+      oldI <- lookupFromUrl $ item ^. sqlSynItUrl
+      i <- case oldI of
+        Just i -> do
+          entry <- load i >>= throwMaybe (KCantLoad i "Failed to load entry when importing item")
+          when (isNothing $ entry ^. entryDate) $
+            forM_ (item ^. sqlSynItDate) $ \dt -> do
+              tz <- liftIO getCurrentTimeZone
+              Mtdt.updateDate entry $ Just $ utcToZonedTime tz dt
+          pure i
+        Nothing -> do
+          let nmedia =
+                Media.NewMedia
+                  { Media._nmEntry =
+                      def
+                        & neTitle ?~ (item ^. sqlSynItTitle)
+                        & neDate %~ maybe id (const . Just . utctDay) (item ^. sqlSynItDate),
+                    Media._nmInput = item ^. sqlSynItUrl,
+                    Media._nmType = Nothing,
+                    Media._nmCapture = True
+                  }
+          Media.new nmedia
       instantiateItem syn itemSeq i
       pure i

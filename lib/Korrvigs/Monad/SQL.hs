@@ -11,7 +11,6 @@ module Korrvigs.Monad.SQL
     syncDataRows,
     syncMtdtRows,
     syncTextContent,
-    syncTitle,
     syncParents,
     syncRefs,
     indexedMetadata,
@@ -181,7 +180,6 @@ data SyncData = SyncData
     _syncDataRows :: Int -> [Insert Int64],
     _syncMtdtRows :: [(CI Text, Value)],
     _syncTextContent :: Maybe Text,
-    _syncTitle :: Maybe Text,
     _syncParents :: [Id],
     _syncRefs :: [Id],
     _syncCompute :: Map Text Action
@@ -232,7 +230,7 @@ syncSQL dt = atomicSQL $ \conn -> do
   forM_ (dt ^. syncDataRows $ sqlI) $ runInsert conn
   -- Optionally set textContent
   let mtdtVal = (^? _2 . _String) <$> filter (\r -> (r ^. _1) `S.member` indexedMetadata) (dt ^. syncMtdtRows)
-  let txtContent = T.intercalate " " . mconcat $ toList <$> (dt ^. syncTextContent : dt ^. syncTitle : mtdtVal)
+  let txtContent = T.intercalate " " . mconcat $ toList <$> (dt ^. syncTextContent : dt ^. syncEntryRow . sqlEntryTitle : mtdtVal)
   unless (T.null txtContent) $ do
     -- Find language
     let lang = (^. _2) <$> find (\mrow -> mrow ^. _1 == mtdtName Language) (dt ^. syncMtdtRows)

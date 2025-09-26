@@ -96,7 +96,7 @@ syncDocument i path doc = do
             iOnConflict = Just doNothing
           }
   let txt = renderDocument doc
-  pure $ SyncData erow (\sqlI -> [insertNoteRow sqlI, insertColRows sqlI]) mrows (Just txt) title (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) M.empty
+  pure $ SyncData erow (\sqlI -> [insertNoteRow sqlI, insertColRows sqlI]) mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) M.empty
 
 updateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
 updateImpl note f = do

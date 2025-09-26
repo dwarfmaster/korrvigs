@@ -60,7 +60,7 @@ syncCalJSON i json = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  pure $ SyncData erow (singleton . insert) mtdtrows (json ^. cljsText) title (MkId <$> json ^. cljsParents) [] M.empty
+  pure $ SyncData erow (singleton . insert) mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) [] M.empty
 
 syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
 syncOne path = do

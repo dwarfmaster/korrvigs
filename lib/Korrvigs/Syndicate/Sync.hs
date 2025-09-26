@@ -97,7 +97,7 @@ syncSynJSON i path json = do
             iOnConflict = Just doNothing
           }
   let refs = toList (json ^? synjsFilter . _Just . _1) ++ mapMaybe (view synitInstance) (json ^. synjsItems)
-  pure $ SyncData erow (\sqlI -> [insert sqlI, insertItemRows sqlI]) mtdtrows (json ^. synjsText) title (MkId <$> json ^. synjsParents) refs M.empty
+  pure $ SyncData erow (\sqlI -> [insert sqlI, insertItemRows sqlI]) mtdtrows (json ^. synjsText) (MkId <$> json ^. synjsParents) refs M.empty
 
 updateFile :: (MonadKorrvigs m) => Id -> FilePath -> (SyndicateJSON -> m SyndicateJSON) -> m ()
 updateFile i path f = do

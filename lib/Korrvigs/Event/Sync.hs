@@ -100,7 +100,7 @@ syncEvent i calendar ics ifile ical = do
           }
   let txt = T.intercalate " " $ catMaybes [ical ^. iceComment, ical ^. iceSummary, ical ^. iceDescription]
   let txt' = if T.null txt then Nothing else Just txt
-  pure $ SyncData erow (singleton . insert) mrows txt' (ical ^. iceSummary) (calendar : ical ^. iceParents) [] M.empty
+  pure $ SyncData erow (singleton . insert) mrows txt' (calendar : ical ^. iceParents) [] M.empty
 
 syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
 syncOne path = do

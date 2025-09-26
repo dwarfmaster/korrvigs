@@ -157,7 +157,7 @@ syncOne path = do
             iOnConflict = Just doNothing
           }
   let txt = json ^. exText
-  let sdt = SyncData erow (singleton . insert) mtdtrows txt title (json ^. exParents) [] cmps
+  let sdt = SyncData erow (singleton . insert) mtdtrows txt (json ^. exParents) [] cmps
   pure sdt
 
 updateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()

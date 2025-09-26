@@ -52,7 +52,7 @@ syncLinkJSON i path json = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  pure $ SyncData erow (singleton . insert) mtdtrows (json ^. lkjsText) title (MkId <$> json ^. lkjsParents) [] M.empty
+  pure $ SyncData erow (singleton . insert) mtdtrows (json ^. lkjsText) (MkId <$> json ^. lkjsParents) [] M.empty
 
 syncLink :: (MonadKorrvigs m) => FilePath -> m SyncData
 syncLink path = do

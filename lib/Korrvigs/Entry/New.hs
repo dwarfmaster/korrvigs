@@ -26,6 +26,7 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
+import Data.Aeson.Lens
 import Data.CaseInsensitive (CI)
 import Data.Default
 import Data.Map (Map)
@@ -37,10 +38,14 @@ import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Monad.Metadata (updateParents)
-import Korrvigs.Note.AST
+import Korrvigs.Note.AST hiding (_Syndicate)
+import Korrvigs.Syndicate.SQL
+import qualified Korrvigs.Syndicate.Sync as Syn
+import Opaleye hiding (isNull, null)
 
 data NewEntry = NewEntry
   { _neParents :: [Id],
@@ -106,11 +111,25 @@ applyCapture :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
 applyCapture ne i =
   when (null (ne ^. neCollections) && null (ne ^. neParents)) $ void $ capture i
 
+applyIsSyndicatedItem :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
+applyIsSyndicatedItem ne i = case ne ^? neMtdt . at (mtdtName Url) . _Just . _String of
+  Nothing -> pure ()
+  Just url -> do
+    feedItems :: [SyndicateItemRow] <- rSelect $ do
+      item <- selectTable syndicatedItemsTable
+      where_ $ item ^. sqlSynItUrl .== sqlStrictText url
+      pure item
+    forM_ feedItems $ \item -> when (isNothing $ item ^. sqlSynItInstance) $ do
+      entry <- loadSql $ item ^. sqlSynItSyndicate
+      forM_ (entry ^? _Just . _Syndicate) $ \syn ->
+        Syn.instantiateItem syn (item ^. sqlSynItSequence) i
+
 applyOnNewEntry :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
 applyOnNewEntry ne i = do
   applyCollections ne i
   applyChildren ne i
   applyCapture ne i
+  applyIsSyndicatedItem ne i
 
 setMtdtValue :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => mtdt -> MtdtType mtdt -> NewEntry -> NewEntry
 setMtdtValue mtdt = setMtdtValueV mtdt . toJSON

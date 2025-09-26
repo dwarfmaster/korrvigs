@@ -2,7 +2,6 @@ module Korrvigs.Syndicate.New where
 
 import Control.Arrow (first)
 import Control.Lens hiding (noneOf)
-import Control.Monad
 import Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
@@ -17,7 +16,6 @@ import Korrvigs.Kind
 import qualified Korrvigs.Metadata.Media.New as Media
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync (syncFileOfKind)
-import Korrvigs.Syndicate.Item
 import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.SQL
 import Korrvigs.Syndicate.Sync
@@ -100,23 +98,5 @@ newFromItem syn itemSeq = do
                 Media._nmCapture = True
               }
       i <- Media.new nmedia
-      newSqlI <- rSelectOne (fromName pure $ sqlId i) >>= throwMaybe (KCantLoad i "No sql ID found")
-      updateImpl syn $ pure . (synjsItems . ix (itemSeq - 1) . synitInstance ?~ i)
-      atomicSQL $ \conn -> do
-        void $
-          runUpdate conn $
-            Update
-              { uTable = syndicatedItemsTable,
-                uUpdateWith = sqlSynItInstance .~ toNullable (sqlId i),
-                uWhere = \row -> row ^. sqlSynItSyndicate .== sqlInt4 sqlI .&& (row ^. sqlSynItSequence) .== sqlInt4 itemSeq,
-                uReturning = rCount
-              }
-        void $
-          runInsert conn $
-            Insert
-              { iTable = entriesRefTable,
-                iRows = [RelRow (sqlInt4 sqlI) (sqlInt4 newSqlI)],
-                iReturning = rCount,
-                iOnConflict = Just doNothing
-              }
+      instantiateItem syn itemSeq i
       pure i

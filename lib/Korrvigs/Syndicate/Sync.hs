@@ -27,7 +27,7 @@ import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.SQL
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
-import Opaleye (Insert (..), doNothing, rCount, toFields)
+import Opaleye hiding (not, null)
 import System.Directory
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
@@ -139,3 +139,26 @@ updateRef syn old new =
 
 updateTitle :: (MonadKorrvigs m) => Syndicate -> Maybe Text -> m ()
 updateTitle syn ntitle = updateImpl syn $ pure . (synjsTitle .~ ntitle)
+
+instantiateItem :: (MonadKorrvigs m) => Syndicate -> Int -> Id -> m ()
+instantiateItem syn item i = do
+  let sqlI = syn ^. synEntry . entryId
+  newSqlI <- rSelectOne (fromName pure $ sqlId i) >>= throwMaybe (KCantLoad i "No sql ID found")
+  updateImpl syn $ pure . (synjsItems . ix (item - 1) . synitInstance ?~ i)
+  atomicSQL $ \conn -> do
+    void $
+      runUpdate conn $
+        Update
+          { uTable = syndicatedItemsTable,
+            uUpdateWith = sqlSynItInstance .~ toNullable (sqlId i),
+            uWhere = \row -> row ^. sqlSynItSyndicate .== sqlInt4 sqlI .&& (row ^. sqlSynItSequence) .== sqlInt4 item,
+            uReturning = rCount
+          }
+    void $
+      runInsert conn $
+        Insert
+          { iTable = entriesRefTable,
+            iRows = [RelRow (sqlInt4 sqlI) (sqlInt4 newSqlI)],
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }

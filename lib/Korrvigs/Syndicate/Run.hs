@@ -6,7 +6,10 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Data.Aeson
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.UTF8 as BSU8
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -28,6 +31,8 @@ import Korrvigs.Syndicate.New (lazyUpdateDate, lookupFromUrl)
 import Korrvigs.Syndicate.Sync (updateImpl)
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
+import Network.HTTP.Types.URI
+import Network.URI
 import qualified Text.Atom.Feed as Atom
 import Text.Feed.Import
 import Text.Feed.Types
@@ -101,6 +106,15 @@ parseDate date =
   where
     dt = T.unpack date
 
+-- Remove utm_* parameters
+normalizeURL :: Text -> Text
+normalizeURL url = case parseURI $ T.unpack url of
+  Nothing -> url
+  Just uri ->
+    let q = parseQuery $ BS8.pack $ uriQuery uri
+     in let nq = filter (not . BS.isPrefixOf "utm_" . fst) q
+         in T.pack $ show $ uri {uriQuery = BSU8.toString $ renderQuery True nq, uriFragment = ""}
+
 importFromAtom :: Atom.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
 importFromAtom feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.feedEntries feed)
   where
@@ -113,7 +127,7 @@ importFromAtom feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.fe
       pure $
         SyndicatedItem
           { _synitTitle = extractText $ Atom.entryTitle entry,
-            _synitUrl = url,
+            _synitUrl = normalizeURL url,
             _synitRead = False,
             _synitGUID = Just $ Atom.entryId entry,
             _synitDate = parseDate dt,
@@ -147,7 +161,7 @@ importFromRSS time feed = (setTitle . setDesc . setTTL, mapMaybe importFromItem 
       pure $
         SyndicatedItem
           { _synitTitle = title,
-            _synitUrl = url,
+            _synitUrl = normalizeURL url,
             _synitRead = False,
             _synitGUID = RSS.rssGuidValue <$> RSS.rssItemGuid item,
             _synitDate = parseDate =<< RSS.rssItemPubDate item,
@@ -164,7 +178,7 @@ importFromRSS1 feed = (setTitle . setDesc, importFromItem <$> RSS1.feedItems fee
     importFromItem item =
       SyndicatedItem
         { _synitTitle = RSS1.itemTitle item,
-          _synitUrl = RSS1.itemURI item,
+          _synitUrl = normalizeURL $ RSS1.itemURI item,
           _synitRead = False,
           _synitGUID = Nothing,
           _synitDate = Nothing,

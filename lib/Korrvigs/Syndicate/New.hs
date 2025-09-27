@@ -97,6 +97,14 @@ lookupFromUrl url = do
     pure $ entry ^. sqlEntryName
   pure $ entry <|> lnk
 
+lazyUpdateDate :: (MonadKorrvigs m) => Id -> Maybe UTCTime -> m ()
+lazyUpdateDate i time = do
+  entry <- load i >>= throwMaybe (KCantLoad i "Failed to load entry when importing item")
+  when (isNothing $ entry ^. entryDate) $
+    forM_ time $ \dt -> do
+      tz <- liftIO getCurrentTimeZone
+      Mtdt.updateDate entry $ Just $ utcToZonedTime tz dt
+
 newFromItem :: (MonadKorrvigs m) => Syndicate -> Int -> m Id
 newFromItem syn itemSeq = do
   let sqlI = syn ^. synEntry . entryId
@@ -112,11 +120,7 @@ newFromItem syn itemSeq = do
       oldI <- lookupFromUrl $ item ^. sqlSynItUrl
       i <- case oldI of
         Just i -> do
-          entry <- load i >>= throwMaybe (KCantLoad i "Failed to load entry when importing item")
-          when (isNothing $ entry ^. entryDate) $
-            forM_ (item ^. sqlSynItDate) $ \dt -> do
-              tz <- liftIO getCurrentTimeZone
-              Mtdt.updateDate entry $ Just $ utcToZonedTime tz dt
+          lazyUpdateDate i $ item ^. sqlSynItDate
           pure i
         Nothing -> do
           let nmedia =

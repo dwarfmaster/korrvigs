@@ -24,6 +24,7 @@ import Korrvigs.Monad
 import Korrvigs.Monad.Sync
 import Korrvigs.Syndicate.Item
 import Korrvigs.Syndicate.JSON
+import Korrvigs.Syndicate.New (lazyUpdateDate, lookupFromUrl)
 import Korrvigs.Syndicate.Sync (updateImpl)
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
@@ -63,23 +64,34 @@ run syn =
             RSSFeed fd -> importFromRSS current fd
             RSS1Feed fd -> importFromRSS1 fd
             XMLFeed _ -> (id, [])
-      let updItems = synjsItems %~ mergeItemsInto items
-      updateImpl syn $ pure . setETag . imp . updItems
+      let updItems synjs = do
+            nitems <- mergeItemsInto items $ synjs ^. synjsItems
+            pure $ synjs & synjsItems .~ nitems
+      updateImpl syn $ updItems . setETag . imp
       syncFileOfKind (syn ^. synPath) Syndicate
       pure True
 
-mergeItemsInto :: [SyndicatedItem] -> [SyndicatedItem] -> [SyndicatedItem]
-mergeItemsInto = foldr insertOneItem . reverse
+mergeItemsInto :: (MonadKorrvigs m) => [SyndicatedItem] -> [SyndicatedItem] -> m [SyndicatedItem]
+mergeItemsInto = flip (foldM (flip insertOneItem)) . reverse
 
-insertOneItem :: SyndicatedItem -> [SyndicatedItem] -> [SyndicatedItem]
+insertOneItem :: (MonadKorrvigs m) => SyndicatedItem -> [SyndicatedItem] -> m [SyndicatedItem]
 insertOneItem it = findAndInsert
   where
-    merge :: SyndicatedItem -> SyndicatedItem -> SyndicatedItem
-    merge new old = new & synitInstance .~ old ^. synitInstance
-    findAndInsert :: [SyndicatedItem] -> [SyndicatedItem]
-    findAndInsert [] = [it]
-    findAndInsert (oit : oits) | isSame it oit = merge it oit : oits
-    findAndInsert (oit : oits) = oit : findAndInsert oits
+    merge :: (MonadKorrvigs m) => SyndicatedItem -> SyndicatedItem -> m SyndicatedItem
+    merge new old =
+      tryInstantiate $ new & synitInstance .~ old ^. synitInstance
+    findAndInsert :: (MonadKorrvigs m) => [SyndicatedItem] -> m [SyndicatedItem]
+    findAndInsert [] = (: []) <$> tryInstantiate it
+    findAndInsert (oit : oits) | isSame it oit = (: oits) <$> merge it oit
+    findAndInsert (oit : oits) = (:) <$> tryInstantiate oit <*> findAndInsert oits
+
+tryInstantiate :: (MonadKorrvigs m) => SyndicatedItem -> m SyndicatedItem
+tryInstantiate it = case it ^. synitInstance of
+  Just _ -> pure it
+  Nothing -> do
+    inst <- lookupFromUrl $ it ^. synitUrl
+    forM_ inst $ flip lazyUpdateDate $ it ^. synitDate
+    pure $ it & synitInstance .~ inst
 
 parseDate :: Text -> Maybe UTCTime
 parseDate date =

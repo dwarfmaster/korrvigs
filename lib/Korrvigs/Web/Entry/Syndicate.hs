@@ -82,33 +82,34 @@ renderItems syns spec = do
     pure $ item & _8 .~ cb
   pure
     [whamlet|
-    <ul>
-      $forall (synName,title,url,inst,_,sq,read,cb,synTitle) <- items
-        <li>
-          $if not public
-            ^{cb}
-            $if read && isNothing inst
-              ✓
-            #{T.pack " "}
-            $if showTitle
-              <a href=@{EntryR $ WId $ MkId synName}>
-                [
-                $maybe title <- synTitle
-                  #{title}
-                $nothing
-                  @#{synName}
-                ]
-          <a href=#{url}>#{title}
-          $if not public
-            $maybe i <- inst
-              <a href=@{EntryR $ WId i}>
-                ^{openIcon}
-            $nothing
-              <a href=@{SynItemImportR (WId $ MkId synName) sq}>
-                ⤓
-              $if not read
-                <a href=@{SynItemReadR (WId $ MkId synName) sq}>
-                  ✓
+    <div .syndicate>
+      <ul>
+        $forall (synName,title,url,inst,_,sq,read,cb,synTitle) <- items
+          <li>
+            $if not public
+              ^{cb}
+              $if read && isNothing inst
+                ✓
+              $maybe i <- inst
+                <a href=@{EntryR $ WId i}>
+                  ^{openIcon}
+              $nothing
+                <a href=@{SynItemImportR (WId $ MkId synName) sq}>
+                  ⤓
+                $if not read
+                  <a href=@{SynItemReadR (WId $ MkId synName) sq}>
+                    ✓
+              #{T.pack " "}
+            <a href=#{url}>#{title}
+            $if not public
+              $if showTitle
+                <a .syndicate-ref href=@{EntryR $ WId $ MkId synName}>
+                  [
+                  $maybe title <- synTitle
+                    #{title}
+                  $nothing
+                    @#{synName}
+                  ]
   |]
   where
     joinMField :: MaybeFields (Field a) -> FieldNullable a

@@ -312,3 +312,12 @@ mjx-container
   margin-bottom: 0.2em
   background-color: var(--base04)
   color: var(--base00)
+
+.syndicate
+  overflow-x: scroll
+  white-space: nowrap
+  ul
+    width: fit-content
+
+.syndicate-ref
+  font-size: 0.8em

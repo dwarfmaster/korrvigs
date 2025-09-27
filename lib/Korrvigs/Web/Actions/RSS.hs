@@ -102,18 +102,26 @@ runSyndicateForm = pure ()
 runSyndicateTitle :: ActionTarget -> Text
 runSyndicateTitle = const "Run syndication"
 
+doRunSyndicate :: Syndicate -> Handler Bool
+doRunSyndicate syn = do
+  run <- Syn.run syn
+  entries <- rSelect $ do
+    e <- selectTable entriesTable
+    syndicate <- baseSelectTextMtdt SyndicateMtdt $ e ^. sqlEntryId
+    where_ $ syndicate .== sqlId (syn ^. synEntry . entryName)
+    pure $ e ^. sqlEntryName
+  forM_ entries $ load >=> mapM_ (`updateAggregate` syn)
+  pure run
+
 runRunSyndicate :: () -> ActionTarget -> Handler ActionReaction
 runRunSyndicate () (TargetEntry entry) = do
   (upd, i) <- case entry ^. entryKindData of
-    SyndicateD syn -> (,entry ^. entryName) <$> Syn.run syn
+    SyndicateD syn -> (,entry ^. entryName) <$> doRunSyndicate syn
     _ -> do
       synName <- rSelectOne (baseSelectTextMtdt SyndicateMtdt $ sqlInt4 $ entry ^. entryId) >>= throwMaybe (KMiscError $ "Entry " <> unId (entry ^. entryName) <> " has no syndicate metadata")
       synEnt <- load synName >>= throwMaybe (KCantLoad synName $ "Couldn't load syndicate " <> unId synName)
       case synEnt ^. entryKindData of
-        SyndicateD syn -> do
-          run <- Syn.run syn
-          updateAggregate entry syn
-          pure (run, synEnt ^. entryName)
+        SyndicateD syn -> (,synEnt ^. entryName) <$> doRunSyndicate syn
         _ -> throwM $ KMiscError $ "Entry " <> unId synName <> " is not a syndicate"
   render <- getUrlRenderParams
   let msg1 = [hamlet|<p>Nothing to do|] render

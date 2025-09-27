@@ -6,6 +6,7 @@ import Control.Monad
 import Data.Aeson.Lens
 import Data.Default
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
 import GHC.Int (Int64)
@@ -92,6 +93,7 @@ runSyndicate () _ = pure def
 --  |  _ <| |_| | | | |
 --  |_| \_\\__,_|_| |_|
 runSyndicateTarget :: ActionTarget -> ActionCond
+runSyndicateTarget TargetHome = ActCondAlways
 runSyndicateTarget (TargetEntry entry) | entry ^. kind == Syndicate = ActCondAlways
 runSyndicateTarget (TargetEntry _) = ActCondQuery $ def & queryMtdt .~ [(mtdtSqlName SyndicateMtdt, TypeQuery JSIsText)]
 runSyndicateTarget _ = ActCondNever
@@ -114,6 +116,25 @@ doRunSyndicate syn = do
   pure run
 
 runRunSyndicate :: () -> ActionTarget -> Handler ActionReaction
+runRunSyndicate () TargetHome = do
+  synIds <- rSelect $ view sqlSynId <$> selectTable syndicatesTable
+  runResults <- fmap catMaybes <$> forM synIds $ \sqlI -> do
+    entry <- loadSql sqlI
+    forM (entry ^? _Just . _Syndicate) $ \syn ->
+      (syn ^. synEntry . entryName,) <$> doRunSyndicate syn
+  render <- getUrlRenderParams
+  let msg =
+        [hamlet|
+      <ul>
+        $forall (i,r) <- runResults
+          <li>
+            $if r
+              Updated <a href=@{EntryR $ WId i}>@#{unId i}
+            $else
+              Nothing to do for <a href=@{EntryR $ WId i}>@#{unId i}
+    |]
+          render
+  pure $ def & reactMsg ?~ msg
 runRunSyndicate () (TargetEntry entry) = do
   (upd, i) <- case entry ^. entryKindData of
     SyndicateD syn -> (,entry ^. entryName) <$> doRunSyndicate syn

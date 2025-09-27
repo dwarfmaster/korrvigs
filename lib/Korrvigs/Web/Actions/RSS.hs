@@ -1,12 +1,14 @@
 module Korrvigs.Web.Actions.RSS where
 
 import Conduit
-import Control.Lens
+import Control.Lens hiding ((.>))
+import Control.Monad
 import Data.Aeson.Lens
 import Data.Default
 import qualified Data.Map as M
 import Data.Monoid
 import Data.Text (Text)
+import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.Kind
@@ -18,11 +20,12 @@ import Korrvigs.Monad.Metadata
 import Korrvigs.Query
 import Korrvigs.Syndicate.New
 import qualified Korrvigs.Syndicate.Run as Syn
+import Korrvigs.Syndicate.SQL
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import Opaleye
-import Yesod
+import Yesod hiding (count)
 
 --  ___                            _
 
@@ -107,7 +110,10 @@ runRunSyndicate () (TargetEntry entry) = do
       synName <- rSelectOne (baseSelectTextMtdt SyndicateMtdt $ sqlInt4 $ entry ^. entryId) >>= throwMaybe (KMiscError $ "Entry " <> unId (entry ^. entryName) <> " has no syndicate metadata")
       synEnt <- load synName >>= throwMaybe (KCantLoad synName $ "Couldn't load syndicate " <> unId synName)
       case synEnt ^. entryKindData of
-        SyndicateD syn -> (,synEnt ^. entryName) <$> Syn.run syn
+        SyndicateD syn -> do
+          run <- Syn.run syn
+          updateAggregate entry syn
+          pure (run, synEnt ^. entryName)
         _ -> throwM $ KMiscError $ "Entry " <> unId synName <> " is not a syndicate"
   render <- getUrlRenderParams
   let msg1 = [hamlet|<p>Nothing to do|] render
@@ -118,3 +124,32 @@ runRunSyndicate () (TargetEntry entry) = do
       & reactMsg ?~ (if upd then msg2 else msg1)
       & reactRedirect .~ red
 runRunSyndicate () _ = pure def
+
+updateAggregate :: Entry -> Syndicate -> Handler ()
+updateAggregate entry syn =
+  rSelectTextMtdt AggregateMethod (sqlId $ entry ^. entryName) >>= \case
+    Just "count-since-last" -> do
+      mseq <- rSelectOne $ do
+        lastread <- baseSelectTextMtdt LastRead $ sqlInt4 sqlI
+        item <- selectTable syndicatedItemsTable
+        where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
+        where_ $ item ^. sqlSynItUrl .== lastread
+        pure $ item ^. sqlSynItSequence
+      forM_ mseq $ \sq -> do
+        mcnt :: Maybe Int64 <- rSelectOne $ aggregate count $ do
+          item <- selectTable syndicatedItemsTable
+          where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
+          where_ $ item ^. sqlSynItSequence .> sqlInt4 sq
+          pure $ item ^. sqlSynItSequence
+        forM_ mcnt $ \cnt -> updateMetadata entry (M.singleton (mtdtSqlName AggregateCount) (toJSON cnt)) []
+    Just "count-new" -> do
+      mcnt :: Maybe Int64 <- rSelectOne $ aggregate count $ do
+        item <- selectTable syndicatedItemsTable
+        where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
+        where_ $ isNull $ item ^. sqlSynItInstance
+        where_ $ item ^. sqlSynItRead .== sqlBool False
+        pure $ item ^. sqlSynItSequence
+      forM_ mcnt $ \cnt -> updateMetadata entry (M.singleton (mtdtSqlName AggregateCount) (toJSON cnt)) []
+    _ -> pure ()
+  where
+    sqlI = entry ^. entryId

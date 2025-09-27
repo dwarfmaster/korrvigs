@@ -112,3 +112,5 @@ mkMtdt "Hidden" "hidden" [t|Text|]
 -- RSS metadata
 mkMtdt "SyndicateMtdt" "syndicate" [t|Text|]
 mkMtdt "AggregateCount" "aggregate-count" [t|Int|]
+mkMtdt "AggregateMethod" "aggregate" [t|Text|]
+mkMtdt "LastRead" "last-read" [t|Text|]

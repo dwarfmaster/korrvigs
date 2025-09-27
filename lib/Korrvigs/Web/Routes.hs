@@ -54,8 +54,9 @@ korrvigsRoutes =
 /action/#Text/note/#WebId/sub/#Text ActNoteSubR POST
 /action/#Text/note/#WebId/code/#Text ActNoteCodeR POST
 
--- Misc
-/syndicate/#WebId/#Int SynItemR GET
+-- Syndicate items
+/syndicate/#WebId/#Int/import SynItemImportR GET
+/syndicate/#WebId/#Int/read SynItemReadR GET
 
 -- Git visualisation and manipulation
 /git GitR GET POST

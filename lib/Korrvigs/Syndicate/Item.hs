@@ -10,6 +10,7 @@ import Korrvigs.Entry
 data SyndicatedItem = SyndicatedItem
   { _synitTitle :: Text,
     _synitUrl :: Text,
+    _synitRead :: Bool,
     _synitGUID :: Maybe Text,
     _synitDate :: Maybe UTCTime,
     _synitInstance :: Maybe Id
@@ -22,6 +23,7 @@ instance FromJSON SyndicatedItem where
     SyndicatedItem
       <$> obj .: "title"
       <*> obj .: "url"
+      <*> (fromMaybe False <$> obj .:? "read")
       <*> obj .:? "guid"
       <*> obj .:? "date"
       <*> (fmap MkId <$> obj .:? "instance")
@@ -32,6 +34,7 @@ instance ToJSON SyndicatedItem where
       [ "title" .= (syn ^. synitTitle),
         "url" .= (syn ^. synitUrl)
       ]
+        ++ ["read" .= True | syn ^. synitRead]
         ++ maybe [] ((: []) . ("guid" .=)) (syn ^. synitGUID)
         ++ maybe [] ((: []) . ("date" .=)) (syn ^. synitDate)
         ++ maybe [] ((: []) . ("instance" .=) . unId) (syn ^. synitInstance)

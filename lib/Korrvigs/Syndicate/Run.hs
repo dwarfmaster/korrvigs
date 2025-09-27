@@ -114,6 +114,7 @@ importFromAtom feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.fe
         SyndicatedItem
           { _synitTitle = extractText $ Atom.entryTitle entry,
             _synitUrl = url,
+            _synitRead = False,
             _synitGUID = Just $ Atom.entryId entry,
             _synitDate = parseDate dt,
             _synitInstance = Nothing
@@ -147,6 +148,7 @@ importFromRSS time feed = (setTitle . setDesc . setTTL, mapMaybe importFromItem 
         SyndicatedItem
           { _synitTitle = title,
             _synitUrl = url,
+            _synitRead = False,
             _synitGUID = RSS.rssGuidValue <$> RSS.rssItemGuid item,
             _synitDate = parseDate =<< RSS.rssItemPubDate item,
             _synitInstance = Nothing
@@ -163,6 +165,7 @@ importFromRSS1 feed = (setTitle . setDesc, importFromItem <$> RSS1.feedItems fee
       SyndicatedItem
         { _synitTitle = RSS1.itemTitle item,
           _synitUrl = RSS1.itemURI item,
+          _synitRead = False,
           _synitGUID = Nothing,
           _synitDate = Nothing,
           _synitInstance = Nothing

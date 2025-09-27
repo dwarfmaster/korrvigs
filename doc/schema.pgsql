@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS syndicated_items (
   sequence INTEGER NOT NULL,
   title TEXT NOT NULL,
   url TEXT NOT NULL,
+  read BOOLEAN NOT NULL,
   guid TEXT,
   date TIMESTAMP WITH TIME ZONE,
   instance TEXT

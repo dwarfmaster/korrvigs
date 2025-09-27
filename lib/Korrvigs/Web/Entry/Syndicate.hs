@@ -3,6 +3,7 @@ module Korrvigs.Web.Entry.Syndicate where
 import Control.Lens
 import Control.Monad
 import Data.Default
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
@@ -60,7 +61,7 @@ renderItems syns spec = do
   let onlyNew = spec ^. renderOnlyNew
   let showTitle = spec ^. renderShowSyndicate
   public <- isPublic
-  itemsSQL :: [(Text, Text, Text, Maybe Id, Maybe UTCTime, Int, Maybe Text, Maybe Text)] <-
+  itemsSQL :: [(Text, Text, Text, Maybe Id, Maybe UTCTime, Int, Bool, Maybe Text, Maybe Text)] <-
     rSelect $ orderBy (descNullsFirst $ view _5) $ do
       (synName, synId, synTitle :: FieldNullable SqlText) <- values $ (\entry -> (sqlId $ entry ^. entryName, sqlInt4 $ entry ^. entryId, toFields $ entry ^. entryTitle)) . view synEntry <$> syns
       item <- selectTable syndicatedItemsTable
@@ -72,18 +73,22 @@ renderItems syns spec = do
         where_ $ task ^. sqlKey .== sqlStrictText (mtdtSqlName TaskMtdt)
         where_ $ task ^. sqlEntry .== (entry ^. sqlEntryId)
         pure $ sqlJsonToText $ toNullable $ task ^. sqlValue
-      when onlyNew $ where_ $ isNull $ item ^. sqlSynItInstance
-      pure (synName, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItInstance, item ^. sqlSynItDate, item ^. sqlSynItSequence, task, synTitle)
+      when onlyNew $ do
+        where_ $ isNull $ item ^. sqlSynItInstance
+        where_ $ item ^. sqlSynItRead .== sqlBool False
+      pure (synName, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItInstance, item ^. sqlSynItDate, item ^. sqlSynItSequence, item ^. sqlSynItRead, task, synTitle)
   items <- forM itemsSQL $ \item -> do
-    cb <- maybe (pure mempty) (flip checkBoxDWIM $ item ^. _7) $ item ^. _4
-    pure $ item & _7 .~ cb
+    cb <- maybe (pure mempty) (flip checkBoxDWIM $ item ^. _8) $ item ^. _4
+    pure $ item & _8 .~ cb
   pure
     [whamlet|
     <ul>
-      $forall (synName,title,url,inst,_,sq,cb,synTitle) <- items
+      $forall (synName,title,url,inst,_,sq,read,cb,synTitle) <- items
         <li>
           $if not public
             ^{cb}
+            $if read && isNothing inst
+              ✓
             #{T.pack " "}
             $if showTitle
               <a href=@{EntryR $ WId $ MkId synName}>
@@ -99,8 +104,11 @@ renderItems syns spec = do
               <a href=@{EntryR $ WId i}>
                 ^{openIcon}
             $nothing
-              <a href=@{SynItemR (WId $ MkId synName) sq}>
+              <a href=@{SynItemImportR (WId $ MkId synName) sq}>
                 ⤓
+              $if not read
+                <a href=@{SynItemReadR (WId $ MkId synName) sq}>
+                  ✓
   |]
   where
     joinMField :: MaybeFields (Field a) -> FieldNullable a

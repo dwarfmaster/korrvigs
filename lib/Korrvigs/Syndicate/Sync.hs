@@ -88,7 +88,7 @@ syncSynJSON i path json = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  let irows sqlI = flip fmap (zip [1 ..] $ json ^. synjsItems) $ \(sq, item) -> SyndicateItemRow sqlI sq (item ^. synitTitle) (item ^. synitUrl) (item ^. synitGUID) (item ^. synitDate) (unId <$> item ^. synitInstance) :: SyndicateItemRow
+  let irows sqlI = flip fmap (zip [1 ..] $ json ^. synjsItems) $ \(sq, item) -> SyndicateItemRow sqlI sq (item ^. synitTitle) (item ^. synitUrl) (item ^. synitRead) (item ^. synitGUID) (item ^. synitDate) (unId <$> item ^. synitInstance) :: SyndicateItemRow
   let insertItemRows sqlI =
         Insert
           { iTable = syndicatedItemsTable,
@@ -161,4 +161,18 @@ instantiateItem syn item i = do
             iRows = [RelRow (sqlInt4 sqlI) (sqlInt4 newSqlI)],
             iReturning = rCount,
             iOnConflict = Just doNothing
+          }
+
+readItem :: (MonadKorrvigs m) => Syndicate -> Int -> m ()
+readItem syn item = do
+  let sqlI = syn ^. synEntry . entryId
+  updateImpl syn $ pure . (synjsItems . ix (item - 1) . synitRead .~ True)
+  atomicSQL $ \conn -> do
+    void $
+      runUpdate conn $
+        Update
+          { uTable = syndicatedItemsTable,
+            uUpdateWith = sqlSynItRead .~ sqlBool True,
+            uWhere = \row -> row ^. sqlSynItSyndicate .== sqlInt4 sqlI .&& (row ^. sqlSynItSequence) .== sqlInt4 item,
+            uReturning = rCount
           }

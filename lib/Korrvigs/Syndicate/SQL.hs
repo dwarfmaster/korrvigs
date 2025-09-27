@@ -64,25 +64,26 @@ synFromRow row entry =
 
 -- syndicated_items table
 
-data SyndicateItemRowImpl a b c d e f g = SyndicateItemRow
+data SyndicateItemRowImpl a b c d e f g h = SyndicateItemRow
   { _sqlSynItSyndicate :: a,
     _sqlSynItSequence :: b,
     _sqlSynItTitle :: c,
     _sqlSynItUrl :: d,
-    _sqlSynItGUID :: e,
-    _sqlSynItDate :: f,
-    _sqlSynItInstance :: g
+    _sqlSynItRead :: e,
+    _sqlSynItGUID :: f,
+    _sqlSynItDate :: g,
+    _sqlSynItInstance :: h
   }
 
 makeLenses ''SyndicateItemRowImpl
 makeAdaptorAndInstanceInferrable "pSynItRow" ''SyndicateItemRowImpl
 
-type SyndicateItemRow = SyndicateItemRowImpl Int Int Text Text (Maybe Text) (Maybe UTCTime) (Maybe Text)
+type SyndicateItemRow = SyndicateItemRowImpl Int Int Text Text Bool (Maybe Text) (Maybe UTCTime) (Maybe Text)
 
-type SyndicateItemRowSQL = SyndicateItemRowImpl (Field SqlInt4) (Field SqlInt4) (Field SqlText) (Field SqlText) (FieldNullable SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlText)
+type SyndicateItemRowSQL = SyndicateItemRowImpl (Field SqlInt4) (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlBool) (FieldNullable SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlText)
 
 instance Default ToFields SyndicateItemRow SyndicateItemRowSQL where
-  def = pSynItRow $ SyndicateItemRow def def def def def def def
+  def = pSynItRow $ SyndicateItemRow def def def def def def def def
 
 syndicatedItemsTable :: Table SyndicateItemRowSQL SyndicateItemRowSQL
 syndicatedItemsTable =
@@ -93,6 +94,7 @@ syndicatedItemsTable =
         (tableField "sequence")
         (tableField "title")
         (tableField "url")
+        (tableField "read")
         (tableField "guid")
         (tableField "date")
         (tableField "instance")
@@ -102,6 +104,7 @@ synItemFromRow row =
   SyndicatedItem
     { _synitTitle = row ^. sqlSynItTitle,
       _synitUrl = row ^. sqlSynItUrl,
+      _synitRead = row ^. sqlSynItRead,
       _synitGUID = row ^. sqlSynItGUID,
       _synitDate = row ^. sqlSynItDate,
       _synitInstance = MkId <$> row ^. sqlSynItInstance

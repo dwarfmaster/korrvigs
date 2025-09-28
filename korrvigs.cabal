@@ -133,6 +133,7 @@ library korrvigs-lib
     Korrvigs.Monad.Utils
     Korrvigs.Note
     Korrvigs.Note.AST
+    Korrvigs.Note.Code
     Korrvigs.Note.Helpers
     Korrvigs.Note.Loc
     Korrvigs.Note.New

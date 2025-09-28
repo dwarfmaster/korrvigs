@@ -82,7 +82,7 @@ runSyndicate () (TargetEntry entry) = do
   i <- new ns
   updateMetadata entry (M.singleton (mtdtSqlName SyndicateMtdt) (toJSON $ unId i)) []
   render <- getUrlRenderParams
-  pure $ def & reactMsg ?~ [hamlet|<p>Create syndicate <a href=@{EntryR $ WId i}>@#{unId i}|] render
+  pure $ def & reactMsg ?~ [hamlet|<p>Create syndicate <a href=@{EntryR $ WId i}>@#{unId i}</a>|] render
 runSyndicate () _ = pure def
 
 --   ____
@@ -151,9 +151,13 @@ doRunSyndicates synIds = do
         $forall (i,r) <- runResults
           <li>
             $if r
-              Updated <a href=@{EntryR $ WId i}>@#{unId i}
+              Updated
+              <a href=@{EntryR $ WId i}>
+                @#{unId i}
             $else
-              Nothing to do for <a href=@{EntryR $ WId i}>@#{unId i}
+              Nothing to do for
+              <a href=@{EntryR $ WId i}>
+                @#{unId i}
     |]
           render
   pure $ def & reactMsg ?~ msg

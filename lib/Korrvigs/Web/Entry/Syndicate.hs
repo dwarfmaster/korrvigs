@@ -45,13 +45,13 @@ embed lvl syn = do
         <a href=#{url}>#{url}
         $maybe (entry,code) <- view synFilter syn
           <code>
-            |>
+            #{T.pack "|> "}
             $if public
               #{unId entry}
             $else
               <a href=@{EntryR $ WId $ entry}>
                 #{unId entry}
-            #
+            #{T.pack "#"}
             #{code}
     ^{itemsWidget}
   |]

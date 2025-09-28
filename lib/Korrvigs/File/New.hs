@@ -286,7 +286,9 @@ applyCover ne title = do
   mne <- fmap join $ forM (ne ^. neCover) $ \cover -> do
     let nw =
           NewDownloadedFile cover $
-            def & neTitle .~ fmap (<> " cover") title
+            def
+              & neTitle .~ fmap (<> " cover") title
+              & neInhibitCapture .~ True
     mcovId <- newFromUrl nw
     forM mcovId $ \covId ->
       pure $

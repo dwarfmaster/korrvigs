@@ -31,6 +31,7 @@ newEntryOptions =
     <*> optional (option str $ metavar "LANG" <> long "lang" <> help "Either fr or en, the language the entry will be interpreted as")
     <*> (M.fromList <$> many (option mtdtParser $ long "mtdt" <> help "Pairs in the form key=json of metadata to add to the entry"))
     <*> (catMaybes <$> many (parseCollection <$> option str (long "collection" <> metavar "COL" <> help "Collections to add the entry to, in the form id#colname")))
+    <*> switch (long "no-capture" <> help "Disable capture of entry")
     <*> pure []
     <*> optional (option str $ metavar "URL" <> long "cover" <> help "Link to picture to use as cover for entry")
     <*> pure Nothing

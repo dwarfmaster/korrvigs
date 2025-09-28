@@ -6,6 +6,7 @@ module Korrvigs.Entry.New
     neLanguage,
     neMtdt,
     neCollections,
+    neInhibitCapture,
     neChildren,
     neCover,
     neContent,
@@ -45,7 +46,7 @@ import Korrvigs.Monad.Metadata (updateParents)
 import Korrvigs.Note.AST hiding (_Syndicate)
 import Korrvigs.Syndicate.SQL
 import qualified Korrvigs.Syndicate.Sync as Syn
-import Opaleye hiding (isNull, null)
+import Opaleye hiding (isNull, not, null)
 
 data NewEntry = NewEntry
   { _neParents :: [Id],
@@ -54,6 +55,7 @@ data NewEntry = NewEntry
     _neLanguage :: Maybe Text,
     _neMtdt :: Map (CI Text) Value,
     _neCollections :: [(Id, Text)],
+    _neInhibitCapture :: Bool,
     _neChildren :: [Id],
     _neCover :: Maybe Text,
     _neContent :: Maybe Text
@@ -62,7 +64,7 @@ data NewEntry = NewEntry
 makeLenses ''NewEntry
 
 instance Default NewEntry where
-  def = NewEntry [] Nothing Nothing Nothing M.empty [] [] Nothing Nothing
+  def = NewEntry [] Nothing Nothing Nothing M.empty [] False [] Nothing Nothing
 
 zonedTimeFromDay :: TimeZone -> Day -> ZonedTime
 zonedTimeFromDay tz day =
@@ -109,7 +111,13 @@ applyChildren ne i = do
 
 applyCapture :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
 applyCapture ne i =
-  when (null (ne ^. neCollections) && null (ne ^. neParents)) $ void $ capture i
+  when
+    ( not (ne ^. neInhibitCapture)
+        && null (ne ^. neCollections)
+        && null (ne ^. neParents)
+    )
+    $ void
+    $ capture i
 
 applyIsSyndicatedItem :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
 applyIsSyndicatedItem ne i = case ne ^? neMtdt . at (mtdtName Url) . _Just . _String of

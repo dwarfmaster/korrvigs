@@ -1,6 +1,5 @@
 module Korrvigs.Web.Actions.RSS where
 
-import Conduit
 import Control.Lens hiding ((.>))
 import Control.Monad
 import Data.Aeson.Lens
@@ -95,7 +94,9 @@ runSyndicate () _ = pure def
 runSyndicateTarget :: ActionTarget -> ActionCond
 runSyndicateTarget TargetHome = ActCondAlways
 runSyndicateTarget (TargetEntry entry) | entry ^. kind == Syndicate = ActCondAlways
-runSyndicateTarget (TargetEntry _) = ActCondQuery $ def & queryMtdt .~ [(mtdtSqlName SyndicateMtdt, TypeQuery JSIsText)]
+runSyndicateTarget (TargetEntry _) = ActCondQuery $ def & queryMentioning ?~ QueryRel queryIsSyn False
+  where
+    queryIsSyn = def & queryKind ?~ Syndicate
 runSyndicateTarget _ = ActCondNever
 
 runSyndicateForm :: AForm Handler ()
@@ -118,6 +119,28 @@ doRunSyndicate syn = do
 runRunSyndicate :: () -> ActionTarget -> Handler ActionReaction
 runRunSyndicate () TargetHome = do
   synIds <- rSelect $ view sqlSynId <$> selectTable syndicatesTable
+  doRunSyndicates synIds
+runRunSyndicate () (TargetEntry entry) = do
+  react <- case entry ^. entryKindData of
+    SyndicateD syn -> doRunSyndicates [syn ^. synEntry . entryId]
+    _ -> do
+      syns <- rSelect $ do
+        ref <- selectTable entriesRefTable
+        where_ $ ref ^. source .== sqlInt4 (entry ^. entryId)
+        e <- selectTable entriesTable
+        where_ $ e ^. sqlEntryId .== (ref ^. target)
+        where_ $ e ^. sqlEntryKind .== sqlKind Syndicate
+        pure $ ref ^. target
+      doRunSyndicates syns
+  render <- getUrlRenderParams
+  let red = if entry ^. kind == Syndicate then Just (render (EntryR $ WId $ entry ^. entryName) []) else Nothing
+  pure $
+    react
+      & reactRedirect .~ red
+runRunSyndicate () _ = pure def
+
+doRunSyndicates :: [Int] -> Handler ActionReaction
+doRunSyndicates synIds = do
   runResults <- fmap catMaybes <$> forM synIds $ \sqlI -> do
     entry <- loadSql sqlI
     forM (entry ^? _Just . _Syndicate) $ \syn ->
@@ -135,24 +158,6 @@ runRunSyndicate () TargetHome = do
     |]
           render
   pure $ def & reactMsg ?~ msg
-runRunSyndicate () (TargetEntry entry) = do
-  (upd, i) <- case entry ^. entryKindData of
-    SyndicateD syn -> (,entry ^. entryName) <$> doRunSyndicate syn
-    _ -> do
-      synName <- rSelectOne (baseSelectTextMtdt SyndicateMtdt $ sqlInt4 $ entry ^. entryId) >>= throwMaybe (KMiscError $ "Entry " <> unId (entry ^. entryName) <> " has no syndicate metadata")
-      synEnt <- load synName >>= throwMaybe (KCantLoad synName $ "Couldn't load syndicate " <> unId synName)
-      case synEnt ^. entryKindData of
-        SyndicateD syn -> (,synEnt ^. entryName) <$> doRunSyndicate syn
-        _ -> throwM $ KMiscError $ "Entry " <> unId synName <> " is not a syndicate"
-  render <- getUrlRenderParams
-  let msg1 = [hamlet|<p>Nothing to do|] render
-  let msg2 = [hamlet|<p><a href=@{EntryR $ WId i}>Updated|] render
-  let red = if entry ^. kind == Syndicate then Just (render (EntryR $ WId $ entry ^. entryName) []) else Nothing
-  pure $
-    def
-      & reactMsg ?~ (if upd then msg2 else msg1)
-      & reactRedirect .~ red
-runRunSyndicate () _ = pure def
 
 updateAggregate :: Entry -> Syndicate -> Handler ()
 updateAggregate entry syn =

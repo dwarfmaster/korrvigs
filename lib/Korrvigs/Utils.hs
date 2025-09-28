@@ -5,6 +5,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Data.ByteString.Lazy (ByteString)
+import Data.Default
 import Data.Foldable
 import Data.IORef
 import Data.Maybe
@@ -12,8 +13,10 @@ import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Monad (MonadKorrvigs, manager)
+import Network.Connection
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
+import Network.TLS
 import System.Directory
 import System.FilePath
 
@@ -128,6 +131,12 @@ lazyCreateManager ref = liftIO $ do
   case mman of
     Just man -> pure man
     Nothing -> do
-      man <- newManager tlsManagerSettings
+      man <- newManager $ mkManagerSettings (tlsSettings def) Nothing
       writeIORef ref $ Just man
       pure man
+  where
+    supportedSettings sup = sup {supportedExtendedMainSecret = AllowEMS}
+    tlsSettings (TLSSettingsSimple cert session server supp) =
+      TLSSettingsSimple cert session server $ supportedSettings supp
+    tlsSettings (TLSSettings params) =
+      TLSSettings $ params {clientSupported = supportedSettings (clientSupported params)}

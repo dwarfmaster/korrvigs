@@ -2,6 +2,7 @@ module Korrvigs.Web.Backend where
 
 import Control.Concurrent.MVar
 import Control.Concurrent.STM
+import Control.Monad.Catch hiding (Handler)
 import Data.Binary.Builder
 import Data.ByteString (ByteString)
 import Data.Functor ((<&>))

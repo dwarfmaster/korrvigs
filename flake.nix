@@ -58,6 +58,7 @@
             hpkgs.clock
             hpkgs.isbn
             hpkgs.feed
+            hpkgs.conduit-aeson
           ]);
 
           git-hooks.hooks = {

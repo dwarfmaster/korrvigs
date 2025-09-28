@@ -61,26 +61,31 @@ mkExeProc Bash args = ("code.sh", proc "bash" $ "code.sh" : (T.unpack <$> args))
 mkExeProc SwiProlog args = ("code.pl", proc "swipl" $ "code.pl" : "--" : (T.unpack <$> args))
 
 run ::
+  (MonadUnliftIO m) =>
   Runnable ->
-  ConduitT () ByteString IO () -> -- stdin
-  ConduitT ByteString Void IO a -> -- stdout
-  ConduitT ByteString Void IO b -> -- stderr
-  IO (ExitCode, a, b)
-run rbl stdin stdout stderr = withSystemTempDirectory "korrvigs" $ \tmp -> do
-  prc <- runProc tmp rbl
-  sourceProcessWithStreams prc stdin stdout stderr
+  ConduitT () ByteString m () -> -- stdin
+  ConduitT ByteString Void m a -> -- stdout
+  ConduitT ByteString Void m b -> -- stderr
+  m (ExitCode, a, b)
+run rbl stdin stdout stderr = withRunInIO $ \runInIO ->
+  withSystemTempDirectory "korrvigs" $ \tmp -> do
+    prc <- liftIO $ runProc tmp rbl
+    runInIO $ sourceProcessWithStreams prc stdin stdout stderr
 
 runInOut ::
+  (MonadUnliftIO m) =>
   Runnable ->
-  ConduitT () ByteString IO () -> -- stdin
-  ConduitT ByteString Void IO a -> -- stdout
-  IO (ExitCode, a)
+  ConduitT () ByteString m () -> -- stdin
+  ConduitT ByteString Void m a -> -- stdout
+  m (ExitCode, a)
 runInOut rbl stdin stdout = (\(a, b, _) -> (a, b)) <$> run rbl stdin stdout sinkNull
 
 runOut ::
+  (MonadUnliftIO m) =>
   Runnable ->
-  ConduitT ByteString Void IO a -> -- stdout
-  IO (ExitCode, a)
-runOut rbl stdout = withSystemTempDirectory "korrvigs" $ \tmp -> do
-  prc <- runProc tmp rbl
-  sourceProcessWithConsumer prc stdout
+  ConduitT ByteString Void m a -> -- stdout
+  m (ExitCode, a)
+runOut rbl stdout = withRunInIO $ \runInIO -> do
+  withSystemTempDirectory "korrvigs" $ \tmp -> do
+    prc <- liftIO $ runProc tmp rbl
+    runInIO $ sourceProcessWithConsumer prc stdout

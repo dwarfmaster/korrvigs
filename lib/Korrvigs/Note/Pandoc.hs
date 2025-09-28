@@ -258,6 +258,7 @@ parseBlock (RawBlock (Format fmt) i)
         let (onlyNew, nm) = case T.stripPrefix "+" hd of
               Just suffix -> (True, suffix)
               Nothing -> (False, hd)
+        forM_ ids $ refTo . MkId
         pure $ pure $ A.Syndicate nm onlyNew $ MkId <$> ids
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks

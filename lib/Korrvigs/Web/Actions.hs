@@ -53,6 +53,7 @@ data ActionLabel
   | LabNewNote
   | LabNewLink
   | LabNewMedia
+  | LabNewSyn
   | LabShare
   | LabParentAdd
   | LabParentRm
@@ -78,11 +79,12 @@ actIcon LabNewFileDownload = mkIcon "downloads" Base0B
 actIcon LabNewNote = mkIcon "note" Base0B
 actIcon LabNewLink = mkIcon "link" Base0B
 actIcon LabNewMedia = mkIcon "media" Base0B
+actIcon LabNewSyn = mkIcon "rss" Base0B
 actIcon LabShare = mkIcon "share" Base0E
 actIcon LabParentAdd = mkIcon "parent" Base0B
 actIcon LabParentRm = mkIcon "parent" Base08
-actIcon LabUpdate = mkIcon "upload" Base0E
-actIcon LabImportRSS = mkIcon "rss" Base0B
+actIcon LabUpdate = mkIcon "upload" Base0F
+actIcon LabImportRSS = mkIcon "rss" Base0F
 actIcon LabNewSyndicate = mkIcon "rss" Base0E
 actIcon LabRunSyndicate = mkIcon "rss" Base0E
 actIcon LabEventSync = mkIcon "eventsync" Base0E
@@ -99,6 +101,7 @@ actName LabNewFileDownload = "newfiledl"
 actName LabNewNote = "newnote"
 actName LabNewLink = "newlink"
 actName LabNewMedia = "newmedia"
+actName LabNewSyn = "newsyn"
 actName LabShare = "share"
 actName LabParentAdd = "addparent"
 actName LabParentRm = "rmparent"
@@ -164,6 +167,7 @@ actForm l@LabNewFileDownload = genForm newFileDlForm newFileDlTitle $ actUrl l
 actForm l@LabNewNote = genForm newNoteForm newNoteTitle $ actUrl l
 actForm l@LabNewLink = genForm newLinkForm newLinkTitle $ actUrl l
 actForm l@LabNewMedia = genForm newMediaForm newMediaTitle $ actUrl l
+actForm l@LabNewSyn = genForm newSynForm newSynTitle $ actUrl l
 actForm l@LabShare = genForm shareForm shareTitle $ actUrl l
 actForm l@LabParentAdd = genForm parentForm parentAddTitle $ actUrl l
 actForm l@LabParentRm = genForm parentForm parentRmTitle $ actUrl l
@@ -208,6 +212,7 @@ actPost LabNewFileDownload = runPost newFileDlForm runNewFileDl
 actPost LabNewNote = runPost newNoteForm runNewNote
 actPost LabNewLink = runPost newLinkForm runNewLink
 actPost LabNewMedia = runPost newMediaForm runNewMedia
+actPost LabNewSyn = runPost newSynForm runNewSyn
 actPost LabShare = runPost shareForm runShare
 actPost LabParentAdd = runPost parentForm runParentAdd
 actPost LabParentRm = runPost parentForm runParentRm
@@ -256,6 +261,7 @@ actCond LabNewFileDownload = runActCond newTarget
 actCond LabNewNote = runActCond newTarget
 actCond LabNewLink = runActCond newTarget
 actCond LabNewMedia = runActCond newTarget
+actCond LabNewSyn = runActCond newTarget
 actCond LabShare = runActCond shareTarget
 actCond LabParentAdd = runActCond parentTarget
 actCond LabParentRm = runActCond parentTarget

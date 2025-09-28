@@ -55,13 +55,12 @@ runImportRSS url (TargetEntry entry) = do
       pure $ def & reactMsg ?~ [hamlet|<p>Found feed <a href=#{feed}>#{feed}</a>|] render
 runImportRSS _ _ = pure def
 
---  ____                  _ _           _
--- / ___| _   _ _ __   __| (_) ___ __ _| |_ ___
--- \___ \| | | | '_ \ / _` | |/ __/ _` | __/ _ \
---  ___) | |_| | | | | (_| | | (_| (_| | ||  __/
-
--- | ____/ \__, |_| |_|\__,_|_|\___\__,_|\__\___|
---         |___/
+--   ____                  _ _           _
+--  / ___| _   _ _ __   __| (_) ___ __ _| |_ ___
+--  \___ \| | | | '_ \ / _` | |/ __/ _` | __/ _ \
+--   ___) | |_| | | | | (_| | | (_| (_| | ||  __/
+--  |____/ \__, |_| |_|\__,_|_|\___\__,_|\__\___|
+--          |___/
 syndicateTarget :: ActionTarget -> ActionCond
 syndicateTarget (TargetEntry _) =
   ActCondAnd

@@ -16,6 +16,7 @@ import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad.Collections
 import Korrvigs.Note.AST
 import qualified Korrvigs.Note.New as NNote
+import qualified Korrvigs.Syndicate.New as NSyn
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
@@ -33,11 +34,14 @@ data NewFileDl = NewFileDl {_nfileDlTitle :: Maybe Text, _nfileDlUrl :: Text, _n
 
 data NewMedia = NewMedia {_nmedInput :: Text, _nmedType :: Maybe MediaType, _nmedLang :: Maybe Text}
 
+data NewSyndicate = NewSyn {_nsynTitle :: Maybe Text, _nsynUrl :: Text, _nsynFilter :: Maybe Text, _nsynLang :: Maybe Text}
+
 makeLenses ''NewNote
 makeLenses ''NewLink
 makeLenses ''NewFile
 makeLenses ''NewFileDl
 makeLenses ''NewMedia
+makeLenses ''NewSyndicate
 
 newTarget :: ActionTarget -> ActionCond
 newTarget (TargetEntry _) = ActCondAlways
@@ -221,3 +225,33 @@ runNewMedia nmedia tgt = do
           }
   i <- NMedia.new nmed
   mkReaction tgt "new media" i
+
+newSynForm :: AForm Handler NewSyndicate
+newSynForm =
+  NewSyn
+    <$> aopt textField "Title" Nothing
+    <*> areq textField "URL" Nothing
+    <*> aopt textField "Filter" Nothing
+    <*> langForm
+
+newSynTitle :: ActionTarget -> Text
+newSynTitle = mkNewTitle "new syndicate"
+
+runNewSyn :: NewSyndicate -> ActionTarget -> Handler ActionReaction
+runNewSyn nsyn tgt = do
+  let nsyndicate =
+        NSyn.NewSyndicate
+          { NSyn._nsEntry =
+              def
+                & neParents %~ maybe id (:) (extractParent tgt)
+                & neLanguage .~ nsyn ^. nsynLang,
+            NSyn._nsUrl = nsyn ^. nsynUrl,
+            NSyn._nsFilter = nsyn ^. nsynFilter >>= parseFilter
+          }
+  i <- NSyn.new nsyndicate
+  mkReaction tgt "new syndicate" i
+  where
+    parseFilter :: Text -> Maybe (Id, Text)
+    parseFilter txt = case T.split (== '#') txt of
+      [i, code] -> Just (MkId i, code)
+      _ -> Nothing

@@ -182,6 +182,7 @@ extractHTMLMeta url txt =
       Books.manytoon url tags,
       Books.goodreads url tags,
       Books.bedetheque url tags,
+      Books.webtoons url tags,
       pure . mconcat $ matchLD <$> divvy 2 1 html,
       pure . mconcat $ matchTitle <$> divvy 2 1 html,
       pure . mconcat $ matchRSS <$> html,

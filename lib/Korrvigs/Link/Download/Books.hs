@@ -37,3 +37,17 @@ bedetheque url _
   where
     delFeed = neMtdt . at (mtdtName Feed) .~ Nothing
 bedetheque _ _ = pure mempty
+
+webtoons :: (MonadKorrvigs m) => Text -> [Tag Text] -> m (Endo NewEntry)
+webtoons url tags
+  | "https://www.webtoons.com/" `T.isPrefixOf` url =
+      pure $ foldMap matchFeed tags <> Endo (setMtdtValue MediaMtdt Webcomic)
+  where
+    matchFeed :: Tag Text -> Endo NewEntry
+    matchFeed tag@(TagOpen "a" attrs)
+      | tag ~== TagOpen ("a" :: Text) [("title", "Rss")] =
+          case lookup "href" attrs of
+            Nothing -> mempty
+            Just feed -> Endo $ setMtdtValue Feed feed
+    matchFeed _ = mempty
+webtoons _ _ = pure mempty

@@ -391,14 +391,20 @@ parseInline (Math InlineMath mth) = pure . pure $ A.InlineMath mth
 parseInline (RawInline _ _) = pure []
 parseInline (Link attr txt (url, _)) = do
   title <- parseInlines txt
-  if T.isInfixOf "://" url
-    then do
-      let mtitle = if null txt then Nothing else Just title
-      pure . pure $ A.PlainLink mtitle $ fromMaybe nullURI $ parseURI $ T.unpack url
-    else do
-      let i = MkId url
-      refTo i
-      pure . pure $ A.Link (parseAttr attr) title i
+  case T.stripPrefix "mtdt:" url of
+    Just mtdt -> do
+      let titleTxt = renderInlines title
+      let mtitle = if titleTxt == mtdt then Nothing else Just title
+      pure . pure $ A.MtdtLink mtitle mtdt
+    Nothing ->
+      if T.isInfixOf "://" url
+        then do
+          let mtitle = if null txt then Nothing else Just title
+          pure . pure $ A.PlainLink mtitle $ fromMaybe nullURI $ parseURI $ T.unpack url
+        else do
+          let i = MkId url
+          refTo i
+          pure . pure $ A.Link (parseAttr attr) title i
 parseInline (Image attr txt url) = parseInline $ Link attr txt url
 parseInline (Note bks) = pure . A.Sidenote <$> concatMapM parseBlock bks
 parseInline (Span _ inls) = parseInlines inls

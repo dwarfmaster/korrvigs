@@ -28,7 +28,6 @@ import Korrvigs.Note.AST
 import Korrvigs.Note.Render
 import Korrvigs.Note.Sync
 import Korrvigs.Utils.DateTree
-import Network.URI (parseURI)
 import Opaleye hiding (not, null)
 
 data NewNote = NewNote
@@ -54,7 +53,7 @@ new note = do
 initContent :: Map (CI Text) Value -> [Block]
 initContent mtdt =
   mconcat
-    [ [Para [PlainLink Nothing uri] | url <- get Url, uri <- toList (parseURI $ T.unpack url)],
+    [ [Para [MtdtLink Nothing (mtdtSqlName Url)] | _ <- get Url],
       [Embed (MkId i) | i <- get Cover],
       [Para (mkContent txt) | txt <- get Abstract]
     ]

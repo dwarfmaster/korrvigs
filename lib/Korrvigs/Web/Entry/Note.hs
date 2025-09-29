@@ -18,6 +18,7 @@ import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Note hiding (code, task)
+import Korrvigs.Utils.JSON
 import qualified Korrvigs.Web.Ace as Ace
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Calendar as Cal
@@ -607,12 +608,19 @@ compileInline (Cite i) = do
   lift isPublic >>= \case
     False -> pure (applyAttr (Attr.href link) $ Html.a $ toMarkup $ unId i, mempty)
     True -> pure (toMarkup $ unId i, mempty)
-compileInline (PlainLink mtitle uri) = do
-  let url = T.pack $ show uri
-  (titleH, titleW) <- case mtitle of
-    Just t -> compileInlines' t
-    Nothing -> pure (toMarkup url, mempty)
-  pure (applyAttr (Attr.href $ textValue url) $ Html.a titleH, titleW)
+compileInline (MtdtLink mtitle mtdt) = do
+  i <- use currentEntry
+  mtdtVal <- lift $ rSelectOne $ do
+    m <- selectTable entriesMetadataTable
+    sqlI <- fromName pure $ sqlId i
+    where_ $ m ^. sqlEntry .== sqlI
+    where_ $ m ^. sqlKey .== sqlStrictText mtdt
+    pure $ sqlJsonToText $ toNullable $ m ^. sqlValue
+  case mtdtVal of
+    Just (Just url) -> plainLink mtitle url
+    _ -> pure (mempty, mempty)
+compileInline (PlainLink mtitle uri) =
+  plainLink mtitle $ T.pack $ show uri
 compileInline Space = pure (toMarkup (" " :: Text), mempty)
 compileInline Break = pure (Html.br, mempty)
 compileInline (DisplayMath mth) = pure (toMarkup $ "$$" <> mth <> "$$", mempty)
@@ -627,3 +635,10 @@ compileInline (Check ck) = do
   (h, w, _) <- lift $ Wdgs.checkBox ck $ NoteSubR (WId entry) $ WLoc $ LocCheck loc
   public <- lift isPublic
   pure (h, if public then mempty else w)
+
+plainLink :: Maybe [Inline] -> Text -> CompileM (Html, Widget)
+plainLink mtitle url = do
+  (titleH, titleW) <- case mtitle of
+    Just t -> compileInlines' t
+    Nothing -> pure (toMarkup url, mempty)
+  pure (applyAttr (Attr.href $ textValue url) $ Html.a titleH, titleW)

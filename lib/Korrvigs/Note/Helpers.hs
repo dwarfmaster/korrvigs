@@ -20,6 +20,8 @@ inlineToText (Link _ inls _) = inlinesToText inls
 inlineToText (Cite i) = "@" <> fromText (unId i)
 inlineToText (PlainLink inls uri) =
   maybe mempty ((<> " ") . inlinesToText) inls <> fromString (uriToString id uri "")
+inlineToText (MtdtLink inls mtdt) =
+  maybe mempty ((<> " ") . inlinesToText) inls <> fromText mtdt
 inlineToText Space = " "
 inlineToText Break = "\n"
 inlineToText (DisplayMath txt) = "$" <> fromText txt <> "$"

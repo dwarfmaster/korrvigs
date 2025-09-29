@@ -125,6 +125,7 @@ data Inline
   | Code Attr Text
   | Link Attr [Inline] Id -- Named link to another entry
   | Cite Id -- Citation to entry
+  | MtdtLink (Maybe [Inline]) Text -- Named link to the content of a metadata
   | PlainLink (Maybe [Inline]) URI -- Named link to URI
   | Space
   | Break

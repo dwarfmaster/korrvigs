@@ -267,6 +267,18 @@ renderInline (Link attr txt (MkId i)) = do
   writeText "](" >> writeText i >> writeText ")"
   renderAttr attr
 renderInline (Cite (MkId i)) = writeText "[@" >> writeText i >> writeText "]"
+renderInline (MtdtLink Nothing mtdt) = do
+  writeText "["
+  writeText mtdt
+  writeText "](mtdt:"
+  writeText mtdt
+  writeText ")"
+renderInline (MtdtLink (Just title) mtdt) = do
+  writeText "["
+  forM_ title renderInline
+  writeText "](mtdt:"
+  writeText mtdt
+  writeText ")"
 renderInline (PlainLink Nothing uri) =
   writeText "<" >> writeText (T.pack $ show uri) >> writeText ">"
 renderInline (PlainLink (Just title) uri) = do

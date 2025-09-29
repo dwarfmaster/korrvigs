@@ -1,8 +1,8 @@
 module Korrvigs.Web.Actions.RSS where
 
-import Control.Lens hiding ((.>))
+import Control.Lens hiding (op, (.>))
 import Control.Monad
-import Data.Aeson.Lens
+import Data.Aeson.Lens hiding (values)
 import Data.Default
 import qualified Data.Map as M
 import Data.Maybe
@@ -21,6 +21,8 @@ import Korrvigs.Query
 import Korrvigs.Syndicate.New
 import qualified Korrvigs.Syndicate.Run as Syn
 import Korrvigs.Syndicate.SQL
+import Korrvigs.Utils.JSON
+import Korrvigs.Utils.Opaleye
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
@@ -167,16 +169,25 @@ updateAggregate entry syn =
   rSelectTextMtdt AggregateMethod (sqlId $ entry ^. entryName) >>= \case
     Just "count-since-last" -> do
       mseq <- rSelectOne $ do
-        lastread <- baseSelectTextMtdt LastRead $ sqlInt4 sqlI
+        (mtdtKey, isStrict) <-
+          values
+            [ (sqlStrictText $ mtdtSqlName LastRead, sqlBool True),
+              (sqlStrictText $ mtdtSqlName FirstUnread, sqlBool False)
+            ]
+        mtdt <- selectTable entriesMetadataTable
+        where_ $ mtdt ^. sqlEntry .== sqlInt4 sqlI
+        where_ $ mtdt ^. sqlKey .== mtdtKey
+        url <- fromNullableSelect $ pure $ sqlJsonToText $ toNullable $ mtdt ^. sqlValue
         item <- selectTable syndicatedItemsTable
         where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
-        where_ $ item ^. sqlSynItUrl .== lastread
-        pure $ item ^. sqlSynItSequence
-      forM_ mseq $ \sq -> do
+        where_ $ item ^. sqlSynItUrl .== url
+        pure (item ^. sqlSynItSequence, isStrict)
+      forM_ mseq $ \(sq, isStrict) -> do
         mcnt :: Maybe Int64 <- rSelectOne $ aggregate count $ do
           item <- selectTable syndicatedItemsTable
           where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
-          where_ $ item ^. sqlSynItSequence .> sqlInt4 sq
+          let op = if isStrict then (.>) else (.>=)
+          where_ $ (item ^. sqlSynItSequence) `op` sqlInt4 sq
           pure $ item ^. sqlSynItSequence
         forM_ mcnt $ \cnt -> updateMetadata entry (M.singleton (mtdtSqlName AggregateCount) (toJSON cnt)) []
     Just "count-new" -> do

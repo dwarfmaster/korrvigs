@@ -36,6 +36,8 @@ import Network.HTTP.Types.Status
 import Network.HTTP.Types.URI
 import Network.URI
 import System.Exit
+import System.IO
+import System.Process
 import qualified Text.Atom.Feed as Atom
 import Text.Feed.Import
 import Text.Feed.Types
@@ -50,29 +52,41 @@ lazyDownload ::
   Text ->
   Maybe UTCTime ->
   Maybe Text ->
-  m (Maybe (ConduitT () BSU8.ByteString m (), Maybe Text))
-lazyDownload man url expiration etag = runMaybeT $ do
+  Bool ->
+  m (Maybe (ConduitT () BSU8.ByteString m (), Maybe Text, m ()))
+lazyDownload man url expiration etag runJs = runMaybeT $ do
   forM_ expiration $ \expi -> do
     current <- liftIO getCurrentTime
     guard $ current > expi
-  req' <- parseRequest $ T.unpack url
-  let req = req' {requestHeaders = maybe [] (\etg -> [("If-None-Match", Enc.encodeUtf8 etg)]) etag ++ requestHeaders req'}
-  resp <- lift $ http req man
-  let scode = statusCode $ responseStatus resp
-  guard $ scode /= 304
-  when (scode /= 200) $ throwM $ KMiscError $ "Error " <> T.pack (show scode) <> " when downloading " <> url
-  let netag = lookup "ETag" $ responseHeaders resp
-  pure (responseBody resp, Enc.decodeUtf8 <$> netag)
+  if not runJs
+    then do
+      req' <- parseRequest $ T.unpack url
+      let req = req' {requestHeaders = maybe [] (\etg -> [("If-None-Match", Enc.encodeUtf8 etg)]) etag ++ requestHeaders req'}
+      resp <- lift $ http req man
+      let scode = statusCode $ responseStatus resp
+      guard $ scode /= 304
+      when (scode /= 200) $ throwM $ KMiscError $ "Error " <> T.pack (show scode) <> " when downloading " <> url
+      let netag = lookup "ETag" $ responseHeaders resp
+      pure (responseBody resp, Enc.decodeUtf8 <$> netag, pure ())
+    else liftIO $ do
+      let prc' = proc "chromium" ["--headless", "--disable-gpu", "--dump-dom", T.unpack url]
+      devNull <- openFile "/dev/null" WriteMode
+      let prc = prc' {std_in = CreatePipe, std_out = UseHandle devNull}
+      (_, Just out, _, handle) <- createProcess prc
+      let cleanup = liftIO $ waitForProcess handle >> hClose devNull
+      pure (sourceHandle out, Nothing, cleanup)
 
 run :: (MonadKorrvigs m, MonadResource m) => Syndicate -> m Bool
 run syn = do
   man <- manager
-  lazyDownload man (syn ^. synUrl) (syn ^. synExpiration) (syn ^. synETag) >>= \case
+  runJs <- fromMaybe False <$> rSelectMtdt RunJavascript (sqlId $ syn ^. synEntry . entryName)
+  lazyDownload man (syn ^. synUrl) (syn ^. synExpiration) (syn ^. synETag) runJs >>= \case
     Nothing -> pure False
-    Just (dat, netag) -> do
+    Just (dat, netag, cleanup) -> do
       (imp, items) <- case syn ^. synFilter of
         Nothing -> runWithoutFilter dat
         Just flt -> runWithFilter dat flt
+      cleanup
       let setETag = synjsETag .~ netag
       let updItems synjs = do
             nitems <- mergeItemsInto items $ synjs ^. synjsItems

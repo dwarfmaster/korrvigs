@@ -58,6 +58,8 @@ overlay: {
     pkgs.pandoc
     pkgs.imagemagick
     pkgs.ffmpeg
+    pkgs.swi-prolog
+    pkgs.chromium
   ];
 in {
   options.programs.korrvigs = {

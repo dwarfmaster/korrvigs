@@ -27,15 +27,15 @@ import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import Opaleye
-import Yesod hiding (count)
+import qualified Opaleye as O
+import Yesod hiding (Field, count)
 
---  ___                            _
-
--- | _ _|_ __ ___  _ __   ___  _ __| |_
---   | || '_ ` _ \| '_ \ / _ \| '__| __|
---   | || | | | | | |_) | (_) | |  | |_
---  |___|_| |_| |_| .__/ \___/|_|   \__|
---                |_|
+--   ____                            _
+--  | _ _|_ __ ___  _ __   ___  _ __| |_
+--    | || '_ ` _ \| '_ \ / _ \| '__| __|
+--    | || | | | | | |_) | (_) | |  | |_
+--   |___|_| |_| |_| .__/ \___/|_|   \__|
+--                 |_|
 importRssTarget :: ActionTarget -> ActionCond
 importRssTarget (TargetEntry _) = ActCondAlways
 importRssTarget _ = ActCondNever
@@ -117,9 +117,17 @@ doRunSyndicate syn = do
   forM_ entries $ load >=> mapM_ (`updateAggregate` syn)
   pure run
 
+notArchived :: Field SqlInt4 -> Select ()
+notArchived synId = do
+  archived <- selectMtdt Archived synId
+  where_ $ matchNullable (sqlBool True) O.not $ sqlJsonToBool archived
+
 runRunSyndicate :: () -> ActionTarget -> Handler ActionReaction
 runRunSyndicate () TargetHome = do
-  synIds <- rSelect $ view sqlSynId <$> selectTable syndicatesTable
+  synIds <- rSelect $ do
+    synId <- view sqlSynId <$> selectTable syndicatesTable
+    notArchived synId
+    pure synId
   doRunSyndicates synIds
 runRunSyndicate () (TargetEntry entry) = do
   react <- case entry ^. entryKindData of
@@ -131,6 +139,7 @@ runRunSyndicate () (TargetEntry entry) = do
         e <- selectTable entriesTable
         where_ $ e ^. sqlEntryId .== (ref ^. target)
         where_ $ e ^. sqlEntryKind .== sqlKind Syndicate
+        notArchived $ ref ^. target
         pure $ ref ^. target
       doRunSyndicates syns
   render <- getUrlRenderParams

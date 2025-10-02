@@ -250,6 +250,7 @@ runNewSyn nsyn tgt = do
           { NSyn._nsEntry =
               def
                 & neParents %~ maybe id (:) (extractParent tgt)
+                & neTitle .~ nsyn ^. nsynTitle
                 & neLanguage .~ nsyn ^. nsynLang
                 & neMtdt %~ insertJS,
             NSyn._nsUrl = nsyn ^. nsynUrl,

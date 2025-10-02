@@ -27,7 +27,7 @@ import qualified Korrvigs.File.Sync as File
 import qualified Korrvigs.Kind as Kd
 import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad.Class
-import Korrvigs.Monad.SQL (indexedMetadata, load)
+import Korrvigs.Monad.SQL (idMetadata, indexedMetadata, load)
 import Korrvigs.Monad.Sync (syncOne)
 import qualified Korrvigs.Note.Sync as Note
 import qualified Korrvigs.Syndicate.Sync as Syn
@@ -38,7 +38,6 @@ import qualified Opaleye as O
 -- metadata to remove.
 updateMetadata :: (MonadKorrvigs m) => Entry -> Map Text Value -> [Text] -> m ()
 updateMetadata entry upd rm = do
-  let sqlI = entry ^. entryId
   case entry ^. entryKindData of
     LinkD link -> Link.updateMetadata link upd rm
     FileD file -> File.updateMetadata file upd rm
@@ -46,6 +45,14 @@ updateMetadata entry upd rm = do
     EventD event -> Event.updateMetadata event upd rm
     CalendarD cal -> Cal.updateMetadata cal upd rm
     SyndicateD syn -> Syn.updateMetadata syn upd rm
+  let touchedMetadata = S.fromList $ CI.mk <$> M.keys upd ++ rm
+  if S.disjoint idMetadata touchedMetadata
+    then updateMetadataSQL entry upd rm
+    else syncOne entry
+
+updateMetadataSQL :: (MonadKorrvigs m) => Entry -> Map Text Value -> [Text] -> m ()
+updateMetadataSQL entry upd rm = do
+  let sqlI = entry ^. entryId
   let rows = mkRow sqlI <$> M.toList upd
   atomicSQL $ \conn -> do
     let todelete = sqlArray sqlStrictText $ rm ++ M.keys upd

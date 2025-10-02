@@ -96,7 +96,7 @@ runSyndicate _ _ = pure def
 runSyndicateTarget :: ActionTarget -> ActionCond
 runSyndicateTarget TargetHome = ActCondAlways
 runSyndicateTarget (TargetEntry entry) | entry ^. kind == Syndicate = ActCondAlways
-runSyndicateTarget (TargetEntry _) = ActCondQuery $ def & queryMentioning ?~ QueryRel queryIsSyn False
+runSyndicateTarget (TargetEntry _) = ActCondQuery $ def & queryMentioning ?~ QueryRel queryIsSyn True
   where
     queryIsSyn = def & queryKind ?~ Syndicate
 runSyndicateTarget _ = ActCondNever
@@ -135,13 +135,12 @@ runRunSyndicate () (TargetEntry entry) = do
     SyndicateD syn -> doRunSyndicates [syn ^. synEntry . entryId]
     _ -> do
       syns <- rSelect $ do
-        ref <- selectTable entriesRefTable
-        where_ $ ref ^. source .== sqlInt4 (entry ^. entryId)
+        ref <- selectRecTargetsFor entriesRefTable $ sqlInt4 $ entry ^. entryId
         e <- selectTable entriesTable
-        where_ $ e ^. sqlEntryId .== (ref ^. target)
+        where_ $ e ^. sqlEntryId .== ref
         where_ $ e ^. sqlEntryKind .== sqlKind Syndicate
-        notArchived $ ref ^. target
-        pure $ ref ^. target
+        notArchived ref
+        pure ref
       doRunSyndicates syns
   render <- getUrlRenderParams
   let red = if entry ^. kind == Syndicate then Just (render (EntryR $ WId $ entry ^. entryName) []) else Nothing

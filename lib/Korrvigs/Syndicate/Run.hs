@@ -71,7 +71,7 @@ lazyDownload man url expiration etag runJs = runMaybeT $ do
     else liftIO $ do
       let prc' = proc "chromium" ["--headless", "--disable-gpu", "--dump-dom", T.unpack url]
       devNull <- openFile "/dev/null" WriteMode
-      let prc = prc' {std_in = CreatePipe, std_out = UseHandle devNull}
+      let prc = prc' {std_out = CreatePipe, std_err = UseHandle devNull}
       (_, Just out, _, handle) <- createProcess prc
       let cleanup = liftIO $ waitForProcess handle >> hClose devNull
       pure (sourceHandle out, Nothing, cleanup)

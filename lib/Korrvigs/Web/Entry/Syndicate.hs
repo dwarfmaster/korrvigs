@@ -61,8 +61,10 @@ renderItems syns spec = do
   let onlyNew = spec ^. renderOnlyNew
   let showTitle = spec ^. renderShowSyndicate
   public <- isPublic
+  let ordByDate = descNullsFirst $ view _5
+  let ordBySeq = desc $ view _6
   itemsSQL :: [(Text, Text, Text, Maybe Id, Maybe UTCTime, Int, Bool, Maybe Text, Maybe Text)] <-
-    rSelect $ orderBy (descNullsFirst $ view _5) $ do
+    rSelect $ orderBy (ordByDate <> ordBySeq) $ do
       (synName, synId, synTitle :: FieldNullable SqlText) <- values $ (\entry -> (sqlId $ entry ^. entryName, sqlInt4 $ entry ^. entryId, toFields $ entry ^. entryTitle)) . view synEntry <$> syns
       item <- selectTable syndicatedItemsTable
       where_ $ item ^. sqlSynItSyndicate .== synId

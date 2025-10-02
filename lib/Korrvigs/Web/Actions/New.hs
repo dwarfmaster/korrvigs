@@ -4,6 +4,7 @@ import Control.Arrow
 import Control.Lens
 import Control.Monad
 import Data.Default
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -11,9 +12,11 @@ import Korrvigs.Entry
 import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NFile
 import qualified Korrvigs.Link.New as NLink
+import Korrvigs.Metadata
 import qualified Korrvigs.Metadata.Media.New as NMedia
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad.Collections
+import Korrvigs.Monad.Metadata
 import Korrvigs.Note.AST
 import qualified Korrvigs.Note.New as NNote
 import qualified Korrvigs.Syndicate.New as NSyn
@@ -34,7 +37,7 @@ data NewFileDl = NewFileDl {_nfileDlTitle :: Maybe Text, _nfileDlUrl :: Text, _n
 
 data NewMedia = NewMedia {_nmedInput :: Text, _nmedType :: Maybe MediaType, _nmedLang :: Maybe Text}
 
-data NewSyndicate = NewSyn {_nsynTitle :: Maybe Text, _nsynUrl :: Text, _nsynFilter :: Maybe Text, _nsynLang :: Maybe Text}
+data NewSyndicate = NewSyn {_nsynTitle :: Maybe Text, _nsynUrl :: Text, _nsynFilter :: Maybe Text, _nsynMkSyndicate :: Bool, _nsynLang :: Maybe Text}
 
 makeLenses ''NewNote
 makeLenses ''NewLink
@@ -232,6 +235,7 @@ newSynForm =
     <$> aopt textField "Title" Nothing
     <*> areq textField "URL" Nothing
     <*> aopt textField "Filter" Nothing
+    <*> areq checkBoxField "Make syndicate" Nothing
     <*> langForm
 
 newSynTitle :: ActionTarget -> Text
@@ -249,6 +253,8 @@ runNewSyn nsyn tgt = do
             NSyn._nsFilter = nsyn ^. nsynFilter >>= parseSyndicateFilter
           }
   i <- NSyn.new nsyndicate
+  when (nsyn ^. nsynMkSyndicate) $ forM_ (tgt ^? _TargetEntry) $ \entry ->
+    updateMetadata entry (M.singleton (mtdtSqlName SyndicateMtdt) $ toJSON $ unId i) []
   mkReaction tgt "new syndicate" i
 
 parseSyndicateFilter :: Text -> Maybe (Id, Text)

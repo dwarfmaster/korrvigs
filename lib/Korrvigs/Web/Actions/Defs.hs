@@ -34,6 +34,8 @@ data ActionReaction = ActionReaction
     _reactRedirect :: Maybe Text
   }
 
+makePrisms ''ActionTarget
+makePrisms ''ActionCond
 makeLenses ''ActionReaction
 
 instance Default ActionReaction where

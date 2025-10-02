@@ -5,7 +5,10 @@ import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.List (find, foldl', singleton)
+import Data.Aeson
+import Data.CaseInsensitive (CI)
+import Data.Foldable
+import Data.List (singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -26,6 +29,7 @@ import Korrvigs.Monad.SQL
 import qualified Korrvigs.Note.Sync as Note
 import qualified Korrvigs.Syndicate.Sync as Syn
 import Korrvigs.Utils.Cycle
+import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Time (measureTime, measureTime_)
 import Opaleye hiding (not, null)
 import System.FilePath
@@ -76,7 +80,8 @@ runSync ::
 runSync kdTxt dt = do
   (tm, r) <- measureTime dt
   liftIO $ putStrLn $ kdTxt <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
-  pure $ (\sdt -> (sdt ^. syncParents, sdt ^. syncRefs, syncSQL sdt)) <$> r
+  let handleSyncData sdt = (sdt ^. syncParents, sdt ^. syncRefs, syncSQL sdt)
+  pure $ handleSyncData . fixSyncData <$> r
 
 runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id ([Id], [Id], m ()))
 runSyncOn Link = runSync (displayKind Link) Link.sync
@@ -159,7 +164,8 @@ syncFileImpl ::
   Id ->
   SyncData ->
   m ()
-syncFileImpl i sdt = do
+syncFileImpl i sdt' = do
+  let sdt = fixSyncData sdt'
   syncSQL sdt
   nameToId <- nameToIdMap
   forM_ (M.lookup i nameToId) $ \sqlI ->
@@ -167,6 +173,17 @@ syncFileImpl i sdt = do
       sqlI
       (mapMaybe (`M.lookup` nameToId) $ sdt ^. syncParents)
       (mapMaybe (`M.lookup` nameToId) $ sdt ^. syncRefs)
+
+fixSyncData :: SyncData -> SyncData
+fixSyncData sdt = sdt & syncRefs %~ (addRefs ++)
+  where
+    addRefs = sdt ^. syncMtdtRows >>= uncurry refsFromMetadata
+
+refsFromMetadata :: CI Text -> Value -> [Id]
+refsFromMetadata mtdt val
+  | mtdt `S.member` idMetadata =
+      toList $ MkId <$> fromJSONM val
+refsFromMetadata _ _ = []
 
 syncFileOfKind :: (MonadKorrvigs m) => FilePath -> Kind -> m ()
 syncFileOfKind path Link =

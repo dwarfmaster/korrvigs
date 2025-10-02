@@ -14,6 +14,7 @@ module Korrvigs.Monad.SQL
     syncParents,
     syncRefs,
     indexedMetadata,
+    idMetadata,
     updateInMetadata,
   )
 where

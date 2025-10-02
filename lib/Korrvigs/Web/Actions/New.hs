@@ -37,7 +37,7 @@ data NewFileDl = NewFileDl {_nfileDlTitle :: Maybe Text, _nfileDlUrl :: Text, _n
 
 data NewMedia = NewMedia {_nmedInput :: Text, _nmedType :: Maybe MediaType, _nmedLang :: Maybe Text}
 
-data NewSyndicate = NewSyn {_nsynTitle :: Maybe Text, _nsynUrl :: Text, _nsynFilter :: Maybe Text, _nsynMkSyndicate :: Bool, _nsynLang :: Maybe Text}
+data NewSyndicate = NewSyn {_nsynTitle :: Maybe Text, _nsynUrl :: Text, _nsynFilter :: Maybe Text, _nsynMkSyndicate :: Bool, _nsynRunJS :: Bool, _nsynLang :: Maybe Text}
 
 makeLenses ''NewNote
 makeLenses ''NewLink
@@ -236,6 +236,7 @@ newSynForm =
     <*> areq textField "URL" Nothing
     <*> aopt textField "Filter" Nothing
     <*> areq checkBoxField "Make syndicate" Nothing
+    <*> areq checkBoxField "Run javascript" Nothing
     <*> langForm
 
 newSynTitle :: ActionTarget -> Text
@@ -243,12 +244,14 @@ newSynTitle = mkNewTitle "new syndicate"
 
 runNewSyn :: NewSyndicate -> ActionTarget -> Handler ActionReaction
 runNewSyn nsyn tgt = do
+  let insertJS = if nsyn ^. nsynRunJS then M.insert (mtdtName RunJavascript) (toJSON True) else id
   let nsyndicate =
         NSyn.NewSyndicate
           { NSyn._nsEntry =
               def
                 & neParents %~ maybe id (:) (extractParent tgt)
-                & neLanguage .~ nsyn ^. nsynLang,
+                & neLanguage .~ nsyn ^. nsynLang
+                & neMtdt %~ insertJS,
             NSyn._nsUrl = nsyn ^. nsynUrl,
             NSyn._nsFilter = nsyn ^. nsynFilter >>= parseSyndicateFilter
           }

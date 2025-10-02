@@ -73,16 +73,20 @@ syndicateTarget (TargetEntry _) =
     ]
 syndicateTarget _ = ActCondNever
 
-syndicateForm :: AForm Handler (Maybe Text)
-syndicateForm = aopt textField "Filter" Nothing
+syndicateForm :: AForm Handler (Maybe Text, Bool)
+syndicateForm =
+  (,)
+    <$> aopt textField "Filter" Nothing
+    <*> areq checkBoxField "Run javascript" Nothing
 
 syndicateTitle :: ActionTarget -> Text
 syndicateTitle = const "Create syndicate"
 
-runSyndicate :: Maybe Text -> ActionTarget -> Handler ActionReaction
-runSyndicate flt (TargetEntry entry) = do
+runSyndicate :: (Maybe Text, Bool) -> ActionTarget -> Handler ActionReaction
+runSyndicate (flt, runJS) (TargetEntry entry) = do
   feed <- rSelectOne (baseSelectTextMtdt Feed $ sqlInt4 $ entry ^. entryId) >>= throwMaybe (KMiscError $ "Entry " <> unId (entry ^. entryName) <> " has no feed metadata")
-  let ns = NewSyndicate (def & neParents .~ [entry ^. entryName]) feed $ flt >>= parseSyndicateFilter
+  let insertJS = if runJS then M.insert (mtdtName RunJavascript) (toJSON True) else id
+  let ns = NewSyndicate (def & neParents .~ [entry ^. entryName] & neMtdt %~ insertJS) feed $ flt >>= parseSyndicateFilter
   i <- new ns
   updateMetadata entry (M.singleton (mtdtSqlName SyndicateMtdt) (toJSON $ unId i)) []
   render <- getUrlRenderParams

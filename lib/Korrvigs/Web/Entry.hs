@@ -152,10 +152,10 @@ refsWidget entry = do
               e1 <- selectTable entriesTable
               where_ $ e1 ^. sqlEntryId .== eid1
               let nm1 = e1 ^. sqlEntryName
-              where_ $ (e1 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event] .|| nm1 .== sqlId i
+              where_ $ (e1 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event, Syndicate] .|| nm1 .== sqlId i
               e2 <- selectTable entriesTable
               where_ $ e2 ^. sqlEntryId .== eid2
-              where_ $ (e2 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event]
+              where_ $ (e2 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event, Syndicate]
               hub1 <- O.not . isNull <$> selectTextMtdt HubMtdt eid1
               hub2 <- O.not . isNull <$> selectTextMtdt HubMtdt eid2
               where_ $

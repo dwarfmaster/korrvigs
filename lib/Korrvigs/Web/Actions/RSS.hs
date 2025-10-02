@@ -4,6 +4,7 @@ import Control.Lens hiding (op, (.>))
 import Control.Monad
 import Data.Aeson.Lens hiding (values)
 import Data.Default
+import Data.Foldable
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Monoid
@@ -101,8 +102,8 @@ runSyndicateTarget (TargetEntry _) = ActCondQuery $ def & queryMentioning ?~ Que
     queryIsSyn = def & queryKind ?~ Syndicate
 runSyndicateTarget _ = ActCondNever
 
-runSyndicateForm :: AForm Handler ()
-runSyndicateForm = pure ()
+runSyndicateForm :: AForm Handler Bool
+runSyndicateForm = areq checkBoxField "Recursive" Nothing
 
 runSyndicateTitle :: ActionTarget -> Text
 runSyndicateTitle = const "Run syndication"
@@ -123,19 +124,20 @@ notArchived synId = do
   archived <- selectMtdt Archived synId
   where_ $ matchNullable (sqlBool True) O.not $ sqlJsonToBool archived
 
-runRunSyndicate :: () -> ActionTarget -> Handler ActionReaction
-runRunSyndicate () TargetHome = do
+runRunSyndicate :: Bool -> ActionTarget -> Handler ActionReaction
+runRunSyndicate _ TargetHome = do
   synIds <- rSelect $ do
     synId <- view sqlSynId <$> selectTable syndicatesTable
     notArchived synId
     pure synId
   doRunSyndicates synIds
-runRunSyndicate () (TargetEntry entry) = do
+runRunSyndicate rec (TargetEntry entry) = do
   react <- case entry ^. entryKindData of
     SyndicateD syn -> doRunSyndicates [syn ^. synEntry . entryId]
     _ -> do
+      let select = if rec then selectRecTargetsFor else selectTargetsFor
       syns <- rSelect $ do
-        ref <- selectRecTargetsFor entriesRefTable $ sqlInt4 $ entry ^. entryId
+        ref <- select entriesRefTable $ sqlInt4 $ entry ^. entryId
         e <- selectTable entriesTable
         where_ $ e ^. sqlEntryId .== ref
         where_ $ e ^. sqlEntryKind .== sqlKind Syndicate
@@ -147,7 +149,7 @@ runRunSyndicate () (TargetEntry entry) = do
   pure $
     react
       & reactRedirect .~ red
-runRunSyndicate () _ = pure def
+runRunSyndicate _ _ = pure def
 
 doRunSyndicates :: [Int] -> Handler ActionReaction
 doRunSyndicates synIds = do

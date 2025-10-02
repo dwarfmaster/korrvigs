@@ -113,7 +113,7 @@ sync = do
   case foldr (firstJust . checkRD . (view _1 &&& view _2) . view _2) Nothing (M.toList rels) of
     Nothing -> pure ()
     Just i -> throwM $ KRelToUnknown i
-  case hasCycle (view _2 <$> rels) of
+  case hasCycle (view _1 <$> rels) of
     Nothing -> pure ()
     Just cle -> throwM $ KSubCycle cle
   let subBindings = mkBindings $ view _1 <$> rels

@@ -246,12 +246,12 @@ runNewSyn nsyn tgt = do
                 & neParents %~ maybe id (:) (extractParent tgt)
                 & neLanguage .~ nsyn ^. nsynLang,
             NSyn._nsUrl = nsyn ^. nsynUrl,
-            NSyn._nsFilter = nsyn ^. nsynFilter >>= parseFilter
+            NSyn._nsFilter = nsyn ^. nsynFilter >>= parseSyndicateFilter
           }
   i <- NSyn.new nsyndicate
   mkReaction tgt "new syndicate" i
-  where
-    parseFilter :: Text -> Maybe (Id, Text)
-    parseFilter txt = case T.split (== '#') txt of
-      [i, code] -> Just (MkId i, code)
-      _ -> Nothing
+
+parseSyndicateFilter :: Text -> Maybe (Id, Text)
+parseSyndicateFilter txt = case T.split (== '#') txt of
+  [i, code] -> Just (MkId i, code)
+  _ -> Nothing

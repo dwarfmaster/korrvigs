@@ -24,6 +24,7 @@ import Korrvigs.Syndicate.SQL
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Korrvigs.Web.Actions.Defs
+import Korrvigs.Web.Actions.New (parseSyndicateFilter)
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import Opaleye
@@ -71,21 +72,21 @@ syndicateTarget (TargetEntry _) =
     ]
 syndicateTarget _ = ActCondNever
 
-syndicateForm :: AForm Handler ()
-syndicateForm = pure ()
+syndicateForm :: AForm Handler (Maybe Text)
+syndicateForm = aopt textField "Filter" Nothing
 
 syndicateTitle :: ActionTarget -> Text
 syndicateTitle = const "Create syndicate"
 
-runSyndicate :: () -> ActionTarget -> Handler ActionReaction
-runSyndicate () (TargetEntry entry) = do
+runSyndicate :: Maybe Text -> ActionTarget -> Handler ActionReaction
+runSyndicate flt (TargetEntry entry) = do
   feed <- rSelectOne (baseSelectTextMtdt Feed $ sqlInt4 $ entry ^. entryId) >>= throwMaybe (KMiscError $ "Entry " <> unId (entry ^. entryName) <> " has no feed metadata")
-  let ns = NewSyndicate (def & neParents .~ [entry ^. entryName]) feed Nothing
+  let ns = NewSyndicate (def & neParents .~ [entry ^. entryName]) feed $ flt >>= parseSyndicateFilter
   i <- new ns
   updateMetadata entry (M.singleton (mtdtSqlName SyndicateMtdt) (toJSON $ unId i)) []
   render <- getUrlRenderParams
   pure $ def & reactMsg ?~ [hamlet|<p>Create syndicate <a href=@{EntryR $ WId i}>@#{unId i}</a>|] render
-runSyndicate () _ = pure def
+runSyndicate _ _ = pure def
 
 --   ____
 --  |  _ \ _   _ _ __

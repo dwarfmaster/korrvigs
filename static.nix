@@ -68,6 +68,10 @@
     sha256 = "0yl0cjfnbgzjj0aa9gnimgfsp477qapz1avrdba5v5rzwyapb3mb";
     stripRoot = true;
   };
+  popperjs = fetchurl {
+    url = "https://unpkg.com/@popperjs/core@2";
+    sha256 = "10l7js3vq14a7iznqig6rcg857wrdzqsh91bssp54qx80nsz84n2";
+  };
 in
   runCommand "korrvigs-static" {} ''
     mkdir -p $out
@@ -83,6 +87,8 @@ in
     cp ${fuse} $out/fuse/fuse.js
     mkdir -p $out/fullcalendar
     cp -r ${fullcalendar} $out/fullcalendar/index.global.min.js
+    mkdir -p $out/popperjs
+    cp ${popperjs} $out/popperjs/popperjs.min.js
     cp ${./ressources/favicon.ico} $out/favicon.ico
     mkdir $out/icons
     ${sed} 's/stroke="#000000"/stroke="${theme.base09}"/' ${./ressources/icons/checkbox-todo.svg} > $out/icons/checkbox-todo.svg

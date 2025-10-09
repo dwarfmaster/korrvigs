@@ -94,8 +94,9 @@ actionsCode :: WidgetFor site ()
 actionsCode =
   toWidget $ mkJs $(embedFile $ js "actions.js")
 
-checkboxCode :: WidgetFor site ()
-checkboxCode =
+checkboxCode :: (Route Static -> Route site) -> WidgetFor site ()
+checkboxCode mkStatic = do
+  popperJS mkStatic
   toWidget $ mkJs $(embedFile $ js "checkbox.js")
 
 ace :: (Route Static -> Route site) -> WidgetFor site ()
@@ -114,3 +115,7 @@ epubJs :: (Route Static -> Route site) -> WidgetFor site ()
 epubJs mkStatic = do
   addScript $ mkStatic $ StaticRoute ["jszip", "jszip.min.js"] []
   addScript $ mkStatic $ StaticRoute ["epub", "epub.min.js"] []
+
+popperJS :: (Route Static -> Route site) -> WidgetFor site ()
+popperJS mkStatic =
+  addScript $ mkStatic $ StaticRoute ["popperjs", "popperjs.min.js"] []

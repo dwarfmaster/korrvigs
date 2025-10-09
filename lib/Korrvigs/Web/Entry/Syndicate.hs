@@ -38,7 +38,7 @@ embed lvl syn = do
   itemsWidget <- renderItems [syn] def
   public <- isPublic
   pure $ do
-    Rcs.checkboxCode
+    Rcs.checkboxCode StaticR
     [whamlet|
     $if lvl == 0
       <p>

@@ -78,7 +78,7 @@ displayHome = do
     Rcs.entryStyle
     Rcs.formsStyle
     Widgets.sectionLogic
-    Rcs.checkboxCode
+    Rcs.checkboxCode StaticR
     toWidget [julius|checkboxCleanSpans();|]
     [whamlet|
     <h1>Welcome to Korrvigs

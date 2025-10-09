@@ -316,7 +316,7 @@ entryWidget entry = do
   pure $ do
     Rcs.entryStyle
     Rcs.formsStyle
-    Rcs.checkboxCode
+    Rcs.checkboxCode StaticR
     PhotoSwipe.photoswipeHeader
     title
     unless public $ do

@@ -213,7 +213,7 @@ displayLibrary _ entries = do
   pure $ do
     Rcs.entryStyle
     PhotoSwipe.photoswipeHeader
-    Rcs.checkboxCode
+    Rcs.checkboxCode StaticR
     library
 
 displayFuzzy :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
@@ -238,7 +238,7 @@ displayTaskList _ entries = do
   items <- mapM (uncurry $ mkTaskItem public) entries
   pure $ do
     Rcs.entryStyle
-    Rcs.checkboxCode
+    Rcs.checkboxCode StaticR
     [whamlet|
       <ul>
         $forall item <- items

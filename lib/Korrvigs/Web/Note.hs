@@ -220,7 +220,7 @@ getNoteNamedSubR (WId i) sb = do
   defaultLayout $ do
     Rcs.entryStyle
     Rcs.formsStyle
-    Rcs.checkboxCode
+    Rcs.checkboxCode StaticR
     PhotoSwipe.photoswipeHeader
     unless public actions
     widget
@@ -237,7 +237,7 @@ getNoteNamedCodeR (WId i) cd = do
   defaultLayout $ do
     Rcs.entryStyle
     Rcs.formsStyle
-    Rcs.checkboxCode
+    Rcs.checkboxCode StaticR
     PhotoSwipe.photoswipeHeader
     unless public actions
     widget

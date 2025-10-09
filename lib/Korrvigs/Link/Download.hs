@@ -43,10 +43,10 @@ import Text.Pandoc hiding (Link, getCurrentTimeZone)
 import Text.Parsec hiding ((<|>))
 
 makeURIAbsolute :: Text -> Text -> Text
-makeURIAbsolute _ ressource | T.head ressource /= '/' = ressource
-makeURIAbsolute url ressource = case parseURI $ T.unpack url of
-  Nothing -> ressource
-  Just uri -> T.pack $ uriToString id (uri {uriPath = T.unpack ressource}) ""
+makeURIAbsolute url ressource = fromMaybe ressource $ do
+  ref <- parseURIReference $ T.unpack ressource
+  uri <- parseURI $ T.unpack url
+  pure $ T.pack $ show $ ref `relativeTo` uri
 
 rightToMaybe :: Either a b -> Maybe b
 rightToMaybe (Left _) = Nothing

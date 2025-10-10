@@ -37,7 +37,7 @@ data NewFileDl = NewFileDl {_nfileDlTitle :: Maybe Text, _nfileDlUrl :: Text, _n
 
 data NewMedia = NewMedia {_nmedInput :: Text, _nmedType :: Maybe MediaType, _nmedLang :: Maybe Text}
 
-data NewSyndicate = NewSyn {_nsynTitle :: Maybe Text, _nsynUrl :: Text, _nsynFilter :: Maybe Text, _nsynMkSyndicate :: Bool, _nsynRunJS :: Bool, _nsynLang :: Maybe Text}
+data NewSyndicate = NewSyn {_nsynTitle :: Maybe Text, _nsynUrl :: Maybe Text, _nsynFilter :: Maybe Text, _nsynMkSyndicate :: Bool, _nsynRunJS :: Bool, _nsynLang :: Maybe Text}
 
 makeLenses ''NewNote
 makeLenses ''NewLink
@@ -233,7 +233,7 @@ newSynForm :: AForm Handler NewSyndicate
 newSynForm =
   NewSyn
     <$> aopt textField "Title" Nothing
-    <*> areq textField "URL" Nothing
+    <*> aopt textField "URL" Nothing
     <*> aopt textField "Filter" Nothing
     <*> areq checkBoxField "Make syndicate" Nothing
     <*> areq checkBoxField "Run javascript" Nothing

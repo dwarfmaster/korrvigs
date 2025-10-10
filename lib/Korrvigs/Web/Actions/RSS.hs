@@ -4,7 +4,6 @@ import Control.Lens hiding (op, (.>))
 import Control.Monad
 import Data.Aeson.Lens hiding (values)
 import Data.Default
-import Data.Foldable
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Monoid
@@ -86,7 +85,7 @@ runSyndicate :: (Maybe Text, Bool) -> ActionTarget -> Handler ActionReaction
 runSyndicate (flt, runJS) (TargetEntry entry) = do
   feed <- rSelectOne (baseSelectTextMtdt Feed $ sqlInt4 $ entry ^. entryId) >>= throwMaybe (KMiscError $ "Entry " <> unId (entry ^. entryName) <> " has no feed metadata")
   let insertJS = if runJS then M.insert (mtdtName RunJavascript) (toJSON True) else id
-  let ns = NewSyndicate (def & neParents .~ [entry ^. entryName] & neMtdt %~ insertJS) feed $ flt >>= parseSyndicateFilter
+  let ns = NewSyndicate (def & neParents .~ [entry ^. entryName] & neMtdt %~ insertJS) (Just feed) $ flt >>= parseSyndicateFilter
   i <- new ns
   updateMetadata entry (M.singleton (mtdtSqlName SyndicateMtdt) (toJSON $ unId i)) []
   render <- getUrlRenderParams

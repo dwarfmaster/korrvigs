@@ -14,7 +14,7 @@ import Korrvigs.Syndicate.Item
 import System.FilePath (joinPath)
 
 data SyndicateJSON = SyndicateJSON
-  { _synjsUrl :: Text,
+  { _synjsUrl :: Maybe Text,
     _synjsETag :: Maybe Text,
     _synjsFilter :: Maybe (Id, Text),
     _synjsExpiration :: Maybe UTCTime,
@@ -39,7 +39,7 @@ parseFilter = withObject "SyndicateJSON filter" $ \obj ->
 instance FromJSON SyndicateJSON where
   parseJSON = withObject "SyndicateJSON" $ \obj ->
     SyndicateJSON
-      <$> obj .: "url"
+      <$> obj .:? "url"
       <*> obj .:? "etag"
       <*> (obj .:? "filter" >>= mapM parseFilter)
       <*> obj .:? "expiration"
@@ -58,11 +58,11 @@ renderFilter (entry, code) = object ["entry" .= unId entry, "code" .= code]
 instance ToJSON SyndicateJSON where
   toJSON (SyndicateJSON url etag flt expiration items mtdt dt dur geo txt title prts) =
     object $
-      [ "url" .= url,
-        "items" .= items,
+      [ "items" .= items,
         "metadata" .= mtdt,
         "parents" .= prts
       ]
+        ++ maybe [] ((: []) . ("url" .=)) url
         ++ maybe [] ((: []) . ("filter" .=) . renderFilter) flt
         ++ maybe [] ((: []) . ("etag" .=)) etag
         ++ maybe [] ((: []) . ("expiration" .=)) expiration

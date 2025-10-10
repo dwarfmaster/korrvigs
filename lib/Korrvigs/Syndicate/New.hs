@@ -34,7 +34,7 @@ import Opaleye
 
 data NewSyndicate = NewSyndicate
   { _nsEntry :: NewEntry,
-    _nsUrl :: Text,
+    _nsUrl :: Maybe Text,
     _nsFilter :: Maybe (Id, Text)
   }
 
@@ -44,7 +44,10 @@ new :: (MonadKorrvigs m) => NewSyndicate -> m Id
 new ns = do
   si <- rSelectOne $ do
     entry <- selectTable syndicatesTable
-    where_ $ entry ^. sqlSynUrl .== sqlStrictText (ns ^. nsUrl)
+    forM_ (ns ^. nsUrl) $ \url ->
+      where_ $
+        matchNullable (sqlBool False) (.== sqlStrictText url) $
+          entry ^. sqlSynUrl
     nameFor $ entry ^. sqlSynId
   case si of
     Nothing -> create ns

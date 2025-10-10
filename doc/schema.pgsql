@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS calendars (
 CREATE TABLE IF NOT EXISTS syndicates (
   id INTEGER NOT NULL PRIMARY KEY,
   kind KIND NOT NULL CHECK(kind = 'syndicate'),
-  url TEXT NOT NULL,
+  url TEXT,
   path TEXT NOT NULL,
   etag TEXT,
   filter_entry TEXT,

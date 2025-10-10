@@ -77,23 +77,25 @@ lazyDownload man url expiration etag runJs = runMaybeT $ do
       pure (sourceHandle out, Nothing, cleanup)
 
 run :: (MonadKorrvigs m, MonadResource m) => Syndicate -> m Bool
-run syn = do
-  man <- manager
-  runJs <- fromMaybe False <$> rSelectMtdt RunJavascript (sqlId $ syn ^. synEntry . entryName)
-  lazyDownload man (syn ^. synUrl) (syn ^. synExpiration) (syn ^. synETag) runJs >>= \case
-    Nothing -> pure False
-    Just (dat, netag, cleanup) -> do
-      (imp, items) <- case syn ^. synFilter of
-        Nothing -> runWithoutFilter dat
-        Just flt -> runWithFilter dat flt
-      cleanup
-      let setETag = synjsETag .~ netag
-      let updItems synjs = do
-            nitems <- mergeItemsInto items $ synjs ^. synjsItems
-            pure $ synjs & synjsItems .~ nitems
-      updateImpl syn $ updItems . setETag . imp
-      syncFileOfKind (syn ^. synPath) Syndicate
-      pure True
+run syn = case syn ^. synUrl of
+  Nothing -> pure False
+  Just url -> do
+    man <- manager
+    runJs <- fromMaybe False <$> rSelectMtdt RunJavascript (sqlId $ syn ^. synEntry . entryName)
+    lazyDownload man url (syn ^. synExpiration) (syn ^. synETag) runJs >>= \case
+      Nothing -> pure False
+      Just (dat, netag, cleanup) -> do
+        (imp, items) <- case syn ^. synFilter of
+          Nothing -> runWithoutFilter dat
+          Just flt -> runWithFilter dat flt
+        cleanup
+        let setETag = synjsETag .~ netag
+        let updItems synjs = do
+              nitems <- mergeItemsInto items $ synjs ^. synjsItems
+              pure $ synjs & synjsItems .~ nitems
+        updateImpl syn $ updItems . setETag . imp
+        syncFileOfKind (syn ^. synPath) Syndicate
+        pure True
 
 runWithFilter ::
   (MonadKorrvigs m, MonadResource m) =>

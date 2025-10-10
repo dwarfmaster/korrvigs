@@ -187,7 +187,7 @@ synSpec :: (MonadKorrvigs m) => FormatSpec m Syndicate
 synSpec =
   fromList
     [ ("path", fromLens $ synPath . to T.pack),
-      ("url", fromLens synUrl)
+      ("url", fromLens $ synUrl . _Just)
     ]
 
 kindDataSpec :: (MonadKorrvigs m) => Kind -> FormatSpec m Entry

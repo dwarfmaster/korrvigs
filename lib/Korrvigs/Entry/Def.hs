@@ -69,7 +69,7 @@ data Calendar = MkCalendar
 
 data Syndicate = MkSyndicate
   { _synEntry :: Entry,
-    _synUrl :: Text,
+    _synUrl :: Maybe Text,
     _synPath :: FilePath,
     _synETag :: Maybe Text,
     _synFilter :: Maybe (Id, Text),

@@ -34,7 +34,7 @@ instance Default RenderSpec where
 
 embed :: Int -> Syndicate -> Handler Widget
 embed lvl syn = do
-  let url = syn ^. synUrl
+  let murl = syn ^. synUrl
   itemsWidget <- renderItems [syn] def
   public <- isPublic
   pure $ do
@@ -42,7 +42,8 @@ embed lvl syn = do
     [whamlet|
     $if lvl == 0
       <p>
-        <a href=#{url}>#{url}
+        $maybe url <- murl
+          <a href=#{url}>#{url}
         $maybe (entry,code) <- view synFilter syn
           <code>
             #{T.pack "|> "}

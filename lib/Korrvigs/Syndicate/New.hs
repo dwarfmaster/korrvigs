@@ -41,17 +41,18 @@ data NewSyndicate = NewSyndicate
 makeLenses ''NewSyndicate
 
 new :: (MonadKorrvigs m) => NewSyndicate -> m Id
-new ns = do
-  si <- rSelectOne $ do
-    entry <- selectTable syndicatesTable
-    forM_ (ns ^. nsUrl) $ \url ->
+new ns = case ns ^. nsUrl of
+  Nothing -> create ns
+  Just url -> do
+    si <- rSelectOne $ do
+      entry <- selectTable syndicatesTable
       where_ $
         matchNullable (sqlBool False) (.== sqlStrictText url) $
           entry ^. sqlSynUrl
-    nameFor $ entry ^. sqlSynId
-  case si of
-    Nothing -> create ns
-    Just i -> pure i
+      nameFor $ entry ^. sqlSynId
+    case si of
+      Nothing -> create ns
+      Just i -> pure i
 
 create :: (MonadKorrvigs m) => NewSyndicate -> m Id
 create ns = do

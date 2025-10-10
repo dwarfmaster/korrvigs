@@ -8,6 +8,8 @@ import qualified Data.Map as M
 import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
+import Data.Time.Clock
+import Data.Time.LocalTime
 import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
@@ -17,10 +19,14 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Monad.Metadata
+import Korrvigs.Monad.Sync
 import Korrvigs.Query
+import Korrvigs.Syndicate.Item
+import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.New
 import qualified Korrvigs.Syndicate.Run as Syn
 import Korrvigs.Syndicate.SQL
+import qualified Korrvigs.Syndicate.Sync as Sync
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Korrvigs.Web.Actions.Defs
@@ -215,3 +221,69 @@ updateAggregate entry syn =
     _ -> pure ()
   where
     sqlI = entry ^. entryId
+
+--    ____            _                    _ _       _
+--   / ___|__ _ _ __ | |_ _   _ _ __ ___  | (_)_ __ | | __
+--  | |   / _` | '_ \| __| | | | '__/ _ \ | | | '_ \| |/ /
+--  | |__| (_| | |_) | |_| |_| | | |  __/ | | | | | |   <
+--   \____\__,_| .__/ \__|\__,_|_|  \___| |_|_|_| |_|_|\_\
+--             |_|
+data CapturedLink = CapturedLink
+  { _clkTitle :: Maybe Text,
+    _clkUrl :: Text,
+    _clkDate :: Maybe LocalTime
+  }
+
+makeLenses ''CapturedLink
+
+captureLinkTarget :: ActionTarget -> ActionCond
+captureLinkTarget TargetHome = ActCondAlways
+captureLinkTarget (TargetEntry entry) | entry ^. kind == Syndicate = ActCondAlways
+captureLinkTarget _ = ActCondNever
+
+captureLinkForm :: AForm Handler CapturedLink
+captureLinkForm =
+  CapturedLink
+    <$> aopt textField "Title" Nothing
+    <*> areq textField "URL" Nothing
+    <*> aopt datetimeLocalField "Date" Nothing
+
+captureLinkTitle :: ActionTarget -> Text
+captureLinkTitle TargetHome = "Capture link"
+captureLinkTitle _ = "Add link"
+
+runCaptureLink :: CapturedLink -> ActionTarget -> Handler ActionReaction
+runCaptureLink clk TargetHome = do
+  entry <- load (MkId "CapturedLinks")
+  render <- getUrlRenderParams
+  case entry ^? _Just . _Syndicate of
+    Just syn -> do
+      doCaptureLink clk syn
+      pure $ def & reactMsg ?~ [hamlet|<p>Capture successful.|] render
+    Nothing -> pure $ def & reactMsg ?~ [hamlet|<p><code>CapturedLinks</code> syndicate does not exists.|] render
+runCaptureLink clk (TargetEntry entry) = case entry ^. entryKindData of
+  SyndicateD syn -> do
+    doCaptureLink clk syn
+    render <- getUrlRender
+    pure $ def & reactRedirect ?~ render (EntryR $ WId $ syn ^. synEntry . entryName)
+  _ -> pure def
+runCaptureLink _ _ = pure def
+
+doCaptureLink :: CapturedLink -> Syndicate -> Handler ()
+doCaptureLink clk syn = do
+  tm <- liftIO $ case clk ^. clkDate of
+    Just local -> do
+      tz <- getCurrentTimeZone
+      pure $ localTimeToUTC tz local
+    Nothing -> getCurrentTime
+  let item =
+        SyndicatedItem
+          { _synitTitle = fromMaybe (clk ^. clkUrl) $ clk ^. clkTitle,
+            _synitUrl = clk ^. clkUrl,
+            _synitRead = False,
+            _synitGUID = Nothing,
+            _synitDate = Just tm,
+            _synitInstance = Nothing
+          }
+  Sync.updateImpl syn $ pure . (synjsItems %~ (++ [item]))
+  syncFileOfKind (syn ^. synPath) Syndicate

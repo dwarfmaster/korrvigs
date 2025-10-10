@@ -10,6 +10,7 @@ where
 
 import Conduit (throwM)
 import Control.Lens
+import Control.Monad ((>=>))
 import Control.Monad.IO.Class
 import Data.Aeson.Lens
 import Data.Foldable
@@ -18,7 +19,6 @@ import Data.Maybe
 import Data.Text (Text)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
-import qualified Korrvigs.Link.New as Link
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import qualified Korrvigs.Metadata.Media.Arxiv as AR
@@ -45,12 +45,6 @@ data NewMedia = NewMedia
   }
 
 makeLenses ''NewMedia
-
-data NewMediaInternal
-  = NewLinkMedia Text Link.NewLink
-  | NewNoteMedia Note.NewNote
-
-makeLenses ''NewMediaInternal
 
 data DispatcherData
   = DispatcherSuccess (NewEntry -> NewEntry)
@@ -104,7 +98,7 @@ dispatchMedia nm = do
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 
-prepareNewMedia :: (MonadKorrvigs m) => NewMedia -> m NewMediaInternal
+prepareNewMedia :: (MonadKorrvigs m) => NewMedia -> m Note.NewNote
 prepareNewMedia nm = do
   md <- dispatchMedia nm
   let ne =
@@ -112,12 +106,7 @@ prepareNewMedia nm = do
           & neMtdt %~ M.insert (mtdtName TaskMtdt) "todo"
   let tp = fromMaybe Blogpost $ ne ^? neMtdt . at (mtdtName MediaMtdt) . _Just . _JSON
   let title = fromMaybe (medTxt tp <> " " <> nm ^. nmInput) $ ne ^. neTitle
-  let url = fromMaybe (nm ^. nmInput) $ ne ^? neMtdt . at (mtdtName Url) . _Just . _JSON
-  let nlink = NewLinkMedia url $ Link.NewLink ne False
-  pure $
-    if mediaTypeDefaultToNote tp
-      then NewNoteMedia $ Note.NewNote ne title (isNothing $ ne ^. neTitle) False
-      else nlink
+  pure $ Note.NewNote ne title (isNothing $ ne ^. neTitle) False
   where
     medTxt :: MediaType -> Text
     medTxt Article = "Article"
@@ -151,8 +140,4 @@ prepareNewMedia nm = do
     medTxt Misc = "Misc"
 
 new :: (MonadKorrvigs m) => NewMedia -> m Id
-new nm = do
-  nmed <- prepareNewMedia nm
-  case nmed of
-    NewLinkMedia url nl -> Link.new url nl
-    NewNoteMedia nn -> Note.new nn
+new = prepareNewMedia >=> Note.new

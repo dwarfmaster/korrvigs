@@ -51,7 +51,6 @@ data ActionLabel
   | LabNewFile
   | LabNewFileDownload
   | LabNewNote
-  | LabNewLink
   | LabNewMedia
   | LabNewSyn
   | LabCaptureLink
@@ -78,7 +77,6 @@ actIcon LabRemove = mkIcon "remove" Base08
 actIcon LabNewFile = mkIcon "file" Base0B
 actIcon LabNewFileDownload = mkIcon "downloads" Base0B
 actIcon LabNewNote = mkIcon "note" Base0B
-actIcon LabNewLink = mkIcon "link" Base0B
 actIcon LabNewMedia = mkIcon "media" Base0B
 actIcon LabNewSyn = mkIcon "rss" Base0B
 actIcon LabCaptureLink = mkIcon "link" Base0B
@@ -101,7 +99,6 @@ actName LabRemove = "remove"
 actName LabNewFile = "newfile"
 actName LabNewFileDownload = "newfiledl"
 actName LabNewNote = "newnote"
-actName LabNewLink = "newlink"
 actName LabNewMedia = "newmedia"
 actName LabNewSyn = "newsyn"
 actName LabCaptureLink = "capturelink"
@@ -168,7 +165,6 @@ actForm l@LabRemove = genForm removeForm removeTitle $ actUrl l
 actForm l@LabNewFile = genForm newFileForm newFileTitle $ actUrl l
 actForm l@LabNewFileDownload = genForm newFileDlForm newFileDlTitle $ actUrl l
 actForm l@LabNewNote = genForm newNoteForm newNoteTitle $ actUrl l
-actForm l@LabNewLink = genForm newLinkForm newLinkTitle $ actUrl l
 actForm l@LabNewMedia = genForm newMediaForm newMediaTitle $ actUrl l
 actForm l@LabNewSyn = genForm newSynForm newSynTitle $ actUrl l
 actForm l@LabCaptureLink = genForm captureLinkForm captureLinkTitle $ actUrl l
@@ -214,7 +210,6 @@ actPost LabRemove = runPost removeForm runRemove
 actPost LabNewFile = runPost newFileForm runNewFile
 actPost LabNewFileDownload = runPost newFileDlForm runNewFileDl
 actPost LabNewNote = runPost newNoteForm runNewNote
-actPost LabNewLink = runPost newLinkForm runNewLink
 actPost LabNewMedia = runPost newMediaForm runNewMedia
 actPost LabNewSyn = runPost newSynForm runNewSyn
 actPost LabCaptureLink = runPost captureLinkForm runCaptureLink
@@ -264,7 +259,6 @@ actCond LabRemove = runActCond removeTarget
 actCond LabNewFile = runActCond newTarget
 actCond LabNewFileDownload = runActCond newTarget
 actCond LabNewNote = runActCond newTarget
-actCond LabNewLink = runActCond newTarget
 actCond LabNewMedia = runActCond newTarget
 actCond LabNewSyn = runActCond newTarget
 actCond LabCaptureLink = runActCond captureLinkTarget

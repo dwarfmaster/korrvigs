@@ -11,7 +11,6 @@ import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NFile
-import qualified Korrvigs.Link.New as NLink
 import Korrvigs.Metadata
 import qualified Korrvigs.Metadata.Media.New as NMedia
 import Korrvigs.Metadata.Media.Ontology
@@ -29,8 +28,6 @@ import Yesod hiding (joinPath)
 
 data NewNote = NewNote {_nnoteTitle :: Text, _nnoteLang :: Maybe Text}
 
-data NewLink = NewLink {_nlinkTitle :: Maybe Text, _nlinkUrl :: Text, _nlinkLang :: Maybe Text}
-
 data NewFile = NewFile {_nfileTitle :: Maybe Text, _nfileContent :: FileInfo, _nfileLang :: Maybe Text}
 
 data NewFileDl = NewFileDl {_nfileDlTitle :: Maybe Text, _nfileDlUrl :: Text, _nfileDlLanguage :: Maybe Text}
@@ -40,7 +37,6 @@ data NewMedia = NewMedia {_nmedInput :: Text, _nmedType :: Maybe MediaType, _nme
 data NewSyndicate = NewSyn {_nsynTitle :: Maybe Text, _nsynUrl :: Maybe Text, _nsynFilter :: Maybe Text, _nsynMkSyndicate :: Bool, _nsynRunJS :: Bool, _nsynLang :: Maybe Text}
 
 makeLenses ''NewNote
-makeLenses ''NewLink
 makeLenses ''NewFile
 makeLenses ''NewFileDl
 makeLenses ''NewMedia
@@ -125,27 +121,6 @@ runNewNote nnote tgt = do
           False
   i <- NNote.new settings
   mkReaction tgt "new note" i
-
-newLinkForm :: AForm Handler NewLink
-newLinkForm =
-  NewLink
-    <$> aopt textField "Title" Nothing
-    <*> areq textField "URL" Nothing
-    <*> langForm
-
-newLinkTitle :: ActionTarget -> Text
-newLinkTitle = mkNewTitle "new link"
-
-runNewLink :: NewLink -> ActionTarget -> Handler ActionReaction
-runNewLink nlink tgt = do
-  let settings =
-        def
-          & NLink.nlOffline .~ False
-          & NLink.nlEntry . neTitle .~ nlink ^. nlinkTitle
-          & NLink.nlEntry . neParents .~ maybeToList (extractParent tgt)
-          & NLink.nlEntry . neLanguage .~ nlink ^. nlinkLang
-  i <- NLink.new (nlink ^. nlinkUrl) settings
-  mkReaction tgt "new link" i
 
 newFileForm :: AForm Handler NewFile
 newFileForm =

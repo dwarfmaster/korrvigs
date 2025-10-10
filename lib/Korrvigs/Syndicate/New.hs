@@ -1,6 +1,5 @@
 module Korrvigs.Syndicate.New where
 
-import Control.Applicative
 import Control.Arrow (first)
 import Control.Lens hiding (noneOf)
 import Control.Monad
@@ -18,7 +17,6 @@ import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.New
 import Korrvigs.Kind
-import Korrvigs.Link.SQL
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import qualified Korrvigs.Metadata.Media.New as Media
@@ -89,17 +87,11 @@ create ns = do
   pure i
 
 lookupFromUrl :: (MonadKorrvigs m) => Text -> m (Maybe Id)
-lookupFromUrl url = do
-  lnk <- rSelectOne $ do
-    lnk <- selectTable linksTable
-    where_ $ lnk ^. sqlLinkRef .== sqlStrictText url
-    nameFor $ lnk ^. sqlLinkId
-  entry <- rSelectOne $ do
-    entry <- selectTable entriesTable
-    u <- baseSelectTextMtdt Url $ entry ^. sqlEntryId
-    where_ $ u .== sqlStrictText url
-    pure $ entry ^. sqlEntryName
-  pure $ entry <|> lnk
+lookupFromUrl url = rSelectOne $ do
+  entry <- selectTable entriesTable
+  u <- baseSelectTextMtdt Url $ entry ^. sqlEntryId
+  where_ $ u .== sqlStrictText url
+  pure $ entry ^. sqlEntryName
 
 lazyUpdateDate :: (MonadKorrvigs m) => Id -> Maybe UTCTime -> m ()
 lazyUpdateDate i time = do

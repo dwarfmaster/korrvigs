@@ -105,8 +105,9 @@ runSyndicate _ _ = pure def
 --  |_| \_\\__,_|_| |_|
 runSyndicateTarget :: ActionTarget -> ActionCond
 runSyndicateTarget TargetHome = ActCondAlways
-runSyndicateTarget (TargetEntry entry) | entry ^. kind == Syndicate = ActCondAlways
-runSyndicateTarget (TargetEntry _) = ActCondQuery $ def & queryMentioning ?~ QueryRel queryIsSyn True
+runSyndicateTarget (TargetEntry entry) = case entry ^? _Syndicate of
+  Just syn -> if isJust (syn ^. synUrl) then ActCondAlways else ActCondNever
+  Nothing -> ActCondQuery $ def & queryMentioning ?~ QueryRel queryIsSyn True
   where
     queryIsSyn = def & queryKind ?~ Syndicate
 runSyndicateTarget _ = ActCondNever

@@ -150,7 +150,10 @@ generateForm postUrl title form = do
   |]
 
 genForm :: AForm Handler a -> (ActionTarget -> Text) -> (ActionTarget -> Route WebData) -> ActionTarget -> Handler Widget
-genForm form title postUrl tgt = generateForm (postUrl tgt) (title tgt) form
+genForm form = genFormM $ pure form
+
+genFormM :: Handler (AForm Handler a) -> (ActionTarget -> Text) -> (ActionTarget -> Route WebData) -> ActionTarget -> Handler Widget
+genFormM getForm title postUrl tgt = getForm >>= generateForm (postUrl tgt) (title tgt)
 
 actUrl :: ActionLabel -> ActionTarget -> Route WebData
 actUrl lbl (TargetEntry entry) = ActEntryR (actName lbl) (WId $ entry ^. entryName)
@@ -167,7 +170,7 @@ actForm l@LabNewFileDownload = genForm newFileDlForm newFileDlTitle $ actUrl l
 actForm l@LabNewNote = genForm newNoteForm newNoteTitle $ actUrl l
 actForm l@LabNewMedia = genForm newMediaForm newMediaTitle $ actUrl l
 actForm l@LabNewSyn = genForm newSynForm newSynTitle $ actUrl l
-actForm l@LabCaptureLink = genForm captureLinkForm captureLinkTitle $ actUrl l
+actForm l@LabCaptureLink = genFormM captureLinkForm captureLinkTitle $ actUrl l
 actForm l@LabShare = genForm shareForm shareTitle $ actUrl l
 actForm l@LabParentAdd = genForm parentForm parentAddTitle $ actUrl l
 actForm l@LabParentRm = genForm parentForm parentRmTitle $ actUrl l
@@ -183,7 +186,11 @@ actForm l@LabUpdateTitle = genForm titleForm titleTitle $ actUrl l
 actForm l@LabRmTitle = genForm rmTitleForm rmTitleTitle $ actUrl l
 
 runPost :: AForm Handler a -> (a -> ActionTarget -> Handler ActionReaction) -> ActionTarget -> Handler ActionReaction
-runPost form runner tgt = do
+runPost form = runPostM $ pure form
+
+runPostM :: Handler (AForm Handler a) -> (a -> ActionTarget -> Handler ActionReaction) -> ActionTarget -> Handler ActionReaction
+runPostM getForm runner tgt = do
+  form <- getForm
   let mform = renderDivs form
   ((result, _), _) <- runFormPost mform
   case result of
@@ -212,7 +219,7 @@ actPost LabNewFileDownload = runPost newFileDlForm runNewFileDl
 actPost LabNewNote = runPost newNoteForm runNewNote
 actPost LabNewMedia = runPost newMediaForm runNewMedia
 actPost LabNewSyn = runPost newSynForm runNewSyn
-actPost LabCaptureLink = runPost captureLinkForm runCaptureLink
+actPost LabCaptureLink = runPostM captureLinkForm runCaptureLink
 actPost LabShare = runPost shareForm runShare
 actPost LabParentAdd = runPost parentForm runParentAdd
 actPost LabParentRm = runPost parentForm runParentRm

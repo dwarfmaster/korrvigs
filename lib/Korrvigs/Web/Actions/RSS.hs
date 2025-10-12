@@ -8,6 +8,7 @@ import qualified Data.Map as M
 import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.LocalTime
 import GHC.Int (Int64)
@@ -232,6 +233,7 @@ updateAggregate entry syn =
 data CapturedLink = CapturedLink
   { _clkTitle :: Maybe Text,
     _clkUrl :: Text,
+    _clkCapture :: Id,
     _clkDate :: Maybe LocalTime
   }
 
@@ -242,12 +244,22 @@ captureLinkTarget TargetHome = ActCondAlways
 captureLinkTarget (TargetEntry entry) | entry ^. kind == Syndicate = ActCondAlways
 captureLinkTarget _ = ActCondNever
 
-captureLinkForm :: AForm Handler CapturedLink
-captureLinkForm =
-  CapturedLink
-    <$> aopt textField "Title" Nothing
-    <*> areq textField "URL" Nothing
-    <*> aopt datetimeLocalField "Date" Nothing
+captureLinkForm :: Handler (AForm Handler CapturedLink)
+captureLinkForm = do
+  synOpts <- fmap synOptions $ rSelect $ orderBy (asc $ view _1) $ do
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryKind .== sqlKind Syndicate
+    capture <- baseSelectTextMtdt SyndicateCapture $ entry ^. sqlEntryId
+    pure (capture, entry ^. sqlEntryName)
+  pure $
+    CapturedLink
+      <$> aopt textField "Title" Nothing
+      <*> areq textField "URL" Nothing
+      <*> areq (selectField $ pure $ mkOptionList synOpts) "Capture" Nothing
+      <*> aopt datetimeLocalField "Date" Nothing
+  where
+    synOptions :: [(Text, Id)] -> [Option Id]
+    synOptions = fmap (\(cnt :: Int, (nm, i)) -> Option nm i (T.pack $ show cnt)) . zip [1 ..]
 
 captureLinkTitle :: ActionTarget -> Text
 captureLinkTitle TargetHome = "Capture link"
@@ -255,7 +267,7 @@ captureLinkTitle _ = "Add link"
 
 runCaptureLink :: CapturedLink -> ActionTarget -> Handler ActionReaction
 runCaptureLink clk TargetHome = do
-  entry <- load (MkId "CapturedLinks")
+  entry <- load $ clk ^. clkCapture
   render <- getUrlRenderParams
   case entry ^? _Just . _Syndicate of
     Just syn -> do

@@ -41,7 +41,6 @@ import qualified Korrvigs.Event.SQL as Event
 import Korrvigs.FTS
 import qualified Korrvigs.File.SQL as File
 import Korrvigs.Kind
-import qualified Korrvigs.Link.SQL as Link
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad.Class
@@ -91,7 +90,6 @@ loadImpl (Just row) =
   let sqlI = row ^. sqlEntryId
    in case row ^. sqlEntryKind of
         Note -> Note.sqlLoad sqlI $ mkEntry row
-        Link -> Link.sqlLoad sqlI $ mkEntry row
         File -> File.sqlLoad sqlI $ mkEntry row
         Event -> Event.sqlLoad sqlI $ mkEntry row
         Calendar -> Cal.sqlLoad sqlI $ mkEntry row
@@ -124,8 +122,6 @@ loadMetadata i = do
   pure $ M.fromList mtdt
 
 dispatchRemove :: (MonadKorrvigs m) => (Int -> [Delete Int64] -> m ()) -> KindData -> m ()
-dispatchRemove rm (LinkD lnk) =
-  let i = lnk ^. linkEntry . entryId in rm i $ Link.sqlRemove i
 dispatchRemove rm (NoteD note) =
   let i = note ^. noteEntry . entryId in rm i $ Note.sqlRemove i
 dispatchRemove rm (FileD file) =
@@ -211,7 +207,6 @@ syncSQL dt = atomicSQL $ \conn -> do
     Just prev -> do
       let sqlI = prev ^. sqlEntryId
       case prev ^. sqlEntryKind of
-        Link -> mapM_ (runDelete conn) $ Link.sqlRemove sqlI
         Note -> mapM_ (runDelete conn) $ Note.sqlRemove sqlI
         File -> mapM_ (runDelete conn) $ File.sqlRemove sqlI
         Event -> mapM_ (runDelete conn) $ Event.sqlRemove sqlI

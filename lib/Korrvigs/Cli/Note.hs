@@ -14,7 +14,6 @@ import Korrvigs.Cli.New
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NF
-import qualified Korrvigs.Link.New as NL
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Note
@@ -36,7 +35,6 @@ data Cmd
 
 data AttachCmd
   = AttachFiles [FilePath] Bool
-  | AttachLinks [Text] Bool
   | AttachNotes [Text]
 
 makeLenses ''Cmd
@@ -136,19 +134,6 @@ parserAttach' =
             )
         )
         <> command
-          "link"
-          ( info
-              ( ( AttachLinks
-                    <$> many (argument str (metavar "LINK" <> help "LINK to attach"))
-                    <*> switch (long "offline" <> help "Do not download metadata from link")
-                )
-                  <**> helper
-              )
-              ( progDesc "Attach link(s) to a note"
-                  <> header "korr note attach NOTE link -- Attach links"
-              )
-          )
-        <> command
           "note"
           ( info
               ( ( AttachNotes
@@ -212,14 +197,6 @@ run (Attach note isPath cmd) =
                     NF._nfRemove = delete
                   }
           ni <- NF.new file options
-          liftIO $ putStrLn $ unId ni
-      AttachLinks links offline ->
-        forM_ links $ \link -> do
-          let options =
-                def
-                  & NL.nlOffline .~ offline
-                  & NL.nlEntry . neParents .~ [i]
-          ni <- NL.new link options
           liftIO $ putStrLn $ unId ni
       AttachNotes notes ->
         forM_ notes $ \nt -> do

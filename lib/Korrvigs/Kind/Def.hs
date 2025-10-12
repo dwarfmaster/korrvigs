@@ -8,7 +8,6 @@ import qualified Data.Text as T
 
 data Kind
   = Note
-  | Link
   | File
   | Event
   | Calendar
@@ -17,8 +16,6 @@ data Kind
 
 -- Singletons
 data NoteK = NoteK
-
-data LinkK = LinkK
 
 data FileK = FileK
 
@@ -31,7 +28,6 @@ makeLenses ''Kind
 -- JSON
 instance ToJSON Kind where
   toJSON Note = "note"
-  toJSON Link = "link"
   toJSON File = "file"
   toJSON Event = "event"
   toJSON Calendar = "calendar"
@@ -40,7 +36,6 @@ instance ToJSON Kind where
 instance FromJSON Kind where
   parseJSON = withText "Kind" $ \case
     "note" -> pure Note
-    "link" -> pure Link
     "file" -> pure File
     "event" -> pure Event
     "calendar" -> pure Calendar

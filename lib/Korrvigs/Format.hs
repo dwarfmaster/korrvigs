@@ -147,14 +147,6 @@ dateSpec =
     <> liftSpec (to zonedTimeToLocalTime . to localDay) daySpec
     <> liftSpec (to zonedTimeToLocalTime . to localTimeOfDay) timeSpec
 
-linkSpec :: (MonadKorrvigs m) => FormatSpec m Link
-linkSpec =
-  fromList
-    [ ("protocol", fromLens linkProtocol),
-      ("ref", fromLens linkRef),
-      ("path", fromLens $ linkPath . to T.pack)
-    ]
-
 noteSpec :: (MonadKorrvigs m) => FormatSpec m Note
 noteSpec = singleton "path" $ fromLens $ notePath . to T.pack
 
@@ -191,7 +183,6 @@ synSpec =
     ]
 
 kindDataSpec :: (MonadKorrvigs m) => Kind -> FormatSpec m Entry
-kindDataSpec Link = liftSpec _Link linkSpec
 kindDataSpec Note = liftSpec _Note noteSpec
 kindDataSpec File = liftSpec _File fileSpec
 kindDataSpec Event = liftSpec _Event eventSpec

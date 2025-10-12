@@ -5,7 +5,6 @@ import Korrvigs.Kind.Def
 import Korrvigs.Kind.SQL
 
 displayKind :: Kind -> Text
-displayKind Link = "link"
 displayKind Note = "note"
 displayKind File = "file"
 displayKind Event = "event"

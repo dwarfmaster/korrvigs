@@ -17,7 +17,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.LocalTime
 import Korrvigs.Entry
-import Korrvigs.Kind hiding (Link)
+import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers

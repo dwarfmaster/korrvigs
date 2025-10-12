@@ -1,4 +1,4 @@
-module Korrvigs.Link.Download.Video (nebula) where
+module Korrvigs.Note.Download.Video (nebula) where
 
 import Control.Lens
 import Data.Monoid

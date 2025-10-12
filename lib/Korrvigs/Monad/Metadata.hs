@@ -25,7 +25,6 @@ import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
 import qualified Korrvigs.Kind as Kd
-import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL (idMetadata, indexedMetadata, load)
 import Korrvigs.Monad.Sync (syncOne)
@@ -39,7 +38,6 @@ import qualified Opaleye as O
 updateMetadata :: (MonadKorrvigs m) => Entry -> Map Text Value -> [Text] -> m ()
 updateMetadata entry upd rm = do
   case entry ^. entryKindData of
-    LinkD link -> Link.updateMetadata link upd rm
     FileD file -> File.updateMetadata file upd rm
     NoteD note -> Note.updateMetadata note upd rm
     EventD event -> Event.updateMetadata event upd rm
@@ -80,7 +78,6 @@ updateParents :: (MonadKorrvigs m) => Entry -> [Id] -> [Id] -> m ()
 updateParents entry toAdd toRm = do
   let sqlI = entry ^. entryId
   case entry ^. entryKindData of
-    LinkD link -> Link.updateParents link toAdd toRm
     FileD file -> File.updateParents file toAdd toRm
     NoteD note -> Note.updateParents note toAdd toRm
     EventD event -> Event.updateParents event toAdd toRm
@@ -117,7 +114,6 @@ updateDate :: (MonadKorrvigs m) => Entry -> Maybe ZonedTime -> m ()
 updateDate entry ntime = do
   let sqlI = entry ^. entryId
   case entry ^. entryKindData of
-    LinkD link -> Link.updateDate link ntime
     FileD file -> File.updateDate file ntime
     NoteD note -> Note.updateDate note ntime
     EventD _ -> undefined
@@ -145,7 +141,6 @@ listCompute i = do
 updateRef :: (MonadKorrvigs m) => Entry -> Id -> Maybe Id -> m ()
 updateRef entry old new = do
   case entry ^. entryKindData of
-    LinkD link -> Link.updateRef link old new
     FileD file -> File.updateRef file old new
     NoteD note -> Note.updateRef note old new
     EventD ev -> Event.updateRef ev old new
@@ -191,7 +186,6 @@ updateRef entry old new = do
 updateTitle :: (MonadKorrvigs m) => Entry -> Maybe Text -> m ()
 updateTitle entry ntitle = do
   case entry ^. entryKindData of
-    LinkD link -> Link.updateTitle link ntitle
     FileD file -> File.updateTitle file ntitle
     NoteD note -> Note.updateTitle note ntitle
     EventD ev -> Event.updateTitle ev ntitle

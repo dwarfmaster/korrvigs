@@ -1,4 +1,4 @@
-module Korrvigs.Link.Download (downloadInformation) where
+module Korrvigs.Note.Download (downloadInformation) where
 
 import Conduit (liftIO)
 import Control.Applicative
@@ -27,11 +27,11 @@ import Data.Time.Format.ISO8601
 import Data.Time.LocalTime
 import qualified Data.Vector as V
 import Korrvigs.Entry.New
-import qualified Korrvigs.Link.Download.Books as Books
-import qualified Korrvigs.Link.Download.Video as Vid
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
+import qualified Korrvigs.Note.Download.Books as Books
+import qualified Korrvigs.Note.Download.Video as Vid
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Pandoc (pdExtractMtdt)
 import Network.HTTP.Simple

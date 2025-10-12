@@ -24,7 +24,6 @@ import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Calendar as Cal
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
-import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Entry.Metadata as Mtdt
 import qualified Korrvigs.Web.Entry.Note as Note
 import qualified Korrvigs.Web.Entry.Syndicate as Syn
@@ -70,7 +69,6 @@ titleWidget entry contentId = do
   where
     editWidget :: Handler (Maybe Widget)
     editWidget = case entry ^. entryKindData of
-      LinkD _ -> pure Nothing
       FileD _ -> pure Nothing
       EventD _ -> pure Nothing
       CalendarD _ -> pure Nothing
@@ -152,10 +150,10 @@ refsWidget entry = do
               e1 <- selectTable entriesTable
               where_ $ e1 ^. sqlEntryId .== eid1
               let nm1 = e1 ^. sqlEntryName
-              where_ $ (e1 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event, Syndicate] .|| nm1 .== sqlId i
+              where_ $ (e1 ^. sqlEntryKind) `sqlElem` toFields [Note, Calendar, Event, Syndicate] .|| nm1 .== sqlId i
               e2 <- selectTable entriesTable
               where_ $ e2 ^. sqlEntryId .== eid2
-              where_ $ (e2 ^. sqlEntryKind) `sqlElem` toFields [Note, Link, Calendar, Event, Syndicate]
+              where_ $ (e2 ^. sqlEntryKind) `sqlElem` toFields [Note, Calendar, Event, Syndicate]
               hub1 <- O.not . isNull <$> selectTextMtdt HubMtdt eid1
               hub2 <- O.not . isNull <$> selectTextMtdt HubMtdt eid2
               where_ $
@@ -275,7 +273,6 @@ galleryWidget entry =
 
 contentWidget :: Entry -> Handler Widget
 contentWidget entry = case entry ^. entryKindData of
-  LinkD link -> Link.content link
   NoteD note -> Note.content note
   FileD file -> File.content file
   EventD event -> Event.content event

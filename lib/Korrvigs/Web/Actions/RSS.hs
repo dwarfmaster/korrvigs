@@ -15,12 +15,12 @@ import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.Kind
-import Korrvigs.Link.Download
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Monad.Metadata
 import Korrvigs.Monad.Sync
+import Korrvigs.Note.Download
 import Korrvigs.Query
 import Korrvigs.Syndicate.Item
 import Korrvigs.Syndicate.JSON

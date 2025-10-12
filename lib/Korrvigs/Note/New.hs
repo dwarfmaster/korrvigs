@@ -19,12 +19,12 @@ import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.New hiding (new)
 import Korrvigs.Kind
-import qualified Korrvigs.Link.Download as Link
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync
 import Korrvigs.Note.AST
+import qualified Korrvigs.Note.Download as Dl
 import Korrvigs.Note.Render
 import Korrvigs.Note.Sync
 import Korrvigs.Utils.DateTree
@@ -66,7 +66,7 @@ initContent mtdt =
 create :: (MonadKorrvigs m) => NewNote -> m Id
 create note = do
   extracted <- case note ^? nnEntry . neMtdt . at (mtdtName Url) . _Just . _String of
-    Just url | not (note ^. nnIgnoreUrl) -> Link.downloadInformation url
+    Just url | not (note ^. nnIgnoreUrl) -> Dl.downloadInformation url
     _ -> pure mempty
   let nentry' = appEndo extracted $ note ^. nnEntry
   let title =

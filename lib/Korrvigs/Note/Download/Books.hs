@@ -1,4 +1,4 @@
-module Korrvigs.Link.Download.Books where
+module Korrvigs.Note.Download.Books where
 
 import Control.Lens
 import Data.Monoid

@@ -42,7 +42,6 @@ makeLenses ''Cmd
 
 kindParser :: ReadM Kind
 kindParser = eitherReader $ \case
-  "link" -> Right Link
   "event" -> Right Event
   "file" -> Right File
   "note" -> Right Note

@@ -24,7 +24,6 @@ import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Calendar as Cal
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
-import qualified Korrvigs.Web.Entry.Link as Link
 import qualified Korrvigs.Web.Entry.Syndicate as Syn
 import Korrvigs.Web.Public.Crypto (mkPublic)
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -430,7 +429,6 @@ embedBody i lvl =
     Just entry -> do
       let title = entry ^. entryTitle
       case entry ^. entryKindData of
-        LinkD link -> (,def,title) <$> Link.embed lvl link
         FileD file -> (,def,title) <$> File.embed lvl file
         EventD event -> (,def,title) <$> Event.embed lvl event
         CalendarD cal -> (,def,title) <$> Cal.embed lvl cal

@@ -23,14 +23,6 @@ data Note = MkNote
   }
   deriving (Show)
 
-data Link = MkLink
-  { _linkEntry :: Entry,
-    _linkProtocol :: Text,
-    _linkRef :: Text,
-    _linkPath :: FilePath
-  }
-  deriving (Show)
-
 data FileStatus
   = FilePlain
   | FilePresent
@@ -78,8 +70,7 @@ data Syndicate = MkSyndicate
   deriving (Show)
 
 data KindData
-  = LinkD Link
-  | NoteD Note
+  = NoteD Note
   | FileD File
   | EventD Event
   | CalendarD Calendar
@@ -87,7 +78,6 @@ data KindData
   deriving (Show)
 
 kindDataKind :: KindData -> Kind
-kindDataKind (LinkD _) = Link
 kindDataKind (NoteD _) = Note
 kindDataKind (FileD _) = File
 kindDataKind (EventD _) = Event
@@ -108,7 +98,6 @@ data Entry = MkEntry
 makeLenses ''Calendar
 makeLenses ''Event
 makeLenses ''Note
-makeLenses ''Link
 makeLenses ''File
 makeLenses ''Syndicate
 makePrisms ''KindData
@@ -119,9 +108,6 @@ kind = entryKindData . to kindDataKind
 
 _Note :: Traversal' Entry Note
 _Note = entryKindData . _NoteD
-
-_Link :: Traversal' Entry Link
-_Link = entryKindData . _LinkD
 
 _File :: Traversal' Entry File
 _File = entryKindData . _FileD
@@ -139,11 +125,6 @@ class IsKindData a where
   kdEntry :: a -> Entry
   kdKind :: a -> Kind
   kdKindData :: a -> KindData
-
-instance IsKindData Link where
-  kdEntry = view linkEntry
-  kdKind = const Link
-  kdKindData = LinkD
 
 instance IsKindData Note where
   kdEntry = view noteEntry

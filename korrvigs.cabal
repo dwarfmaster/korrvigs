@@ -42,7 +42,6 @@ library korrvigs-lib
     Korrvigs.Cli.File
     Korrvigs.Cli.Import
     Korrvigs.Cli.Info
-    Korrvigs.Cli.Link
     Korrvigs.Cli.Monad
     Korrvigs.Cli.New
     Korrvigs.Cli.Note
@@ -95,14 +94,6 @@ library korrvigs-lib
     Korrvigs.Kind
     Korrvigs.Kind.Def
     Korrvigs.Kind.SQL
-    Korrvigs.Link
-    Korrvigs.Link.Download
-    Korrvigs.Link.Download.Books
-    Korrvigs.Link.Download.Video
-    Korrvigs.Link.JSON
-    Korrvigs.Link.New
-    Korrvigs.Link.SQL
-    Korrvigs.Link.Sync
     Korrvigs.Metadata
     Korrvigs.Metadata.Android
     Korrvigs.Metadata.Android.ADB
@@ -134,6 +125,9 @@ library korrvigs-lib
     Korrvigs.Note
     Korrvigs.Note.AST
     Korrvigs.Note.Code
+    Korrvigs.Note.Download
+    Korrvigs.Note.Download.Books
+    Korrvigs.Note.Download.Video
     Korrvigs.Note.Helpers
     Korrvigs.Note.Loc
     Korrvigs.Note.New
@@ -195,7 +189,6 @@ library korrvigs-lib
     Korrvigs.Web.Entry.Calendar
     Korrvigs.Web.Entry.Event
     Korrvigs.Web.Entry.File
-    Korrvigs.Web.Entry.Link
     Korrvigs.Web.Entry.Metadata
     Korrvigs.Web.Entry.Note
     Korrvigs.Web.Entry.Syndicate

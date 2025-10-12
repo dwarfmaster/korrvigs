@@ -10,7 +10,6 @@ data SqlKind
 
 toSqlKind :: Kind -> String
 toSqlKind Note = "note"
-toSqlKind Link = "link"
 toSqlKind File = "file"
 toSqlKind Event = "event"
 toSqlKind Calendar = "calendar"

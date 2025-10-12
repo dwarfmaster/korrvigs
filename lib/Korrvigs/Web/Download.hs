@@ -14,8 +14,6 @@ import System.FilePath
 import Yesod
 
 downloadEntry :: KindData -> Handler TypedContent
-downloadEntry (LinkD link) =
-  pure $ toTypedContent (typeJson, ContentFile (link ^. linkPath) Nothing)
 downloadEntry (FileD file) = case file ^. fileStatus of
   FileAbsent -> notFound
   _ -> do
@@ -31,7 +29,6 @@ downloadEntry (SyndicateD syn) =
   pure $ toTypedContent (typeJson, ContentFile (syn ^. synPath) Nothing)
 
 suggestExtension :: KindData -> Text
-suggestExtension (LinkD _) = ".json"
 suggestExtension (FileD file) = T.pack $ takeExtension $ file ^. filePath
 suggestExtension (NoteD _) = ".md"
 suggestExtension (EventD _) = ".ics"

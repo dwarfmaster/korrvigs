@@ -1,5 +1,5 @@
 DO $$ BEGIN
-  CREATE TYPE KIND AS ENUM ('note', 'link', 'file', 'event', 'calendar', 'syndicate');
+  CREATE TYPE KIND AS ENUM ('note', 'file', 'event', 'calendar', 'syndicate');
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
@@ -60,16 +60,6 @@ CREATE TABLE IF NOT EXISTS notes_collections (
   id INTEGER NOT NULL REFERENCES notes(id),
   name TEXT NOT NULL,
   entry TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS links (
-  id INTEGER NOT NULL PRIMARY KEY,
-  kind KIND NOT NULL CHECK(kind = 'link'),
-  protocol TEXT NOT NULL,
-  ref TEXT NOT NULL,
-  file TEXT NOT NULL,
-  CONSTRAINT notes_entries
-    FOREIGN KEY (id,kind) references entries(id,kind)
 );
 
 DO $$ BEGIN

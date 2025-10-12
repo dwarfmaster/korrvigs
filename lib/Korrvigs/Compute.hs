@@ -113,7 +113,6 @@ checkEntry :: (MonadKorrvigs m) => Id -> m CompHash
 checkEntry i = do
   entry <- load i >>= throwMaybe (KMiscError $ "Failed to load " <> unId i)
   case entry ^. entryKindData of
-    LinkD lnk -> hashFile $ lnk ^. linkPath
     NoteD note -> hashFile $ note ^. notePath
     EventD ev -> hashFile $ ev ^. eventFile
     SyndicateD syn -> hashFile $ syn ^. synPath

@@ -23,7 +23,6 @@ import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
 import Korrvigs.Kind
-import qualified Korrvigs.Link.Sync as Link
 import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL
 import qualified Korrvigs.Note.Sync as Note
@@ -40,7 +39,6 @@ remove entry = do
   removeDB entry
   case entry ^. entryKindData of
     NoteD note -> Note.remove note
-    LinkD link -> Link.remove link
     FileD file -> File.remove file
     EventD ev -> Event.remove ev
     CalendarD cal -> Cal.remove cal
@@ -53,7 +51,6 @@ loadIDsFor kdTxt extractId doList = do
   pure . M.fromListWith (<>) . S.toList $ S.map (extractId &&& singleton) st
 
 loadIDsOn :: (MonadKorrvigs m) => Kind -> m (Map Id [FilePath])
-loadIDsOn Link = loadIDsFor (displayKind Link) Link.linkIdFromPath Link.list
 loadIDsOn Note = loadIDsFor (displayKind Note) Note.noteIdFromPath Note.list
 loadIDsOn File = loadIDsFor (displayKind File) File.fileIdFromPath File.list
 loadIDsOn Event = loadIDsFor (displayKind Event) (fst . Event.eventIdFromPath) Event.list
@@ -84,7 +81,6 @@ runSync kdTxt dt = do
   pure $ handleSyncData . fixSyncData <$> r
 
 runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id ([Id], [Id], m ()))
-runSyncOn Link = runSync (displayKind Link) Link.sync
 runSyncOn Note = runSync (displayKind Note) Note.sync
 runSyncOn File = runSync (displayKind File) File.sync
 runSyncOn Event = runSync (displayKind Event) Event.sync
@@ -152,7 +148,6 @@ identifyPath path = do
     isRel :: FilePath -> Bool
     isRel rt = isRelative $ makeRelative rt path
     kdRoot :: Kind -> m FilePath
-    kdRoot Link = Link.linksDirectory
     kdRoot Note = Note.noteDirectory
     kdRoot File = File.filesDirectory
     kdRoot Event = Event.eventsDirectory
@@ -186,8 +181,6 @@ refsFromMetadata mtdt val
 refsFromMetadata _ _ = []
 
 syncFileOfKind :: (MonadKorrvigs m) => FilePath -> Kind -> m ()
-syncFileOfKind path Link =
-  syncFileImpl (Link.linkIdFromPath path) =<< Link.syncOne path
 syncFileOfKind path Note =
   syncFileImpl (Note.noteIdFromPath path) =<< Note.syncOne path
 syncFileOfKind path File =
@@ -204,7 +197,6 @@ syncFile path = identifyPath path >>= syncFileOfKind path
 
 syncOne :: (MonadKorrvigs m) => Entry -> m ()
 syncOne entry = case entry ^. entryKindData of
-  LinkD link -> syncFileOfKind (link ^. linkPath) Link
   NoteD note -> syncFileOfKind (note ^. notePath) Note
   FileD file -> syncFileOfKind (file ^. filePath) File
   EventD event -> syncFileOfKind (event ^. eventFile) Event

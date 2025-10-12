@@ -48,7 +48,6 @@ mtdtQueryParser :: ReadM (Text, JsonQuery)
 mtdtQueryParser = eitherReader $ mapL T.unpack . parseMtdtQuery . T.pack
 
 kindNames :: Kind -> String
-kindNames Link = "link"
 kindNames Note = "note"
 kindNames File = "file"
 kindNames Event = "event"

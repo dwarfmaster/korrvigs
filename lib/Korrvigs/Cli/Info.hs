@@ -69,10 +69,6 @@ entryInfoSpec =
     ("height", _2 . ix (mtdtName Height) . _Integer . to decimal),
     -- Note info
     ("path", _1 . _Note . notePath . to string),
-    -- Link info
-    ("protocol", _1 . _Link . linkProtocol . to text),
-    ("ref", _1 . _Link . linkRef . to text),
-    ("path", _1 . _Link . linkPath . to string),
     -- File info
     ("path", _1 . _File . filePath . to string),
     ("status", _1 . _File . fileStatus . to displayFileStatus . to text),

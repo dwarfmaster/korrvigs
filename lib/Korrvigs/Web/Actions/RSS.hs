@@ -17,6 +17,7 @@ import Korrvigs.Entry.New
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
+import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
 import Korrvigs.Monad.Metadata
 import Korrvigs.Monad.Sync
@@ -92,11 +93,17 @@ runSyndicate :: (Maybe Text, Bool) -> ActionTarget -> Handler ActionReaction
 runSyndicate (flt, runJS) (TargetEntry entry) = do
   feed <- rSelectOne (baseSelectTextMtdt Feed $ sqlInt4 $ entry ^. entryId) >>= throwMaybe (KMiscError $ "Entry " <> unId (entry ^. entryName) <> " has no feed metadata")
   let insertJS = if runJS then M.insert (mtdtName RunJavascript) (toJSON True) else id
-  let ns = NewSyndicate (def & neParents .~ [entry ^. entryName] & neMtdt %~ insertJS) (Just feed) $ flt >>= parseSyndicateFilter
+  title <- mkTitle <$> rSelectMtdt MediaMtdt (sqlId $ entry ^. entryName)
+  let ns = NewSyndicate (def & neParents .~ [entry ^. entryName] & neTitle .~ title & neMtdt %~ insertJS) (Just feed) $ flt >>= parseSyndicateFilter
   i <- new ns
   updateMetadata entry (M.singleton (mtdtSqlName SyndicateMtdt) (toJSON $ unId i)) []
   render <- getUrlRenderParams
   pure $ def & reactMsg ?~ [hamlet|<p>Create syndicate <a href=@{EntryR $ WId i}>@#{unId i}</a>|] render
+  where
+    mkTitle mtdt = case (entry ^. entryTitle, mtdt) of
+      (Just t, Just m) -> Just $ t <> " " <> displayMediaType m
+      (Just t, Nothing) -> Just t
+      _ -> Nothing
 runSyndicate _ _ = pure def
 
 --   ____

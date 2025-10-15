@@ -335,9 +335,11 @@ renderToYAML :: Bool -> Value -> RenderM ()
 renderToYAML _ Null = writeText "~"
 renderToYAML _ (Bool True) = writeText "true"
 renderToYAML _ (Bool False) = writeText "false"
-renderToYAML _ (Number num) = writeText . T.pack $ show num
+renderToYAML _ (Number num) = writeText . (<> "\"") . ("\"n:" <>) . T.pack $ show num
 renderToYAML _ (String txt) =
-  surrounded "\"" $ writeText $ T.replace "\"" "\\\"" $ T.replace "\\" "\\\\" txt
+  surrounded "\"" $ writeText $ T.replace "\"" "\\\"" $ T.replace "\\" "\\\\" written
+  where
+    written = if T.isPrefixOf "n:" txt || T.isPrefixOf "t:" txt then "t:" <> txt else txt
 renderToYAML _ (Array vals) | V.null vals = writeText "[]"
 renderToYAML _ (Array vals) = do
   newline

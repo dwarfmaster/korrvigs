@@ -7,11 +7,14 @@ import Data.Bifunctor
 import Data.List (intersperse)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.Builder
 import qualified Data.Vector as V
 import Text.Pandoc
+import Text.Read (readMaybe)
 
 pdInlineToText :: Inline -> Builder
 pdInlineToText (Str txt) = fromText txt
@@ -61,14 +64,19 @@ pdBlocksToRenderedText = toStrict . toLazyText . pdBlocksToText
 
 parseMetaValue :: MetaValue -> Value
 parseMetaValue (MetaBool b) = Bool b
-parseMetaValue (MetaString txt) = String txt
+parseMetaValue (MetaString txt) = parseStringOrNumber txt
 parseMetaValue (MetaList l) = Array . V.fromList $ parseMetaValue <$> l
 parseMetaValue (MetaMap m) =
   Object . KM.fromList $ bimap K.fromText parseMetaValue <$> M.toList m
 parseMetaValue (MetaInlines inls) =
-  String . toStrict . toLazyText . mconcat $ map pdInlineToText inls
+  parseStringOrNumber . toStrict . toLazyText . mconcat $ map pdInlineToText inls
 parseMetaValue (MetaBlocks bks) =
-  String . toStrict . toLazyText $ pdBlocksToText bks
+  parseStringOrNumber . toStrict . toLazyText $ pdBlocksToText bks
+
+parseStringOrNumber :: Text -> Value
+parseStringOrNumber txt = case T.stripPrefix "n:" txt of
+  Just n -> Number $ fromMaybe 0 $ readMaybe $ T.unpack n
+  Nothing -> String $ fromMaybe txt $ T.stripPrefix "t:" txt
 
 pdExtractMtdt :: Pandoc -> (Text, Map Text Value)
 pdExtractMtdt (Pandoc mtdt bks) = (textContent, M.map parseMetaValue (unMeta mtdt))

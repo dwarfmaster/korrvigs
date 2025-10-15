@@ -1,5 +1,6 @@
 module Korrvigs.Note.Sync where
 
+import Control.Applicative
 import Control.Arrow (first, (&&&))
 import Control.Lens
 import Control.Monad (when)
@@ -28,6 +29,7 @@ import Korrvigs.Query
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
 import Korrvigs.Utils.JSON
+import Korrvigs.Utils.Time
 import Opaleye (Insert (..), doNothing, rCount, toFields)
 import System.Directory (doesFileExist)
 import System.FilePath (joinPath, takeBaseName)
@@ -73,7 +75,9 @@ syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Document -> m SyncData
 syncDocument i path doc = do
   let mtdt = doc ^. docMtdt
   let geom = fromJSONM =<< mtdt ^. at "geometry"
-  let tm = fromJSONM =<< mtdt ^. at "date"
+  let day = dayToZonedTime utc <$> (fromJSONM =<< mtdt ^. at "date")
+  let zt = fromJSONM =<< mtdt ^. at "date"
+  let tm = zt <|> day
   let dur = fromJSONM =<< mtdt ^. at "duration"
   let title = Just $ doc ^. docTitle
   let erow = EntryRow Nothing Note i tm dur geom Nothing title :: EntryRowW

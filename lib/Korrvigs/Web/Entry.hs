@@ -78,11 +78,13 @@ titleWidget entry contentId = do
 -- TODO make link to day viewer
 dateWidget :: Entry -> Handler Widget
 dateWidget entry = case entry ^. entryDate of
-  Just time ->
+  Just time -> do
+    tz <- liftIO getCurrentTimeZone
+    let localTime = utcToZonedTime tz $ zonedTimeToUTC time
     pure
       [whamlet|
       <a href="">
-        #{iso8601Show time}
+        #{iso8601Show localTime}
     |]
   Nothing -> pure mempty
 

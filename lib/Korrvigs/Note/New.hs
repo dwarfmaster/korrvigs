@@ -1,6 +1,7 @@
 module Korrvigs.Note.New (new, NewNote (..), nnEntry, nnTitle, nnTitleOverride, nnIgnoreUrl) where
 
 import Control.Lens
+import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Lens
 import Data.CaseInsensitive (CI)
@@ -15,6 +16,7 @@ import Data.Monoid
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.New hiding (new)
@@ -28,6 +30,7 @@ import qualified Korrvigs.Note.Download as Dl
 import Korrvigs.Note.Render
 import Korrvigs.Note.Sync
 import Korrvigs.Utils.DateTree
+import Korrvigs.Utils.Time
 import Opaleye hiding (not, null)
 
 data NewNote = NewNote
@@ -77,11 +80,12 @@ create note = do
   idmk' <- applyNewEntry nentry (imk "note")
   let idmk = idmk' & idTitle ?~ title
   i <- newId idmk
+  tz <- liftIO getCurrentTimeZone
   let mtdt =
         useMtdt nentry $
           mconcat
             [ maybe M.empty (M.singleton (mtdtName Language) . toJSON) (nentry ^. neLanguage),
-              maybe M.empty (M.singleton (CI.mk "date") . toJSON) (nentry ^. neDate)
+              maybe M.empty (M.singleton (CI.mk "date") . toJSON . dayToZonedTime tz) (nentry ^. neDate)
             ]
   let doc =
         Document

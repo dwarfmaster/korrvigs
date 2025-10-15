@@ -321,3 +321,6 @@ mjx-container
 
 .syndicate-ref
   font-size: 0.8em
+
+.item-read
+  cursor: pointer

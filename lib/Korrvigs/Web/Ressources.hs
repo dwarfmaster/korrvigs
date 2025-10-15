@@ -119,3 +119,7 @@ epubJs mkStatic = do
 popperJS :: (Route Static -> Route site) -> WidgetFor site ()
 popperJS mkStatic =
   addScript $ mkStatic $ StaticRoute ["popperjs", "popperjs.min.js"] []
+
+itemCode :: WidgetFor site ()
+itemCode =
+  toWidget $ mkJs $(embedFile $ js "item.js")

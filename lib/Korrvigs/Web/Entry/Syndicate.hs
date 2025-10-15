@@ -3,6 +3,7 @@ module Korrvigs.Web.Entry.Syndicate where
 import Control.Lens
 import Control.Monad
 import Data.Default
+import Data.Foldable
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -82,17 +83,24 @@ renderItems syns spec = do
       pure (synName, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItInstance, item ^. sqlSynItDate, item ^. sqlSynItSequence, item ^. sqlSynItRead, task, synTitle)
   items <- forM itemsSQL $ \item -> do
     cb <- maybe (pure mempty) (flip checkBoxDWIM $ item ^. _8) $ item ^. _4
-    pure $ item & _8 .~ cb
-  pure
+    liId <- if onlyNew then Just <$> newIdent else pure Nothing
+    spanId :: Text <- newIdent
+    pure $ item & _8 .~ cb & _5 .~ (liId, spanId)
+  let optId someId = [("id" :: Text, i) | i <- toList someId]
+  render <- getUrlRender
+  let mkRead nm sq liId spanId = "readItem(this,\"" <> render (SynItemReadR (WId $ MkId nm) sq) <> "\"," <> maybe "null" (\t -> "\"" <> t <> "\"") liId <> ", \"" <> spanId <> "\")"
+  pure $ do
+    Rcs.itemCode
     [whamlet|
     <div .syndicate>
       <ul>
-        $forall (synName,title,url,inst,_,sq,read,cb,synTitle) <- items
-          <li>
+        $forall (synName,title,url,inst,(liId,spanId),sq,read,cb,synTitle) <- items
+          <li *{optId liId}>
             $if not public
               ^{cb}
-              $if read && isNothing inst
-                ✓
+              <span ##{spanId}>
+                $if read && isNothing inst
+                  ✓
               $maybe i <- inst
                 <a href=@{EntryR $ WId i}>
                   ^{openIcon}
@@ -100,7 +108,7 @@ renderItems syns spec = do
                 <a href=@{SynItemImportR (WId $ MkId synName) sq}>
                   ⤓
                 $if not read
-                  <a href=@{SynItemReadR (WId $ MkId synName) sq}>
+                  <span .item-read onclick=#{mkRead synName sq liId spanId}>
                     ✓
               #{T.pack " "}
             <a href=#{url}>#{title}

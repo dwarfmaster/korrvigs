@@ -125,7 +125,7 @@ instance FromJSON YtChannelItem where
       <*> snippet .:? "customUrl"
       <*> (snippet .:? "publishedAt" >>= mapM parseUTC)
       <*> snippet .: "thumbnails"
-      <*> snippet .: "country"
+      <*> snippet .:? "country"
 
 instance (FromJSON a) => FromJSON (YtResponse a) where
   parseJSON = withObject "Youtube response" $ \obj -> YtResponse <$> obj .: "items"

@@ -10,7 +10,9 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.UTF8 as BSU8
 import Data.Conduit.Aeson
+import Data.List
 import Data.Maybe
+import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -123,7 +125,7 @@ runWithoutFilter dat = do
     AtomFeed fd -> importFromAtom fd
     RSSFeed fd -> importFromRSS current fd
     RSS1Feed fd -> importFromRSS1 fd
-    XMLFeed _ -> (id, [])
+    XMLFeed xml -> importFromXML xml
 
 mergeItemsInto :: (MonadKorrvigs m) => [SyndicatedItem] -> [SyndicatedItem] -> m [SyndicatedItem]
 mergeItemsInto = flip (foldM (flip insertOneItem)) . reverse
@@ -189,9 +191,12 @@ extractText (Atom.HTMLString html) = T.intercalate " " $ mapMaybe ex $ parseTags
   where
     ex (TagText txt) = Just txt
     ex _ = Nothing
-extractText (Atom.XHTMLString xml) = T.intercalate " " $ exElem xml
+extractText (Atom.XHTMLString xml) = extractXMLText xml
+
+extractXMLText :: Element -> Text
+extractXMLText = T.intercalate " " . exElem
   where
-    exNode (NodeContent (ContentText txt)) = [txt]
+    exNode (NodeContent (ContentText txt)) = [T.strip txt]
     exNode (NodeElement el) = exElem el
     exNode _ = []
     exElem el = exNode =<< elementNodes el
@@ -233,3 +238,55 @@ importFromRSS1 feed = (setTitle . setDesc, importFromItem <$> RSS1.feedItems fee
           _synitDate = Nothing,
           _synitInstance = Nothing
         }
+
+importFromXML :: Element -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
+importFromXML xml = (appEndo synEndo, mapMaybe extractItem $ elementNodes xml)
+  where
+    checkName :: Text -> Name -> Bool
+    checkName nm e =
+      isNothing (namePrefix e)
+        && nameLocalName e == nm
+    extractTitle :: Node -> Endo SyndicateJSON
+    extractTitle (NodeElement e)
+      | checkName "title" (elementName e) =
+          Endo $ synjsTitle %~ Just . fromMaybe (extractXMLText e)
+    extractTitle _ = mempty
+    synEndo :: Endo SyndicateJSON
+    synEndo = foldMap extractTitle $ elementNodes xml
+    extractItem :: Node -> Maybe SyndicatedItem
+    extractItem (NodeElement e) = do
+      guard $ checkName "entry" $ elementName e
+      let f = foldMap extractItemV $ elementNodes e
+      let defItem =
+            SyndicatedItem
+              { _synitTitle = "",
+                _synitUrl = "",
+                _synitRead = False,
+                _synitGUID = Nothing,
+                _synitDate = Nothing,
+                _synitInstance = Nothing
+              }
+      let item = appEndo f defItem
+      guard $ not $ T.null $ item ^. synitTitle
+      guard $ not $ T.null $ item ^. synitUrl
+      pure item
+    extractItem _ = Nothing
+    extractItemV :: Node -> Endo SyndicatedItem
+    extractItemV (NodeElement e)
+      | checkName "title" (elementName e) =
+          Endo $ synitTitle .~ extractXMLText e
+    extractItemV (NodeElement e)
+      | checkName "link" (elementName e) =
+          maybe mempty (Endo . (synitUrl .~) . extractContentsText . snd) $ find (checkName "href" . fst) $ elementAttributes e
+    extractItemV (NodeElement e)
+      | checkName "id" (elementName e) =
+          Endo $ synitGUID ?~ extractXMLText e
+    extractItemV (NodeElement e)
+      | checkName "published" (elementName e) =
+          maybe mempty (Endo . (synitDate ?~) . zonedTimeToUTC) $ iso8601ParseM $ T.unpack $ extractXMLText e
+    extractItemV _ = mempty
+    extractContentsText :: [Content] -> Text
+    extractContentsText cnts = T.intercalate " " $ extractContentText =<< cnts
+    extractContentText :: Content -> [Text]
+    extractContentText (ContentText txt) = [T.strip txt]
+    extractContentText _ = []

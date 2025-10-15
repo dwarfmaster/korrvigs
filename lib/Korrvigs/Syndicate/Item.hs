@@ -15,6 +15,7 @@ data SyndicatedItem = SyndicatedItem
     _synitDate :: Maybe UTCTime,
     _synitInstance :: Maybe Id
   }
+  deriving (Show)
 
 makeLenses ''SyndicatedItem
 

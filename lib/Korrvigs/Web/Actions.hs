@@ -150,10 +150,15 @@ generateForm postUrl title form = do
   |]
 
 genForm :: AForm Handler a -> (ActionTarget -> Text) -> (ActionTarget -> Route WebData) -> ActionTarget -> Handler Widget
-genForm form = genFormM $ pure form
+genForm form = genFormM $ const $ pure form
 
-genFormM :: Handler (AForm Handler a) -> (ActionTarget -> Text) -> (ActionTarget -> Route WebData) -> ActionTarget -> Handler Widget
-genFormM getForm title postUrl tgt = getForm >>= generateForm (postUrl tgt) (title tgt)
+genFormM ::
+  (ActionTarget -> Handler (AForm Handler a)) ->
+  (ActionTarget -> Text) ->
+  (ActionTarget -> Route WebData) ->
+  ActionTarget ->
+  Handler Widget
+genFormM getForm title postUrl tgt = getForm tgt >>= generateForm (postUrl tgt) (title tgt)
 
 actUrl :: ActionLabel -> ActionTarget -> Route WebData
 actUrl lbl (TargetEntry entry) = ActEntryR (actName lbl) (WId $ entry ^. entryName)
@@ -170,14 +175,14 @@ actForm l@LabNewFileDownload = genForm newFileDlForm newFileDlTitle $ actUrl l
 actForm l@LabNewNote = genForm newNoteForm newNoteTitle $ actUrl l
 actForm l@LabNewMedia = genForm newMediaForm newMediaTitle $ actUrl l
 actForm l@LabNewSyn = genForm newSynForm newSynTitle $ actUrl l
-actForm l@LabCaptureLink = genFormM captureLinkForm captureLinkTitle $ actUrl l
+actForm l@LabCaptureLink = genFormM (const captureLinkForm) captureLinkTitle $ actUrl l
 actForm l@LabShare = genForm shareForm shareTitle $ actUrl l
 actForm l@LabParentAdd = genForm parentForm parentAddTitle $ actUrl l
 actForm l@LabParentRm = genForm parentForm parentRmTitle $ actUrl l
 actForm l@LabUpdate = genForm updateForm updateTitle $ actUrl l
 actForm l@LabImportRSS = genForm importRssForm importRssTitle $ actUrl l
 actForm l@LabNewSyndicate = genForm syndicateForm syndicateTitle $ actUrl l
-actForm l@LabRunSyndicate = genForm runSyndicateForm runSyndicateTitle $ actUrl l
+actForm l@LabRunSyndicate = genFormM runSyndicateForm runSyndicateTitle $ actUrl l
 actForm l@LabEventSync = genForm syncEvForm syncEvTitle $ actUrl l
 actForm l@LabExport = genForm exportForm exportTitle $ actUrl l
 actForm l@LabCollection = genForm colForm colTitle $ actUrl l
@@ -186,11 +191,15 @@ actForm l@LabUpdateTitle = genForm titleForm titleTitle $ actUrl l
 actForm l@LabRmTitle = genForm rmTitleForm rmTitleTitle $ actUrl l
 
 runPost :: AForm Handler a -> (a -> ActionTarget -> Handler ActionReaction) -> ActionTarget -> Handler ActionReaction
-runPost form = runPostM $ pure form
+runPost form = runPostM $ const $ pure form
 
-runPostM :: Handler (AForm Handler a) -> (a -> ActionTarget -> Handler ActionReaction) -> ActionTarget -> Handler ActionReaction
+runPostM ::
+  (ActionTarget -> Handler (AForm Handler a)) ->
+  (a -> ActionTarget -> Handler ActionReaction) ->
+  ActionTarget ->
+  Handler ActionReaction
 runPostM getForm runner tgt = do
-  form <- getForm
+  form <- getForm tgt
   let mform = renderDivs form
   ((result, _), _) <- runFormPost mform
   case result of
@@ -219,14 +228,14 @@ actPost LabNewFileDownload = runPost newFileDlForm runNewFileDl
 actPost LabNewNote = runPost newNoteForm runNewNote
 actPost LabNewMedia = runPost newMediaForm runNewMedia
 actPost LabNewSyn = runPost newSynForm runNewSyn
-actPost LabCaptureLink = runPostM captureLinkForm runCaptureLink
+actPost LabCaptureLink = runPostM (const captureLinkForm) runCaptureLink
 actPost LabShare = runPost shareForm runShare
 actPost LabParentAdd = runPost parentForm runParentAdd
 actPost LabParentRm = runPost parentForm runParentRm
 actPost LabUpdate = runPost updateForm runUpdate
 actPost LabImportRSS = runPost importRssForm runImportRSS
 actPost LabNewSyndicate = runPost syndicateForm runSyndicate
-actPost LabRunSyndicate = runPost runSyndicateForm runRunSyndicate
+actPost LabRunSyndicate = runPostM runSyndicateForm runRunSyndicate
 actPost LabEventSync = runPost syncEvForm runSyncEv
 actPost LabExport = runPost exportForm runExport
 actPost LabCollection = runPost colForm runCol

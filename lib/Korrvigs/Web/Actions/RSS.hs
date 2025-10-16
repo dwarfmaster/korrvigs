@@ -120,8 +120,23 @@ runSyndicateTarget (TargetEntry entry) = case entry ^? _Syndicate of
     queryIsSyn = def & queryKind ?~ Syndicate
 runSyndicateTarget _ = ActCondNever
 
-runSyndicateForm :: AForm Handler Bool
-runSyndicateForm = areq checkBoxField "Recursive" Nothing
+runSyndicateForm :: ActionTarget -> Handler (AForm Handler (Maybe Text, Bool))
+runSyndicateForm TargetHome = do
+  batchs <- rSelect $ distinct $ orderBy (asc id) $ do
+    mtdt <- selectTable entriesMetadataTable
+    where_ $ mtdt ^. sqlKey .== sqlStrictText (mtdtSqlName RunBatch)
+    sqlJsonElementsText $ toNullable $ mtdt ^. sqlValue
+  pure $
+    (,)
+      <$> aopt (selectField $ pure $ mkOptionList $ batchOptions batchs) "Batch" Nothing
+      <*> pure False
+  where
+    batchOptions :: [Text] -> [Option Text]
+    batchOptions = fmap (\(cnt :: Int, batch) -> Option batch batch (T.pack $ show cnt)) . zip [1 ..]
+runSyndicateForm (TargetEntry entry)
+  | entry ^. kind == Syndicate =
+      pure $ pure (Nothing, False)
+runSyndicateForm _ = pure $ (Nothing,) <$> areq checkBoxField "Recursive" Nothing
 
 runSyndicateTitle :: ActionTarget -> Text
 runSyndicateTitle = const "Run syndication"
@@ -142,14 +157,20 @@ notArchived synId = do
   archived <- selectMtdt Archived synId
   where_ $ matchNullable (sqlBool True) O.not $ sqlJsonToBool archived
 
-runRunSyndicate :: Bool -> ActionTarget -> Handler ActionReaction
-runRunSyndicate _ TargetHome = do
+runRunSyndicate :: (Maybe Text, Bool) -> ActionTarget -> Handler ActionReaction
+runRunSyndicate (mbatch, _) TargetHome = do
   synIds <- rSelect $ do
     synId <- view sqlSynId <$> selectTable syndicatesTable
     notArchived synId
+    forM_ mbatch $ \batch -> limit 1 $ do
+      mtdt <- selectTable entriesMetadataTable
+      where_ $ mtdt ^. sqlEntry .== synId
+      where_ $ mtdt ^. sqlKey .== sqlStrictText (mtdtSqlName RunBatch)
+      sqlBatch <- sqlJsonElementsText $ toNullable $ mtdt ^. sqlValue
+      where_ $ sqlBatch .== sqlStrictText batch
     pure synId
   doRunSyndicates synIds
-runRunSyndicate rec (TargetEntry entry) = do
+runRunSyndicate (_, rec) (TargetEntry entry) = do
   react <- case entry ^. entryKindData of
     SyndicateD syn -> doRunSyndicates [syn ^. synEntry . entryId]
     _ -> do

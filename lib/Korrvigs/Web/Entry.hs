@@ -109,7 +109,7 @@ geometryWidget entry = case entry ^. entryGeo of
 
 refsWidget :: Entry -> Handler Widget
 refsWidget entry = do
-  graph <- filter (\(e1, e2, _) -> e1 ^. sqlEntryName /= e2 ^. sqlEntryName) <$> rSelect notesCC
+  graph <- filter (\(e1, e2, _) -> e1 ^. _1 . sqlEntryName /= e2 ^. _1 . sqlEntryName) <$> rSelect notesCC
   let rows = (view _1 <$> graph) ++ (view _2 <$> graph)
   let entries = map NE.head $ NE.groupBy (\r1 r2 -> cmp r1 r2 == EQ) $ sortBy cmp rows
   nodes <- mapM mkNode entries
@@ -134,14 +134,27 @@ refsWidget entry = do
       })
       |]
   where
-    cmp :: EntryRowR -> EntryRowR -> Ordering
-    cmp row1 row2 = compare (row1 ^. sqlEntryName) (row2 ^. sqlEntryName)
+    cmp :: (EntryRowR, Text) -> (EntryRowR, Text) -> Ordering
+    cmp row1 row2 = compare (row1 ^. _1 . sqlEntryName) (row2 ^. _1 . sqlEntryName)
     relEntries :: Table a RelRowSQL -> Bool -> Select (Field SqlInt4, Field SqlInt4, Field SqlBool)
     relEntries tbl isSub = do
       subs <- selectTable tbl
       pure (subs ^. source, subs ^. target, sqlBool isSub)
     i = entry ^. entryName
-    notesCC :: Select (EntryRowSQLR, EntryRowSQLR, Field SqlBool)
+    entryDataFor :: Field SqlInt4 -> Select (EntryRowSQLR, Field SqlText)
+    entryDataFor sqlI = do
+      e <- selectTable entriesTable
+      where_ $ e ^. sqlEntryId .== sqlI
+      hub <- selectTextMtdt HubMtdt sqlI
+      med <- selectTextMtdt TaskMtdt sqlI
+      let txt =
+            case_
+              [ (O.not $ isNull hub, sqlStrictText "hub"),
+                (O.not $ isNull med, sqlStrictText "med")
+              ]
+              (sqlStrictText "plain")
+      pure (e, txt)
+    notesCC :: Select ((EntryRowSQLR, Field SqlText), (EntryRowSQLR, Field SqlText), Field SqlBool)
     notesCC = do
       cc <-
         connectedComponentGraph
@@ -168,10 +181,8 @@ refsWidget entry = do
                   .|| O.not (isPair e1 e2 [(Event, Calendar)])
           )
           (pure (sqlInt4 $ entry ^. entryId, sqlInt4 $ entry ^. entryId, sqlBool True))
-      e1 <- selectTable entriesTable
-      where_ $ (e1 ^. sqlEntryId) .== (cc ^. _1)
-      e2 <- selectTable entriesTable
-      where_ $ (e2 ^. sqlEntryId) .== (cc ^. _2)
+      e1 <- entryDataFor $ cc ^. _1
+      e2 <- entryDataFor $ cc ^. _2
       pure (e1, e2, cc ^. _3)
     isPair :: EntryRowSQLR -> EntryRowSQLR -> [(Kind, Kind)] -> Field SqlBool
     isPair e1 e2 = foldr (\kds b -> b .|| checkPair e1 e2 kds) (sqlBool False)
@@ -181,8 +192,8 @@ refsWidget entry = do
         .== sqlKind kd1
         .&& (e2 ^. sqlEntryKind)
         .== sqlKind kd2
-    mkNode :: EntryRowR -> Handler (Text, Text, Network.NodeStyle)
-    mkNode e = do
+    mkNode :: (EntryRowR, Text) -> Handler (Text, Text, Network.NodeStyle)
+    mkNode (e, kd) = do
       style <- Network.defNodeStyle
       render <- getUrlRender
       base <- getBase
@@ -190,21 +201,26 @@ refsWidget entry = do
             if e ^. sqlEntryName == entry ^. entryName
               then base Base07
               else base $ colorKind $ e ^. sqlEntryKind
+      let shape = case kd of
+            "hub" -> Network.ShapeStar 14
+            "med" -> Network.ShapeSquare 7
+            _ -> Network.ShapeDot 10
       pure
         ( unId $ e ^. sqlEntryName,
-          "@" <> unId (e ^. sqlEntryName),
+          fromMaybe ("@" <> unId (e ^. sqlEntryName)) $ e ^. sqlEntryTitle,
           style
-            & Network.nodeBorder .~ color
+            & Network.nodeShape .~ shape
+            & Network.nodeBackground .~ color
             & Network.nodeSelected .~ color
             & Network.nodeLink ?~ render (EntryR $ WId $ e ^. sqlEntryName)
         )
     subStyle edgeStyle base = edgeStyle & Network.edgeColor .~ base edgeSubColor
     refStyle edgeStyle base = edgeStyle & Network.edgeColor .~ base edgeRefColor
-    mkEdge :: Network.EdgeStyle -> (Base16Index -> Text) -> (EntryRowR, EntryRowR, Bool) -> (Text, Text, Network.EdgeStyle)
+    mkEdge :: Network.EdgeStyle -> (Base16Index -> Text) -> ((EntryRowR, Text), (EntryRowR, Text), Bool) -> (Text, Text, Network.EdgeStyle)
     mkEdge edgeStyle base (r1, r2, isSub) =
       let mkStyle = if isSub then subStyle else refStyle
        in let style = mkStyle edgeStyle base
-           in (unId $ r1 ^. sqlEntryName, unId $ r2 ^. sqlEntryName, style)
+           in (unId $ r1 ^. _1 . sqlEntryName, unId $ r2 ^. _1 . sqlEntryName, style)
 
 subWidget :: Entry -> Handler Widget
 subWidget entry = do

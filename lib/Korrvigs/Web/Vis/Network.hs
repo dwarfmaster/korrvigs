@@ -36,12 +36,28 @@ data NodeShape
   | ShapeCircle
   | ShapeBox
   | ShapeText
+  | ShapeDot Int
+  | ShapeStar Int
+  | ShapeTriangle Int
+  | ShapeTriangleDown Int
+  | ShapeHexagon Int
+  | ShapeSquare Int
+  | ShapeImage Int Text
+  | ShapeCircularImage Int Text
 
 displayShape :: NodeShape -> Text
 displayShape ShapeEllipse = "ellipse"
 displayShape ShapeCircle = "circle"
 displayShape ShapeBox = "box"
 displayShape ShapeText = "text"
+displayShape (ShapeDot _) = "dot"
+displayShape (ShapeStar _) = "star"
+displayShape (ShapeTriangle _) = "triangle"
+displayShape (ShapeTriangleDown _) = "triangleDown"
+displayShape (ShapeHexagon _) = "hexagon"
+displayShape (ShapeSquare _) = "square"
+displayShape (ShapeImage _ _) = "image"
+displayShape (ShapeCircularImage _ _) = "circularImage"
 
 data NodeStyle = NodeStyle
   { _nodeBackground :: Text,
@@ -49,6 +65,7 @@ data NodeStyle = NodeStyle
     _nodeSelected :: Text,
     _nodeHover :: Text,
     _nodeFontColor :: Text,
+    _nodeLabelInside :: Bool,
     _nodeOpacity :: Double,
     _nodeShape :: NodeShape,
     _nodeMass :: Int,
@@ -63,13 +80,14 @@ defNodeStyle = do
   base <- getBase
   pure $
     NodeStyle
-      { _nodeBackground = base Base00,
-        _nodeBorder = base Base0D,
+      { _nodeBackground = base Base0D,
+        _nodeBorder = base Base00,
         _nodeSelected = base Base02,
         _nodeFontColor = base Base05,
         _nodeHover = base Base01,
+        _nodeLabelInside = False,
         _nodeOpacity = 1.0,
-        _nodeShape = ShapeEllipse,
+        _nodeShape = ShapeDot 10,
         _nodeMass = 1,
         _nodeBorderWidth = 2,
         _nodeLink = Nothing
@@ -93,9 +111,9 @@ defEdgeStyle = do
 
 mkNodeJS :: Int -> Text -> NodeStyle -> Value
 mkNodeJS i content style =
-  object
+  object $
     [ "id" .= i,
-      "label" .= content,
+      (if style ^. nodeLabelInside then "label" else "title") .= content,
       "boderWidth" .= (style ^. nodeBorderWidth),
       "color"
         .= object
@@ -117,6 +135,23 @@ mkNodeJS i content style =
       "mass" .= (style ^. nodeMass),
       "shape" .= displayShape (style ^. nodeShape)
     ]
+      ++ maybe [] (\url -> ["image" .= url]) (getImageUrl $ style ^. nodeShape)
+      ++ maybe [] (\sz -> ["size" .= sz]) (getShapeSize $ style ^. nodeShape)
+  where
+    getImageUrl :: NodeShape -> Maybe Text
+    getImageUrl (ShapeImage _ url) = Just url
+    getImageUrl (ShapeCircularImage _ url) = Just url
+    getImageUrl _ = Nothing
+    getShapeSize :: NodeShape -> Maybe Int
+    getShapeSize (ShapeDot s) = Just s
+    getShapeSize (ShapeStar s) = Just s
+    getShapeSize (ShapeTriangle s) = Just s
+    getShapeSize (ShapeTriangleDown s) = Just s
+    getShapeSize (ShapeHexagon s) = Just s
+    getShapeSize (ShapeSquare s) = Just s
+    getShapeSize (ShapeImage s _) = Just s
+    getShapeSize (ShapeCircularImage s _) = Just s
+    getShapeSize _ = Nothing
 
 mkEdgeJS :: Maybe Int -> Maybe Int -> EdgeStyle -> Maybe Value
 mkEdgeJS (Just from) (Just to) style =

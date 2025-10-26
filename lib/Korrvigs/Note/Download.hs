@@ -32,6 +32,7 @@ import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import qualified Korrvigs.Note.Download.Books as Books
 import qualified Korrvigs.Note.Download.Video as Vid
+import Korrvigs.Utils (rightToMaybe)
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Pandoc (pdExtractMtdt)
 import Network.HTTP.Simple
@@ -47,10 +48,6 @@ makeURIAbsolute url ressource = fromMaybe ressource $ do
   ref <- parseURIReference $ T.unpack ressource
   uri <- parseURI $ T.unpack url
   pure $ T.pack $ show $ ref `relativeTo` uri
-
-rightToMaybe :: Either a b -> Maybe b
-rightToMaybe (Left _) = Nothing
-rightToMaybe (Right r) = Just r
 
 contentTypeP :: (Stream s Identity Char) => Parsec s u (MimeType, BS.ByteString -> Maybe Text)
 contentTypeP = do

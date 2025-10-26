@@ -53,6 +53,7 @@ library korrvigs-lib
     Korrvigs.Compute.Builtin
     Korrvigs.Compute.Declare
     Korrvigs.Compute.Runnable
+    Korrvigs.Compute.Type
     Korrvigs.Entry
     Korrvigs.Entry.Def
     Korrvigs.Entry.Ident

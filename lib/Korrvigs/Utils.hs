@@ -140,3 +140,7 @@ lazyCreateManager ref = liftIO $ do
       TLSSettingsSimple cert session server $ supportedSettings supp
     tlsSettings (TLSSettings params) =
       TLSSettings $ params {clientSupported = supportedSettings (clientSupported params)}
+
+rightToMaybe :: Either a b -> Maybe b
+rightToMaybe (Left _) = Nothing
+rightToMaybe (Right r) = Just r

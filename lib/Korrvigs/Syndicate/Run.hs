@@ -108,7 +108,7 @@ runWithFilter dat (i, code) =
   codeRunnable i code >>= \case
     Nothing -> pure (id, [])
     Just rbl -> do
-      (exit, items) <- runInOut rbl dat $ conduitArray .| sinkList
+      (exit, items) <- runInOut rbl undefined dat $ conduitArray .| sinkList
       case exit of
         ExitSuccess -> pure (id, items)
         ExitFailure _ -> pure (id, [])

@@ -2,6 +2,8 @@ module Korrvigs.Compute.Runnable
   ( Executable (..),
     Runnable (..),
     RunArg (..),
+    Hash,
+    hashRunnable,
     runExecutable,
     runCode,
     runArgs,
@@ -16,7 +18,11 @@ where
 import Conduit
 import Control.Arrow ((***))
 import Control.Lens
+import Control.Monad
+import Control.Monad.Writer.Lazy
+import qualified Crypto.Hash as Hsh
 import Data.ByteString (ByteString)
+import Data.ByteString.Builder
 import Data.Conduit.Process
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -24,10 +30,13 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Korrvigs.Entry
+import Korrvigs.Utils.Crypto
 import System.Environment
 import System.Exit
 import System.FilePath
 import System.IO.Temp
+
+type Hash = Hsh.Digest Hsh.SHA256
 
 data Executable
   = Bash
@@ -69,6 +78,52 @@ runProc resolveArg tmp rbl = do
 mkExeProc :: Executable -> [Text] -> (FilePath, CreateProcess)
 mkExeProc Bash args = ("code.sh", proc "bash" $ "code.sh" : (T.unpack <$> args))
 mkExeProc SwiProlog args = ("code.pl", proc "swipl" $ "code.pl" : "--" : (T.unpack <$> args))
+
+hashRunnable ::
+  (MonadFail m) =>
+  (Id -> m Hash) ->
+  (Id -> Text -> m Hash) ->
+  Runnable ->
+  m Hash
+hashRunnable hashEntry hashComp rbl = fmap doHash . execWriterT $ do
+  tell $ buildExe $ rbl ^. runExecutable
+  tell sep
+  tell $ stringUtf8 $ T.unpack $ rbl ^. runCode
+  tell sep
+  tell $ int64BE $ toEnum $ length $ rbl ^. runArgs
+  tell sep
+  forM_ (rbl ^. runArgs) $ \arg -> do
+    buildRunArg arg
+    tell sep
+  tell $ int64BE $ toEnum $ M.size $ rbl ^. runEnv
+  tell sep
+  forM_ (M.toList $ rbl ^. runEnv) $ \(ev, val) -> do
+    tell $ stringUtf8 $ T.unpack ev
+    tell sep
+    buildRunArg val
+    tell sep
+  forM_ (rbl ^. runStdIn) $ \stdin -> do
+    buildRunArg stdin
+    tell sep
+  where
+    doHash :: Builder -> Hash
+    doHash = Hsh.hashlazy . toLazyByteString
+    sep :: Builder
+    sep = word8 0
+    buildExe :: Executable -> Builder
+    buildExe Bash = stringUtf8 "bash"
+    buildExe SwiProlog = stringUtf8 "swiprolog"
+    buildRunArg (ArgPlain txt) = do
+      tell $ char8 'p'
+      tell $ stringUtf8 $ T.unpack txt
+    buildRunArg (ArgResult i cmp) = do
+      hash <- lift $ hashComp i cmp
+      tell $ char8 'c'
+      tell $ stringUtf8 $ T.unpack $ digestToHexa hash
+    buildRunArg (ArgEntry i) = do
+      hash <- lift $ hashEntry i
+      tell $ char8 'e'
+      tell $ stringUtf8 $ T.unpack $ digestToHexa hash
 
 run ::
   (MonadUnliftIO m) =>

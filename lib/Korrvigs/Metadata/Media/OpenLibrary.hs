@@ -82,7 +82,7 @@ instance FromJSON OLResult where
       <*> obj .:? "subtitle"
       <*> ((obj .:? "isbn_10") <&> fromMaybe [])
       <*> ((obj .:? "isbn_13") <&> fromMaybe [])
-      <*> obj .: "publishers"
+      <*> ((obj .:? "publishers") <&> fromMaybe [])
       <*> (((obj .:? "authors") <&> fromMaybe (toJSON ())) >>= parseAuthors)
       <*> obj .: "publish_date"
       <*> ((obj .:? "description") >>= parseDescription)

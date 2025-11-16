@@ -2,16 +2,15 @@
 
 module Korrvigs.Monad.Collections where
 
+import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad
 import Control.Monad.Extra
-import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Data.Aeson
 import Data.Default
 import Data.Foldable
-import qualified Data.Map as M
 import Data.Maybe
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
@@ -25,13 +24,14 @@ import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL
 import Korrvigs.Note
 import Korrvigs.Note.AST
+import qualified Korrvigs.Note.Pandoc as Pandoc
 import Korrvigs.Note.SQL
+import qualified Korrvigs.Note.Sync as Note
 import Korrvigs.Query
 import Korrvigs.Utils
 import Korrvigs.Utils.Opaleye
 import Opaleye hiding (Field)
 import qualified Opaleye as O
-import System.IO
 
 data OptionalSQLDataImpl a b c d e = OptionalSQLData
   { _optSizeAction :: a,
@@ -130,12 +130,20 @@ addToCollection :: (MonadKorrvigs m) => Id -> Text -> CollectionItem -> m Bool
 addToCollection i col item = fromMaybeT False $ do
   entry <- hoistLift $ load i
   note <- hoistMaybe $ entry ^? entryKindData . _NoteD
-  md <- hoistEitherLift $ readNote $ note ^. notePath
-  guard $ col `M.member` (md ^. docCollections)
-  let md' = md & docContent . each . bkCollection col . _3 %~ (++ [item])
-  file <- liftIO $ openFile (note ^. notePath) WriteMode
-  r <- lift $ writeNote file md'
-  pure $ isNothing r
+  let doUpdate = docContent . each . bkCollection col . _3 %~ (++ [item])
+  let checkForCol = anyOf (docContent . each . bkCollection col . _3) (const True)
+  r <- lift $ Note.updateImpl' note $ pure . (doUpdate &&& checkForCol)
+  forM_ (Pandoc.extractItem item) $ \colI -> lift $ do
+    mSqlI :: Maybe Int <- rSelectOne $ fromName pure $ sqlId colI
+    forM_ mSqlI $ \sqlI -> atomicSQL $ \conn ->
+      runInsert conn $
+        Insert
+          { iTable = entriesRefTable,
+            iRows = [toFields $ RelRow (entry ^. entryId) sqlI],
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
+  pure r
 
 allCollections :: (MonadKorrvigs m) => m [(Id, Text)]
 allCollections = rSelect $ do

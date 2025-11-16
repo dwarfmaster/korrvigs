@@ -3,7 +3,7 @@ module Korrvigs.Note.Sync where
 import Control.Applicative
 import Control.Arrow (first, (&&&))
 import Control.Lens
-import Control.Monad (when)
+import Control.Monad (void, when)
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.ByteString.Lazy (writeFile)
@@ -102,13 +102,17 @@ syncDocument i path doc = do
   let txt = renderDocument doc
   pure $ SyncData erow (\sqlI -> [insertNoteRow sqlI, insertColRows sqlI]) mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) M.empty
 
-updateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
-updateImpl note f = do
+updateImpl' :: (MonadKorrvigs m) => Note -> (Document -> m (Document, a)) -> m a
+updateImpl' note f = do
   let path = note ^. notePath
   let i = note ^. noteEntry . entryName
   doc <- readNote path >>= throwEither (KCantLoad i)
-  ndoc <- f doc
+  (ndoc, r) <- f doc
   liftIO $ writeFile path $ writeNoteLazy ndoc
+  pure r
+
+updateImpl :: (MonadKorrvigs m) => Note -> (Document -> m Document) -> m ()
+updateImpl note f = void $ updateImpl' note $ fmap (,()) . f
 
 updateMetadata :: (MonadKorrvigs m) => Note -> Map Text Value -> [Text] -> m ()
 updateMetadata note upd rm = updateImpl note $ pure . ndoc

@@ -1,4 +1,4 @@
-module Korrvigs.Note.Pandoc (readNote, readNoteFromText, parsePandoc, parseTopBlocks) where
+module Korrvigs.Note.Pandoc (readNote, readNoteFromText, parsePandoc, parseTopBlocks, extractItem) where
 
 import Control.Arrow (first, (&&&))
 import Control.Exception (SomeException, try)

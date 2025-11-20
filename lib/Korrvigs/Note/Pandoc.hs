@@ -8,6 +8,7 @@ import Control.Monad.Extra (concatMapM)
 import Control.Monad.Loops (iterateWhile, whileJust_, whileM_)
 import Control.Monad.ST
 import Control.Monad.State.Lazy
+import Control.Monad.Trans.Maybe
 import Data.Aeson hiding ((.=))
 import Data.Array.Base hiding (array)
 import qualified Data.Array.ST as SAr
@@ -25,10 +26,14 @@ import qualified Data.Text as T
 import Data.Text.IO (readFile)
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
+import Korrvigs.Compute.Runnable (Hash)
+import Korrvigs.Compute.Type
 import Korrvigs.Entry.Ident
 import Korrvigs.Metadata.Task
 import qualified Korrvigs.Note.AST as A
 import Korrvigs.Note.Helpers
+import Korrvigs.Utils
+import Korrvigs.Utils.Crypto
 import Korrvigs.Utils.JSON (jsonAsText)
 import Korrvigs.Utils.Pandoc
 import Network.URI
@@ -52,6 +57,7 @@ data BlockStackZipper = BSZ
     _bszCollections :: Map Text [Id],
     _bszNamedSubs :: Set Text,
     _bszNamedCode :: Set Text,
+    _bszComputations :: Map Text (RunnableType, Hash, RunnableResult),
     _bszParent :: Maybe BlockStackZipper
   }
 
@@ -73,7 +79,8 @@ pushBlock :: WithParent A.Block -> ParseM ()
 pushBlock blk = stack . bszLeft %= (blk :)
 
 pushHeader :: Int -> A.Attr -> ParseM ()
-pushHeader lvl attr = stack %= BSZ lvl attr "" Nothing S.empty def [] [] M.empty S.empty S.empty . Just
+pushHeader lvl attr =
+  stack %= BSZ lvl attr "" Nothing S.empty def [] [] M.empty S.empty S.empty M.empty . Just
 
 headerLvl :: ParseM Int
 headerLvl = use $ stack . bszLevel
@@ -135,6 +142,9 @@ popHeader = do
       stack . bszRefTo %= S.union (bsz ^. bszRefTo)
       stack . bszTasks %= (++ (toList (bsz ^. bszTask) ++ bsz ^. bszTasks))
       stack . bszCollections %= M.union (bsz ^. bszCollections)
+      stack . bszNamedSubs %= S.union (bsz ^. bszNamedSubs)
+      stack . bszNamedCode %= S.union (bsz ^. bszNamedCode)
+      stack . bszComputations %= M.union (bsz ^. bszComputations)
       propagateChecks bsz
       pushBlock $ \doc hd -> A.Sub (bszToHeader bsz doc hd)
       pure True
@@ -162,14 +172,15 @@ run act mtdt bks =
             A._docParents = S.fromList $ fmap MkId $ join $ toList $ maybe (Success []) fromJSON $ M.lookup (CI.mk "parents") cimtdt,
             A._docCollections = st ^. stack . bszCollections,
             A._docNamedSubs = st ^. stack . bszNamedSubs,
-            A._docNamedCode = st ^. stack . bszNamedCode
+            A._docNamedCode = st ^. stack . bszNamedCode,
+            A._docComputations = st ^. stack . bszComputations
           }
    in doc
   where
     cimtdt = M.fromList $ first CI.mk <$> M.toList mtdt
     st =
       execState (act >> iterateWhile id popHeader) $
-        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] [] M.empty S.empty S.empty Nothing)
+        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] [] M.empty S.empty S.empty M.empty Nothing)
 
 readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
 readNote pth = liftIO $ do
@@ -260,6 +271,14 @@ parseBlock (RawBlock (Format fmt) i)
               Nothing -> (False, hd)
         forM_ ids $ refTo . MkId
         pure $ pure $ A.Syndicate nm onlyNew $ MkId <$> ids
+  | CI.mk fmt == "result" = case T.lines i of
+      (cmp : tpT : hashT : content) -> fromMaybeT [] $ do
+        tp <- hoistMaybe $ parseTypeName tpT
+        res <- hoistMaybe $ decodeFromText tp $ T.unlines content
+        hash <- hoistMaybe $ digestFromText hashT
+        stack . bszComputations %= M.insert cmp (tp, hash, res)
+        pure []
+      _ -> pure []
 parseBlock (RawBlock _ _) = pure []
 parseBlock (BlockQuote bks) = pure . A.BlockQuote <$> concatMapM parseBlock bks
 parseBlock (OrderedList _ bks) =

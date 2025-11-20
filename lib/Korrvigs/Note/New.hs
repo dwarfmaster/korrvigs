@@ -99,7 +99,8 @@ create note = do
             _docTasks = [],
             _docCollections = M.empty,
             _docNamedSubs = S.empty,
-            _docNamedCode = S.empty
+            _docNamedCode = S.empty,
+            _docComputations = M.empty
           }
   let bs = writeNoteLazy doc
   rt <- noteDirectory

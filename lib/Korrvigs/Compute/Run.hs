@@ -21,7 +21,8 @@ resolveArg tmpdir (ArgResult i cmp) =
     Just comp -> case comp ^. cmpResult of
       Nothing -> pure "/dev/null"
       -- TODO check hash and recursively run if necessary
-      Just (_, result) -> do
+      Just (_, _, result) -> do
+        undefined
         let tp = comp ^. cmpRun . runType
         let filename = T.unpack $ unId i <> "_" <> cmp <> runTypeExt tp
         let path = tmpdir </> filename

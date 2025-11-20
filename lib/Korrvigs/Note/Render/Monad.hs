@@ -9,11 +9,14 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Lazy.UTF8 as BSL8
 import qualified Data.Char as C
 import Data.List (find)
+import Data.Map (Map)
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.Type
 import Korrvigs.Note.AST
 import Korrvigs.Utils.Text
 import Prelude hiding (break)
@@ -39,11 +42,11 @@ doBreak = break . to (== 0)
 atStart :: Getter RenderState Bool
 atStart = to (\x -> (x, x)) . alongside cursor prefixLen . to (uncurry (==))
 
--- The read part is the allowed width of the rendered document.
+-- The read part is the allowed width of the rendered document and the computation results
 -- The write part is the document itself.
 -- The state is the current cursor position in terms of width with the symbol,
 -- and a stack of prefixes.
-type RenderM = RWS Int Builder RenderState
+type RenderM = RWS (Int, Map Text (RunnableType, Hash, RunnableResult)) Builder RenderState
 
 -- Clear the currently building symbol and adds it to the document.
 flush :: RenderM ()
@@ -53,7 +56,7 @@ flush =
     Just (sym, l) -> do
       symbol .= Nothing
       pos <- use cursor
-      mx <- ask
+      mx <- view _1
       br <- use doBreak
       st <- use atStart
       unless st $ if br && pos + l > mx then newline else space
@@ -153,10 +156,10 @@ separatedRenders n rdrs =
 for :: (Traversable t) => t a -> (a -> b) -> t b
 for = flip fmap
 
-runRenderM :: Int -> RenderM () -> BSL.ByteString
-runRenderM width rdr =
+runRenderM :: Int -> Map Text (RunnableType, Hash, RunnableResult) -> RenderM () -> BSL.ByteString
+runRenderM width comps rdr =
   B.toLazyByteString . (^. _3) $
-    runRWS rdr width $
+    runRWS rdr (width, comps) $
       RS
         { _break = 0,
           _cursor = 0,

@@ -35,7 +35,7 @@ data Computation = Computation
   { _cmpEntry :: Id,
     _cmpName :: Text,
     _cmpRun :: Runnable,
-    _cmpResult :: Maybe (Hash, RunnableResult)
+    _cmpResult :: Maybe (RunnableType, Hash, RunnableResult)
   }
   deriving (Eq, Show)
 

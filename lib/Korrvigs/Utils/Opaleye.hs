@@ -111,3 +111,6 @@ pgCharN = IPT.literalColumn . HPQ.StringLit . T.unpack
 
 instance Default ToFields Text (Field SqlCharN) where
   def = toToFields pgCharN
+
+sqlCharN :: Text -> Field SqlCharN
+sqlCharN = pgCharN

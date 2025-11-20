@@ -17,10 +17,14 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.LocalTime
+import Korrvigs.Compute.Computation
+import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Note.AST
+import Korrvigs.Note.Code (toRunnable)
 import Korrvigs.Note.Helpers
 import Korrvigs.Note.Pandoc
 import Korrvigs.Note.Render (writeNoteLazy)
@@ -201,3 +205,25 @@ updateQuery old new q =
 updateTitle :: (MonadKorrvigs m) => Note -> Maybe Text -> m ()
 updateTitle _ Nothing = pure ()
 updateTitle note (Just ntitle) = updateImpl note $ pure . (docTitle .~ ntitle)
+
+getComputation :: (MonadKorrvigs m) => Note -> Text -> m (Maybe Computation)
+getComputation note cmp = do
+  let i = note ^. noteEntry . entryName
+  doc <- readNote (note ^. notePath) >>= throwEither (KCantLoad i)
+  let code = doc ^? docContent . each . bkSubBlocks . _CodeBlock . filtered (\(attr, _) -> attr ^. attrId == cmp)
+  let mrbl = code >>= uncurry toRunnable
+  case mrbl of
+    Nothing -> pure Nothing
+    Just rbl ->
+      pure $
+        Just $
+          Computation
+            { _cmpEntry = i,
+              _cmpName = cmp,
+              _cmpRun = rbl,
+              _cmpResult = doc ^. docComputations . at cmp
+            }
+
+storeComputationResult :: (MonadKorrvigs m) => Note -> Text -> RunnableType -> Hash -> RunnableResult -> m ()
+storeComputationResult note cmp tp hash res =
+  updateImpl note $ pure . (docComputations . at cmp ?~ (tp, hash, res))

@@ -96,7 +96,7 @@ getNoteSubR (WId i) (WLoc loc) =
               Just txt -> pure $ LT.fromStrict txt
             LocSub lc -> case doc ^? sub lc of
               Nothing -> notFound
-              Just hd -> pure $ LEnc.decodeUtf8 $ writeHeaderLazy hd
+              Just hd -> pure $ LEnc.decodeUtf8 $ writeHeaderLazy hd (doc ^. docComputations)
             LocCheck lc -> case doc ^? check lc of
               Nothing -> notFound
               Just cb -> pure $ renderTaskStatus cb

@@ -20,12 +20,15 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Vector as V
+import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.Type
 import Korrvigs.Entry.Ident
 import Korrvigs.Metadata.Task
 import Korrvigs.Note.AST
 import Korrvigs.Note.Helpers (renderInlines)
 import Korrvigs.Note.Render.Monad
 import Korrvigs.Note.Render.Table
+import Korrvigs.Utils.Crypto
 import System.IO hiding (hPutStr)
 import Prelude hiding (break)
 
@@ -74,10 +77,10 @@ writeNote file doc = do
       Right () -> pure Nothing
 
 writeNoteLazy :: Document -> BSL.ByteString
-writeNoteLazy doc = runRenderM 80 (render doc)
+writeNoteLazy doc = runRenderM 80 (doc ^. docComputations) (render doc)
 
-writeHeaderLazy :: Header -> BSL.ByteString
-writeHeaderLazy hd = runRenderM 80 $ renderBlock $ Sub hd
+writeHeaderLazy :: Header -> Map Text (RunnableType, Hash, RunnableResult) -> BSL.ByteString
+writeHeaderLazy hd comps = runRenderM 80 comps $ renderBlock $ Sub hd
 
 render :: Document -> RenderM ()
 render doc = do
@@ -126,6 +129,16 @@ renderBlock (CodeBlock attr code) = do
   writeText "```" >> renderAttr attr >> flush >> newline
   renderRawText code >> flush >> newline
   writeText "```"
+  mres <- view $ _2 . at (attr ^. attrId)
+  forM_ mres $ \(tp, hash, res) -> do
+    flush >> newline >> newline
+    writeText "```{=result}" >> flush >> newline
+    writeText (attr ^. attrId) >> flush >> newline
+    writeText (runTypeName tp) >> flush >> newline
+    writeText (digestToText hash) >> flush >> newline
+    let lns = T.lines $ encodeToText res
+    forM_ lns $ \ln -> writeText ln >> flush >> newline
+    writeText "```"
 renderBlock (BlockQuote bks) = do
   doPrefix "> " $ separatedBks 2 bks
 renderBlock (OrderedList bks) = do
@@ -214,8 +227,9 @@ renderBlock (Sub header) = do
   unless (null $ header ^. hdContent) $ replicateM_ 2 newline
   renderTopLevel True $ header ^. hdContent
 renderBlock (Table tbl) = do
-  width <- ask
-  renderTable width (\w -> runRenderM w . renderTopLevel False) tbl
+  width <- view _1
+  comps <- view _2
+  renderTable width (\w -> runRenderM w comps . renderTopLevel False) tbl
 
 renderColItem :: CollectionItem -> RenderM ()
 renderColItem (ColItemEntry i) = writeText ". " >> writeText (unId i)

@@ -227,7 +227,7 @@ getComputation file cmp = case M.lookup cmp comps of
           { _cmpEntry = i,
             _cmpName = cmp,
             _cmpRun = rbl,
-            _cmpResult = json ^? computations . at cmp . _Just . to (\(_, b, c) -> (b, c))
+            _cmpResult = json ^. computations . at cmp
           }
   where
     i = file ^. fileEntry . entryName

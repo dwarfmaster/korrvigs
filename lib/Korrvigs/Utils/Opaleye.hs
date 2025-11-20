@@ -2,14 +2,17 @@ module Korrvigs.Utils.Opaleye where
 
 import Control.Arrow ((&&&))
 import Data.List (singleton)
-import Data.Profunctor.Product.Default (Default)
+import Data.Profunctor.Product.Default (Default, def)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as Enc
+import Database.PostgreSQL.Simple.FromField (FromField, fromField)
 import Opaleye hiding (FromField)
 import Opaleye.Experimental.Enum
 import qualified Opaleye.Internal.Column as C
 import qualified Opaleye.Internal.HaskellDB.PrimQuery as HPQ
 import qualified Opaleye.Internal.Operators as O
+import qualified Opaleye.Internal.PGTypes as IPT
 
 fromNullableSelect :: Select (FieldNullable a) -> Select (Field a)
 fromNullableSelect s = catMaybeFields $ nullableToMaybeFields <$> s
@@ -87,3 +90,24 @@ sqlUnnest = sel1 "unnest"
 
 sqlMatchRegexCaseInsensitive :: Field SqlText -> Field SqlText -> Field SqlBool
 sqlMatchRegexCaseInsensitive = C.binOp (HPQ.OpOther "~*")
+
+-- character(N) types
+data SqlCharN
+
+instance IsSqlType SqlCharN where
+  showSqlType _ = "character"
+
+newtype TextN = TextN {extractTextN :: Text}
+
+instance FromField TextN where
+  fromField _ Nothing = error "Invalid character(N) field"
+  fromField _ (Just bs) = pure $ TextN $ Enc.decodeUtf8 bs
+
+instance DefaultFromField SqlCharN Text where
+  defaultFromField = extractTextN <$> fromPGSFromField
+
+pgCharN :: Text -> Field SqlCharN
+pgCharN = IPT.literalColumn . HPQ.StringLit . T.unpack
+
+instance Default ToFields Text (Field SqlCharN) where
+  def = toToFields pgCharN

@@ -51,7 +51,9 @@ library korrvigs-lib
     Korrvigs.Compute
     Korrvigs.Compute.Action
     Korrvigs.Compute.Builtin
+    Korrvigs.Compute.Computation
     Korrvigs.Compute.Declare
+    Korrvigs.Compute.Run
     Korrvigs.Compute.Runnable
     Korrvigs.Compute.Type
     Korrvigs.Entry
@@ -118,6 +120,7 @@ library korrvigs-lib
     Korrvigs.Monad
     Korrvigs.Monad.Class
     Korrvigs.Monad.Collections
+    Korrvigs.Monad.Computation
     Korrvigs.Monad.Metadata
     Korrvigs.Monad.Remove
     Korrvigs.Monad.SQL

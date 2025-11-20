@@ -10,6 +10,7 @@ import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Note.AST
@@ -31,7 +32,8 @@ knownLanguages =
 data AttrData = AttrData
   { _attrArg :: Map Int RunArg,
     _attrEnv :: Map Text RunArg,
-    _attrStdIn :: Maybe RunArg
+    _attrStdIn :: Maybe RunArg,
+    _attrType :: Maybe RunnableType
   }
   deriving (Show)
 
@@ -42,14 +44,15 @@ instance Semigroup AttrData where
     AttrData
       { _attrArg = M.union (dt1 ^. attrArg) (dt2 ^. attrArg),
         _attrEnv = M.union (dt1 ^. attrEnv) (dt2 ^. attrEnv),
-        _attrStdIn = (dt1 ^. attrStdIn) <|> (dt2 ^. attrStdIn)
+        _attrStdIn = (dt1 ^. attrStdIn) <|> (dt2 ^. attrStdIn),
+        _attrType = (dt1 ^. attrType) <|> (dt2 ^. attrType)
       }
 
 instance Monoid AttrData where
-  mempty = AttrData M.empty M.empty Nothing
+  mempty = AttrData M.empty M.empty Nothing Nothing
 
 parseAttrMtdt :: Text -> Text -> AttrData
-parseAttrMtdt key val = case parse (argP <|> envP <|> stdinP) "<codearg>" key of
+parseAttrMtdt key val = case parse (typeP <|> argP <|> envP <|> stdinP) "<codearg>" key of
   Left _ -> mempty
   Right attrDat -> attrDat
   where
@@ -82,16 +85,23 @@ parseAttrMtdt key val = case parse (argP <|> envP <|> stdinP) "<codearg>" key of
       void $ string "stdin"
       ra <- valP
       pure $ mempty & attrStdIn ?~ ra
+    typeP :: (Stream s Identity Char) => Parsec s () AttrData
+    typeP = do
+      void $ string "type"
+      tp <- maybe (fail $ T.unpack val <> " is not a valid runnable type") pure $ parseTypeName val
+      pure $ mempty & attrType ?~ tp
 
 toRunnable :: Attr -> Text -> Maybe Runnable
 toRunnable attr code = do
   let classes = attr ^. attrClasses
   let attrDat = foldMap (uncurry parseAttrMtdt) $ M.toList $ attr ^. attrMtdt
   language <- foldr ((<|>) . flip M.lookup knownLanguages) Nothing classes
+  tp <- attrDat ^. attrType
   pure $
     Runnable
       { _runExecutable = language,
         _runCode = code,
+        _runType = tp,
         _runArgs = fmap snd $ M.toList $ attrDat ^. attrEnv,
         _runEnv = attrDat ^. attrEnv,
         _runStdIn = attrDat ^. attrStdIn

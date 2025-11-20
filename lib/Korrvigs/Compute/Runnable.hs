@@ -6,6 +6,7 @@ module Korrvigs.Compute.Runnable
     hashRunnable,
     runExecutable,
     runCode,
+    runType,
     runArgs,
     runEnv,
     runStdIn,
@@ -29,6 +30,7 @@ import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.Utils.Crypto
 import System.Environment
@@ -52,6 +54,7 @@ data RunArg
 data Runnable = Runnable
   { _runExecutable :: Executable,
     _runCode :: Text,
+    _runType :: RunnableType,
     _runArgs :: [RunArg],
     _runEnv :: Map Text RunArg,
     _runStdIn :: Maybe RunArg
@@ -89,6 +92,8 @@ hashRunnable hashEntry hashComp rbl = fmap doHash . execWriterT $ do
   tell $ buildExe $ rbl ^. runExecutable
   tell sep
   tell $ stringUtf8 $ T.unpack $ rbl ^. runCode
+  tell sep
+  tell $ stringUtf8 $ T.unpack $ runTypeName $ rbl ^. runType
   tell sep
   tell $ int64BE $ toEnum $ length $ rbl ^. runArgs
   tell sep

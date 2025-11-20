@@ -7,6 +7,7 @@ import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Aeson.Lens
 import Data.Base64.Types
 import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Base64 as B64
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -31,6 +32,7 @@ data RunnableResult
   = ResultText Text
   | ResultBinary ByteString
   | ResultJson Value
+  deriving (Show, Eq)
 
 extractResult :: RunnableType -> ByteString -> Maybe RunnableResult
 extractResult tp stream = case runTypeKind tp of
@@ -54,6 +56,14 @@ runTypeName ArbitraryJson = "json"
 runTypeName ArbitraryText = "text"
 runTypeName TabularCsv = "csv"
 
+runTypeExt :: RunnableType -> Text
+runTypeExt ScalarImage = "jpg"
+runTypeExt ScalarGraphic = "png"
+runTypeExt VectorGraphic = "svg"
+runTypeExt ArbitraryJson = "json"
+runTypeExt ArbitraryText = "txt"
+runTypeExt TabularCsv = "csv"
+
 parseTypeName :: Text -> Maybe RunnableType
 parseTypeName =
   flip M.lookup $ M.fromList $ (runTypeName &&& id) <$> [minBound .. maxBound]
@@ -72,6 +82,11 @@ encodeToText (ResultBinary bin) =
         extractBase64 $
           B64.encodeBase64 bin
 encodeToText (ResultJson v) = LT.toStrict $ LEnc.decodeUtf8 $ encodePretty v
+
+encodeToLBS :: RunnableResult -> LBS.ByteString
+encodeToLBS (ResultText txt) = LEnc.encodeUtf8 $ LT.fromStrict txt
+encodeToLBS (ResultBinary bin) = bin
+encodeToLBS (ResultJson v) = encode v
 
 decodeTextFromJson :: Value -> Maybe Text
 decodeTextFromJson v = v ^? _String

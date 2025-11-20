@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS entries_ref_to (
 CREATE TABLE IF NOT EXISTS computations (
   entry INTEGER NOT NULL REFERENCES entries(id),
   name TEXT NOT NULL,
-  action JSONB NOT NULL,
+  hash CHARACTER(64) NOT NULL,
   CONSTRAINT computations_ref_unique
     UNIQUE(entry,name)
 );

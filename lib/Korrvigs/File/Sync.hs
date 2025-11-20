@@ -13,6 +13,7 @@ import Data.Default
 import Data.List hiding (insert)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
@@ -21,12 +22,17 @@ import qualified Data.Text.Encoding as Enc
 import Data.Time.LocalTime
 import qualified Korrvigs.Compute.Action as Act
 import Korrvigs.Compute.Builtin
+import Korrvigs.Compute.Computation
+import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.Type
 import Korrvigs.Entry
+import Korrvigs.File.Computation
 import Korrvigs.File.SQL
 import Korrvigs.Geometry
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Utils (recursiveRemoveFile, resolveSymbolicLink)
+import Korrvigs.Utils.Crypto
 import Korrvigs.Utils.DateTree
 import Network.Mime
 import Opaleye (Insert (..), doNothing, rCount, toFields)
@@ -42,10 +48,26 @@ data FileMetadata = FileMetadata
     _exGeo :: Maybe Geometry,
     _exText :: Maybe Text,
     _exTitle :: Maybe Text,
-    _exParents :: [Id]
+    _exParents :: [Id],
+    _computations :: Map Text (RunnableType, Hash, RunnableResult)
   }
 
 makeLenses ''FileMetadata
+
+parseCompResult :: Value -> Parser (RunnableType, Hash, RunnableResult)
+parseCompResult = withObject "Computation result" $ \obj -> do
+  tp <- maybe (fail "Unknown type") pure . parseTypeName =<< obj .: "type"
+  (tp,,)
+    <$> (maybe (fail "Invalid hash") pure . digestFromText =<< obj .: "hash")
+    <*> (maybe (fail "Can't parse result") pure . decodeFromJson tp =<< obj .: "result")
+
+compResultToJSON :: (RunnableType, Hash, RunnableResult) -> Value
+compResultToJSON (tp, hash, res) =
+  object
+    [ "type" .= runTypeName tp,
+      "hash" .= digestToText hash,
+      "result" .= encodeToJSON res
+    ]
 
 instance FromJSON FileMetadata where
   parseJSON (Object v) =
@@ -58,6 +80,7 @@ instance FromJSON FileMetadata where
       <*> v .:? "textContent"
       <*> v .:? "title"
       <*> (fmap MkId <$> v .: "parents")
+      <*> (mapM parseCompResult . fromMaybe def =<< v .:? "computations")
   parseJSON invalid =
     prependFailure "parsing file metadata failed, " $ typeMismatch "Object" invalid
 
@@ -73,6 +96,10 @@ instance ToJSON FileMetadata where
         ++ maybe [] ((: []) . ("geometry" .=)) (mtdt ^. exGeo)
         ++ maybe [] ((: []) . ("title" .=)) (mtdt ^. exTitle)
         ++ maybe [] ((: []) . ("textContent" .=)) (mtdt ^. exText)
+        ++ addComps (mtdt ^. computations)
+    where
+      addComps cmps =
+        ["computations" .= (compResultToJSON <$> cmps) | not (M.null cmps)]
 
 metaPath :: FilePath -> FilePath
 metaPath = (<> ".meta")
@@ -188,3 +215,24 @@ updateRef file old new = updateImpl file $ pure . (exParents %~ upd) . (annoted 
 
 updateTitle :: (MonadKorrvigs m) => File -> Maybe Text -> m ()
 updateTitle file ntitle = updateImpl file $ pure . (exTitle .~ ntitle)
+
+getComputation :: (MonadKorrvigs m) => File -> Text -> m (Maybe Computation)
+getComputation file cmp = case M.lookup cmp comps of
+  Nothing -> pure Nothing
+  Just rbl -> do
+    json <- liftIO (eitherDecode <$> readFile (file ^. fileMeta)) >>= throwEither (KCantLoad i . T.pack)
+    pure $
+      Just $
+        Computation
+          { _cmpEntry = i,
+            _cmpName = cmp,
+            _cmpRun = rbl,
+            _cmpResult = json ^? computations . at cmp . _Just . to (\(_, b, c) -> (b, c))
+          }
+  where
+    i = file ^. fileEntry . entryName
+    comps = fileComputations i (file ^. fileMime)
+
+storeComputationResult :: (MonadKorrvigs m) => File -> Text -> RunnableType -> Hash -> RunnableResult -> m ()
+storeComputationResult file cmp tp hash res =
+  updateImpl file $ pure . (computations . at cmp ?~ (tp, hash, res))

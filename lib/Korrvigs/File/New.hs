@@ -187,7 +187,7 @@ new path' options' = do
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   mime <- liftIO $ findMime path
   let mimeTxt = Enc.decodeUtf8 mime
-  let mtdt' = FileMetadata mimeTxt M.empty Nothing Nothing Nothing Nothing title []
+  let mtdt' = FileMetadata mimeTxt M.empty Nothing Nothing Nothing Nothing title [] M.empty
   mtdt'' <- liftIO $ ($ mtdt') <$> extractMetadata path mime
   mtdt <- ($ mtdt'') <$> applyNewOptions nentry
   let idmk' =

@@ -49,10 +49,7 @@ library korrvigs-lib
     Korrvigs.Cli.Server
     Korrvigs.Cli.Sync
     Korrvigs.Compute
-    Korrvigs.Compute.Action
-    Korrvigs.Compute.Builtin
     Korrvigs.Compute.Computation
-    Korrvigs.Compute.Declare
     Korrvigs.Compute.Run
     Korrvigs.Compute.Runnable
     Korrvigs.Compute.Type

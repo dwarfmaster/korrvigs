@@ -31,7 +31,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time.LocalTime
-import qualified Korrvigs.Compute as Cpt
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Mtdt
@@ -42,7 +41,6 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.Android
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
-import Korrvigs.Monad.Metadata (listCompute)
 import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils (joinNull, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
@@ -212,8 +210,6 @@ new path' options' = do
   syncFileOfKind stored File
   when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path'
   applyOnNewEntry nentry i
-  comps <- listCompute i
-  forM_ comps Cpt.run
   pure i
 
 fileNameP :: Parsec ByteString () (Maybe (Bool, FilePath))

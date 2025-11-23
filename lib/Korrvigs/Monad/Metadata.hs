@@ -20,7 +20,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Time.LocalTime
 import qualified Korrvigs.Calendar.Sync as Cal
-import Korrvigs.Compute.Action
+import Korrvigs.Compute.Computation
 import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
@@ -129,14 +129,13 @@ updateDate entry ntime = do
             uReturning = rCount
           }
 
-listCompute :: (MonadKorrvigs m) => Id -> m (Map Text Action)
-listCompute i = do
-  acts <- rSelect $ do
+listCompute :: (MonadKorrvigs m) => Id -> m [Text]
+listCompute i =
+  rSelect $ do
     cmp <- selectTable computationsTable
     name <- nameFor $ cmp ^. sqlCompEntry
     where_ $ name .== sqlId i
-    pure (cmp ^. sqlCompName, cmp ^. sqlCompAction)
-  pure $ M.fromList acts
+    pure $ cmp ^. sqlCompName
 
 updateRef :: (MonadKorrvigs m) => Entry -> Id -> Maybe Id -> m ()
 updateRef entry old new = do

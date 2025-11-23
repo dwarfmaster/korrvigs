@@ -37,6 +37,8 @@ data RunnableResult
   | ResultJson Value
   deriving (Show, Eq)
 
+makePrisms ''RunnableResult
+
 extractResult :: RunnableType -> ByteString -> Maybe RunnableResult
 extractResult tp stream = case runTypeKind tp of
   KindText -> ResultText . LT.toStrict <$> rightToMaybe (LEnc.decodeUtf8' stream)

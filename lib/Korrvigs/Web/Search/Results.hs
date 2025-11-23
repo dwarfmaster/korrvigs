@@ -178,19 +178,16 @@ displayTimeline _ entries = do
 displayGallery :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayGallery isCol entries = do
   public <- isPublic
-  items <- forM entries $ \e -> case e ^. _2 . optSizeAction of
-    Just sizeA -> runMaybeT $ do
-      entry <-
-        lift
-          ( PhotoSwipe.miniatureEntry
-              (e ^. _2 . optMime)
-              (e ^? _1 . sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
-              (e ^. _1 . sqlEntryName)
-              sizeA
-          )
-          >>= hoistMaybe
-      pure $ if public then entry & PhotoSwipe.swpRedirect .~ Nothing else entry
-    Nothing -> pure Nothing
+  items <- forM entries $ \e -> runMaybeT $ do
+    entry <-
+      lift
+        ( PhotoSwipe.miniatureEntry
+            (e ^. _2 . optMime)
+            (e ^? _1 . sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
+            (e ^. _1 . sqlEntryName)
+        )
+        >>= hoistMaybe
+    pure $ if public then entry & PhotoSwipe.swpRedirect .~ Nothing else entry
   gallery <- PhotoSwipe.photoswipe (def & PhotoSwipe.swpGroup .~ not isCol) $ catMaybes items
   pure $ do
     PhotoSwipe.photoswipeHeader
@@ -200,9 +197,8 @@ displayLibrary :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayLibrary _ entries = do
   public <- isPublic
   items <- forM entries $ \e -> runMaybeT $ do
-    sizeA <- hoistMaybe $ e ^. _2 . optSizeAction
     coverId <- hoistMaybe $ MkId <$> e ^. _2 . optCover
-    entry <- hoistLift $ PhotoSwipe.miniatureEntry (e ^. _2 . optMime) Nothing coverId sizeA
+    entry <- hoistLift $ PhotoSwipe.miniatureEntry (e ^. _2 . optMime) Nothing coverId
     let title :: [(Text, Text)] = [("title", t) | t <- toList $ e ^. _1 . sqlEntryTitle]
     caption <- lift $ mkTaskItem public (e ^. _1) (e ^. _2)
     pure $

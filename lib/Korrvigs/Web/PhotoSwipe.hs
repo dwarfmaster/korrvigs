@@ -2,6 +2,7 @@ module Korrvigs.Web.PhotoSwipe where
 
 import Control.Lens
 import Control.Monad
+import Data.Aeson.Lens
 import Data.Default
 import Data.List.NonEmpty (NonEmpty (..), groupBy)
 import Data.Map (Map)
@@ -11,9 +12,10 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.Format
-import Korrvigs.Compute
-import Korrvigs.Compute.Action
+import Korrvigs.Compute.Run
+import Korrvigs.Compute.Type
 import Korrvigs.Entry
+import Korrvigs.Monad.Computation
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Public.Crypto as Public
 import qualified Korrvigs.Web.Ressources as Rcs
@@ -41,15 +43,16 @@ data PhotoswipeEntry = PhotoswipeEntry
 
 makeLenses ''PhotoswipeEntry
 
-miniatureEntryImpl :: PhotoswipeContentType -> Maybe Day -> Id -> Action -> Handler (Maybe PhotoswipeEntry)
-miniatureEntryImpl tp day i sizeA = do
-  szM <- lazyRunJSON i "size" sizeA
+miniatureEntryImpl :: PhotoswipeContentType -> Maybe Day -> Id -> Handler (Maybe PhotoswipeEntry)
+miniatureEntryImpl tp day i = do
+  szM <- getComputation i "size"
+  szR <- forM szM runVeryLazy
   let url = EntryDownloadR (WId i)
   let miniatureUrl = EntryComputeR (WId i) "miniature"
   urlSignature <- Public.signRoute url []
   miniatureSignature <- Public.signRoute miniatureUrl []
   pure $ do
-    sz :: Map Text Int <- szM
+    sz :: Map Text Int <- szR ^? _Just . _Right . _ResultJson . _JSON
     width <- M.lookup "width" sz
     height <- M.lookup "height" sz
     pure $
@@ -66,11 +69,11 @@ miniatureEntryImpl tp day i sizeA = do
           _swpDate = day
         }
 
-miniatureEntry :: Maybe Text -> Maybe Day -> Id -> Action -> Handler (Maybe PhotoswipeEntry)
+miniatureEntry :: Maybe Text -> Maybe Day -> Id -> Handler (Maybe PhotoswipeEntry)
 miniatureEntry (Just mime) = miniatureFileEntry mime
 miniatureEntry _ = miniatureEntryImpl PSPicture
 
-miniatureFileEntry :: Text -> Maybe Day -> Id -> Action -> Handler (Maybe PhotoswipeEntry)
+miniatureFileEntry :: Text -> Maybe Day -> Id -> Handler (Maybe PhotoswipeEntry)
 miniatureFileEntry mime | T.isPrefixOf "video/" mime = miniatureEntryImpl $ PSVideo mime
 miniatureFileEntry _ = miniatureEntryImpl PSPicture
 

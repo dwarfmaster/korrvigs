@@ -4,7 +4,6 @@ import Control.Applicative ((<|>))
 import Control.Arrow ((***))
 import Control.Lens
 import Control.Monad
-import Control.Monad.Trans.Maybe
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -12,10 +11,7 @@ import qualified Data.Text as T
 import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
-import Korrvigs.Monad
 import Korrvigs.Note.AST
-import Korrvigs.Note.Pandoc
-import Korrvigs.Utils
 import Text.Parsec hiding ((<|>))
 import Text.Parsec.Number
 
@@ -91,6 +87,14 @@ parseAttrMtdt key val = case parse (typeP <|> argP <|> envP <|> stdinP) "<codear
       tp <- maybe (fail $ T.unpack val <> " is not a valid runnable type") pure $ parseTypeName val
       pure $ mempty & attrType ?~ tp
 
+codeRefs :: Attr -> [Id]
+codeRefs attr = argToRef =<< attrDat ^.. (attrArg . each <> attrEnv . each <> attrStdIn . _Just)
+  where
+    attrDat = foldMap (uncurry parseAttrMtdt) $ M.toList $ attr ^. attrMtdt
+    argToRef (ArgPlain _) = []
+    argToRef (ArgResult i _) = [i]
+    argToRef (ArgEntry i) = [i]
+
 toRunnable :: Attr -> Text -> Maybe Runnable
 toRunnable attr code = do
   let classes = attr ^. attrClasses
@@ -106,10 +110,3 @@ toRunnable attr code = do
         _runEnv = attrDat ^. attrEnv,
         _runStdIn = attrDat ^. attrStdIn
       }
-
-codeRunnable :: (MonadKorrvigs m) => Id -> Text -> m (Maybe Runnable)
-codeRunnable i codeId = runMaybeT $ do
-  entry <- hoistLift $ load i
-  note <- hoistMaybe $ entry ^? _Note
-  doc <- hoistEitherLift $ readNote $ note ^. notePath
-  hoistMaybe $ doc ^? fromId codeId . to (uncurry toRunnable) . _Just

@@ -28,7 +28,7 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync
-import Korrvigs.Note.Code (codeRunnable)
+import Korrvigs.Note.Pandoc (codeRunnable)
 import Korrvigs.Syndicate.Item
 import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.New (lazyUpdateDate, lookupFromUrl)

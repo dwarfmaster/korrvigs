@@ -1,4 +1,4 @@
-module Korrvigs.Note.Pandoc (readNote, readNoteFromText, parsePandoc, parseTopBlocks, extractItem) where
+module Korrvigs.Note.Pandoc (readNote, readNoteFromText, parsePandoc, parseTopBlocks, extractItem, codeRunnable) where
 
 import Control.Arrow (first, (&&&))
 import Control.Exception (SomeException, try)
@@ -26,11 +26,13 @@ import qualified Data.Text as T
 import Data.Text.IO (readFile)
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
-import Korrvigs.Compute.Runnable (Hash)
+import Korrvigs.Compute.Runnable (Hash, Runnable)
 import Korrvigs.Compute.Type
-import Korrvigs.Entry.Ident
+import Korrvigs.Entry
 import Korrvigs.Metadata.Task
+import Korrvigs.Monad
 import qualified Korrvigs.Note.AST as A
+import Korrvigs.Note.Code
 import Korrvigs.Note.Helpers
 import Korrvigs.Utils
 import Korrvigs.Utils.Crypto
@@ -201,6 +203,13 @@ readNoteFromText reader txt =
         { readerExtensions = disableExtension Ext_auto_identifiers $ disableExtension Ext_task_lists pandocExtensions
         }
 
+codeRunnable :: (MonadKorrvigs m) => Id -> Text -> m (Maybe Runnable)
+codeRunnable i codeId = runMaybeT $ do
+  entry <- hoistLift $ load i
+  note <- hoistMaybe $ entry ^? _Note
+  doc <- hoistEitherLift $ readNote $ note ^. notePath
+  hoistMaybe $ doc ^? fromId codeId . to (uncurry toRunnable) . _Just
+
 parsePandoc :: Pandoc -> A.Document
 parsePandoc (Pandoc mtdt bks) = run act meta bks
   where
@@ -245,7 +254,10 @@ parseBlock (LineBlock lns) = pure . A.LineBlock <$> mapM parseInlines lns
 parseBlock (CodeBlock attr txt) = do
   let nattr = parseAttr attr
   let i = nattr ^. A.attrId
-  unless (T.null i) $ stack . bszNamedCode %= S.insert i
+  unless (T.null i) $ do
+    stack . bszNamedCode %= S.insert i
+    let refs = codeRefs nattr
+    forM_ refs refTo
   pure . pure $ A.CodeBlock nattr txt
 parseBlock (RawBlock (Format fmt) i)
   | CI.mk fmt == "embed" = do

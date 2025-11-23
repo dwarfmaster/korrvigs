@@ -42,9 +42,19 @@ CREATE TABLE IF NOT EXISTS entries_ref_to (
 CREATE TABLE IF NOT EXISTS computations (
   entry INTEGER NOT NULL REFERENCES entries(id),
   name TEXT NOT NULL,
-  hash CHARACTER(64) NOT NULL,
   CONSTRAINT computations_ref_unique
     UNIQUE(entry,name)
+);
+
+CREATE TABLE IF NOT EXISTS computations_dep (
+  entry INTEGER NOT NULL REFERENCES entries(id),
+  name TEXT NOT NULL,
+  entry_dep INTEGER NOT NULL REFERENCES entries(id),
+  name_dep TEXT NOT NULL,
+  CONSTRAINT computations_dep_source_valid
+    FOREIGN KEY (entry,name) REFERENCES computations (entry,name),
+  CONSTRAINT computations_dep_target_valid
+    FOREIGN KEY (entry_dep,name_dep) REFERENCES computations (entry,name)
 );
 
 CREATE TABLE IF NOT EXISTS notes (

@@ -14,7 +14,10 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
-import Korrvigs.Utils
+
+rightToMaybe :: Either a b -> Maybe b
+rightToMaybe (Right v) = Just v
+rightToMaybe _ = Nothing
 
 data RunnableType
   = ScalarImage

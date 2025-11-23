@@ -10,6 +10,7 @@ module Korrvigs.Compute.Runnable
     runArgs,
     runEnv,
     runStdIn,
+    runDeps,
     run,
     runInOut,
     runOut,
@@ -62,6 +63,15 @@ data Runnable = Runnable
   deriving (Show, Eq, Ord)
 
 makeLenses ''Runnable
+makePrisms ''RunArg
+
+runDeps :: Runnable -> [(Id, Text)]
+runDeps rbl =
+  rbl
+    ^.. ( (runArgs . each . _ArgResult)
+            <> (runEnv . each . _ArgResult)
+            <> (runStdIn . _Just . _ArgResult)
+        )
 
 runProc :: (MonadIO m) => (RunArg -> m Text) -> FilePath -> Runnable -> m CreateProcess
 runProc resolveArg tmp rbl = do

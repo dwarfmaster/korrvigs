@@ -1,7 +1,8 @@
 module Korrvigs.Monad.Sync (sync, syncFile, syncFileOfKind, syncOne, remove) where
 
 import Conduit (throwM)
-import Control.Arrow ((&&&))
+import Control.Applicative
+import Control.Arrow (first, (&&&))
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
@@ -19,6 +20,7 @@ import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
 import qualified Korrvigs.Calendar.Sync as Cal
+import Korrvigs.Compute.Computation
 import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
@@ -69,18 +71,21 @@ sqlIDs = do
     pure $ erow ^. sqlEntryName
   pure $ M.fromList $ (MkId &&& const []) <$> ids
 
+flattenMap :: Map a [b] -> [(a, b)]
+flattenMap mp = [(a, b) | (a, bs) <- M.toList mp, b <- bs]
+
 runSync ::
   (MonadKorrvigs m) =>
   Text ->
   m (Map Id SyncData) ->
-  m (Map Id ([Id], [Id], m ()))
+  m (Map Id ([Id], [Id], [(Text, (Id, Text))], m ()))
 runSync kdTxt dt = do
   (tm, r) <- measureTime dt
   liftIO $ putStrLn $ kdTxt <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
-  let handleSyncData sdt = (sdt ^. syncParents, sdt ^. syncRefs, syncSQL sdt)
+  let handleSyncData sdt = (sdt ^. syncParents, sdt ^. syncRefs, flattenMap $ sdt ^. syncCompute, syncSQL sdt)
   pure $ handleSyncData . fixSyncData <$> r
 
-runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id ([Id], [Id], m ()))
+runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id ([Id], [Id], [(Text, (Id, Text))], m ()))
 runSyncOn Note = runSync (displayKind Note) Note.sync
 runSyncOn File = runSync (displayKind File) File.sync
 runSyncOn Event = runSync (displayKind Event) Event.sync
@@ -98,7 +103,7 @@ prepare mp (nm1, nm2) = (,) <$> M.lookup nm1 mp <*> M.lookup nm2 mp
 sync :: (MonadKorrvigs m) => m ()
 sync = do
   withSQL $ \conn ->
-    void $ liftIO $ Simple.execute_ conn "truncate entries_sub, entries_ref_to, computations"
+    void $ liftIO $ Simple.execute_ conn "truncate entries_sub, entries_ref_to, computations_dep"
   ids <- loadIDs
   let conflict = M.toList $ M.filter ((>= 2) . length) ids
   unless (null conflict) $ throwM $ KDuplicateId conflict
@@ -111,32 +116,33 @@ sync = do
   allrels <- mapM runSyncOn [minBound .. maxBound]
   let rels = foldl' M.union M.empty allrels
   let checkRD = checkRelData $ \i -> isJust $ M.lookup i ids
-  case foldr (firstJust . checkRD . (view _1 &&& view _2) . view _2) Nothing (M.toList rels) of
+  case foldr ((<|>) . checkRD . (view _1 &&& view _2) . view _2) Nothing (M.toList rels) of
     Nothing -> pure ()
     Just i -> throwM $ KRelToUnknown i
   case hasCycle (view _1 <$> rels) of
     Nothing -> pure ()
     Just cle -> throwM $ KSubCycle cle
-  let subBindings = mkBindings $ view _1 <$> rels
-  let refBindings = mkBindings $ view _2 <$> rels
+  let subBindings = flattenMap $ view _1 <$> rels
+  let refBindings = flattenMap $ view _2 <$> rels
+  let lkDep nmId (isrc, (csrc, (idst, cdst))) =
+        CompDepRow
+          <$> M.lookup isrc nmId
+          <*> pure csrc
+          <*> M.lookup idst nmId
+          <*> pure cdst
+  let depBindings nmId = mapMaybe (lkDep nmId) $ flattenMap $ view _3 <$> rels
   dbT <- measureTime_ $ do
-    forM_ rels $ view _3
+    forM_ rels $ view _4
     nameToId <- nameToIdMap
     let subs = mapMaybe (prepare nameToId) subBindings
     let refs = mapMaybe (prepare nameToId) refBindings
-    atomicInsert [insertSubOf subs, insertRefTo refs]
+    let deps = depBindings nameToId
+    atomicInsert [insertSubOf subs, insertRefTo refs, insertCompDeps deps]
   liftIO $ putStrLn $ "Updated database in " <> dbT
   where
-    mkBindings :: Map a [a] -> [(a, a)]
-    mkBindings m = (\(a, l) -> (a,) <$> l) =<< M.toList m
     checkRelData :: (Id -> Bool) -> ([Id], [Id]) -> Maybe Id
     checkRelData check (subOf, refTo) =
-      firstJust
-        (find (not . check) subOf)
-        (find (not . check) refTo)
-    firstJust :: Maybe a -> Maybe a -> Maybe a
-    firstJust (Just x) _ = Just x
-    firstJust Nothing x = x
+      find (not . check) subOf <|> find (not . check) refTo
 
 identifyPath :: forall m. (MonadKorrvigs m) => FilePath -> m Kind
 identifyPath path = do
@@ -163,11 +169,16 @@ syncFileImpl i sdt' = do
   let sdt = fixSyncData sdt'
   syncSQL sdt
   nameToId <- nameToIdMap
-  forM_ (M.lookup i nameToId) $ \sqlI ->
+  forM_ (M.lookup i nameToId) $ \sqlI -> do
     syncRelsSQL
       sqlI
       (mapMaybe (`M.lookup` nameToId) $ sdt ^. syncParents)
       (mapMaybe (`M.lookup` nameToId) $ sdt ^. syncRefs)
+    let comps = mapMaybe (raiseMaybe . first (`M.lookup` nameToId)) <$> (sdt ^. syncCompute)
+    syncCompsDep sqlI comps
+  where
+    raiseMaybe (Just a, b) = Just (a, b)
+    raiseMaybe (Nothing, _) = Nothing
 
 fixSyncData :: SyncData -> SyncData
 fixSyncData sdt = sdt & syncRefs %~ (addRefs ++)

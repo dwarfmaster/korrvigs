@@ -1,7 +1,7 @@
 module Korrvigs.Note.Sync where
 
 import Control.Applicative
-import Control.Arrow (first, (&&&))
+import Control.Arrow (first, second, (&&&))
 import Control.Lens
 import Control.Monad (void, when)
 import Control.Monad.IO.Class
@@ -88,6 +88,17 @@ syncDocument i path doc = do
   let mtdt' = foldr M.delete mtdt ["geometry", "date", "duration"]
   let mrows = M.toList mtdt'
   let nrow sqlI = NoteRow sqlI path (M.keys $ doc ^. docCollections) :: NoteRow
+  let cmps =
+        doc
+          ^.. docContent
+            . each
+            . bkSubBlocks
+            . _CodeBlock
+            . to (view (_1 . attrId) &&& uncurry toRunnable)
+            . to raiseMaybe
+            . _Just
+            . filtered (not . T.null . view _1)
+            . to (second runDeps)
   let insertNoteRow sqlI =
         Insert
           { iTable = notesTable,
@@ -104,7 +115,10 @@ syncDocument i path doc = do
             iOnConflict = Just doNothing
           }
   let txt = renderDocument doc
-  pure $ SyncData erow (\sqlI -> [insertNoteRow sqlI, insertColRows sqlI]) mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) M.empty
+  pure $ SyncData erow (\sqlI -> [insertNoteRow sqlI, insertColRows sqlI]) mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) (M.fromList cmps)
+  where
+    raiseMaybe (_, Nothing) = Nothing
+    raiseMaybe (a, Just b) = Just (a, b)
 
 updateImpl' :: (MonadKorrvigs m) => Note -> (Document -> m (Document, a)) -> m a
 updateImpl' note f = do

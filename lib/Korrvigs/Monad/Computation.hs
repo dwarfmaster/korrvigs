@@ -2,7 +2,6 @@ module Korrvigs.Monad.Computation where
 
 import Conduit
 import Control.Lens
-import Control.Monad (void)
 import Data.Text (Text)
 import Korrvigs.Compute.Computation
 import Korrvigs.Compute.Runnable
@@ -12,9 +11,6 @@ import qualified Korrvigs.File.Sync as File
 import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL
 import qualified Korrvigs.Note.Sync as Note
-import Korrvigs.Utils.Crypto
-import Korrvigs.Utils.Opaleye (sqlCharN)
-import Opaleye
 
 getComputation :: (MonadKorrvigs m) => Id -> Text -> m (Maybe Computation)
 getComputation i cmp =
@@ -32,15 +28,3 @@ storeComputationResult i cmp tp hsh res = do
     NoteD note -> Note.storeComputationResult note cmp tp hsh res
     FileD file -> File.storeComputationResult file cmp tp hsh res
     _ -> throwM $ KMiscError $ "Tried to save computation to " <> unId i <> ", which is neither a note nor a file"
-  withSQL $ \conn -> liftIO $ do
-    void $
-      runUpdate conn $
-        Update
-          { uTable = computationsTable,
-            uUpdateWith = sqlCompHash .~ sqlCharN (digestToHexa hsh),
-            uWhere = \c ->
-              (c ^. sqlCompEntry .== sqlInt4 (entry ^. entryId))
-                .&& c
-                ^. sqlCompName .== sqlStrictText cmp,
-            uReturning = rCount
-          }

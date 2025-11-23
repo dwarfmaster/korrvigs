@@ -20,8 +20,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time.LocalTime
-import qualified Korrvigs.Compute.Action as Act
-import Korrvigs.Compute.Builtin
 import Korrvigs.Compute.Computation
 import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.Type
@@ -34,7 +32,6 @@ import Korrvigs.Monad
 import Korrvigs.Utils (recursiveRemoveFile, resolveSymbolicLink)
 import Korrvigs.Utils.Crypto
 import Korrvigs.Utils.DateTree
-import Network.Mime
 import Opaleye (Insert (..), doNothing, rCount, toFields)
 import System.Directory
 import System.FilePath
@@ -146,16 +143,6 @@ computeStatus path = do
       pure $ if ex then FilePresent else FileAbsent
     else pure FilePlain
 
-computeFromMime :: Id -> MimeType -> Map Text Act.Action
-computeFromMime i mime = cmp $ Enc.decodeASCII mime
-  where
-    cmp m
-      | T.isPrefixOf "image/" m || T.isPrefixOf "video/" m =
-          miniature
-            <> M.singleton "size" (Act.Builtin i Size)
-      | otherwise = M.empty
-    miniature = M.singleton "miniature" $ Act.Builtin i Miniature
-
 sync :: (MonadKorrvigs m) => m (Map Id SyncData)
 sync =
   M.fromList <$> (allFiles >>= mapM (sequence . (fileIdFromPath &&& syncOne)))
@@ -167,7 +154,7 @@ syncOne path = do
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   let mtdt = json ^. annoted
   let mime = Enc.encodeUtf8 $ json ^. savedMime
-  let cmps = computeFromMime i mime
+  let cmps = runDeps <$> fileComputations i mime
   status <- liftIO $ computeStatus path
   let geom = json ^. exGeo
   let tm = json ^. exDate

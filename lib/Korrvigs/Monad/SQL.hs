@@ -7,12 +7,14 @@ module Korrvigs.Monad.SQL
     SyncData (..),
     syncSQL,
     syncRelsSQL,
+    syncCompsDep,
     syncEntryRow,
     syncDataRows,
     syncMtdtRows,
     syncTextContent,
     syncParents,
     syncRefs,
+    syncCompute,
     indexedMetadata,
     idMetadata,
     updateInMetadata,
@@ -35,7 +37,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Int (Int64)
 import qualified Korrvigs.Calendar.SQL as Cal
-import Korrvigs.Compute.Action
+import Korrvigs.Compute.Computation
 import Korrvigs.Entry
 import qualified Korrvigs.Event.SQL as Event
 import Korrvigs.FTS
@@ -168,6 +170,20 @@ genRemoveDB i dels =
             dWhere = \erow -> erow ^. sqlEntryId .== sqlInt4 i,
             dReturning = rCount
           }
+    void $
+      runDelete conn $
+        Delete
+          { dTable = computationsDepTable,
+            dWhere = \crow -> crow ^. sqlCompDepSrcEntry .== sqlInt4 i,
+            dReturning = rCount
+          }
+    void $
+      runDelete conn $
+        Delete
+          { dTable = computationsTable,
+            dWhere = \crow -> crow ^. sqlCompEntry .== sqlInt4 i,
+            dReturning = rCount
+          }
 
 removeDB :: (MonadKorrvigs m) => Entry -> m ()
 removeDB entry = dispatchRemove genRemoveDB $ entry ^. entryKindData
@@ -179,7 +195,7 @@ data SyncData = SyncData
     _syncTextContent :: Maybe Text,
     _syncParents :: [Id],
     _syncRefs :: [Id],
-    _syncCompute :: Map Text Action
+    _syncCompute :: Map Text [(Id, Text)]
   }
 
 makeLenses ''SyncData
@@ -259,7 +275,7 @@ syncSQL dt = atomicSQL $ \conn -> do
           iOnConflict = Just doNothing
         }
   -- Update computations
-  let compRows = uncurry (CompRow sqlI) <$> M.toList (dt ^. syncCompute)
+  let compRows = CompRow sqlI <$> M.keys (dt ^. syncCompute)
   void $
     runDelete conn $
       Delete
@@ -304,3 +320,23 @@ syncRelsSQL i subsOf relsTo = atomicSQL $ \conn -> do
       runInsert conn $
         insertRefTo $
           (i,) <$> relsTo
+
+syncCompsDep :: (MonadKorrvigs m) => Int -> Map Text [(Int, Text)] -> m ()
+syncCompsDep i cmps = atomicSQL $ \conn -> do
+  void $
+    runDelete conn $
+      Delete
+        { dTable = computationsDepTable,
+          dWhere = \c -> c ^. sqlCompDepSrcEntry .== sqlInt4 i,
+          dReturning = rCount
+        }
+  let rows = [CompDepRow i nm iD nmD | (nm, lst) <- M.toList cmps, (iD, nmD) <- lst]
+  unless (M.null cmps) $
+    void $
+      runInsert conn $
+        Insert
+          { iTable = computationsDepTable,
+            iRows = toFields <$> rows,
+            iOnConflict = Just doNothing,
+            iReturning = rCount
+          }

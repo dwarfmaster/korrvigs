@@ -2,6 +2,7 @@ module Korrvigs.Compute.Run where
 
 import Conduit
 import Control.Lens
+import Control.Monad
 import Control.Monad.Trans.Maybe
 import qualified Crypto.Hash as Hsh
 import Data.Aeson
@@ -143,7 +144,17 @@ doRun rec cmp = do
   case exit of
     ExitFailure i ->
       throwM $ KMiscError $ "Runnable failed with exit code " <> T.pack (show i)
-    ExitSuccess -> pure res
+    ExitSuccess -> do
+      forM_ res $ \r -> do
+        mhsh <- hashComputation cmp
+        forM_ mhsh $ \hsh -> do
+          storeComputationResult
+            (cmp ^. cmpEntry)
+            (cmp ^. cmpName)
+            (cmp ^. cmpRun . runType)
+            hsh
+            r
+      pure res
 
 runOutputConduit :: (MonadKorrvigs m) => RunnableKind -> ConduitT ByteString Void (ResourceT m) (Either Text RunnableResult)
 runOutputConduit KindBin = Right . ResultBinary <$> sinkLazy

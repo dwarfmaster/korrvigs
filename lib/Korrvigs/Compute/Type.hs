@@ -81,7 +81,7 @@ encodeToText (ResultText txt) = txt
 encodeToText (ResultBinary bin) =
   LT.toStrict $
     LT.intercalate "\n" $
-      LT.chunksOf 80 $
+      LT.chunksOf 110 $
         extractBase64 $
           B64.encodeBase64 bin
 encodeToText (ResultJson v) = LT.toStrict $ LEnc.decodeUtf8 $ encodePretty v

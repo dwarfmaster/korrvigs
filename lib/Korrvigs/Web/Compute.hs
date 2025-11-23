@@ -1,19 +1,22 @@
-module Korrvigs.Web.Compute (getEntryCacheR, getEntryComputeR) where
+module Korrvigs.Web.Compute (getEntryComputeListR, getEntryComputeR, postEntryComputeR) where
 
+import Conduit
 import Control.Lens
 import Data.Text (Text)
-import Korrvigs.Compute
-import Korrvigs.Compute.Action
-import Korrvigs.Compute.Declare
+import Korrvigs.Compute.Computation
+import Korrvigs.Compute.Run
+import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.Monad
+import Korrvigs.Monad.Computation
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
 import Opaleye
 import Yesod
 
-getEntryCacheR :: WebId -> Handler Value
-getEntryCacheR (WId i) = do
+getEntryComputeListR :: WebId -> Handler Value
+getEntryComputeListR (WId i) = do
   comps :: [Text] <- rSelect $ do
     cmp <- selectTable computationsTable
     nm <- nameFor $ cmp ^. sqlCompEntry
@@ -21,18 +24,32 @@ getEntryCacheR (WId i) = do
     pure $ cmp ^. sqlCompName
   pure $ toJSON comps
 
-getEntryComputeR :: WebId -> Text -> Handler TypedContent
-getEntryComputeR (WId i) cmpName = do
-  mcmp <- rSelectOne $ do
-    sqlI <- fromName pure $ sqlId i
-    view sqlCompAction <$> selComp sqlI cmpName
-  cmp <- maybe notFound pure mcmp
-  path <- lazyRun i cmpName cmp
-  let cmpType = actionData cmp ^. adatType
-  pure $ toTypedContent (serveType cmpType, ContentFile path Nothing)
+serveComputation ::
+  (Computation -> Handler (Either Text RunnableResult)) ->
+  Id ->
+  Text ->
+  Handler TypedContent
+serveComputation runner i cmp =
+  getComputation i cmp >>= \case
+    Nothing -> notFound
+    Just comp ->
+      runner comp >>= \case
+        Left err -> throwM $ KMiscError $ "Failed to run computation: " <> err
+        Right res -> pure $ toTypedContent (serveType $ comp ^. cmpRun . runType, serveResult res)
 
-serveType :: CompType -> ContentType
+getEntryComputeR :: WebId -> Text -> Handler TypedContent
+getEntryComputeR (WId i) = serveComputation runVeryLazy i
+
+postEntryComputeR :: WebId -> Text -> Handler TypedContent
+postEntryComputeR (WId i) = serveComputation runForce i
+
+serveType :: RunnableType -> ContentType
 serveType ScalarImage = typeJpeg
-serveType Picture = typePng
-serveType VectorImage = typeSvg
-serveType Json = typeJson
+serveType ScalarGraphic = typePng
+serveType VectorGraphic = typeSvg
+serveType ArbitraryJson = typeJson
+serveType ArbitraryText = typePlain
+serveType TabularCsv = "text/csv; charset=utf-8"
+
+serveResult :: RunnableResult -> Content
+serveResult res = toContent $ encodeToLBS res

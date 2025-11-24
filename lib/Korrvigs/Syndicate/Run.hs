@@ -14,6 +14,7 @@ import Data.Conduit.Aeson
 import Data.List
 import Data.Maybe
 import Data.Monoid
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -109,7 +110,7 @@ runWithFilter dat (i, code) =
   getComputation i code >>= \case
     Nothing -> pure (id, [])
     Just comp -> do
-      let rec tmp arg = runIdentityT $ resolveArg runVeryLazy tmp arg
+      let rec tmp arg = runIdentityT $ resolveArg (runVeryLazy' $ S.singleton (i, code)) tmp arg
       (exit, items) <- runInOut (comp ^. cmpRun) rec dat $ conduitArray .| sinkList
       case exit of
         ExitSuccess -> pure (id, items)

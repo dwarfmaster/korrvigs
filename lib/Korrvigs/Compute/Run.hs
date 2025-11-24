@@ -9,6 +9,8 @@ import Data.Aeson
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as LBS
 import Data.Conduit.Text
+import Data.Set (Set)
+import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
@@ -110,51 +112,73 @@ resolveArg _ _ (ArgEntry i) =
       Just entry -> T.pack <$> entryFile entry
 
 runVeryLazy :: (MonadKorrvigs m) => Computation -> m (Either Text RunnableResult)
-runVeryLazy cmp = case cmp ^. cmpResult of
-  Nothing -> doRun runVeryLazy cmp
+runVeryLazy = runVeryLazy' S.empty
+
+runVeryLazy' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m (Either Text RunnableResult)
+runVeryLazy' seen cmp = case cmp ^. cmpResult of
+  Nothing -> doRun' runVeryLazy' seen cmp
   Just (rtp, _, res) -> do
     let tp = cmp ^. cmpRun . runType
-    if tp == rtp then pure (Right res) else doRun runVeryLazy cmp
+    if tp == rtp then pure (Right res) else doRun' runVeryLazy' seen cmp
 
 runLazy :: (MonadKorrvigs m) => Computation -> m (Either Text RunnableResult)
-runLazy cmp = case cmp ^. cmpResult of
-  Nothing -> doRun runLazy cmp
+runLazy = runLazy' S.empty
+
+runLazy' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m (Either Text RunnableResult)
+runLazy' seen cmp = case cmp ^. cmpResult of
+  Nothing -> doRun' runLazy' seen cmp
   Just (_, rhsh, res) ->
     hashComputation cmp >>= \case
       Nothing -> throwM $ KMiscError $ "Failed to hash computation " <> cmpNm
-      Just hsh -> if hsh == rhsh then pure (Right res) else doRun runLazy cmp
+      Just hsh -> if hsh == rhsh then pure (Right res) else doRun' runLazy' seen cmp
   where
     cmpNm = unId (cmp ^. cmpEntry) <> "#" <> cmp ^. cmpName
 
 runForce :: (MonadKorrvigs m) => Computation -> m (Either Text RunnableResult)
-runForce = doRun runForce
+runForce = runForce' S.empty
 
-doRun ::
+runForce' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m (Either Text RunnableResult)
+runForce' = doRun' runForce'
+
+doRun' ::
   (MonadKorrvigs m) =>
-  (Computation -> m (Either Text RunnableResult)) ->
+  (Set (Id, Text) -> Computation -> m (Either Text RunnableResult)) ->
+  Set (Id, Text) ->
   Computation ->
   m (Either Text RunnableResult)
-doRun rec cmp = do
-  (exit, res) <-
-    runResourceT $
-      runOut
-        (cmp ^. cmpRun)
-        (resolveArg rec)
-        (runOutputConduit $ runTypeKind $ cmp ^. cmpRun . runType)
-  case exit of
-    ExitFailure i ->
-      throwM $ KMiscError $ "Runnable failed with exit code " <> T.pack (show i)
-    ExitSuccess -> do
-      forM_ res $ \r -> do
-        mhsh <- hashComputation cmp
-        forM_ mhsh $ \hsh -> do
-          storeComputationResult
-            (cmp ^. cmpEntry)
-            (cmp ^. cmpName)
-            (cmp ^. cmpRun . runType)
-            hsh
-            r
-      pure res
+doRun' rec seen cmp =
+  if alreadySeen
+    then
+      pure $
+        Left $
+          ("Circular dependencies between computations: " <>) $
+            T.intercalate " <> " $
+              (\(i, c) -> unId i <> "#" <> c) <$> S.toList seen
+    else do
+      (exit, res) <-
+        runResourceT $
+          runOut
+            (cmp ^. cmpRun)
+            (resolveArg $ rec nseen)
+            (runOutputConduit $ runTypeKind $ cmp ^. cmpRun . runType)
+      case exit of
+        ExitFailure i ->
+          throwM $ KMiscError $ "Runnable failed with exit code " <> T.pack (show i)
+        ExitSuccess -> do
+          forM_ res $ \r -> do
+            mhsh <- hashComputation cmp
+            forM_ mhsh $ \hsh -> do
+              storeComputationResult
+                (cmp ^. cmpEntry)
+                (cmp ^. cmpName)
+                (cmp ^. cmpRun . runType)
+                hsh
+                r
+          pure res
+  where
+    current = (cmp ^. cmpEntry, cmp ^. cmpName)
+    alreadySeen = S.member current seen
+    nseen = S.insert current seen
 
 runOutputConduit :: (MonadKorrvigs m) => RunnableKind -> ConduitT ByteString Void (ResourceT m) (Either Text RunnableResult)
 runOutputConduit KindBin = Right . ResultBinary <$> sinkLazy

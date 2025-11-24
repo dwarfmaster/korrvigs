@@ -4,6 +4,7 @@ import Conduit
 import Control.Applicative
 import Control.Lens
 import Control.Monad
+import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
 import Data.Aeson
 import qualified Data.ByteString as BS
@@ -21,14 +22,14 @@ import Data.Time.Format
 import Data.Time.Format.ISO8601
 import Data.Time.LocalTime
 import Data.XML.Types
-import Korrvigs.Compute.Runnable (runInOut)
+import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
+import Korrvigs.Monad.Computation
 import Korrvigs.Monad.Sync
-import Korrvigs.Note.Pandoc (codeRunnable)
 import Korrvigs.Syndicate.Item
 import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.New (lazyUpdateDate, lookupFromUrl)
@@ -105,10 +106,11 @@ runWithFilter ::
   (Id, Text) ->
   m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
 runWithFilter dat (i, code) =
-  codeRunnable i code >>= \case
+  getComputation i code >>= \case
     Nothing -> pure (id, [])
-    Just rbl -> do
-      (exit, items) <- runInOut rbl undefined dat $ conduitArray .| sinkList
+    Just comp -> do
+      let rec tmp arg = runIdentityT $ resolveArg runVeryLazy tmp arg
+      (exit, items) <- runInOut (comp ^. cmpRun) rec dat $ conduitArray .| sinkList
       case exit of
         ExitSuccess -> pure (id, items)
         ExitFailure _ -> pure (id, [])

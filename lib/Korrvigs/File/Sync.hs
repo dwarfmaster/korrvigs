@@ -176,11 +176,17 @@ syncOne path = do
 
 updateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()
 updateImpl file f = do
-  let i = file ^. fileEntry . entryName
   let meta = file ^. fileMeta
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   njson <- f json
-  liftIO $ writeFile meta $ encodePretty njson
+  liftIO $ writeFile meta $ encodePretty $ gcComps njson
+  where
+    i = file ^. fileEntry . entryName
+    gcComps meta =
+      let ncomps =
+            M.intersection (meta ^. computations) $
+              fileComputations i (file ^. fileMime)
+       in meta & computations .~ ncomps
 
 updateMetadata :: (MonadKorrvigs m) => File -> Map Text Value -> [Text] -> m ()
 updateMetadata file upd rm = do

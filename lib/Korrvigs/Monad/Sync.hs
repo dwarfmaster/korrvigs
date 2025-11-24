@@ -20,7 +20,7 @@ import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
 import qualified Korrvigs.Calendar.Sync as Cal
-import Korrvigs.Compute.Computation
+import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File

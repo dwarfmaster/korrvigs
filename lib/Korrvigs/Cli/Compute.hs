@@ -7,8 +7,8 @@ import qualified Data.ByteString.Lazy as LBS
 import Data.Text (Text)
 import Data.Text.IO (putStr, putStrLn)
 import Korrvigs.Cli.Monad
-import Korrvigs.Compute.Computation
 import qualified Korrvigs.Compute.Run as Run
+import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type (encodeToLBS)
 import Korrvigs.Entry
 import Korrvigs.Monad

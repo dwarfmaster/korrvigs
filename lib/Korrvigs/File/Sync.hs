@@ -20,8 +20,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time.LocalTime
-import Korrvigs.Compute.Computation
 import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.File.Computation

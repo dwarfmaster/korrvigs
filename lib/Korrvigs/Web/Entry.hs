@@ -9,7 +9,7 @@ import Data.Maybe
 import Data.Text (Text)
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
-import Korrvigs.Compute.Computation
+import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import Korrvigs.File.SQL
 import Korrvigs.Kind

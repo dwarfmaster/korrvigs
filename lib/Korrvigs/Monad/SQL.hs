@@ -37,7 +37,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Int (Int64)
 import qualified Korrvigs.Calendar.SQL as Cal
-import Korrvigs.Compute.Computation
+import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import qualified Korrvigs.Event.SQL as Event
 import Korrvigs.FTS

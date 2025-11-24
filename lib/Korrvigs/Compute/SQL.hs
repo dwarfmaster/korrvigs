@@ -1,6 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module Korrvigs.Compute.Computation where
+module Korrvigs.Compute.SQL where
 
 import Control.Lens
 import Data.Profunctor.Product.Default

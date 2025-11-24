@@ -49,9 +49,9 @@ library korrvigs-lib
     Korrvigs.Cli.Server
     Korrvigs.Cli.Sync
     Korrvigs.Compute
-    Korrvigs.Compute.Computation
     Korrvigs.Compute.Run
     Korrvigs.Compute.Runnable
+    Korrvigs.Compute.SQL
     Korrvigs.Compute.Type
     Korrvigs.Entry
     Korrvigs.Entry.Def

@@ -14,7 +14,7 @@ import Data.Foldable
 import Data.Maybe
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
-import Korrvigs.Compute.Computation
+import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import Korrvigs.File.SQL
 import Korrvigs.Metadata

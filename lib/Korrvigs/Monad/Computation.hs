@@ -3,8 +3,8 @@ module Korrvigs.Monad.Computation where
 import Conduit
 import Control.Lens
 import Data.Text (Text)
-import Korrvigs.Compute.Computation
 import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import qualified Korrvigs.File.Sync as File

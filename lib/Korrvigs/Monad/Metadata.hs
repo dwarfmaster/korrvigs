@@ -20,7 +20,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Time.LocalTime
 import qualified Korrvigs.Calendar.Sync as Cal
-import Korrvigs.Compute.Computation
+import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File

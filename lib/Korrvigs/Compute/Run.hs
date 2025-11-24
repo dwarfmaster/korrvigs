@@ -13,8 +13,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Korrvigs.Calendar.Sync as Cal
-import Korrvigs.Compute.Computation
 import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.Monad

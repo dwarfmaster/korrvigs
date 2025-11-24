@@ -3,9 +3,9 @@ module Korrvigs.Web.Compute (getEntryComputeListR, getEntryComputeR, postEntryCo
 import Conduit
 import Control.Lens
 import Data.Text (Text)
-import Korrvigs.Compute.Computation
 import Korrvigs.Compute.Run
 import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.Monad

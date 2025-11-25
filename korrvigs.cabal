@@ -173,6 +173,7 @@ library korrvigs-lib
     Korrvigs.Web.Actions
     Korrvigs.Web.Actions.Bibtex
     Korrvigs.Web.Actions.Collection
+    Korrvigs.Web.Actions.Compute
     Korrvigs.Web.Actions.Defs
     Korrvigs.Web.Actions.EventSync
     Korrvigs.Web.Actions.Export

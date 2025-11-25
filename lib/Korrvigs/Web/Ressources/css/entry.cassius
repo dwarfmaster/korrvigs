@@ -168,6 +168,7 @@ li p
 div.sourceCode
   background-color: var(--base00)
   padding: 0.5em
+  padding-bottom: 1em
   margin: 0.5em
   border: 2px solid var(--base06)
   border-radius: 0.25em
@@ -223,8 +224,8 @@ mjx-container
   padding-right: 0.2em
 .open-code
   position: absolute
-  bottom: 0
-  right: 0
+  top: 0
+  left: 0
   z-index: 10
 
 .checkBox

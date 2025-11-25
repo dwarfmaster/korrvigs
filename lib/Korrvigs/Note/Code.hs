@@ -106,7 +106,7 @@ toRunnable attr code = do
       { _runExecutable = language,
         _runCode = code,
         _runType = tp,
-        _runArgs = fmap snd $ M.toList $ attrDat ^. attrEnv,
+        _runArgs = fmap snd $ M.toList $ attrDat ^. attrArg,
         _runEnv = attrDat ^. attrEnv,
         _runStdIn = attrDat ^. attrStdIn
       }

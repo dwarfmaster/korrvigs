@@ -1,4 +1,13 @@
-module Korrvigs.Web.Entry.Note (content, embed, embedContent, editButton, embedBody, embedLnk) where
+module Korrvigs.Web.Entry.Note
+  ( content,
+    embed,
+    embedContent,
+    editButton,
+    embedBody,
+    embedLnk,
+    resultWidget,
+  )
+where
 
 import Control.Lens
 import Control.Monad
@@ -12,6 +21,7 @@ import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
+import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.File.SQL
 import Korrvigs.Metadata.Task
@@ -46,19 +56,22 @@ data CompileState = CState
     _currentLevel :: Int,
     _embedded :: Bool,
     _currentEntry :: Id,
+    _currentDoc :: Document,
     _subLoc :: SubLoc,
     _subCount :: Int,
     _codeCount :: Int,
     _checkboxCount :: Int,
     _openedSub :: SubLoc,
     _currentHeaderId :: Maybe Text,
-    _editEnabled :: Bool
+    _editEnabled :: Bool,
+    _replaceComputations :: Bool
   }
 
 makeLenses ''CompileState
 
-initCState :: Id -> CompileState
-initCState i = CState 1 [] True 0 0 False i (SubLoc []) 0 0 0 (SubLoc []) Nothing False
+initCState :: Document -> Id -> CompileState
+initCState doc i =
+  CState 1 [] True 0 0 False i doc (SubLoc []) 0 0 0 (SubLoc []) Nothing False True
 
 type CompileM = StateT CompileState Handler
 
@@ -114,17 +127,18 @@ embed lvl note = do
     Right md -> do
       subL <- fmap parseLoc <$> lookupGetParam "open"
       let msubL = either (const Nothing) Just =<< subL
-      embedContent True lvl msubL (note ^. noteEntry . entryName) (md ^. docContent) (md ^. docChecks)
+      embedContent True True lvl msubL (note ^. noteEntry . entryName) md (md ^. docContent) (md ^. docChecks)
 
-embedContent :: Bool -> Int -> Maybe AnyLoc -> Id -> [Block] -> Checks -> Handler (Widget, Checks)
-embedContent enableEdit lvl subL i cnt checks = do
+embedContent :: Bool -> Bool -> Int -> Maybe AnyLoc -> Id -> Document -> [Block] -> Checks -> Handler (Widget, Checks)
+embedContent enableEdit repComps lvl subL i doc cnt checks = do
   let isEmbedded = lvl > 0
   let st' =
-        initCState i
+        initCState doc i
           & hdRootLevel .~ lvl
           & currentLevel .~ lvl
           & embedded .~ isEmbedded
           & editEnabled .~ enableEdit
+          & replaceComputations .~ repComps
   let st = case subL of
         Just (LocSub loc) -> st' & openedSub .~ loc
         Just (LocCode loc) -> st' & openedSub .~ (loc ^. codeSub)
@@ -184,16 +198,26 @@ compileBlock' (LineBlock lns) = do
       <hr>
   |]
 compileBlock' (CodeBlock attr code) = do
-  let language = fromMaybe "text" $ find Ace.isLanguage $ attr ^. attrClasses
-  ace <- lift $ Ace.preview code language
   divId <- newIdent
-  buttonId <- newIdent
+  public <- lift isPublic
+  enableEdit <- use editEnabled
+  repComp <- use replaceComputations
+  let edit = not public && enableEdit
+  let language = fromMaybe "text" $ find Ace.isLanguage $ attr ^. attrClasses
+  (cls, widget) <-
+    use currentDoc >>= \doc -> case if repComp then M.lookup (attr ^. attrId) (doc ^. docComputations) else Nothing of
+      Just (tp, _, res) -> do
+        i <- use currentEntry
+        widget <- lift $ resultWidget i (attr ^. attrId) tp res
+        pure ("computation-result" :: Text, widget)
+      Nothing -> lift $ ("sourceCode",) <$> Ace.preview code language
   entry <- use currentEntry
   subL <- use subLoc
   codeO <- use codeCount
   let loc = LocCode $ CodeLoc subL codeO
   hdId <- use currentHeaderId
   redirUrl <- lift $ aceRedirect entry hdId subL
+  buttonId <- newIdent
   js <-
     lift $
       Ace.editOnClick
@@ -202,10 +226,6 @@ compileBlock' (CodeBlock attr code) = do
         language
         (NoteSubR (WId entry) $ WLoc loc)
         redirUrl
-  codeCount %= (+ 1)
-  public <- lift isPublic
-  enableEdit <- use editEnabled
-  let edit = not public && enableEdit
   let editW =
         if not edit
           then mempty
@@ -216,16 +236,17 @@ compileBlock' (CodeBlock attr code) = do
   |]
   let cdId = attr ^. attrId
   attrs <- compileAttr attr
+  codeCount %= (+ 1)
   pure $ do
     when edit js
     [whamlet|
-  <div ##{divId} .sourceCode *{attrs}>
-    ^{editW}
-    $if not (T.null cdId)
-      <a href=@{NoteNamedCodeR (WId entry) cdId} .open-code>
-        ^{openIcon}
-    ^{ace}
-  |]
+    <div ##{divId} class=#{cls} *{attrs}>
+      ^{editW}
+      $if not (T.null cdId)
+        <a href=@{NoteNamedCodeR (WId entry) cdId} .open-code>
+          ^{openIcon}
+      ^{widget}
+    |]
 compileBlock' (BlockQuote bks) = do
   bksW <- compileBlocks bks
   pure [whamlet|<blockquote>^{bksW}|]
@@ -640,3 +661,16 @@ plainLink mtitle url = do
     Just t -> compileInlines' t
     Nothing -> pure (toMarkup url, mempty)
   pure (applyAttr (Attr.href $ textValue url) $ Html.a titleH, titleW)
+
+resultWidget :: Id -> Text -> RunnableType -> RunnableResult -> Handler Widget
+resultWidget i cmp ScalarImage _ =
+  pure [whamlet|<img src=@{EntryComputeR (WId i) cmp} .computation-img>|]
+resultWidget i cmp ScalarGraphic _ =
+  pure [whamlet|<img src=@{EntryComputeR (WId i) cmp} .computation-img>|]
+resultWidget i cmp VectorGraphic _ =
+  pure [whamlet|<img src=@{EntryComputeR (WId i) cmp} .computation-img>|]
+resultWidget i cmp ArbitraryJson _ = pure mempty
+resultWidget _ _ ArbitraryText (ResultText txt) =
+  pure [whamlet|<pre>#{txt}</pre>|]
+resultWidget i cmp ArbitraryText _ = pure mempty
+resultWidget i cmp TabularCsv _ = undefined

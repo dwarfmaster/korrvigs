@@ -325,3 +325,16 @@ mjx-container
 
 .item-read
   cursor: pointer
+
+.computation-result
+  background-color: var(--base00)
+  padding: 0.2em
+  margin: 0.5em
+  border: 2px solid var(--base06)
+  border-radius: 0.25em
+  overflow-x: scroll
+  position: relative
+
+.computation-img
+  width: 100%
+  vertical-align: top

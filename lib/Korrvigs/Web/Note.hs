@@ -21,6 +21,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.Conduit.Combinators (fold)
 import Data.Default
+import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -37,7 +38,7 @@ import Korrvigs.Note.AST
 import Korrvigs.Note.Pandoc
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
-import Korrvigs.Web.Entry.Note (embedContent)
+import Korrvigs.Web.Entry.Note (embedContent, resultWidget)
 import qualified Korrvigs.Web.Fuse as Fuse
 import Korrvigs.Web.Note.Col
 import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
@@ -215,7 +216,7 @@ getNoteNamedSubR (WId i) sb = do
   actions <- actionsWidget $ TargetNoteSub note sb
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   hd <- maybe notFound pure $ md ^? docContent . each . bkNamedSub sb
-  (widget, _) <- embedContent False 0 Nothing i [Sub hd] (hd ^. hdChecks)
+  (widget, _) <- embedContent False False 0 Nothing i md [Sub hd] (hd ^. hdChecks)
   public <- isPublic
   defaultLayout $ do
     Rcs.entryStyle
@@ -232,7 +233,10 @@ getNoteNamedCodeR (WId i) cd = do
   actions <- actionsWidget $ TargetNoteCode note cd
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   (attrs, txt) <- maybe notFound pure $ md ^? docContent . each . bkNamedCode cd
-  (widget, _) <- embedContent False 0 Nothing i [CodeBlock attrs txt] def
+  (widget, _) <- embedContent False False 0 Nothing i md [CodeBlock attrs txt] def
+  rwidget <- case M.lookup cd (md ^. docComputations) of
+    Nothing -> pure mempty
+    Just (tp, _, res) -> resultWidget i cd tp res
   public <- isPublic
   defaultLayout $ do
     Rcs.entryStyle
@@ -241,6 +245,10 @@ getNoteNamedCodeR (WId i) cd = do
     PhotoSwipe.photoswipeHeader
     unless public actions
     widget
+    [whamlet|
+      <div .computation-result>
+        ^{rwidget}
+    |]
 
 getNoteFuzzyR :: Handler Html
 getNoteFuzzyR = do

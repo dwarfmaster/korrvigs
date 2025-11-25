@@ -8,6 +8,7 @@ module Korrvigs.Note
     docCollections,
     docNamedSubs,
     docNamedCode,
+    docComputations,
     Checks (..),
     ckTodo,
     ckImportant,

@@ -166,13 +166,6 @@ genRemoveDB i dels =
     void $
       runDelete conn $
         Delete
-          { dTable = entriesTable,
-            dWhere = \erow -> erow ^. sqlEntryId .== sqlInt4 i,
-            dReturning = rCount
-          }
-    void $
-      runDelete conn $
-        Delete
           { dTable = computationsDepTable,
             dWhere = \crow -> crow ^. sqlCompDepSrcEntry .== sqlInt4 i,
             dReturning = rCount
@@ -182,6 +175,13 @@ genRemoveDB i dels =
         Delete
           { dTable = computationsTable,
             dWhere = \crow -> crow ^. sqlCompEntry .== sqlInt4 i,
+            dReturning = rCount
+          }
+    void $
+      runDelete conn $
+        Delete
+          { dTable = entriesTable,
+            dWhere = \erow -> erow ^. sqlEntryId .== sqlInt4 i,
             dReturning = rCount
           }
 

@@ -200,8 +200,8 @@ data SyncData = SyncData
 
 makeLenses ''SyncData
 
-syncSQL :: (MonadKorrvigs m) => SyncData -> m ()
-syncSQL dt = atomicSQL $ \conn -> do
+syncSQL :: (MonadKorrvigs m) => Bool -> Map Id Int -> SyncData -> m ()
+syncSQL updateCompDeps nameToId dt = atomicSQL $ \conn -> do
   let i = dt ^. syncEntryRow . sqlEntryName
   -- Update entry
   mprev :: [EntryRowR] <- runSelect conn $ limit 1 $ do
@@ -275,22 +275,58 @@ syncSQL dt = atomicSQL $ \conn -> do
           iOnConflict = Just doNothing
         }
   -- Update computations
-  let compRows = CompRow sqlI <$> M.keys (dt ^. syncCompute)
-  void $
-    runDelete conn $
-      Delete
-        { dTable = computationsTable,
-          dWhere = \comp -> comp ^. sqlCompEntry .== sqlInt4 sqlI,
-          dReturning = rCount
-        }
-  void $
-    runInsert conn $
-      Insert
-        { iTable = computationsTable,
-          iRows = toFields <$> compRows,
-          iReturning = rCount,
-          iOnConflict = Just doNothing
-        }
+  let comps = S.fromList $ M.keys (dt ^. syncCompute)
+  oldComps <- fmap S.fromList $ runSelect conn $ do
+    comp <- selectTable computationsTable
+    where_ $ comp ^. sqlCompEntry .== sqlInt4 sqlI
+    pure $ comp ^. sqlCompName
+  let toRm = S.difference oldComps comps
+  let toAdd = S.difference comps oldComps
+  when updateCompDeps $
+    void $
+      runDelete conn $
+        Delete
+          { dTable = computationsDepTable,
+            dWhere = \dep -> dep ^. sqlCompDepSrcEntry .== sqlInt4 sqlI,
+            dReturning = rCount
+          }
+  unless (S.null toRm) $ do
+    let rmNames = sqlStrictText <$> S.toList toRm
+    void $
+      runDelete conn $
+        Delete
+          { dTable = computationsTable,
+            dWhere = \comp ->
+              comp
+                ^. sqlCompEntry
+                  .== sqlInt4 sqlI
+                  .&& in_ rmNames (comp ^. sqlCompName),
+            dReturning = rCount
+          }
+  unless (S.null toAdd) $ do
+    let compRows = CompRow sqlI <$> S.toList toAdd
+    void $
+      runInsert conn $
+        Insert
+          { iTable = computationsTable,
+            iRows = toFields <$> compRows,
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
+  when updateCompDeps $ do
+    let depRows = do
+          (cmp, deps) <- M.toList $ dt ^. syncCompute
+          (dstId, dstCmp) <- deps
+          dstSqlI <- toList $ M.lookup dstId nameToId
+          pure $ CompDepRow sqlI cmp dstSqlI dstCmp
+    void $
+      runInsert conn $
+        Insert
+          { iTable = computationsDepTable,
+            iRows = toFields <$> depRows,
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
 
 syncRelsSQL :: (MonadKorrvigs m) => Int -> [Int] -> [Int] -> m ()
 syncRelsSQL i subsOf relsTo = atomicSQL $ \conn -> do

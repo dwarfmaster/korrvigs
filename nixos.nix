@@ -52,6 +52,8 @@ overlay: {
   pgUser = config.services.postgresql.superUser;
 
   dependencies = [
+    pkgs.jq
+    pkgs.bash
     pkgs.file
     pkgs.exiftool
     pkgs.poppler_utils

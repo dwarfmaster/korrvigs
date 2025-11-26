@@ -14,6 +14,8 @@ import Control.Monad
 import Control.Monad.Loops (whileJust)
 import Control.Monad.State
 import Data.Array
+import Data.ByteString (ByteString)
+import qualified Data.Csv as Csv
 import Data.Default
 import Data.List
 import qualified Data.Map as M
@@ -21,6 +23,11 @@ import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as Enc
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LEnc
+import Data.Vector (Vector)
+import qualified Data.Vector as V
 import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.File.SQL
@@ -686,5 +693,25 @@ resultWidget i cmp ArbitraryJson _ =
     |]
 resultWidget _ _ ArbitraryText (ResultText txt) =
   pure [whamlet|<pre>#{txt}</pre>|]
-resultWidget i cmp ArbitraryText _ = pure mempty
-resultWidget i cmp TabularCsv _ = undefined
+resultWidget _ _ ArbitraryText _ = pure mempty
+resultWidget _ _ TabularCsv (ResultText txt) =
+  case Csv.decode Csv.NoHeader (LEnc.encodeUtf8 $ LT.fromStrict txt) of
+    Left _ -> pure mempty
+    Right (csv :: Vector (Vector ByteString)) ->
+      pure
+        [whamlet|
+        <table>
+          <thead>
+            $forall line <- V.take 1 csv
+              <tr>
+                $forall item <- line
+                  <th>
+                    #{Enc.decodeUtf8Lenient item}
+          <tbody>
+            $forall line <- V.drop 1 csv
+              <tr>
+                $forall item <- line
+                  <td>
+                    #{Enc.decodeUtf8Lenient item}
+      |]
+resultWidget _ _ TabularCsv _ = pure mempty

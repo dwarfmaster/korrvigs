@@ -1,7 +1,7 @@
 { mkDerivation, aeson, aeson-pretty, array, async, base
 , base16-bytestring, base64, binary, blaze-html, blaze-markup
-, bytestring, case-insensitive, citeproc, clientsession, clock
-, conduit, conduit-aeson, conduit-extra, containers, crypton
+, bytestring, case-insensitive, cassava, citeproc, clientsession
+, clock, conduit, conduit-aeson, conduit-extra, containers, crypton
 , crypton-connection, data-default, data-endian, deepseq, directory
 , entropy, exceptions, extra, feed, file-embed, filepath
 , hmatrix-glpk, http-client, http-client-tls, http-conduit
@@ -23,10 +23,10 @@ mkDerivation {
   isExecutable = true;
   libraryHaskellDepends = [
     aeson aeson-pretty array async base base16-bytestring base64 binary
-    blaze-html blaze-markup bytestring case-insensitive citeproc
-    clientsession clock conduit conduit-aeson conduit-extra containers
-    crypton crypton-connection data-default data-endian deepseq
-    directory entropy exceptions extra feed file-embed filepath
+    blaze-html blaze-markup bytestring case-insensitive cassava
+    citeproc clientsession clock conduit conduit-aeson conduit-extra
+    containers crypton crypton-connection data-default data-endian
+    deepseq directory entropy exceptions extra feed file-embed filepath
     hmatrix-glpk http-client http-client-tls http-conduit http-types
     HUnit iconv isbn lens lens-aeson linear memory mime-types
     monad-loops mtl network-uri opaleye optparse-applicative pandoc

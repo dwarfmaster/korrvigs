@@ -669,7 +669,21 @@ resultWidget i cmp ScalarGraphic _ =
   pure [whamlet|<img src=@{EntryComputeR (WId i) cmp} .computation-img>|]
 resultWidget i cmp VectorGraphic _ =
   pure [whamlet|<img src=@{EntryComputeR (WId i) cmp} .computation-img>|]
-resultWidget i cmp ArbitraryJson _ = pure mempty
+resultWidget i cmp ArbitraryJson _ =
+  pure $ do
+    Rcs.andypfJsonViewer StaticR
+    [whamlet|
+      <andypf-json-viewer
+        indent="2"
+        expanded="false"
+        theme="default-dark"
+        show-data-types="true"
+        show-toolbar="false"
+        expand-icon-type="arrow"
+        show-copy="true"
+        show-size="true"
+        data=@{EntryComputeR (WId i) cmp}>
+    |]
 resultWidget _ _ ArbitraryText (ResultText txt) =
   pure [whamlet|<pre>#{txt}</pre>|]
 resultWidget i cmp ArbitraryText _ = pure mempty

@@ -123,3 +123,7 @@ popperJS mkStatic =
 itemCode :: WidgetFor site ()
 itemCode =
   toWidget $ mkJs $(embedFile $ js "item.js")
+
+andypfJsonViewer :: (Route Static -> Route site) -> WidgetFor site ()
+andypfJsonViewer mkStatic =
+  addScript $ mkStatic $ StaticRoute ["andypf", "json-viewer.js"] []

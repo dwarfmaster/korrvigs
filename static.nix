@@ -72,6 +72,10 @@
     url = "https://unpkg.com/@popperjs/core@2";
     sha256 = "10l7js3vq14a7iznqig6rcg857wrdzqsh91bssp54qx80nsz84n2";
   };
+  json-viewer = fetchurl {
+    url = "https://pfau-software.de/json-viewer/dist/iife/index.js";
+    sha256 = "1b201pjr7b9d9w5cn379spk2mazrnwiwxxrj0qp9gpw4vbxd772p";
+  };
 in
   runCommand "korrvigs-static" {} ''
     mkdir -p $out
@@ -90,6 +94,8 @@ in
     mkdir -p $out/popperjs
     cp ${popperjs} $out/popperjs/popperjs.min.js
     cp ${./ressources/favicon.ico} $out/favicon.ico
+    mkdir -p $out/andypf
+    ln -s ${json-viewer} $out/andypf/json-viewer.js
     mkdir $out/icons
     ${sed} 's/stroke="#000000"/stroke="${theme.base09}"/' ${./ressources/icons/checkbox-todo.svg} > $out/icons/checkbox-todo.svg
     ${sed} 's/stroke="#000000"/stroke="${theme.base0A}"/' ${./ressources/icons/checkbox-important.svg} > $out/icons/checkbox-important.svg

@@ -59,9 +59,12 @@ parseAttrMtdt key val = case parse (typeP <|> argP <|> envP <|> stdinP) "<codear
       case kd of
         "comp" ->
           pure $
-            uncurry ArgResult $
-              MkId *** (maybe "" snd . T.uncons) $
-                T.break (== '#') val
+            if T.any (== '#') val
+              then
+                uncurry ArgResult $
+                  MkId *** (maybe "" snd . T.uncons) $
+                    T.break (== '#') val
+              else ArgResultSame val
         "entry" -> pure $ ArgEntry $ MkId val
         _ -> fail $ kd <> " is not a recognised RunArg type"
     argP :: (Stream s Identity Char) => Parsec s () AttrData
@@ -93,6 +96,7 @@ codeRefs attr = argToRef =<< attrDat ^.. (attrArg . each <> attrEnv . each <> at
     attrDat = foldMap (uncurry parseAttrMtdt) $ M.toList $ attr ^. attrMtdt
     argToRef (ArgPlain _) = []
     argToRef (ArgResult i _) = [i]
+    argToRef (ArgResultSame _) = []
     argToRef (ArgEntry i) = [i]
 
 toRunnable :: Attr -> Text -> Maybe Runnable

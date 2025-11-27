@@ -49,6 +49,7 @@ data Executable
 data RunArg
   = ArgPlain Text
   | ArgResult Id Text
+  | ArgResultSame Text
   | ArgEntry Id
   deriving (Show, Eq, Ord)
 
@@ -96,9 +97,10 @@ hashRunnable ::
   (MonadFail m) =>
   (Id -> m Hash) ->
   (Id -> Text -> m Hash) ->
+  Id ->
   Runnable ->
   m Hash
-hashRunnable hashEntry hashComp rbl = fmap doHash . execWriterT $ do
+hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
   tell $ buildExe $ rbl ^. runExecutable
   tell sep
   tell $ stringUtf8 $ T.unpack $ rbl ^. runCode
@@ -135,6 +137,7 @@ hashRunnable hashEntry hashComp rbl = fmap doHash . execWriterT $ do
       hash <- lift $ hashComp i cmp
       tell $ char8 'c'
       tell $ stringUtf8 $ T.unpack $ digestToHexa hash
+    buildRunArg (ArgResultSame cmp) = buildRunArg (ArgResult curId cmp)
     buildRunArg (ArgEntry i) = do
       hash <- lift $ hashEntry i
       tell $ char8 'e'

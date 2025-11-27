@@ -74,7 +74,7 @@ getEntryHash i = do
     git rt args = (proc "git" args) {cwd = Just rt}
 
 hashComputation' :: (MonadKorrvigs m, MonadTrans t, MonadFail (t m)) => Computation -> t m Hash
-hashComputation' = hashRunnable getEntryHash getCompHash . view cmpRun
+hashComputation' cmp = hashRunnable getEntryHash getCompHash (cmp ^. cmpEntry) (cmp ^. cmpRun)
 
 hashComputation :: (MonadKorrvigs m) => Computation -> m (Maybe Hash)
 hashComputation = runMaybeT . hashComputation'
@@ -88,12 +88,13 @@ hashComputation = runMaybeT . hashComputation'
 
 resolveArg ::
   (MonadKorrvigs m, MonadTrans t, MonadIO (t m)) =>
+  Id ->
   (Computation -> m (Either Text RunnableResult)) ->
   FilePath ->
   RunArg ->
   t m Text
-resolveArg _ _ (ArgPlain txt) = pure txt
-resolveArg runRec tmpdir (ArgResult i cmp) =
+resolveArg _ _ _ (ArgPlain txt) = pure txt
+resolveArg _ runRec tmpdir (ArgResult i cmp) =
   lift (getComputation i cmp) >>= \case
     Nothing -> pure "/dev/null"
     Just comp ->
@@ -105,7 +106,9 @@ resolveArg runRec tmpdir (ArgResult i cmp) =
           let path = tmpdir </> filename
           liftIO $ LBS.writeFile path $ encodeToLBS result
           pure $ T.pack path
-resolveArg _ _ (ArgEntry i) =
+resolveArg curId runRec tmpdir (ArgResultSame cmp) =
+  resolveArg curId runRec tmpdir (ArgResult curId cmp)
+resolveArg _ _ _ (ArgEntry i) =
   lift $
     load i >>= \case
       Nothing -> pure "/dev/null"
@@ -159,7 +162,7 @@ doRun' rec seen cmp =
         runResourceT $
           runOut
             (cmp ^. cmpRun)
-            (resolveArg $ rec nseen)
+            (resolveArg (cmp ^. cmpEntry) $ rec nseen)
             (runOutputConduit $ runTypeKind $ cmp ^. cmpRun . runType)
             (decodeUtf8Lenient .| sinkLazy)
       case exit of

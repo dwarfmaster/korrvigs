@@ -110,7 +110,7 @@ runWithFilter dat (i, code) =
   getComputation i code >>= \case
     Nothing -> pure (id, [])
     Just comp -> do
-      let rec tmp arg = runIdentityT $ resolveArg (runVeryLazy' $ S.singleton (i, code)) tmp arg
+      let rec tmp arg = runIdentityT $ resolveArg i (runVeryLazy' $ S.singleton (i, code)) tmp arg
       (exit, items) <- runInOut (comp ^. cmpRun) rec dat $ conduitArray .| sinkList
       case exit of
         ExitSuccess -> pure (id, items)

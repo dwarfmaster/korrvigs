@@ -168,14 +168,15 @@ runOut ::
   Runnable ->
   (FilePath -> RunArg -> m Text) ->
   ConduitT ByteString Void m a -> -- stdout
-  m (ExitCode, a)
-runOut rbl resolveArg stdout = withRunInIO $ \runInIO -> do
+  ConduitT ByteString Void m b -> -- stderr
+  m (ExitCode, a, b)
+runOut rbl resolveArg stdout stderr = withRunInIO $ \runInIO -> do
   withSystemTempDirectory "korrvigs" $ \tmp -> runInIO $ case rbl ^. runStdIn of
     Just stdinV -> do
       stdinPath <- resolveArg tmp stdinV
       prc <- liftIO $ runProc (runInIO . resolveArg tmp) tmp rbl
       let stdin = sourceFile $ T.unpack stdinPath
-      (\(a, b, _) -> (a, b)) <$> sourceProcessWithStreams prc stdin stdout sinkNull
+      sourceProcessWithStreams prc stdin stdout stderr
     Nothing -> do
       prc <- liftIO $ runProc (runInIO . resolveArg tmp) tmp rbl
-      sourceProcessWithConsumer prc stdout
+      sourceProcessWithStreams prc (sourceFile "/dev/null") stdout stderr

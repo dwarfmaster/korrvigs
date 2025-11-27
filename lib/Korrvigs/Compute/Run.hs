@@ -155,15 +155,21 @@ doRun' rec seen cmp =
             T.intercalate " <> " $
               (\(i, c) -> unId i <> "#" <> c) <$> S.toList seen
     else do
-      (exit, res) <-
+      (exit, res, stderr) <-
         runResourceT $
           runOut
             (cmp ^. cmpRun)
             (resolveArg $ rec nseen)
             (runOutputConduit $ runTypeKind $ cmp ^. cmpRun . runType)
+            (decodeUtf8Lenient .| sinkLazy)
       case exit of
         ExitFailure i ->
-          throwM $ KMiscError $ "Runnable failed with exit code " <> T.pack (show i)
+          throwM $
+            KMiscError $
+              "Runnable failed with exit code "
+                <> T.pack (show i)
+                <> ": "
+                <> LT.toStrict stderr
         ExitSuccess -> do
           forM_ res $ \r -> do
             mhsh <- hashComputation cmp

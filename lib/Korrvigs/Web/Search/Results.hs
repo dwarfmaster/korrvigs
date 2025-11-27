@@ -86,7 +86,8 @@ displayList _ entries' = do
 displayMap :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayMap _ entries = do
   items <- mapM mkItem entries
-  pure $ leafletWidget "resultmap" $ catMaybes items
+  mapId <- newIdent
+  pure $ leafletWidget mapId $ catMaybes items
   where
     mkItem :: (EntryRowR, OptionalSQLData) -> Handler (Maybe MapItem)
     mkItem (entry, _) = case entry ^. sqlEntryGeo of

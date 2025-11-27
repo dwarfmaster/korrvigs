@@ -44,6 +44,9 @@ type Hash = Hsh.Digest Hsh.SHA256
 data Executable
   = Bash
   | SwiProlog
+  | PlainJson
+  | PlainCsv
+  | PlainText
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -92,6 +95,9 @@ runProc resolveArg tmp rbl = do
 mkExeProc :: Executable -> [Text] -> (FilePath, CreateProcess)
 mkExeProc Bash args = ("code.sh", proc "bash" $ "code.sh" : (T.unpack <$> args))
 mkExeProc SwiProlog args = ("code.pl", proc "swipl" $ "code.pl" : "--" : (T.unpack <$> args))
+mkExeProc PlainJson _ = ("data.json", proc "cat" ["data.json"])
+mkExeProc PlainCsv _ = ("data.csv", proc "cat" ["data.csv"])
+mkExeProc PlainText _ = ("data.txt", proc "cat" ["data.txt"])
 
 hashRunnable ::
   (MonadFail m) =>
@@ -130,6 +136,9 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe :: Executable -> Builder
     buildExe Bash = stringUtf8 "bash"
     buildExe SwiProlog = stringUtf8 "swiprolog"
+    buildExe PlainJson = stringUtf8 "json"
+    buildExe PlainCsv = stringUtf8 "csv"
+    buildExe PlainText = stringUtf8 "text"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

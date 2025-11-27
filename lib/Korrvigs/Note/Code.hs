@@ -22,7 +22,10 @@ knownLanguages :: Map Text Executable
 knownLanguages =
   M.fromList
     [ ("bash", Bash),
-      ("prolog", SwiProlog)
+      ("prolog", SwiProlog),
+      ("json", PlainJson),
+      ("csv", PlainCsv),
+      ("text", PlainText)
     ]
 
 data AttrData = AttrData

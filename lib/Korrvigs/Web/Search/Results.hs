@@ -120,7 +120,8 @@ displayGraph _ entries = do
   let subStyle = edgeStyle & Network.edgeColor .~ base edgeSubColor
   let refStyle = edgeStyle & Network.edgeColor .~ base edgeRefColor
   let edges = (mkEdge subStyle <$> subs) ++ (mkEdge refStyle <$> refs)
-  Network.network "network" nodes edges
+  networkId <- newIdent
+  Network.network networkId nodes edges
   where
     candidates :: O.Field (SqlArray SqlInt4)
     candidates = sqlArray sqlInt4 $ view (_1 . sqlEntryId) <$> entries
@@ -140,6 +141,7 @@ displayGraph _ entries = do
           caption,
           style
             & Network.nodeBorder .~ color
+            & Network.nodeBackground .~ color
             & Network.nodeSelected .~ color
             & Network.nodeLink .~ mrender (EntryR $ WId $ entry ^. sqlEntryName)
         )

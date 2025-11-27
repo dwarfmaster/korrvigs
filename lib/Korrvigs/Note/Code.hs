@@ -25,7 +25,8 @@ knownLanguages =
       ("prolog", SwiProlog),
       ("json", PlainJson),
       ("csv", PlainCsv),
-      ("text", PlainText)
+      ("text", PlainText),
+      ("dot", Graphviz)
     ]
 
 data AttrData = AttrData

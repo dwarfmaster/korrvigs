@@ -47,6 +47,7 @@ data Executable
   | PlainJson
   | PlainCsv
   | PlainText
+  | Graphviz
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -80,7 +81,7 @@ runDeps rbl =
 runProc :: (MonadIO m) => (RunArg -> m Text) -> FilePath -> Runnable -> m CreateProcess
 runProc resolveArg tmp rbl = do
   args <- mapM resolveArg $ rbl ^. runArgs
-  let (script, prc) = mkExeProc (rbl ^. runExecutable) args
+  let (script, prc) = mkExeProc (rbl ^. runExecutable) args (rbl ^. runType)
   let scriptPath = joinPath [tmp, script]
   liftIO $ TIO.writeFile scriptPath $ rbl ^. runCode
   ev' <- M.fromList . fmap (T.pack *** T.pack) <$> liftIO getEnvironment
@@ -92,12 +93,17 @@ runProc resolveArg tmp rbl = do
         env = Just $ (T.unpack *** T.unpack) <$> M.toList ev
       }
 
-mkExeProc :: Executable -> [Text] -> (FilePath, CreateProcess)
-mkExeProc Bash args = ("code.sh", proc "bash" $ "code.sh" : (T.unpack <$> args))
-mkExeProc SwiProlog args = ("code.pl", proc "swipl" $ "code.pl" : "--" : (T.unpack <$> args))
-mkExeProc PlainJson _ = ("data.json", proc "cat" ["data.json"])
-mkExeProc PlainCsv _ = ("data.csv", proc "cat" ["data.csv"])
-mkExeProc PlainText _ = ("data.txt", proc "cat" ["data.txt"])
+mkExeProc :: Executable -> [Text] -> RunnableType -> (FilePath, CreateProcess)
+mkExeProc Bash args _ = ("code.sh", proc "bash" $ "code.sh" : (T.unpack <$> args))
+mkExeProc SwiProlog args _ = ("code.pl", proc "swipl" $ "code.pl" : "--" : (T.unpack <$> args))
+mkExeProc PlainJson _ _ = ("data.json", proc "cat" ["data.json"])
+mkExeProc PlainCsv _ _ = ("data.csv", proc "cat" ["data.csv"])
+mkExeProc PlainText _ _ = ("data.txt", proc "cat" ["data.txt"])
+mkExeProc Graphviz _ tp = ("data.dot",) $ case tp of
+  ScalarImage -> proc "dot" ["-Tjpg", "data.dot"]
+  ScalarGraphic -> proc "dot" ["-Tpng", "data.dot"]
+  VectorGraphic -> proc "dot" ["-Tsvg", "data.dot"]
+  _ -> proc "false" []
 
 hashRunnable ::
   (MonadFail m) =>
@@ -139,6 +145,7 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe PlainJson = stringUtf8 "json"
     buildExe PlainCsv = stringUtf8 "csv"
     buildExe PlainText = stringUtf8 "text"
+    buildExe Graphviz = stringUtf8 "graphviz"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

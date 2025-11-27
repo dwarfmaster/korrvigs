@@ -79,6 +79,15 @@ leafletWidget i items = do
   toWidget
     [julius|
     var #{mp} = L.map(#{i}).setView([#{rawJS $ show centerX}, #{rawJS $ show centerY}], 13)
+    if(!window.hasOwnProperty("leafletMaps")) {
+      window.leafletMaps = []
+    }
+    leafletMaps.push(function () {
+      if(#{mp}.getSize() == L.point(0,0)) {
+        #{mp}.invalidateSize()
+        #{mp}.fitBounds([[#{rawJS $ show boundMinX}, #{rawJS $ show boundMinY}], [#{rawJS $ show boundMaxX}, #{rawJS $ show boundMaxY}]], { maxZoom: 13 }); 
+      }
+    });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'

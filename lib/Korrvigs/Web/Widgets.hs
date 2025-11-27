@@ -50,6 +50,10 @@ sectionLogic =
     for(let sym = 0; sym < syms.length; sym++) {
       syms[sym].addEventListener("click", function () {
         syms[sym].parentElement.parentElement.classList.toggle("collapsed")
+        if(window.hasOwnProperty("leafletMaps")) {
+          leafletMaps.forEach((mpUpd) => mpUpd());
+          leafletMaps = [];
+        }
       })
     }
   |]

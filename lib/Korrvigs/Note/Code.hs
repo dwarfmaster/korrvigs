@@ -109,12 +109,20 @@ codeRefs attr = argToRef =<< attrDat ^.. (attrArg . each <> attrEnv . each <> at
     argToRef (ArgResultSame _) = []
     argToRef (ArgEntry i) = [i]
 
+languageToType :: Executable -> Maybe RunnableType
+languageToType PlainJson = Just ArbitraryJson
+languageToType PlainCsv = Just TabularCsv
+languageToType PlainText = Just ArbitraryText
+languageToType Graphviz = Just VectorGraphic
+languageToType NixData = Just ArbitraryJson
+languageToType _ = Nothing
+
 toRunnable :: Attr -> Text -> Maybe Runnable
 toRunnable attr code = do
   let classes = attr ^. attrClasses
   let attrDat = foldMap (uncurry parseAttrMtdt) $ M.toList $ attr ^. attrMtdt
   language <- foldr ((<|>) . flip M.lookup knownLanguages) Nothing classes
-  tp <- attrDat ^. attrType
+  tp <- attrDat ^. attrType <|> languageToType language
   pure $
     Runnable
       { _runExecutable = language,

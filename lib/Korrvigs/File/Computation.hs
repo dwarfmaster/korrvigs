@@ -31,7 +31,7 @@ mkMinRunnable i code =
 
 miniature :: Id -> MimeType -> Map Text Runnable
 miniature i mime
-  | "image/" `BS.isPrefixOf` mime =
+  | "image/" `BS.isPrefixOf` mime || mime == "application/pdf" =
       mkMinRunnable i "magick \"$1[0]\" -resize 200x200 JPEG:-"
 miniature i mime
   | "video/" `BS.isPrefixOf` mime =
@@ -52,10 +52,10 @@ mkSizeRunnable i code =
 
 size :: Id -> MimeType -> Map Text Runnable
 size i mime
-  | "image/" `BS.isPrefixOf` mime =
+  | "image/" `BS.isPrefixOf` mime || mime == "application/pdf" =
       mkSizeRunnable
         i
-        [trimming|magick identify -auto-orient -format "{\"width\": %w, \"height\": %h}\n" $$1|]
+        [trimming|magick identify -auto-orient -format "{\"width\": %w, \"height\": %h}\n" "$$1[0]"|]
 size i mime
   | "video/" `BS.isPrefixOf` mime =
       mkSizeRunnable

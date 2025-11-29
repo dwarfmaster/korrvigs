@@ -59,6 +59,7 @@ overlay: {
     pkgs.poppler_utils
     pkgs.pandoc
     pkgs.imagemagick
+    pkgs.ghostscript
     pkgs.ffmpeg
     pkgs.swi-prolog
     pkgs.chromium

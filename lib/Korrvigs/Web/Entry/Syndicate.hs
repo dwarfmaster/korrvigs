@@ -105,8 +105,6 @@ renderItems syns spec = do
                 <a href=@{EntryR $ WId i}>
                   ^{openIcon}
               $nothing
-                <a href=@{SynItemImportR (WId $ MkId synName) sq}>
-                  ⤓
                 $if not read
                   <span .item-read onclick=#{mkRead synName sq liId spanId}>
                     ✓
@@ -121,6 +119,9 @@ renderItems syns spec = do
                   $nothing
                     @#{synName}
                   ]
+              $if isNothing inst
+                <a href=@{SynItemImportR (WId $ MkId synName) sq}>
+                  ⤓
   |]
   where
     joinMField :: MaybeFields (Field a) -> FieldNullable a

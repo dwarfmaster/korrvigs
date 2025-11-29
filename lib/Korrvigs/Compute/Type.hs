@@ -118,7 +118,7 @@ decodeBinFromText =
     . B64.decodeBase64Untyped
     . LEnc.encodeUtf8
     . LT.fromStrict
-    . T.filter (`elem` ['\n', ' '])
+    . T.filter (`notElem` ['\n', ' '])
 
 decodeJsonFromText :: Text -> Maybe Value
 decodeJsonFromText = rightToMaybe . eitherDecode . LEnc.encodeUtf8 . LT.fromStrict

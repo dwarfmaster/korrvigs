@@ -35,7 +35,10 @@ knownLanguages =
       ("julia", Julia),
       ("dhall", Dhall),
       ("perl", Perl),
-      ("raku", Raku)
+      ("raku", Raku),
+      ("haskell", Haskell),
+      ("rust", Rust),
+      ("ocaml", OCaml)
     ]
 
 data AttrData = AttrData

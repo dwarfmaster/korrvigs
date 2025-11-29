@@ -72,6 +72,9 @@ overlay: {
     pkgs.dhall-json
     pkgs.rakudo
     pkgs.perl
+    pkgs.haskellPackages.ghc
+    pkgs.rustc
+    pkgs.ocaml
   ];
 in {
   options.programs.korrvigs = {

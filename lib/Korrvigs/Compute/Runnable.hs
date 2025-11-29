@@ -57,6 +57,9 @@ data Executable
   | Dhall
   | Perl
   | Raku
+  | Haskell
+  | Rust
+  | OCaml
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -161,17 +164,16 @@ mkExeProc Raku args _ =
   noCompile "code.raku" $ proc "raku" $ "code.raku" : (T.unpack <$> args)
 mkExeProc Perl args _ =
   noCompile "code.pl" $ proc "perl" $ "code.pl" : (T.unpack <$> args)
+mkExeProc Haskell args _ = mkCLikeBuildScript "code.hs" "ghc" args
+mkExeProc Rust args _ = mkCLikeBuildScript "code.rs" "rustc" args
+mkExeProc OCaml args _ = mkCLikeBuildScript "code.ml" "ocamlc" args
 
 mkCLikeBuildScript :: Text -> FilePath -> [Text] -> ExeProc
 mkCLikeBuildScript gcc code args =
   ExeProc
     { _exeCode = code,
       _exeCompileScript =
-        Just $
-          T.unlines
-            [ gcc <> " -o korrvigs.out " <> T.pack code,
-              "chmod +x korrvigs.out"
-            ],
+        Just $ gcc <> " -o korrvigs.out " <> T.pack code,
       _exeRun = proc "./korrvigs.out" $ T.unpack <$> args
     }
 
@@ -225,6 +227,9 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe Dhall = stringUtf8 "dhall"
     buildExe Raku = stringUtf8 "raku"
     buildExe Perl = stringUtf8 "perl"
+    buildExe Haskell = stringUtf8 "haskell"
+    buildExe Rust = stringUtf8 "rust"
+    buildExe OCaml = stringUtf8 "ocaml"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

@@ -62,6 +62,7 @@ overlay: {
     pkgs.ffmpeg
     pkgs.swi-prolog
     pkgs.chromium
+    pkgs.graphviz
   ];
 in {
   options.programs.korrvigs = {

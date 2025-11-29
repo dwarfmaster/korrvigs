@@ -32,7 +32,10 @@ knownLanguages =
       ("nix", NixData),
       ("python", Python),
       ("lua", Lua),
-      ("julia", Julia)
+      ("julia", Julia),
+      ("dhall", Dhall),
+      ("perl", Perl),
+      ("raku", Raku)
     ]
 
 data AttrData = AttrData
@@ -115,6 +118,7 @@ languageToType PlainCsv = Just TabularCsv
 languageToType PlainText = Just ArbitraryText
 languageToType Graphviz = Just VectorGraphic
 languageToType NixData = Just ArbitraryJson
+languageToType Dhall = Just ArbitraryJson
 languageToType _ = Nothing
 
 toRunnable :: Attr -> Text -> Maybe Runnable

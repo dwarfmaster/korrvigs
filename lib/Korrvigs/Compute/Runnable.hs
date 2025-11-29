@@ -54,6 +54,9 @@ data Executable
   | Python
   | Lua
   | Julia
+  | Dhall
+  | Perl
+  | Raku
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -152,6 +155,12 @@ mkExeProc Lua args _ =
   noCompile "code.lua" $ proc "lua" $ "code.lua" : (T.unpack <$> args)
 mkExeProc Julia args _ =
   noCompile "code.jl" $ proc "julia" $ "code.jl" : (T.unpack <$> args)
+mkExeProc Dhall _ _ =
+  noCompile "data.dhall" $ proc "dhall-to-json" ["--file", "data.dhall"]
+mkExeProc Raku args _ =
+  noCompile "code.raku" $ proc "raku" $ "code.raku" : (T.unpack <$> args)
+mkExeProc Perl args _ =
+  noCompile "code.pl" $ proc "perl" $ "code.pl" : (T.unpack <$> args)
 
 mkCLikeBuildScript :: Text -> FilePath -> [Text] -> ExeProc
 mkCLikeBuildScript gcc code args =
@@ -213,6 +222,9 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe Python = stringUtf8 "python"
     buildExe Lua = stringUtf8 "lua"
     buildExe Julia = stringUtf8 "julia"
+    buildExe Dhall = stringUtf8 "dhall"
+    buildExe Raku = stringUtf8 "raku"
+    buildExe Perl = stringUtf8 "perl"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

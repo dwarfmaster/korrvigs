@@ -69,6 +69,9 @@ overlay: {
     pkgs.python3Full
     pkgs.luajit
     pkgs.julia
+    pkgs.dhall-json
+    pkgs.rakudo
+    pkgs.perl
   ];
 in {
   options.programs.korrvigs = {

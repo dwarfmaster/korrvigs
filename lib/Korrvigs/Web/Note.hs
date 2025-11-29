@@ -29,6 +29,7 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Metadata
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
@@ -255,6 +256,8 @@ getNoteFuzzyR = do
   notes :: [EntryRowR] <- rSelect $ do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryKind .== sqlKind Note
+    private <- selectTextMtdt Private $ entry ^. sqlEntryId
+    where_ $ matchNullable (sqlBool True) (./= sqlStrictText "yes") private
     pure entry
   items <- forM notes $ Fuse.itemFromEntry . (view sqlEntryName &&& view sqlEntryTitle)
   fuse <- Fuse.widget items

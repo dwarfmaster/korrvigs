@@ -278,19 +278,21 @@ mjx-container
 .task-dont
   background-color: var(--base-dont)
 
-#checkboxcontextmenu
+.contextmenu
   position: fixed
   background: var(--base00)
   color: var(--base07)
   cursor: pointer
   border: 2px var(--base0F) solid
   border-radius: 0.15em
-#checkboxcontextmenu > p
+.contextmenu > p
   padding: 0 1rem
   margin: 0
-#checkboxcontextmenu > p:hover
+.contextmenu > p:hover
   background: var(--base0F)
   color: var(--base00)
+.contextmenu a
+  color: var(--base05)
 
 .collection
   background-color: var(--base02)

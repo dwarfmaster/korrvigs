@@ -1,4 +1,4 @@
-module Korrvigs.Web.Ace (setup, preview, isLanguage, editOnClick) where
+module Korrvigs.Web.Ace (setup, preview, isLanguage, editOnClick, editFn) where
 
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -194,6 +194,18 @@ preview code language = do
     [whamlet|
       <div ##{ident}>
         #{code}
+    |]
+
+editFn :: Text -> Text -> Text -> Route WebData -> Text -> Handler Widget
+editFn fnName divId language url redirUrl =
+  pure $
+    toWidget
+      [julius|
+      function #{rawJS fnName}(elem) {
+        elem.addEventListener("click", (event) => {
+          aceEdit(#{divId}, #{languageMode language}, "@{url}", #{redirUrl})
+        })
+      }
     |]
 
 editOnClick :: Text -> Text -> Text -> Route WebData -> Text -> Handler Widget

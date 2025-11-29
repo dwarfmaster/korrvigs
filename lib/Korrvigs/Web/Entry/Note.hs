@@ -71,14 +71,15 @@ data CompileState = CState
     _openedSub :: SubLoc,
     _currentHeaderId :: Maybe Text,
     _editEnabled :: Bool,
-    _replaceComputations :: Bool
+    _replaceComputations :: Bool,
+    _isComputation :: Text -> Bool
   }
 
 makeLenses ''CompileState
 
 initCState :: Document -> Id -> CompileState
 initCState doc i =
-  CState 1 [] True 0 0 False i doc (SubLoc []) 0 0 0 (SubLoc []) Nothing False True
+  CState 1 [] True 0 0 False i doc (SubLoc []) 0 0 0 (SubLoc []) Nothing False True (flip M.member $ doc ^. docComputations)
 
 type CompileM = StateT CompileState Handler
 
@@ -154,6 +155,7 @@ embedContent enableEdit repComps lvl subL i doc cnt checks = do
   let w = do
         Ace.setup
         Rcs.mathjax StaticR
+        Rcs.codeMenuCode
         [whamlet|
          $if not isEmbedded
            <p .checks-top>
@@ -225,10 +227,11 @@ compileBlock' (CodeBlock attr code) = do
   hdId <- use currentHeaderId
   redirUrl <- lift $ aceRedirect entry hdId subL
   buttonId <- newIdent
-  js <-
+  editFn <- newIdent
+  editFnJs <-
     lift $
-      Ace.editOnClick
-        buttonId
+      Ace.editFn
+        editFn
         divId
         language
         (NoteSubR (WId entry) $ WLoc loc)
@@ -239,19 +242,30 @@ compileBlock' (CodeBlock attr code) = do
           else
             [whamlet|
     <div ##{buttonId} .edit-code>
-      ✎
+      ⋯
   |]
   let cdId = attr ^. attrId
   attrs <- compileAttr attr
   codeCount %= (+ 1)
+  isComp <- use isComputation
+  render <- getUrlRender
   pure $ do
-    when edit js
+    when edit $ do
+      editFnJs
+      let quote = ("\"" <>) . (<> "\"")
+      let codeJsUrl =
+            if T.null cdId
+              then "null"
+              else quote $ render $ NoteNamedCodeR (WId entry) cdId
+      let compJsUrl =
+            if isComp cdId
+              then quote $ render $ EntryComputeR (WId entry) cdId
+              else "null"
+      toWidget [julius|setupCodeMenu(#{buttonId}, #{rawJS editFn}, #{rawJS codeJsUrl}, #{rawJS compJsUrl});|]
+
     [whamlet|
     <div ##{divId} class=#{cls} *{attrs}>
       ^{editW}
-      $if not (T.null cdId)
-        <a href=@{NoteNamedCodeR (WId entry) cdId} .open-code>
-          ^{openIcon}
       ^{widget}
     |]
 compileBlock' (BlockQuote bks) = do

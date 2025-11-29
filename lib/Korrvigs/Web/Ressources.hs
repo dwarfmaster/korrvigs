@@ -99,6 +99,9 @@ checkboxCode mkStatic = do
   popperJS mkStatic
   toWidget $ mkJs $(embedFile $ js "checkbox.js")
 
+codeMenuCode :: WidgetFor site ()
+codeMenuCode = toWidget $ mkJs $(embedFile $ js "code-menu.js")
+
 ace :: (Route Static -> Route site) -> WidgetFor site ()
 ace mkStatic =
   addScript $ mkStatic $ StaticRoute ["ace", "ace.js"] []

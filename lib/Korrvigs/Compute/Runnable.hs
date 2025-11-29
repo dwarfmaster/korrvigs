@@ -51,6 +51,9 @@ data Executable
   | CLang
   | CPPLang
   | NixData
+  | Python
+  | Lua
+  | Julia
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -143,6 +146,12 @@ mkExeProc CLang args _ = mkCLikeBuildScript "gcc -std=c23" "code.c" args
 mkExeProc CPPLang args _ = mkCLikeBuildScript "g++ -std=c++23" "code.cpp" args
 mkExeProc NixData _ _ =
   noCompile "data.nix" $ proc "nix" ["eval", "--impure", "--json", "--file", "data.nix"]
+mkExeProc Python args _ =
+  noCompile "code.py" $ proc "python3" $ "code.py" : (T.unpack <$> args)
+mkExeProc Lua args _ =
+  noCompile "code.lua" $ proc "lua" $ "code.lua" : (T.unpack <$> args)
+mkExeProc Julia args _ =
+  noCompile "code.jl" $ proc "julia" $ "code.jl" : (T.unpack <$> args)
 
 mkCLikeBuildScript :: Text -> FilePath -> [Text] -> ExeProc
 mkCLikeBuildScript gcc code args =
@@ -201,6 +210,9 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe CLang = stringUtf8 "c"
     buildExe CPPLang = stringUtf8 "cpp"
     buildExe NixData = stringUtf8 "nix"
+    buildExe Python = stringUtf8 "python"
+    buildExe Lua = stringUtf8 "lua"
+    buildExe Julia = stringUtf8 "julia"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

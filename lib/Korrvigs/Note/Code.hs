@@ -29,7 +29,10 @@ knownLanguages =
       ("dot", Graphviz),
       ("c", CLang),
       ("cpp", CPPLang),
-      ("nix", NixData)
+      ("nix", NixData),
+      ("python", Python),
+      ("lua", Lua),
+      ("julia", Julia)
     ]
 
 data AttrData = AttrData

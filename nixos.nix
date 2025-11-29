@@ -65,6 +65,9 @@ overlay: {
     pkgs.graphviz
     pkgs.gcc
     pkgs.nix
+    pkgs.python3Full
+    pkgs.luajit
+    pkgs.julia
   ];
 in {
   options.programs.korrvigs = {

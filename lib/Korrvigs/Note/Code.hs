@@ -26,7 +26,9 @@ knownLanguages =
       ("json", PlainJson),
       ("csv", PlainCsv),
       ("text", PlainText),
-      ("dot", Graphviz)
+      ("dot", Graphviz),
+      ("c", CLang),
+      ("cpp", CPPLang)
     ]
 
 data AttrData = AttrData

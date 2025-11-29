@@ -63,6 +63,7 @@ overlay: {
     pkgs.swi-prolog
     pkgs.chromium
     pkgs.graphviz
+    pkgs.gcc
   ];
 in {
   options.programs.korrvigs = {

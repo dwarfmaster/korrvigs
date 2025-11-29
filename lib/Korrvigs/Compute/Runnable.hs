@@ -48,6 +48,8 @@ data Executable
   | PlainCsv
   | PlainText
   | Graphviz
+  | CLang
+  | CPPLang
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -78,32 +80,79 @@ runDeps rbl =
             <> (runStdIn . _Just . _ArgResult)
         )
 
-runProc :: (MonadIO m) => (RunArg -> m Text) -> FilePath -> Runnable -> m CreateProcess
+data ExeProc = ExeProc
+  { _exeCode :: FilePath,
+    _exeCompileScript :: Maybe Text,
+    _exeRun :: CreateProcess
+  }
+
+makeLenses ''ExeProc
+
+noCompile :: FilePath -> CreateProcess -> ExeProc
+noCompile code = ExeProc code Nothing
+
+-- The first returned is an optional compilation step
+runProc ::
+  (MonadIO m) =>
+  (RunArg -> m Text) ->
+  FilePath ->
+  Runnable ->
+  m (Maybe CreateProcess, CreateProcess)
 runProc resolveArg tmp rbl = do
   args <- mapM resolveArg $ rbl ^. runArgs
-  let (script, prc) = mkExeProc (rbl ^. runExecutable) args (rbl ^. runType)
-  let scriptPath = joinPath [tmp, script]
+  let exePrc = mkExeProc (rbl ^. runExecutable) args (rbl ^. runType)
+  let scriptPath = joinPath [tmp, exePrc ^. exeCode]
   liftIO $ TIO.writeFile scriptPath $ rbl ^. runCode
   ev' <- M.fromList . fmap (T.pack *** T.pack) <$> liftIO getEnvironment
   ev'' <- mapM resolveArg $ rbl ^. runEnv
   let ev = M.union ev' ev''
-  pure $
-    prc
-      { cwd = Just tmp,
-        env = Just $ (T.unpack *** T.unpack) <$> M.toList ev
-      }
+  let runWithEnv = Just $ (T.unpack *** T.unpack) <$> M.toList ev
+  compilePrc <- forM (exePrc ^. exeCompileScript) $ \script -> do
+    liftIO $ TIO.writeFile (tmp </> "compile.sh") script
+    pure $
+      (proc "bash" ["compile.sh"])
+        { cwd = Just tmp,
+          env = runWithEnv
+        }
+  pure
+    ( compilePrc,
+      (exePrc ^. exeRun)
+        { cwd = Just tmp,
+          env = runWithEnv
+        }
+    )
 
-mkExeProc :: Executable -> [Text] -> RunnableType -> (FilePath, CreateProcess)
-mkExeProc Bash args _ = ("code.sh", proc "bash" $ "code.sh" : (T.unpack <$> args))
-mkExeProc SwiProlog args _ = ("code.pl", proc "swipl" $ "code.pl" : "--" : (T.unpack <$> args))
-mkExeProc PlainJson _ _ = ("data.json", proc "cat" ["data.json"])
-mkExeProc PlainCsv _ _ = ("data.csv", proc "cat" ["data.csv"])
-mkExeProc PlainText _ _ = ("data.txt", proc "cat" ["data.txt"])
-mkExeProc Graphviz _ tp = ("data.dot",) $ case tp of
+mkExeProc :: Executable -> [Text] -> RunnableType -> ExeProc
+mkExeProc Bash args _ =
+  noCompile "code.sh" $ proc "bash" $ "code.sh" : (T.unpack <$> args)
+mkExeProc SwiProlog args _ =
+  noCompile "code.pl" $ proc "swipl" $ "code.pl" : "--" : (T.unpack <$> args)
+mkExeProc PlainJson _ _ =
+  noCompile "data.json" $ proc "cat" ["data.json"]
+mkExeProc PlainCsv _ _ =
+  noCompile "data.csv" $ proc "cat" ["data.csv"]
+mkExeProc PlainText _ _ =
+  noCompile "data.txt" $ proc "cat" ["data.txt"]
+mkExeProc Graphviz _ tp = noCompile "data.dot" $ case tp of
   ScalarImage -> proc "dot" ["-Tjpg", "data.dot"]
   ScalarGraphic -> proc "dot" ["-Tpng", "data.dot"]
   VectorGraphic -> proc "dot" ["-Tsvg", "data.dot"]
   _ -> proc "false" []
+mkExeProc CLang args _ = mkCLikeBuildScript "gcc -std=c23" "code.c" args
+mkExeProc CPPLang args _ = mkCLikeBuildScript "g++ -std=c++23" "code.cpp" args
+
+mkCLikeBuildScript :: Text -> FilePath -> [Text] -> ExeProc
+mkCLikeBuildScript gcc code args =
+  ExeProc
+    { _exeCode = code,
+      _exeCompileScript =
+        Just $
+          T.unlines
+            [ gcc <> " -o korrvigs.out " <> T.pack code,
+              "chmod +x korrvigs.out"
+            ],
+      _exeRun = proc "./korrvigs.out" $ T.unpack <$> args
+    }
 
 hashRunnable ::
   (MonadFail m) =>
@@ -146,6 +195,8 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe PlainCsv = stringUtf8 "csv"
     buildExe PlainText = stringUtf8 "text"
     buildExe Graphviz = stringUtf8 "graphviz"
+    buildExe CLang = stringUtf8 "c"
+    buildExe CPPLang = stringUtf8 "cpp"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt
@@ -160,7 +211,7 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
       tell $ stringUtf8 $ T.unpack $ digestToHexa hash
 
 run ::
-  (MonadUnliftIO m) =>
+  (MonadUnliftIO m, MonadResource m) =>
   Runnable ->
   (FilePath -> RunArg -> m Text) ->
   ConduitT () ByteString m () -> -- stdin
@@ -168,12 +219,14 @@ run ::
   ConduitT ByteString Void m b -> -- stderr
   m (ExitCode, a, b)
 run rbl resolveArg stdin stdout stderr = withRunInIO $ \runInIO ->
-  withSystemTempDirectory "korrvigs" $ \tmp -> do
-    prc <- runProc (runInIO . resolveArg tmp) tmp rbl
-    runInIO $ sourceProcessWithStreams prc stdin stdout stderr
+  withSystemTempDirectory "korrvigs" $ \tmp -> runInIO $ do
+    (mCompilePrc, prc) <- liftIO $ runProc (runInIO . resolveArg tmp) tmp rbl
+    forM_ mCompilePrc $ \compilePrc ->
+      sourceProcessWithStreams compilePrc (sourceFile "/dev/null") sinkNull sinkNull
+    sourceProcessWithStreams prc stdin stdout stderr
 
 runInOut ::
-  (MonadUnliftIO m) =>
+  (MonadUnliftIO m, MonadResource m) =>
   Runnable ->
   (FilePath -> RunArg -> m Text) ->
   ConduitT () ByteString m () -> -- stdin
@@ -190,12 +243,14 @@ runOut ::
   ConduitT ByteString Void m b -> -- stderr
   m (ExitCode, a, b)
 runOut rbl resolveArg stdout stderr = withRunInIO $ \runInIO -> do
-  withSystemTempDirectory "korrvigs" $ \tmp -> runInIO $ case rbl ^. runStdIn of
-    Just stdinV -> do
-      stdinPath <- resolveArg tmp stdinV
-      prc <- liftIO $ runProc (runInIO . resolveArg tmp) tmp rbl
-      let stdin = sourceFile $ T.unpack stdinPath
-      sourceProcessWithStreams prc stdin stdout stderr
-    Nothing -> do
-      prc <- liftIO $ runProc (runInIO . resolveArg tmp) tmp rbl
-      sourceProcessWithStreams prc (sourceFile "/dev/null") stdout stderr
+  withSystemTempDirectory "korrvigs" $ \tmp -> runInIO $ do
+    (mCompilePrc, prc) <- liftIO $ runProc (runInIO . resolveArg tmp) tmp rbl
+    forM_ mCompilePrc $ \compilePrc ->
+      sourceProcessWithStreams compilePrc (sourceFile "/dev/null") sinkNull sinkNull
+    case rbl ^. runStdIn of
+      Just stdinV -> do
+        stdinPath <- resolveArg tmp stdinV
+        let stdin = sourceFile $ T.unpack stdinPath
+        sourceProcessWithStreams prc stdin stdout stderr
+      Nothing -> do
+        sourceProcessWithStreams prc (sourceFile "/dev/null") stdout stderr

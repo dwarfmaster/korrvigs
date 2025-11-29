@@ -64,6 +64,7 @@ overlay: {
     pkgs.chromium
     pkgs.graphviz
     pkgs.gcc
+    pkgs.nix
   ];
 in {
   options.programs.korrvigs = {

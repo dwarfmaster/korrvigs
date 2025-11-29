@@ -28,7 +28,8 @@ knownLanguages =
       ("text", PlainText),
       ("dot", Graphviz),
       ("c", CLang),
-      ("cpp", CPPLang)
+      ("cpp", CPPLang),
+      ("nix", NixData)
     ]
 
 data AttrData = AttrData

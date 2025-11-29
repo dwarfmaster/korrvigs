@@ -50,6 +50,7 @@ data Executable
   | Graphviz
   | CLang
   | CPPLang
+  | NixData
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -140,6 +141,8 @@ mkExeProc Graphviz _ tp = noCompile "data.dot" $ case tp of
   _ -> proc "false" []
 mkExeProc CLang args _ = mkCLikeBuildScript "gcc -std=c23" "code.c" args
 mkExeProc CPPLang args _ = mkCLikeBuildScript "g++ -std=c++23" "code.cpp" args
+mkExeProc NixData _ _ =
+  noCompile "data.nix" $ proc "nix" ["eval", "--impure", "--json", "--file", "data.nix"]
 
 mkCLikeBuildScript :: Text -> FilePath -> [Text] -> ExeProc
 mkCLikeBuildScript gcc code args =
@@ -197,6 +200,7 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe Graphviz = stringUtf8 "graphviz"
     buildExe CLang = stringUtf8 "c"
     buildExe CPPLang = stringUtf8 "cpp"
+    buildExe NixData = stringUtf8 "nix"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

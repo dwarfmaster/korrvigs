@@ -266,6 +266,7 @@ library korrvigs-lib
     , mime-types            ^>=0.1.2.0
     , monad-loops           ^>=0.4.3
     , mtl                   ^>=2.3.1
+    , neat-interpolation    ^>=0.5.1.4
     , network-uri           ^>=2.6.4.2
     , opaleye               ^>=0.10.2.0
     , optparse-applicative  ^>=0.18.1.0

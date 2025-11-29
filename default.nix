@@ -6,9 +6,9 @@
 , entropy, exceptions, extra, feed, file-embed, filepath
 , hmatrix-glpk, http-client, http-client-tls, http-conduit
 , http-types, HUnit, iconv, isbn, lens, lens-aeson, lib, linear
-, memory, mime-types, monad-loops, mtl, network-uri, opaleye
-, optparse-applicative, pandoc, pandoc-types, parsec
-, parsec3-numbers, password, postgresql-simple, process
+, memory, mime-types, monad-loops, mtl, neat-interpolation
+, network-uri, opaleye, optparse-applicative, pandoc, pandoc-types
+, parsec, parsec3-numbers, password, postgresql-simple, process
 , product-profunctors, profunctors, random, shakespeare, split, stm
 , tagsoup, template-haskell, temporary, text, text-builder
 , text-manipulate, time, tls, transformers, unix, utf8-string
@@ -29,13 +29,13 @@ mkDerivation {
     deepseq directory entropy exceptions extra feed file-embed filepath
     hmatrix-glpk http-client http-client-tls http-conduit http-types
     HUnit iconv isbn lens lens-aeson linear memory mime-types
-    monad-loops mtl network-uri opaleye optparse-applicative pandoc
-    pandoc-types parsec parsec3-numbers password postgresql-simple
-    process product-profunctors profunctors random shakespeare split
-    stm tagsoup template-haskell temporary text text-builder
-    text-manipulate time tls transformers unix utf8-string vector
-    xdg-basedir xml-conduit xml-types yaml yesod yesod-core
-    yesod-static
+    monad-loops mtl neat-interpolation network-uri opaleye
+    optparse-applicative pandoc pandoc-types parsec parsec3-numbers
+    password postgresql-simple process product-profunctors profunctors
+    random shakespeare split stm tagsoup template-haskell temporary
+    text text-builder text-manipulate time tls transformers unix
+    utf8-string vector xdg-basedir xml-conduit xml-types yaml yesod
+    yesod-core yesod-static
   ];
   testHaskellDepends = [ base HUnit ];
   doHaddock = false;

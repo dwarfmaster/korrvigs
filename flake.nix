@@ -59,6 +59,7 @@
             hpkgs.isbn
             hpkgs.feed
             hpkgs.conduit-aeson
+            hpkgs.neat-interpolation
           ]);
 
           git-hooks.hooks = {

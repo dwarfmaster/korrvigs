@@ -21,16 +21,27 @@ module Data.ERIS.Crypto
     erisUnpad,
     erisSmallBlockSize,
     erisBlockSize,
+    erisEncodeCapability,
+    erisEncodeCapabilityToText,
+    erisDecodeCapability,
+    erisDecodeCapabilityFromText,
   )
 where
 
 import Control.Exception (assert)
 import Control.Lens
+import Control.Monad ((>=>))
 import qualified Crypto.Cipher.ChaCha as ChaCha
 import Crypto.Hash
 import Crypto.MAC.KeyedBlake2
+import qualified Data.ByteArray as BA
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Base32 as B32
+import qualified Data.ByteString.Builder as Bld
+import qualified Data.ByteString.Lazy as LBS
+import Data.Text (Text)
+import qualified Data.Text.Encoding as Enc
 import Data.Word (Word8)
 
 checkBits :: (ByteString -> a) -> Int -> ByteString -> Maybe a
@@ -39,21 +50,11 @@ checkBits _ _ _ = Nothing
 
 type ERISBlock = ByteString
 
+-- Cryptographic Hash Function
 type ERISHashAlgorithm = Blake2b 256
 
 type ERISHash = Digest ERISHashAlgorithm
 
-data ERISCapability = ERISCapability
-  { _erisCapBlockSize :: Int,
-    _erisCapLevel :: Word8,
-    _erisCapRootRef :: ERISHash,
-    _erisCapRootKey :: ERISHash
-  }
-  deriving (Show)
-
-makeLenses ''ERISCapability
-
--- Cryptographic Hash Function
 newtype ERISHashKey = ERISHashKey {extractHashKey :: ByteString}
   deriving (Show)
 
@@ -104,3 +105,49 @@ erisSmallBlockSize = 1024
 
 erisBlockSize :: Int
 erisBlockSize = 32768
+
+-- Capabilities
+data ERISCapability = ERISCapability
+  { _erisCapBlockSize :: Int,
+    _erisCapLevel :: Word8,
+    _erisCapRootRef :: ERISHash,
+    _erisCapRootKey :: ERISHash
+  }
+  deriving (Show)
+
+makeLenses ''ERISCapability
+
+erisEncodeCapability :: ERISCapability -> ByteString
+erisEncodeCapability cap =
+  LBS.toStrict $ Bld.toLazyByteString $ bkSize <> lvl <> rootRef <> rootKey
+  where
+    bkSize =
+      Bld.word8 $ if cap ^. erisCapBlockSize == erisSmallBlockSize then 0x0a else 0x0f
+    lvl = Bld.word8 $ cap ^. erisCapLevel
+    rootRef = foldMap Bld.word8 $ BA.unpack $ cap ^. erisCapRootRef
+    rootKey = foldMap Bld.word8 $ BA.unpack $ cap ^. erisCapRootKey
+
+erisEncodeCapabilityToText :: ERISCapability -> Text
+erisEncodeCapabilityToText = B32.encodeBase32Unpadded . erisEncodeCapability
+
+erisDecodeCapability :: ByteString -> Maybe ERISCapability
+erisDecodeCapability bs | BS.length bs /= 66 = Nothing
+erisDecodeCapability bs = do
+  rootRef <- digestFromByteString rootRefBS
+  rootKey <- digestFromByteString rootKeyBS
+  pure $
+    ERISCapability
+      { _erisCapBlockSize = fromEnum $ BS.index bs 0,
+        _erisCapLevel = BS.index bs 1,
+        _erisCapRootRef = rootRef,
+        _erisCapRootKey = rootKey
+      }
+  where
+    (rootRefBS, rootKeyBS) = BS.splitAt 32 $ BS.drop 2 bs
+
+erisDecodeCapabilityFromText :: Text -> Maybe ERISCapability
+erisDecodeCapabilityFromText =
+  (eitherToMaybe . B32.decodeBase32 . Enc.encodeUtf8) >=> erisDecodeCapability
+  where
+    eitherToMaybe (Right v) = Just v
+    eitherToMaybe (Left _) = Nothing

@@ -31,6 +31,7 @@ library korrvigs-lib
     Data.ERIS.Crypto
     Data.ERIS.DB.Class
     Data.ERIS.DB.Plain
+    Data.ERIS.Encode
     Korrvigs
     Korrvigs.Calendar
     Korrvigs.Calendar.DAV

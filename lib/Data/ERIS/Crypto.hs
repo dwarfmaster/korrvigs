@@ -137,7 +137,8 @@ erisDecodeCapability bs = do
   rootKey <- digestFromByteString rootKeyBS
   pure $
     ERISCapability
-      { _erisCapBlockSize = fromEnum $ BS.index bs 0,
+      { _erisCapBlockSize =
+          if BS.index bs 0 == 0x0a then erisSmallBlockSize else erisBlockSize,
         _erisCapLevel = BS.index bs 1,
         _erisCapRootRef = rootRef,
         _erisCapRootKey = rootKey

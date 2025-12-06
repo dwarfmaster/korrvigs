@@ -3,6 +3,7 @@ module Korrvigs.Cli (main) where
 import qualified Korrvigs.Cli.ADB as Adb
 import qualified Korrvigs.Cli.Compute as Compute
 import qualified Korrvigs.Cli.Config as Config
+import qualified Korrvigs.Cli.ERIS as Eris
 import qualified Korrvigs.Cli.Event as Event
 import qualified Korrvigs.Cli.File as File
 import qualified Korrvigs.Cli.Import as Import
@@ -26,6 +27,7 @@ data Command
   | Compute Compute.Cmd
   | Adb Adb.Cmd
   | Import Import.Cmd
+  | Eris Eris.Cmd
 
 parser' :: Parser Command
 parser' =
@@ -41,6 +43,7 @@ parser' =
       <> command "compute" (Compute <$> Compute.parser)
       <> command "adb" (Adb <$> Adb.parser)
       <> command "import" (Import <$> Import.parser)
+      <> command "eris" (Eris <$> Eris.parser)
 
 parser :: ParserInfo Command
 parser =
@@ -61,6 +64,7 @@ run (Event cmd) = Event.run cmd
 run (Compute cmd) = Compute.run cmd
 run (Adb cmd) = Adb.run cmd
 run (Import cmd) = Import.run cmd
+run (Eris cmd) = Eris.run cmd
 
 main :: IO ()
 main = do

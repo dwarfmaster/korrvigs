@@ -86,6 +86,9 @@ instance MonadKorrvigs KorrM where
     tv <- view korrTokens
     liftIO $ atomically $ modifyTVar tv $ M.insert tok $ toJSON v
 
+instance MonadFail KorrM where
+  fail s = throwM $ KMiscError $ T.pack s
+
 runKorrM :: KorrConfig -> KorrM a -> IO (Either KorrvigsError a)
 runKorrM config act = do
   conn <- connectPostgreSQL $ Enc.encodeUtf8 $ config ^. kconfigPsql

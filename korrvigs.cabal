@@ -44,6 +44,7 @@ library korrvigs-lib
     Korrvigs.Cli.ADB
     Korrvigs.Cli.Compute
     Korrvigs.Cli.Config
+    Korrvigs.Cli.ERIS
     Korrvigs.Cli.Event
     Korrvigs.Cli.File
     Korrvigs.Cli.Import

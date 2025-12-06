@@ -32,5 +32,9 @@ instance (MonadIO m) => ERISBlockRead ERISFileDB m where
       path = dbPath (db ^. dbRoot) hsh
 
 instance (MonadIO m) => ERISBlockWrite ERISFileDB m where
-  erisBlockStoragePut db hsh =
-    liftIO . BS.writeFile (dbPath (db ^. dbRoot) hsh)
+  erisBlockStoragePut db hsh block = liftIO $ do
+    createDirectoryIfMissing True dir
+    BS.writeFile path block
+    where
+      path = dbPath (db ^. dbRoot) hsh
+      dir = takeDirectory path

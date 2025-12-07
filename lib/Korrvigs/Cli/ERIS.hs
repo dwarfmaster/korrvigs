@@ -1,11 +1,12 @@
 module Korrvigs.Cli.ERIS where
 
+import Conduit
 import Control.Lens hiding (argument, ignored)
-import Control.Monad.IO.Class
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import Data.ByteString.Base32
 import qualified Data.ByteString.Lazy as LBS
+import Data.Conduit.Combinators
 import Data.ERIS
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -72,8 +73,7 @@ run (Encode rt file isSmall) = do
 run (Decode rt cap) = case erisDecodeCapabilityFromText cap of
   Nothing -> liftIO $ putStrLn "Could not recognise capability"
   Just erisCap -> do
-    bs <- erisDecode (ERISFileDB rt) erisCap
-    liftIO $ LBS.putStr bs
+    runConduit $ erisDecodeStreaming (ERISFileDB rt) erisCap .| stdout
 run (Inspect cap) = case erisDecodeCapabilityFromText cap of
   Nothing -> liftIO $ putStrLn "Could not recognise capability"
   Just erisCap -> liftIO $ do

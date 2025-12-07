@@ -1,7 +1,9 @@
 module Data.ERIS.Decode where
 
+import Conduit
 import Control.Lens
 import Control.Monad
+import Control.Monad.Trans.Writer
 import Crypto.Hash
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -16,22 +18,23 @@ erisDecodeRecurse ::
   forall db m.
   (ERISBlockRead db m, MonadFail m) =>
   db ->
+  (ByteString -> m ()) ->
   Int ->
   Word8 ->
   Bool -> -- Indicates if block is right-most at this level
   ERISHash ->
   ERISHash ->
-  m Bld.Builder
-erisDecodeRecurse db blockSize level isRightmost reference key = do
+  m ()
+erisDecodeRecurse db doYield blockSize level isRightmost reference key = do
   node <- erisDereferenceNode db reference key level blockSize
   if level == 0
     then
       let dat = if isRightmost then erisUnpad node blockSize else node
-       in pure $ Bld.byteString dat
+       in doYield dat
     else do
       subNodes <-
         forM (refKeyPairs node) $ \(ref, ky, rightmost) ->
-          erisDecodeRecurse db blockSize (level - 1) (isRightmost && rightmost) ref ky
+          erisDecodeRecurse db doYield blockSize (level - 1) (isRightmost && rightmost) ref ky
       pure $ mconcat subNodes
   where
     decodeRefKey :: ByteString -> Maybe (ERISHash, ERISHash)
@@ -52,9 +55,16 @@ erisDecodeRecurse db blockSize level isRightmost reference key = do
 
 erisDecode :: (ERISBlockRead db m, MonadFail m) => db -> ERISCapability -> m LBS.ByteString
 erisDecode db cap = do
-  when (level > 0) $ erisVerifyKey db level rootReference rootKey blockSize
-  content <- erisDecodeRecurse db blockSize level True rootReference rootKey
+  content <- execWriterT $ erisDecode' db (tell . Bld.byteString) cap
   pure $ Bld.toLazyByteString content
+
+erisDecodeStreaming :: (ERISBlockRead db m, MonadFail m) => db -> ERISCapability -> ConduitT i ByteString m ()
+erisDecodeStreaming = flip erisDecode' yield
+
+erisDecode' :: (ERISBlockRead db m, MonadFail m) => db -> (ByteString -> m ()) -> ERISCapability -> m ()
+erisDecode' db doYield cap = do
+  when (level > 0) $ erisVerifyKey db level rootReference rootKey blockSize
+  erisDecodeRecurse db doYield blockSize level True rootReference rootKey
   where
     level = cap ^. erisCapLevel
     blockSize = cap ^. erisCapBlockSize

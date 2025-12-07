@@ -85,9 +85,9 @@ erisChaCha20 input key nonce = fst $ ChaCha.combine state input
 
 erisUnpad :: (MonadFail m) => ByteString -> Int -> m ByteString
 erisUnpad input blockSize = do
-  when (BS.length input < blockSize) $ fail "Unpad input smaller than blocksize"
-  when (BS.any (/= 0x00) pad) $ fail "Invalid padding"
-  when (BS.null content) $ fail "No padding"
+  when (BS.length input < blockSize) $ fail "unpad input smaller than blocksize"
+  when (BS.any (/= 0x00) pad) $ fail "invalid padding"
+  when (BS.null content) $ fail "no padding"
   pure $ BS.dropEnd 1 content
   where
     (content, pad) = BS.spanEnd (/= 0x80) input

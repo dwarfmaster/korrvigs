@@ -3,6 +3,7 @@ module Data.ERIS.Decode where
 import Conduit
 import Control.Lens
 import Control.Monad
+import Control.Monad.Loops (unfoldrM)
 import Control.Monad.Trans.Writer
 import Crypto.Hash
 import Data.ByteString (ByteString)
@@ -11,7 +12,6 @@ import qualified Data.ByteString.Builder as Bld
 import qualified Data.ByteString.Lazy as LBS
 import Data.ERIS.Crypto
 import Data.ERIS.DB.Class
-import Data.List (unfoldr)
 import Data.Word (Word8)
 
 erisDecodeRecurse ::
@@ -32,8 +32,9 @@ erisDecodeRecurse db doYield blockSize level isRightmost reference key = do
       dat <- if isRightmost then erisUnpad node blockSize else pure node
       unless (BS.null dat) $ doYield dat
     else do
+      pairs <- refKeyPairs node
       subNodes <-
-        forM (refKeyPairs node) $ \(ref, ky, rightmost) ->
+        forM pairs $ \(ref, ky, rightmost) ->
           erisDecodeRecurse db doYield blockSize (level - 1) (isRightmost && rightmost) ref ky
       pure $ mconcat subNodes
   where
@@ -44,14 +45,19 @@ erisDecodeRecurse db doYield blockSize level isRightmost reference key = do
       hashRef <- digestFromByteString ref
       hashKey <- digestFromByteString ky
       pure (hashRef, hashKey)
-    decodeOneRefKey :: ByteString -> Maybe ((ERISHash, ERISHash, Bool), ByteString)
-    decodeOneRefKey bs | BS.null bs = Nothing
-    decodeOneRefKey bs = do
+    decodeOneRefKey :: ByteString -> m (Maybe ((ERISHash, ERISHash, Bool), ByteString))
+    decodeOneRefKey bs | BS.null bs = pure Nothing
+    decodeOneRefKey bs =
       let (pair, rest) = BS.splitAt 64 bs
-      (ref, ky) <- decodeRefKey pair
-      pure ((ref, ky, BS.null rest || BS.all (== 0x00) (BS.take 64 rest)), rest)
-    refKeyPairs :: ByteString -> [(ERISHash, ERISHash, Bool)]
-    refKeyPairs = unfoldr decodeOneRefKey
+       in case decodeRefKey pair of
+            Nothing ->
+              if BS.all (== 0x00) rest
+                then pure Nothing
+                else fail "corrupted internal node"
+            Just (ref, ky) ->
+              pure $ Just ((ref, ky, BS.null rest || BS.all (== 0x00) (BS.take 64 rest)), rest)
+    refKeyPairs :: ByteString -> m [(ERISHash, ERISHash, Bool)]
+    refKeyPairs = unfoldrM decodeOneRefKey
 
 erisDecode :: (ERISBlockRead db m, MonadFail m) => db -> ERISCapability -> m LBS.ByteString
 erisDecode db cap = do

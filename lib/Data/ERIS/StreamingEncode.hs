@@ -2,6 +2,7 @@ module Data.ERIS.StreamingEncode where
 
 import Conduit
 import Control.Lens
+import Control.Monad
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.Conduit.Combinators as CC
@@ -75,7 +76,7 @@ erisEncodeBlock db conv blockSize state =
               _erisCapRootKey = rootKey
             }
         [] -> error "Empty state"
-        _ -> error "More than one root"
+        _ -> error $ "More than one root at level " <> show (st ^. level) <> ": " <> show (st ^. numBlocks)
       Just parent -> getRoot parent
 
 pushBlock ::
@@ -111,8 +112,12 @@ commitState ::
   Bool ->
   ERISEncodeState ->
   m ERISEncodeState
+commitState db conv blockSize force state | force && state ^. numBlocks == 0 = do
+  nparent <- forM (state ^. parentState) $ commitState db conv blockSize force
+  pure $ state & parentState .~ nparent
 commitState db conv blockSize force state
-  | (force && state ^. numBlocks > 1) || state ^. numBlocks >= arity = do
+  | (force && (isJust (state ^. parentState) || state ^. numBlocks > 1))
+      || state ^. numBlocks >= arity = do
       let lvl = state ^. level
       let ncontent = Encode.chunksToNode blockSize $ reverse $ state ^. encodedBlocks
       let pState = fromMaybe (mkState $ lvl + 1) $ state ^. parentState

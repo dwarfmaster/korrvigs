@@ -18,7 +18,6 @@ module Data.ERIS.Crypto
     mkErisNonce,
     mkErisNonceNum,
     erisChaCha20,
-    erisPad,
     erisUnpad,
     erisSmallBlockSize,
     erisBlockSize,
@@ -83,16 +82,6 @@ erisChaCha20 :: ByteString -> ERISHash -> ERISNonce -> ByteString
 erisChaCha20 input key nonce = fst $ ChaCha.combine state input
   where
     state = ChaCha.initialize 20 key (extractNonce nonce)
-
--- Padding
--- Implementation taken from here:
---   https://eris.codeberg.page/spec/#name-padding-algorithm
-erisPad :: ByteString -> Int -> ByteString
-erisPad input blockSize = BS.snoc input 0x80 <> pad
-  where
-    n = BS.length input
-    m = (blockSize - ((n + 1) `mod` blockSize)) `mod` blockSize
-    pad = BS.replicate m 0x00
 
 erisUnpad :: (MonadFail m) => ByteString -> Int -> m ByteString
 erisUnpad input blockSize = do

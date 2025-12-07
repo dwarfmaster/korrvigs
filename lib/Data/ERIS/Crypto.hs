@@ -29,9 +29,8 @@ module Data.ERIS.Crypto
   )
 where
 
-import Control.Exception (assert)
 import Control.Lens
-import Control.Monad ((>=>))
+import Control.Monad (when, (>=>))
 import qualified Crypto.Cipher.ChaCha as ChaCha
 import Crypto.Hash
 import Crypto.MAC.KeyedBlake2
@@ -95,11 +94,12 @@ erisPad input blockSize = BS.snoc input 0x80 <> pad
     m = (blockSize - ((n + 1) `mod` blockSize)) `mod` blockSize
     pad = BS.replicate m 0x00
 
-erisUnpad :: ByteString -> Int -> ByteString
-erisUnpad input blockSize =
-  assert (BS.length input >= blockSize) $
-    assert (BS.all (== 0x00) pad) $
-      BS.dropEnd 1 content
+erisUnpad :: (MonadFail m) => ByteString -> Int -> m ByteString
+erisUnpad input blockSize = do
+  when (BS.length input < blockSize) $ fail "Unpad input smaller than blocksize"
+  when (BS.any (/= 0x00) pad) $ fail "Invalid padding"
+  when (BS.null content) $ fail "No padding"
+  pure $ BS.dropEnd 1 content
   where
     (content, pad) = BS.spanEnd (/= 0x80) input
 

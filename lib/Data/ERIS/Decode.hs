@@ -28,9 +28,9 @@ erisDecodeRecurse ::
 erisDecodeRecurse db doYield blockSize level isRightmost reference key = do
   node <- erisDereferenceNode db reference key level blockSize
   if level == 0
-    then
-      let dat = if isRightmost then erisUnpad node blockSize else node
-       in unless (BS.null dat) $ doYield dat
+    then do
+      dat <- if isRightmost then erisUnpad node blockSize else pure node
+      unless (BS.null dat) $ doYield dat
     else do
       subNodes <-
         forM (refKeyPairs node) $ \(ref, ky, rightmost) ->

@@ -5,7 +5,6 @@ import Control.Lens hiding (argument, ignored)
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import Data.ByteString.Base32
-import qualified Data.ByteString.Lazy as LBS
 import Data.Conduit.Combinators
 import Data.ERIS
 import Data.Text (Text)
@@ -64,11 +63,11 @@ parser =
 
 run :: Cmd -> KorrM ()
 run (Encode rt file isSmall) = do
-  content <- liftIO $ maybe LBS.getContents LBS.readFile file
+  let input = maybe stdin sourceFile file
   let blockSize = if isSmall then erisSmallBlockSize else erisBlockSize
   let db = ERISFileDB rt
   conv <- throwMaybe (KMiscError "Invalid convergent secret") $ mkErisHashKey $ BS.replicate 32 0x00
-  cap <- erisEncode db content conv blockSize
+  cap <- runResourceT $ runConduit $ input .| erisEncodeStreaming db conv blockSize
   liftIO $ TIO.putStrLn $ erisEncodeCapabilityToText cap
 run (Decode rt cap) = case erisDecodeCapabilityFromText cap of
   Nothing -> liftIO $ putStrLn "Could not recognise capability"

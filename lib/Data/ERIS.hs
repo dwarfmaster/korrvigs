@@ -1,7 +1,7 @@
 module Data.ERIS
   ( module Data.ERIS.Crypto,
-    ConvergenceSecret,
     erisEncode,
+    erisEncodeStreaming,
     erisDecode,
     erisDecodeStreaming,
     module Data.ERIS.DB.Class,
@@ -14,4 +14,5 @@ import Data.ERIS.Crypto
 import Data.ERIS.DB.Class
 import Data.ERIS.DB.Plain
 import Data.ERIS.Decode (erisDecode, erisDecodeStreaming)
-import Data.ERIS.Encode (ConvergenceSecret, erisEncode)
+import Data.ERIS.Encode (erisEncode)
+import Data.ERIS.StreamingEncode (erisEncodeStreaming)

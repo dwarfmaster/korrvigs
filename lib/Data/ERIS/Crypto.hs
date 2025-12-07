@@ -2,6 +2,7 @@
 
 module Data.ERIS.Crypto
   ( ERISBlock,
+    ConvergenceSecret,
     ERISCapability (..),
     erisCapBlockSize,
     erisCapLevel,
@@ -47,6 +48,8 @@ import Data.Word (Word8)
 checkBits :: (ByteString -> a) -> Int -> ByteString -> Maybe a
 checkBits mk sz bs | BS.length bs == sz `div` 8 = Just $ mk bs
 checkBits _ _ _ = Nothing
+
+type ConvergenceSecret = ERISHashKey
 
 type ERISBlock = ByteString
 

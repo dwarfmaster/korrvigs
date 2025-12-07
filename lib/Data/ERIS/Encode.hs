@@ -12,8 +12,6 @@ import Data.List (unfoldr)
 import qualified Data.List.Split as Split
 import Data.Word (Word8)
 
-type ConvergenceSecret = ERISHashKey
-
 erisEncode ::
   forall db m.
   (ERISBlockWrite db m) =>
@@ -79,15 +77,17 @@ erisEncryptInternalNode node level = (block, reference, key)
     reference = erisBlake2b block
 
 erisConstructInternalNodes :: [(ERISHash, ERISHash)] -> Int -> [ByteString]
-erisConstructInternalNodes referenceKeyPairs blockSize = chunksToNode <$> chunks
+erisConstructInternalNodes referenceKeyPairs blockSize = chunksToNode blockSize <$> chunks
   where
     arity = blockSize `div` 64
     chunks = Split.chunksOf arity referenceKeyPairs
-    chunksToNode :: [(ERISHash, ERISHash)] -> ByteString
-    chunksToNode pairs =
-      let bld = foldMap (\(ref, k) -> toBld ref <> toBld k) pairs
-       in let bs = LBS.toStrict $ Bld.toLazyByteString bld
-           in let n = blockSize - BS.length bs
-               in bs <> BS.replicate n 0x00
+
+chunksToNode :: Int -> [(ERISHash, ERISHash)] -> ByteString
+chunksToNode blockSize pairs =
+  let bld = foldMap (\(ref, k) -> toBld ref <> toBld k) pairs
+   in let bs = LBS.toStrict $ Bld.toLazyByteString bld
+       in let n = blockSize - BS.length bs
+           in bs <> BS.replicate n 0x00
+  where
     toBld :: ERISHash -> Bld.Builder
     toBld = foldMap Bld.word8 . BA.unpack

@@ -18,18 +18,20 @@ erisDecodeRecurse ::
   db ->
   Int ->
   Word8 ->
+  Bool -> -- Indicates if block is right-most at this level
   ERISHash ->
   ERISHash ->
   m Bld.Builder
-erisDecodeRecurse db blockSize level reference key = do
+erisDecodeRecurse db blockSize level isRightmost reference key = do
   node <- erisDereferenceNode db reference key level blockSize
   if level == 0
-    then pure $ Bld.byteString node
+    then
+      let dat = if isRightmost then erisUnpad node blockSize else node
+       in pure $ Bld.byteString dat
     else do
       subNodes <-
-        forM (refKeyPairs node) $
-          uncurry $
-            erisDecodeRecurse db blockSize (level - 1)
+        forM (refKeyPairs node) $ \(ref, ky, rightmost) ->
+          erisDecodeRecurse db blockSize (level - 1) (isRightmost && rightmost) ref ky
       pure $ mconcat subNodes
   where
     decodeRefKey :: ByteString -> Maybe (ERISHash, ERISHash)
@@ -39,20 +41,20 @@ erisDecodeRecurse db blockSize level reference key = do
       hashRef <- digestFromByteString ref
       hashKey <- digestFromByteString ky
       pure (hashRef, hashKey)
-    decodeOneRefKey :: ByteString -> Maybe ((ERISHash, ERISHash), ByteString)
+    decodeOneRefKey :: ByteString -> Maybe ((ERISHash, ERISHash, Bool), ByteString)
     decodeOneRefKey bs | BS.null bs = Nothing
     decodeOneRefKey bs = do
       let (pair, rest) = BS.splitAt 64 bs
       (ref, ky) <- decodeRefKey pair
-      pure ((ref, ky), rest)
-    refKeyPairs :: ByteString -> [(ERISHash, ERISHash)]
+      pure ((ref, ky, BS.null rest), rest)
+    refKeyPairs :: ByteString -> [(ERISHash, ERISHash, Bool)]
     refKeyPairs = unfoldr decodeOneRefKey
 
-erisDecode :: (ERISBlockRead db m, MonadFail m) => db -> ERISCapability -> m ByteString
+erisDecode :: (ERISBlockRead db m, MonadFail m) => db -> ERISCapability -> m LBS.ByteString
 erisDecode db cap = do
   when (level > 0) $ erisVerifyKey db level rootReference rootKey blockSize
-  padded <- erisDecodeRecurse db blockSize level rootReference rootKey
-  pure $ erisUnpad (LBS.toStrict $ Bld.toLazyByteString padded) blockSize
+  content <- erisDecodeRecurse db blockSize level True rootReference rootKey
+  pure $ Bld.toLazyByteString content
   where
     level = cap ^. erisCapLevel
     blockSize = cap ^. erisCapBlockSize

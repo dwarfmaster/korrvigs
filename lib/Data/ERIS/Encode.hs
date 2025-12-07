@@ -18,7 +18,7 @@ erisEncode ::
   forall db m.
   (ERISBlockWrite db m) =>
   db ->
-  ByteString ->
+  LBS.ByteString ->
   ConvergenceSecret ->
   Int ->
   m ERISCapability
@@ -52,10 +52,15 @@ erisEncode db content convergenceSecret blockSize = do
       newReferenceKeyPairs <- mapM (prepareInternalNode level) nodes
       recurseLevels (level + 1) newReferenceKeyPairs
 
-erisSplitContent :: ByteString -> Int -> [ByteString]
-erisSplitContent content blockSize = chunksOf blockSize $ erisPad content blockSize
+erisSplitContent :: LBS.ByteString -> Int -> [ByteString]
+erisSplitContent content blockSize =
+  fmap (pad . LBS.toStrict) $ chunksOf (fromIntegral blockSize) $ LBS.snoc content 0x80
   where
-    chunksOf n = unfoldr (\bs -> guard (not $ BS.null bs) >> pure (BS.splitAt n bs))
+    chunksOf n = unfoldr (\bs -> guard (not $ LBS.null bs) >> pure (LBS.splitAt n bs))
+    pad bs
+      | BS.length bs < blockSize =
+          bs <> BS.replicate (blockSize - BS.length bs) 0x00
+    pad bs = bs
 
 erisEncryptLeafNode :: ByteString -> ConvergenceSecret -> (ERISBlock, ERISHash, ERISHash)
 erisEncryptLeafNode node convergenceSecret = (block, reference, key)

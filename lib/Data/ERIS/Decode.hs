@@ -30,7 +30,7 @@ erisDecodeRecurse db doYield blockSize level isRightmost reference key = do
   if level == 0
     then
       let dat = if isRightmost then erisUnpad node blockSize else node
-       in doYield dat
+       in unless (BS.null dat) $ doYield dat
     else do
       subNodes <-
         forM (refKeyPairs node) $ \(ref, ky, rightmost) ->
@@ -49,7 +49,7 @@ erisDecodeRecurse db doYield blockSize level isRightmost reference key = do
     decodeOneRefKey bs = do
       let (pair, rest) = BS.splitAt 64 bs
       (ref, ky) <- decodeRefKey pair
-      pure ((ref, ky, BS.null rest), rest)
+      pure ((ref, ky, BS.null rest || BS.all (== 0x00) (BS.take 64 rest)), rest)
     refKeyPairs :: ByteString -> [(ERISHash, ERISHash, Bool)]
     refKeyPairs = unfoldr decodeOneRefKey
 

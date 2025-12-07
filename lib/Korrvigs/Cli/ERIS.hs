@@ -18,6 +18,7 @@ data Cmd
   = Encode FilePath (Maybe FilePath) Bool
   | Decode FilePath Text
   | Inspect Text
+  | Test FilePath
 
 parser' :: Parser Cmd
 parser' =
@@ -53,6 +54,14 @@ parser' =
             )
             (progDesc "Inspect capability" <> header "korr eris inspect -- Inspect capability")
         )
+      <> command
+        "run-tests"
+        ( info
+            ( (Test <$> argument str (metavar "PATH" <> help "Path to ERIS test vectors"))
+                <**> helper
+            )
+            (progDesc "Run test vectors" <> header "korr eris run-tests -- Run test vectors")
+        )
 
 parser :: ParserInfo Cmd
 parser =
@@ -80,3 +89,4 @@ run (Inspect cap) = case erisDecodeCapabilityFromText cap of
     putStrLn $ "Block size: " <> show (erisCap ^. erisCapBlockSize)
     putStrLn $ "Reference: " <> T.unpack (encodeBase32Unpadded $ BS.pack $ BA.unpack $ erisCap ^. erisCapRootRef)
     putStrLn $ "Key: " <> T.unpack (encodeBase32Unpadded $ BS.pack $ BA.unpack $ erisCap ^. erisCapRootKey)
+run (Test dir) = liftIO $ runTests dir

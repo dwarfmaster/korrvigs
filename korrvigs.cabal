@@ -34,6 +34,7 @@ library korrvigs-lib
     Data.ERIS.Decode
     Data.ERIS.Encode
     Data.ERIS.StreamingEncode
+    Data.ERIS.Test
     Korrvigs
     Korrvigs.Calendar
     Korrvigs.Calendar.DAV

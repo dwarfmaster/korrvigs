@@ -116,7 +116,7 @@ data ERISCapability = ERISCapability
     _erisCapRootRef :: ERISHash,
     _erisCapRootKey :: ERISHash
   }
-  deriving (Show)
+  deriving (Show, Eq)
 
 makeLenses ''ERISCapability
 

@@ -7,6 +7,7 @@ module Data.ERIS
     module Data.ERIS.DB.Class,
     ERISFileDB (..),
     dbRoot,
+    runTests,
   )
 where
 
@@ -16,3 +17,4 @@ import Data.ERIS.DB.Plain
 import Data.ERIS.Decode (erisDecode, erisDecodeStreaming)
 import Data.ERIS.Encode (erisEncode)
 import Data.ERIS.StreamingEncode (erisEncodeStreaming)
+import Data.ERIS.Test (runTests)

@@ -21,9 +21,6 @@ instance (ERISBlockRead db m) => ERISBlockRead db (ReaderT a m) where
 instance (Monoid a, ERISBlockRead db m) => ERISBlockRead db (WriterT a m) where
   erisBlockStorageGet db hsh = lift $ erisBlockStorageGet db hsh
 
-instance (ERISBlockRead db m) => ERISBlockRead db (StateT a m) where
-  erisBlockStorageGet db hsh = lift $ erisBlockStorageGet db hsh
-
 instance (Monoid w, ERISBlockRead db m) => ERISBlockRead db (RWST r w s m) where
   erisBlockStorageGet db hsh = lift $ erisBlockStorageGet db hsh
 
@@ -38,9 +35,6 @@ instance (ERISBlockWrite db m) => ERISBlockWrite db (ReaderT a m) where
   erisBlockStoragePut db hsh = lift . erisBlockStoragePut db hsh
 
 instance (Monoid a, ERISBlockWrite db m) => ERISBlockWrite db (WriterT a m) where
-  erisBlockStoragePut db hsh = lift . erisBlockStoragePut db hsh
-
-instance (ERISBlockWrite db m) => ERISBlockWrite db (StateT a m) where
   erisBlockStoragePut db hsh = lift . erisBlockStoragePut db hsh
 
 instance (Monoid w, ERISBlockWrite db m) => ERISBlockWrite db (RWST r w s m) where

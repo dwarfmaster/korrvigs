@@ -138,7 +138,7 @@ runOneTest :: ERISTestVector -> IO (Int, Int)
 runOneTest vector = case vector ^. erisTestType of
   ERISTestPositive content convSecret blockSize ->
     runTestPositive vector content convSecret blockSize
-  ERISTestNegative -> pure (0, 0)
+  ERISTestNegative -> runTestNegative vector
 
 wrapPositiveTest :: Text -> IO Bool -> IO Bool
 wrapPositiveTest nm test = do
@@ -185,4 +185,35 @@ runTestPositive vector content convergenceSecret blockSize = do
     pure $ lbsStream == lcontent
   -- Conclusion
   let results = [encPlainSuccess, encStreamSuccess, decPlainSuccess, decStreamSuccess]
+  pure (sum $ fromEnum <$> results, length results)
+
+wrapNegativeTest :: Text -> IO Bool -> IO Bool
+wrapNegativeTest nm test = do
+  putStr nm
+  let toRun = do
+        r <- test >>= evaluate
+        displaySuccess r
+        pure r
+  catch
+    toRun
+    (\(e :: SomeException) -> putStrLn (" [✓]: " <> T.pack (show e)) >> pure True)
+
+runTestNegative :: ERISTestVector -> IO (Int, Int)
+runTestNegative vector = do
+  -- Plain decode
+  decPlainSuccess <- wrapNegativeTest "Plain decode" $ do
+    void $
+      evalStateT
+        (erisDecode ERISInMemoryDB $ vector ^. erisTestCapability)
+        (vector ^. erisTestBlocks)
+    pure False
+  -- Stream decode
+  decStreamSuccess <- wrapNegativeTest "Stream decode" $ do
+    void $
+      evalStateT
+        (runConduit $ erisDecodeStreaming ERISInMemoryDB (vector ^. erisTestCapability) .| sinkLazy)
+        (vector ^. erisTestBlocks)
+    pure False
+  -- Conclusion
+  let results = [decPlainSuccess, decStreamSuccess]
   pure (sum $ fromEnum <$> results, length results)

@@ -346,9 +346,9 @@ compileBlock' (Collection col nm items) = do
   let checks = foldr (updChecks . snd) def dat
   wdg <- lift $ displayResults col True dat
   i <- use currentEntry
-  rtLevel <- use hdRootLevel
-  webId <- if rtLevel > 1 then newIdent else pure nm
-  cl <- lift $ colWidget i webId wdg
+  isEmbedded <- use embedded
+  webId <- if isEmbedded then newIdent else pure nm
+  cl <- lift $ colWidget i nm webId wdg
   pure $ do
     propagateChecks webId checks
     cl
@@ -371,8 +371,8 @@ compileBlock' (Syndicate nm onlyNew ids) = do
         def
           & Syn.renderOnlyNew .~ onlyNew
           & Syn.renderShowSyndicate .~ True
-  rtLevel <- use hdRootLevel
-  webId <- if rtLevel > 1 then newIdent else pure nm
+  isEmbedded <- use embedded
+  webId <- if isEmbedded then newIdent else pure nm
   pure
     [whamlet|
     <details .collection ##{webId} open="true">
@@ -425,11 +425,11 @@ compileBlock' (Table tbl) = do
       ^{captionW}
   |]
 
-colWidget :: Id -> Text -> Widget -> Handler Widget
-colWidget i nm widget = do
+colWidget :: Id -> Text -> Text -> Widget -> Handler Widget
+colWidget i nm webId widget = do
   pure
     [whamlet|
-    <details .collection ##{nm} open="true">
+    <details .collection ##{webId} open="true">
       <summary>
         ##{nm}
         <a href=@{NoteColR (WId i) nm}>
@@ -479,19 +479,22 @@ embedBody i lvl =
 
 compileAttrWithClasses :: [Text] -> Attr -> CompileM [(Text, Text)]
 compileAttrWithClasses cls attr = do
-  rtLevel <- use hdRootLevel
+  isEmbedded <- use embedded
   pure $
-    [("id", attr ^. attrId) | not (T.null $ attr ^. attrId) && rtLevel == 1]
+    [("id", attr ^. attrId) | not (T.null $ attr ^. attrId) && not isEmbedded]
       ++ [("class", T.intercalate " " $ cls ++ (attr ^. attrClasses))]
       ++ M.toList (attr ^. attrMtdt)
 
 compileAttr :: Attr -> CompileM [(Text, Text)]
 compileAttr = compileAttrWithClasses []
 
-compileAttr' :: Attr -> Html -> Html
-compileAttr' (MkAttr i clss misc) = applyId . applyClasses . applyMisc
+compileAttr' :: Attr -> Html -> CompileM Html
+compileAttr' (MkAttr i clss misc) html = do
+  isEmbedded <- use embedded
+  uId <- if isEmbedded then pure "" else pure i
+  pure $ applyId uId . applyClasses . applyMisc $ html
   where
-    applyId = if T.null i then id else applyAttr $ Attr.id $ textValue i
+    applyId usedId = if T.null usedId then id else applyAttr $ Attr.id $ textValue usedId
     applyClasses = if null clss then id else applyAttr $ Attr.class_ $ textValue $ T.intercalate " " clss
     applyMisc = appEndo $ foldMap (\(k, v) -> Endo $ applyAttr $ customAttribute (textTag k) $ textValue v) $ M.toList misc
 
@@ -622,14 +625,16 @@ compileInline (Styled SubScript inls) = do
 compileInline (Styled SuperScript inls) = do
   (inlsH, inlsW) <- compileInlines' inls
   pure (Html.sup inlsH, inlsW)
-compileInline (Code attr txt) =
-  pure (compileAttr' attr $ Html.code $ toMarkup txt, mempty)
+compileInline (Code attr txt) = do
+  html <- compileAttr' attr $ Html.code $ toMarkup txt
+  pure (html, mempty)
 compileInline (Link attr inls tgt) = do
   (inlsH, inlsW) <- compileInlines' inls
   render <- getUrlRender
   let link = textValue $ render $ EntryR $ WId tgt
+  html <- compileAttr' attr $ Html.a inlsH
   lift isPublic >>= \case
-    False -> pure (applyAttr (Attr.href link) $ compileAttr' attr $ Html.a inlsH, inlsW)
+    False -> pure (applyAttr (Attr.href link) html, inlsW)
     True -> do
       isFile <- lift $ rSelectOne $ do
         file <- selectTable filesTable
@@ -641,7 +646,7 @@ compileInline (Link attr inls tgt) = do
         Just () -> do
           route <- lift $ mkPublic $ EntryDownloadR $ WId tgt
           let pubLink = textValue $ render route
-          pure (applyAttr (Attr.href pubLink) $ compileAttr' attr $ Html.a inlsH, inlsW)
+          pure (applyAttr (Attr.href pubLink) html, inlsW)
 compileInline (Cite i) = do
   render <- getUrlRender
   let link = textValue $ render $ EntryR $ WId i

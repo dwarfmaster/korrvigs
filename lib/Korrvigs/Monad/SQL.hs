@@ -200,8 +200,8 @@ data SyncData = SyncData
 
 makeLenses ''SyncData
 
-syncSQL :: (MonadKorrvigs m) => Bool -> Map Id Int -> SyncData -> m ()
-syncSQL updateCompDeps nameToId dt = atomicSQL $ \conn -> do
+syncSQL :: (MonadKorrvigs m) => Bool -> Map Id Int -> SyncData -> m (Map Id Int)
+syncSQL updateCompDeps nameToId' dt = atomicSQL $ \conn -> do
   let i = dt ^. syncEntryRow . sqlEntryName
   -- Update entry
   mprev :: [EntryRowR] <- runSelect conn $ limit 1 $ do
@@ -238,6 +238,7 @@ syncSQL updateCompDeps nameToId dt = atomicSQL $ \conn -> do
               uReturning = rCount
             }
       pure sqlI
+  let nameToId = M.insert i sqlI nameToId'
   -- Insert into kind specific table
   forM_ (dt ^. syncDataRows $ sqlI) $ runInsert conn
   -- Optionally set textContent
@@ -327,6 +328,7 @@ syncSQL updateCompDeps nameToId dt = atomicSQL $ \conn -> do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
+  pure nameToId
 
 syncRelsSQL :: (MonadKorrvigs m) => Int -> [Int] -> [Int] -> m ()
 syncRelsSQL i subsOf relsTo = atomicSQL $ \conn -> do

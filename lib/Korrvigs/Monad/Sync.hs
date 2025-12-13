@@ -82,7 +82,7 @@ runSync ::
 runSync kdTxt dt = do
   (tm, r) <- measureTime dt
   liftIO $ putStrLn $ kdTxt <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
-  let handleSyncData sdt = (sdt ^. syncParents, sdt ^. syncRefs, flattenMap $ sdt ^. syncCompute, syncSQL False M.empty sdt)
+  let handleSyncData sdt = (sdt ^. syncParents, sdt ^. syncRefs, flattenMap $ sdt ^. syncCompute, void $ syncSQL False M.empty sdt)
   pure $ handleSyncData . fixSyncData <$> r
 
 runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id ([Id], [Id], [(Text, (Id, Text))], m ()))
@@ -167,8 +167,8 @@ syncFileImpl ::
   m ()
 syncFileImpl i sdt' = do
   let sdt = fixSyncData sdt'
-  nameToId <- nameToIdMap
-  syncSQL True nameToId sdt
+  nameToId' <- nameToIdMap
+  nameToId <- syncSQL True nameToId' sdt
   forM_ (M.lookup i nameToId) $ \sqlI -> do
     syncRelsSQL
       sqlI

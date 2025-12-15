@@ -11,12 +11,14 @@ import qualified Korrvigs.Cli.Info as Info
 import Korrvigs.Cli.Monad
 import qualified Korrvigs.Cli.Note as Note
 import qualified Korrvigs.Cli.Query as Query
+import qualified Korrvigs.Cli.Remove as Rm
 import qualified Korrvigs.Cli.Server as Server
 import qualified Korrvigs.Cli.Sync as Sync
 import Options.Applicative
 
 data Command
   = Info Info.Cmd
+  | Remove Rm.Cmd
   | Note Note.Cmd
   | File File.Cmd
   | Sync Sync.Cmd
@@ -33,6 +35,7 @@ parser' :: Parser Command
 parser' =
   subparser $
     command "info" (Info <$> Info.parser)
+      <> command "remove" (Remove <$> Rm.parser)
       <> command "note" (Note <$> Note.parser)
       <> command "file" (File <$> File.parser)
       <> command "sync" (Sync <$> Sync.parser)
@@ -54,6 +57,7 @@ parser =
 
 run :: Command -> KorrM ()
 run (Info cmd) = Info.run cmd
+run (Remove cmd) = Rm.run cmd
 run (Note cmd) = Note.run cmd
 run (File cmd) = File.run cmd
 run (Sync cmd) = Sync.run cmd

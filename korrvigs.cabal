@@ -55,6 +55,7 @@ library korrvigs-lib
     Korrvigs.Cli.New
     Korrvigs.Cli.Note
     Korrvigs.Cli.Query
+    Korrvigs.Cli.Remove
     Korrvigs.Cli.Server
     Korrvigs.Cli.Sync
     Korrvigs.Compute

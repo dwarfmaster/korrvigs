@@ -7,6 +7,7 @@ import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.Aeson.Encoding as JEnc
 import qualified Data.ByteString.Lazy.UTF8 as BSL8
+import Data.Default
 import Data.List (intercalate)
 import qualified Data.Map as M
 import Data.Maybe
@@ -87,6 +88,15 @@ sortParser =
     <$> option criterionParser (long "sort" <> help "Criterion to sort results by, default to id" <> value ById)
     <*> flag SortAsc SortDesc (long "descending" <> help "Invert sorting criterion")
 
+mkRel :: [Id] -> Maybe QueryRel
+mkRel [] = Nothing
+mkRel ids =
+  Just $
+    QueryRel
+      { _relRec = False,
+        _relOther = def & queryId .~ ids
+      }
+
 queryParser :: Parser Query
 queryParser =
   Query
@@ -100,10 +110,10 @@ queryParser =
     <*> optional (option kindParser (long "kind" <> help "Entry must be of provided kind"))
     <*> many (option mtdtQueryParser (long "mtdt" <> help "Add metadata conditions"))
     <*> optional (option colParser (long "incol" <> help "Entries must be in collection"))
-    <*> pure Nothing
-    <*> pure Nothing
-    <*> pure Nothing
-    <*> pure Nothing
+    <*> fmap mkRel (many $ MkId <$> option str (long "sub-of" <> help "Entry must be sub of one of the entries specified by ID"))
+    <*> fmap mkRel (many $ MkId <$> option str (long "parent-of" <> help "Entry must be parent of one of the entries specified by ID"))
+    <*> fmap mkRel (many $ MkId <$> option str (long "mentioning" <> help "Entry must be mentioning one of the entries specified by ID"))
+    <*> fmap mkRel (many $ MkId <$> option str (long "mentioned-by" <> help "Entry must be mentionned by one of the entries specified by ID"))
     <*> switch (long "show-hidden" <> help "Show hidden entries in search result")
     <*> sortParser
     <*> optional (option auto (long "limit" <> help "Limit the number of results"))

@@ -5,6 +5,7 @@ import qualified Data.ByteString as BS
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Enc
+import qualified Data.Text.IO as TIO
 import Korrvigs.Entry
 import qualified Korrvigs.File.Mtdt.GPX as GPX
 import Korrvigs.Geometry
@@ -52,14 +53,26 @@ imgWidget file =
   |]
 
 textWidget :: File -> Handler Widget
-textWidget file =
-  let i = file ^. fileEntry . entryName
-   in let mime = Enc.decodeUtf8 $ file ^. fileMime
-       in pure
-            [whamlet|
-    <code>
-      <object data=@{EntryDownloadR $ WId i} type=#{mime}>
-  |]
+textWidget file = do
+  txt <- liftIO $ TIO.readFile $ file ^. filePath
+  pure $ do
+    toWidget
+      [cassius|
+      pre
+        padding: 0.5em
+        box-sizing: border-box
+        width: 100%
+        overflow-x: scroll
+        background-color: var(--base00)
+        color: var(--base07)
+      code
+        width: 100%
+    |]
+    [whamlet|
+      <pre>
+        <code>
+          ^{txt}
+    |]
 
 pdfWidget :: File -> Handler Widget
 pdfWidget file =

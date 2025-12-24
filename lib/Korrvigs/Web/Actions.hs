@@ -20,6 +20,7 @@ import qualified Data.Map as M
 import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Monad
@@ -216,13 +217,16 @@ runPostM getForm runner tgt = do
     catcher :: KorrvigsError -> Handler ActionReaction
     catcher err = do
       render <- getUrlRenderParams
+      let errMsg = case err of
+            KMiscError e -> e
+            _ -> T.pack $ show err
       pure $
         def
           & reactMsg
             ?~ [hamlet|
         <p>Action failed:
 
-        <pre>#{show err}
+        <pre>#{errMsg}
       |]
               render
 
@@ -378,6 +382,9 @@ actionsWidget tgt = do
         width: 100%
       #actions-form-container
         width: 100%
+      #actions-form-container pre
+        width: 100%
+        overflow-x: scroll
     |]
     toWidget $ case tgt of
       TargetSearch _ _ -> [julius|setupActions("query-form");|]

@@ -213,13 +213,22 @@ compileBlock' (CodeBlock attr code) = do
   repComp <- use replaceComputations
   let edit = not public && enableEdit
   let language = fromMaybe "text" $ find Ace.isLanguage $ attr ^. attrClasses
-  (cls, widget) <-
-    use currentDoc >>= \doc -> case if repComp then M.lookup (attr ^. attrId) (doc ^. docComputations) else Nothing of
-      Just (tp, _, res) -> do
+  let displayKind = M.lookup "display" $ attr ^. attrMtdt
+  let resWidget tp res = do
         i <- use currentEntry
         widget <- lift $ resultWidget i (attr ^. attrId) tp res
         pure ("computation-result" :: Text, widget)
-      Nothing -> lift $ ("sourceCode",) <$> Ace.preview code language
+  let aceWidget = lift $ ("sourceCode",) <$> Ace.preview code language
+  widgets <-
+    use currentDoc >>= \doc -> case if repComp then M.lookup (attr ^. attrId) (doc ^. docComputations) else Nothing of
+      Just (tp, _, res) -> case displayKind of
+        Just "code" -> singleton . (True,) <$> aceWidget
+        Just "both" -> do
+          aceW <- aceWidget
+          resW <- resWidget tp res
+          pure [(True, aceW), (False, resW)]
+        _ -> singleton . (True,) <$> resWidget tp res
+      Nothing -> singleton . (True,) <$> aceWidget
   entry <- use currentEntry
   subL <- use subLoc
   codeO <- use codeCount
@@ -264,9 +273,11 @@ compileBlock' (CodeBlock attr code) = do
       toWidget [julius|setupCodeMenu(#{buttonId}, #{rawJS editFn}, #{rawJS codeJsUrl}, #{rawJS compJsUrl});|]
 
     [whamlet|
-    <div ##{divId} class=#{cls} *{attrs}>
-      ^{editW}
-      ^{widget}
+    $forall (edit,(cls,widget)) <- widgets
+      <div ##{divId} class=#{cls} *{attrs}>
+        $if edit
+          ^{editW}
+        ^{widget}
     |]
 compileBlock' (BlockQuote bks) = do
   bksW <- compileBlocks bks

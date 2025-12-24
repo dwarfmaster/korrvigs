@@ -164,9 +164,9 @@ mkExeProc Raku args _ =
   noCompile "code.raku" $ proc "raku" $ "code.raku" : (T.unpack <$> args)
 mkExeProc Perl args _ =
   noCompile "code.pl" $ proc "perl" $ "code.pl" : (T.unpack <$> args)
-mkExeProc Haskell args _ = mkCLikeBuildScript "code.hs" "ghc" args
-mkExeProc Rust args _ = mkCLikeBuildScript "code.rs" "rustc" args
-mkExeProc OCaml args _ = mkCLikeBuildScript "code.ml" "ocamlc" args
+mkExeProc Haskell args _ = mkCLikeBuildScript "ghc" "code.hs" args
+mkExeProc Rust args _ = mkCLikeBuildScript "rustc" "code.rs" args
+mkExeProc OCaml args _ = mkCLikeBuildScript "ocamlc" "code.ml" args
 
 mkCLikeBuildScript :: Text -> FilePath -> [Text] -> ExeProc
 mkCLikeBuildScript gcc code args =
@@ -243,6 +243,23 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
       tell $ char8 'e'
       tell $ stringUtf8 $ T.unpack $ digestToHexa hash
 
+runImpl ::
+  (MonadUnliftIO m, MonadResource m) =>
+  Runnable ->
+  FilePath ->
+  (FilePath -> RunArg -> m Text) ->
+  ConduitT () ByteString m () -> -- stdin
+  ConduitT ByteString Void m a -> -- stdout
+  ConduitT ByteString Void m b -> -- stderr
+  m (ExitCode, a, b)
+runImpl rbl tmp resolveArg stdin stdout stderr = do
+  (mCompilePrc, prc) <- runProc (resolveArg tmp) tmp rbl
+  compResult <- forM mCompilePrc $ \compilePrc ->
+    sourceProcessWithStreams compilePrc (sourceFile "/dev/null") stdout stderr
+  case compResult of
+    Just (ExitFailure e, a, b) -> pure (ExitFailure e, a, b)
+    _ -> sourceProcessWithStreams prc stdin stdout stderr
+
 run ::
   (MonadUnliftIO m, MonadResource m) =>
   Runnable ->
@@ -252,11 +269,8 @@ run ::
   ConduitT ByteString Void m b -> -- stderr
   m (ExitCode, a, b)
 run rbl resolveArg stdin stdout stderr = withRunInIO $ \runInIO ->
-  withSystemTempDirectory "korrvigs" $ \tmp -> runInIO $ do
-    (mCompilePrc, prc) <- liftIO $ runProc (runInIO . resolveArg tmp) tmp rbl
-    forM_ mCompilePrc $ \compilePrc ->
-      sourceProcessWithStreams compilePrc (sourceFile "/dev/null") sinkNull sinkNull
-    sourceProcessWithStreams prc stdin stdout stderr
+  withSystemTempDirectory "korrvigs" $ \tmp ->
+    runInIO $ runImpl rbl tmp resolveArg stdin stdout stderr
 
 runInOut ::
   (MonadUnliftIO m, MonadResource m) =>
@@ -277,13 +291,9 @@ runOut ::
   m (ExitCode, a, b)
 runOut rbl resolveArg stdout stderr = withRunInIO $ \runInIO -> do
   withSystemTempDirectory "korrvigs" $ \tmp -> runInIO $ do
-    (mCompilePrc, prc) <- liftIO $ runProc (runInIO . resolveArg tmp) tmp rbl
-    forM_ mCompilePrc $ \compilePrc ->
-      sourceProcessWithStreams compilePrc (sourceFile "/dev/null") sinkNull sinkNull
-    case rbl ^. runStdIn of
-      Just stdinV -> do
-        stdinPath <- resolveArg tmp stdinV
-        let stdin = sourceFile $ T.unpack stdinPath
-        sourceProcessWithStreams prc stdin stdout stderr
-      Nothing -> do
-        sourceProcessWithStreams prc (sourceFile "/dev/null") stdout stderr
+    let stdin = case rbl ^. runStdIn of
+          Just stdinV -> do
+            stdinPath <- lift $ resolveArg tmp stdinV
+            sourceFile $ T.unpack stdinPath
+          Nothing -> sourceFile "/dev/null"
+    runImpl rbl tmp resolveArg stdin stdout stderr

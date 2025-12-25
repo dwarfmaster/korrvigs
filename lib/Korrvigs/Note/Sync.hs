@@ -159,6 +159,7 @@ updateRef note old new =
   where
     upd = maybe id S.insert new . S.delete old
 
+-- TODO update ref in computations attrs
 updateRefBlock :: Id -> Maybe Id -> Block -> Maybe Block
 updateRefBlock old new (Para inls) = pure $ Para $ updateRefInline old new =<< inls
 updateRefBlock old new (LineBlock inls) =

@@ -4,7 +4,7 @@ module Korrvigs.Monad.Metadata
     updateDate,
     updateTitle,
     listCompute,
-    updateRef,
+    updateRefs,
   )
 where
 
@@ -26,8 +26,9 @@ import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
 import qualified Korrvigs.Kind as Kd
 import Korrvigs.Monad.Class
-import Korrvigs.Monad.SQL (idMetadata, indexedMetadata, load)
+import Korrvigs.Monad.SQL (idMetadata, indexedMetadata, loadSql)
 import Korrvigs.Monad.Sync (syncOne)
+import Korrvigs.Note.SQL
 import qualified Korrvigs.Note.Sync as Note
 import qualified Korrvigs.Syndicate.Sync as Syn
 import Opaleye hiding (not, null)
@@ -137,6 +138,16 @@ listCompute i =
     where_ $ name .== sqlId i
     pure $ cmp ^. sqlCompName
 
+updateRefs :: (MonadKorrvigs m) => Entry -> Maybe Id -> m ()
+updateRefs oldEntry new = do
+  subs <- rSelect $ selectSourcesFor entriesSubTable $ sqlInt4 $ oldEntry ^. entryId
+  refs <- rSelect $ selectSourcesFor entriesRefTable $ sqlInt4 $ oldEntry ^. entryId
+  forM_ (S.fromList subs <> S.fromList refs) $
+    loadSql >=> \case
+      Nothing -> pure ()
+      Just other -> updateRef other (oldEntry ^. entryName) new
+  updateRefSQL oldEntry new
+
 updateRef :: (MonadKorrvigs m) => Entry -> Id -> Maybe Id -> m ()
 updateRef entry old new = do
   case entry ^. entryKindData of
@@ -145,42 +156,72 @@ updateRef entry old new = do
     EventD ev -> Event.updateRef ev old new
     CalendarD cal -> Cal.updateRef cal old new
     SyndicateD syn -> Syn.updateRef syn old new
-  oldEntry <- load old >>= throwMaybe (KCantLoad old "Failed to load entry to replace")
-  newEntry <- forM new $ \nwId -> load nwId >>= throwMaybe (KCantLoad nwId "Failed to load replicing entry")
-  rels :: [Int] <- rSelect $ selectSourcesFor entriesRefTable $ sqlInt4 $ oldEntry ^. entryId
-  subs :: [Int] <- rSelect $ selectSourcesFor entriesSubTable $ sqlInt4 $ oldEntry ^. entryId
+
+updateRefSQL :: (MonadKorrvigs m) => Entry -> Maybe Id -> m ()
+updateRefSQL oldEntry new = do
+  let old = oldEntry ^. entryName
   atomicSQL $ \conn -> do
-    void $
-      runDelete conn $
-        Delete
-          { dTable = entriesRefTable,
-            dWhere = \ref -> ref ^. target .== sqlInt4 (oldEntry ^. entryId),
-            dReturning = rCount
-          }
-    void $
-      runDelete conn $
-        Delete
-          { dTable = entriesSubTable,
-            dWhere = \ref -> ref ^. target .== sqlInt4 (oldEntry ^. entryId),
-            dReturning = rCount
-          }
-    forM_ newEntry $ \ne -> do
+    -- Update sub and ref tables
+    when (isNothing new) $ do
       void $
-        runInsert conn $
-          Insert
-            { iTable = entriesRefTable,
-              iRows = toFields . flip RelRow (ne ^. entryId) <$> rels,
-              iReturning = rCount,
-              iOnConflict = Just doNothing
+        runDelete conn $
+          Delete
+            { dTable = entriesRefTable,
+              dWhere = \ref -> ref ^. target .== sqlInt4 (oldEntry ^. entryId),
+              dReturning = rCount
             }
       void $
-        runInsert conn $
-          Insert
-            { iTable = entriesSubTable,
-              iRows = toFields . flip RelRow (ne ^. entryId) <$> subs,
-              iReturning = rCount,
-              iOnConflict = Just doNothing
+        runDelete conn $
+          Delete
+            { dTable = entriesSubTable,
+              dWhere = \ref -> ref ^. target .== sqlInt4 (oldEntry ^. entryId),
+              dReturning = rCount
             }
+    -- Update collections
+    void $ case new of
+      Just nw ->
+        runUpdate conn $
+          Update
+            { uTable = notesCollectionsTable,
+              uUpdateWith = sqlNoteColEntry .~ sqlId nw,
+              uWhere = \colItem -> colItem ^. sqlNoteColEntry .== sqlId old,
+              uReturning = rCount
+            }
+      Nothing ->
+        runDelete conn $
+          Delete
+            { dTable = notesCollectionsTable,
+              dWhere = \colItem -> colItem ^. sqlNoteColEntry .== sqlId old,
+              dReturning = rCount
+            }
+    -- Update metadata
+    void $ case new of
+      Just nw ->
+        runUpdate conn $
+          Update
+            { uTable = entriesMetadataTable,
+              uUpdateWith = sqlValue .~ sqlValueJSONB (toJSON $ unId nw),
+              uWhere = \mtdt ->
+                mtdt
+                  ^. sqlValue
+                    .== sqlValueJSONB (toJSON $ unId old)
+                    .&& in_ idMetadataSQL (mtdt ^. sqlKey),
+              uReturning = rCount
+            }
+      Nothing ->
+        runDelete conn $
+          Delete
+            { dTable = entriesMetadataTable,
+              dWhere = \mtdt ->
+                mtdt
+                  ^. sqlValue
+                    .== sqlValueJSONB (toJSON $ unId old)
+                    .&& in_ idMetadataSQL (mtdt ^. sqlKey),
+              dReturning = rCount
+            }
+  where
+    idMetadataSQL :: [Field SqlText]
+    idMetadataSQL = sqlStrictText . CI.foldedCase <$> S.toList idMetadata
 
 updateTitle :: (MonadKorrvigs m) => Entry -> Maybe Text -> m ()
 updateTitle entry ntitle = do

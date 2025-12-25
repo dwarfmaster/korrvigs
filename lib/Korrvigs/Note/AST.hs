@@ -178,6 +178,7 @@ makeLenses ''Cell
 makeLenses ''Table
 makePrisms ''Block
 makePrisms ''Inline
+makePrisms ''CollectionItem
 
 -- Traversal over all the inlines of a block, not recursing into subs
 bkInlines :: Traversal' Block Inline

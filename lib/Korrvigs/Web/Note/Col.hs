@@ -7,8 +7,10 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
+import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
+import Korrvigs.Monad.Sync
 import Korrvigs.Note
 import Korrvigs.Note.AST
 import Korrvigs.Web.Backend
@@ -109,4 +111,5 @@ postNoteColEditR (WId i) col = do
     pure $ if paramV == Just "on" then Nothing else Just item
   let nmd = md & docContent . each . bkCollection col . _3 .~ nitems
   liftIO $ writeFile (note ^. notePath) $ writeNoteLazy nmd
+  syncFileOfKind (note ^. notePath) Note
   redirect $ NoteColR (WId i) col

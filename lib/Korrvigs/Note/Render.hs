@@ -126,19 +126,29 @@ renderBlock (LineBlock lns) =
       forM_ line renderInline
       flush
 renderBlock (CodeBlock attr code) = do
-  writeText "```" >> renderAttr attr >> flush >> newline
+  let codeTicks = ticksCount $ T.lines code
+  writeText (T.replicate codeTicks "`") >> renderAttr attr >> flush >> newline
   renderRawText code >> flush >> newline
-  writeText "```"
+  writeText $ T.replicate codeTicks "`"
   mres <- view $ _2 . at (attr ^. attrId)
   forM_ mres $ \(tp, hash, res) -> do
+    let lns = T.lines $ encodeToText res
+    let ticks = ticksCount lns
     flush >> newline >> newline
-    writeText "```{=result}" >> flush >> newline
+    writeText $ T.replicate ticks "`"
+    writeText "{=result}" >> flush >> newline
     writeText (attr ^. attrId) >> flush >> newline
     writeText (runTypeName tp) >> flush >> newline
     writeText (digestToText hash) >> flush >> newline
-    let lns = T.lines $ encodeToText res
     forM_ lns $ \ln -> writeText ln >> flush >> newline
-    writeText "```"
+    writeText $ T.replicate ticks "`"
+  where
+    updMax :: Text -> Int -> Int
+    updMax txt n | T.length txt < n = n
+    updMax txt _ | T.all (== '`') txt = T.length txt + 1
+    updMax _ n = n
+    ticksCount :: [Text] -> Int
+    ticksCount = foldr updMax 3
 renderBlock (BlockQuote bks) = do
   doPrefix "> " $ separatedBks 2 bks
 renderBlock (OrderedList bks) = do

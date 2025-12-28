@@ -4,8 +4,10 @@ import Control.Applicative ((<|>))
 import Control.Arrow ((***))
 import Control.Lens
 import Control.Monad
+import Data.Foldable (toList)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Compute.Runnable
@@ -47,7 +49,7 @@ data AttrData = AttrData
     _attrStdIn :: Maybe RunArg,
     _attrType :: Maybe RunnableType
   }
-  deriving (Show)
+  deriving (Show, Eq)
 
 makeLenses ''AttrData
 
@@ -62,6 +64,25 @@ instance Semigroup AttrData where
 
 instance Monoid AttrData where
   mempty = AttrData M.empty M.empty Nothing Nothing
+
+renderAttrData :: AttrData -> [(Text, Text)]
+renderAttrData attrData =
+  (renderArg <$> M.toList (attrData ^. attrArg))
+    ++ (renderEnv <$> M.toList (attrData ^. attrEnv))
+    ++ (renderVal "stdin" <$> toList (attrData ^. attrStdIn))
+    ++ (renderType <$> toList (attrData ^. attrType))
+  where
+    renderVal :: Text -> RunArg -> (Text, Text)
+    renderVal prefix (ArgPlain val) = (prefix, val)
+    renderVal prefix (ArgResult i cmp) = (prefix <> ":comp", unId i <> "#" <> cmp)
+    renderVal prefix (ArgResultSame cmp) = (prefix <> ":comp", cmp)
+    renderVal prefix (ArgEntry i) = (prefix <> ":entry", unId i)
+    renderArg :: (Int, RunArg) -> (Text, Text)
+    renderArg (i, arg) = renderVal ("arg:" <> T.pack (show i)) arg
+    renderEnv :: (Text, RunArg) -> (Text, Text)
+    renderEnv (ev, arg) = renderVal ("env:" <> ev) arg
+    renderType :: RunnableType -> (Text, Text)
+    renderType tp = ("type", runTypeName tp)
 
 parseAttrMtdt :: Text -> Text -> AttrData
 parseAttrMtdt key val = case parse (typeP <|> argP <|> envP <|> stdinP) "<codearg>" key of
@@ -139,3 +160,31 @@ toRunnable attr code = do
         _runEnv = attrDat ^. attrEnv,
         _runStdIn = attrDat ^. attrStdIn
       }
+
+updateRefInAttrData :: Id -> Maybe Id -> AttrData -> AttrData
+updateRefInAttrData old new attrData =
+  AttrData
+    { _attrArg = M.mapMaybe updateRefInVal $ attrData ^. attrArg,
+      _attrEnv = M.mapMaybe updateRefInVal $ attrData ^. attrEnv,
+      _attrStdIn = (attrData ^. attrStdIn) >>= updateRefInVal,
+      _attrType = attrData ^. attrType
+    }
+  where
+    updateRefInVal :: RunArg -> Maybe RunArg
+    updateRefInVal (ArgPlain txt) = Just $ ArgPlain txt
+    updateRefInVal (ArgResult i cmp) | i == old = flip ArgResult cmp <$> new
+    updateRefInVal (ArgResult i cmp) = Just $ ArgResult i cmp
+    updateRefInVal (ArgResultSame cmp) = Just $ ArgResultSame cmp
+    updateRefInVal (ArgEntry i) | i == old = ArgEntry <$> new
+    updateRefInVal (ArgEntry i) = Just $ ArgEntry i
+
+updateRefInAttr :: Id -> Maybe Id -> Attr -> Attr
+updateRefInAttr old new = attrMtdt %~ M.fromList . mapMaybe updateRefInMtdt . M.toList
+  where
+    updateRefInMtdt :: (Text, Text) -> Maybe (Text, Text)
+    updateRefInMtdt (key, val) =
+      let oldMtdt = parseAttrMtdt key val
+       in let newMtdt = updateRefInAttrData old new oldMtdt
+           in case renderAttrData newMtdt of
+                [] -> if oldMtdt == newMtdt then Just (key, val) else Nothing
+                (nkey, nval) : _ -> Just (nkey, nval)

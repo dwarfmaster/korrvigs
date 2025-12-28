@@ -24,7 +24,7 @@ import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Note.AST
-import Korrvigs.Note.Code (toRunnable)
+import Korrvigs.Note.Code (toRunnable, updateRefInAttr)
 import Korrvigs.Note.Helpers
 import Korrvigs.Note.Pandoc
 import Korrvigs.Note.Render (writeNoteLazy)
@@ -159,11 +159,12 @@ updateRef note old new =
   where
     upd = maybe id S.insert new . S.delete old
 
--- TODO update ref in computations attrs
 updateRefBlock :: Id -> Maybe Id -> Block -> Maybe Block
 updateRefBlock old new (Para inls) = pure $ Para $ updateRefInline old new =<< inls
 updateRefBlock old new (LineBlock inls) =
   pure $ LineBlock $ (>>= updateRefInline old new) <$> inls
+updateRefBlock old new (CodeBlock attr code) =
+  pure $ CodeBlock (updateRefInAttr old new attr) code
 updateRefBlock old new (OrderedList cases) =
   pure $ OrderedList $ mapMaybe (updateRefBlock old new) <$> cases
 updateRefBlock old new (BulletList cases) =

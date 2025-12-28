@@ -79,10 +79,10 @@ leafletWidget i items = do
   toWidget
     [julius|
     var #{mp} = L.map(#{i}).setView([#{rawJS $ show centerX}, #{rawJS $ show centerY}], 13)
-    if(!window.hasOwnProperty("leafletMaps")) {
-      window.leafletMaps = []
+    if(!window.hasOwnProperty("updateFolded")) {
+      window.updateFolded = []
     }
-    leafletMaps.push(function () {
+    updateFolded.push(function () {
       if(#{mp}.getSize().equals(L.point(0,0))) {
         #{mp}.invalidateSize()
         if(!#{mp}.getSize().equals(L.point(0,0))) {

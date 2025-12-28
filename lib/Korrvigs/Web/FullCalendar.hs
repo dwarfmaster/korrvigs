@@ -73,6 +73,16 @@ logic =
         initialDate: (events.length > 0) ? events[0].start : null
       });
       calendar.render()
+      if(!window.hasOwnProperty("updateFolded")) {
+        window.updateFolded = []
+      }
+      updateFolded.push(function () {
+        if(calendarEl.offsetWidth != 0 && calendarEl.offsetHeight != 0) {
+          calendar.render();
+          return true;
+        }
+        return false;
+      });
     })
   }
 |]

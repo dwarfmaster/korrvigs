@@ -327,6 +327,7 @@ mjx-container
 
 .item-read
   cursor: pointer
+  color: var(--base09)
 
 .computation-result
   background-color: var(--base00)

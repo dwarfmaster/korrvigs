@@ -55,9 +55,9 @@ kindNames Event = "event"
 kindNames Calendar = "calendar"
 kindNames Syndicate = "syndicate"
 
-kindParser :: ReadM Kind
+kindParser :: ReadM KindQuery
 kindParser = eitherReader $ \s -> case M.lookup s names of
-  Just kd -> pure kd
+  Just kd -> pure $ queryFromKind kd
   Nothing -> Left $ "Kind must be one of " <> intercalate ", " (kindNames <$> [minBound .. maxBound])
   where
     names =

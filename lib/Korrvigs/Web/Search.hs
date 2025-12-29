@@ -99,8 +99,8 @@ timeForm prefix after before = do
     afterVal = mattr after "value" $ T.pack . iso8601Show . zonedTimeToLocalTime
     beforeVal = mattr before "value" $ T.pack . iso8601Show . zonedTimeToLocalTime
 
-kindForm :: Maybe Text -> Maybe Kind -> Handler Widget
-kindForm prefix kd =
+kindForm :: Maybe Text -> Maybe KindQuery -> Handler Widget
+kindForm prefix kdQ =
   pure
     [whamlet|
     <details .search-group *{sattr "open" $ isJust kd}>
@@ -115,6 +115,7 @@ kindForm prefix kd =
   where
     kinds :: [Kind]
     kinds = [minBound .. maxBound]
+    kd = queryToKind <$> kdQ
 
 mtdtForm :: Maybe Text -> [(Text, JsonQuery)] -> Handler Widget
 mtdtForm prefix qs = do

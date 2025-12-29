@@ -6,6 +6,7 @@ import Control.Lens hiding (noneOf, (.=), (.>))
 import Control.Monad
 import Data.Aeson
 import Data.Default
+import Data.Foldable
 import Data.Functor (($>))
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -16,10 +17,12 @@ import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.FTS ((@@?))
 import qualified Korrvigs.FTS as FTS
+import Korrvigs.File.SQL
 import Korrvigs.Geometry
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Note.SQL
+import Korrvigs.Syndicate.SQL
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Opaleye hiding (null)
@@ -105,6 +108,30 @@ data SortOrder
 instance Default SortOrder where
   def = SortAsc
 
+data NoteQuery = NoteQuery deriving (Show, Eq)
+
+newtype FileQuery = FileQuery
+  { _queryFileMime :: Maybe Text -- PSQL regexp for mime
+  }
+  deriving (Show, Eq)
+
+data EventQuery = EventQuery deriving (Show, Eq)
+
+data CalendarQuery = CalendarQuery deriving (Show, Eq)
+
+newtype SyndicateQuery = SyndicateQuery
+  { _querySyndicateUrl :: Maybe Text -- PSQL regexp for url
+  }
+  deriving (Show, Eq)
+
+data KindQuery
+  = KindQueryNote NoteQuery
+  | KindQueryFile FileQuery
+  | KindQueryEvent EventQuery
+  | KindQueryCalendar CalendarQuery
+  | KindQuerySyndicate SyndicateQuery
+  deriving (Show, Eq)
+
 data QueryRel = QueryRel
   { _relOther :: Query,
     _relRec :: Bool
@@ -125,7 +152,7 @@ data Query = Query
     _queryAfter :: Maybe ZonedTime,
     _queryGeo :: Maybe Polygon,
     _queryDist :: Maybe (Point, Double),
-    _queryKind :: Maybe Kind,
+    _queryKind :: Maybe KindQuery,
     _queryMtdt :: [(Text, JsonQuery)],
     _queryInCollection :: Maybe QueryInCollection,
     _querySubOf :: Maybe QueryRel,
@@ -144,6 +171,11 @@ instance Default Query where
 makeLenses ''Query
 makeLenses ''QueryRel
 makeLenses ''QueryInCollection
+makeLenses ''NoteQuery
+makeLenses ''FileQuery
+makeLenses ''EventQuery
+makeLenses ''CalendarQuery
+makeLenses ''SyndicateQuery
 
 instance ToJSON JsonQuery where
   toJSON = toJSON . renderJSQuery
@@ -192,6 +224,90 @@ instance FromJSON SortOrder where
     "ascending" -> pure SortAsc
     "descending" -> pure SortDesc
     s -> fail $ T.unpack s <> " is not a valid sort order"
+
+instance ToJSON NoteQuery where
+  toJSON NoteQuery = object []
+
+instance FromJSON NoteQuery where
+  parseJSON = withObject "NoteQuery" $ const $ pure NoteQuery
+
+instance Default NoteQuery where
+  def = NoteQuery
+
+instance ToJSON FileQuery where
+  toJSON (FileQuery mime) = object ["mime" .= mimeRegex | mimeRegex <- toList mime]
+
+instance FromJSON FileQuery where
+  parseJSON = withObject "FileQuery" $ \obj ->
+    FileQuery <$> obj .:? "mime"
+
+instance Default FileQuery where
+  def = FileQuery def
+
+instance ToJSON EventQuery where
+  toJSON EventQuery = object []
+
+instance FromJSON EventQuery where
+  parseJSON = withObject "EventQuery" $ const $ pure EventQuery
+
+instance Default EventQuery where
+  def = EventQuery
+
+instance ToJSON CalendarQuery where
+  toJSON CalendarQuery = object []
+
+instance FromJSON CalendarQuery where
+  parseJSON = withObject "CalendarQuery" $ const $ pure CalendarQuery
+
+instance Default CalendarQuery where
+  def = CalendarQuery
+
+instance ToJSON SyndicateQuery where
+  toJSON (SyndicateQuery url) = object ["url" .= urlRegex | urlRegex <- toList url]
+
+instance FromJSON SyndicateQuery where
+  parseJSON = withObject "SyndicateQuery" $ \obj ->
+    SyndicateQuery <$> obj .:? "url"
+
+instance Default SyndicateQuery where
+  def = SyndicateQuery def
+
+instance ToJSON KindQuery where
+  toJSON (KindQueryNote nq) = object ["kind" .= Note, "query" .= nq]
+  toJSON (KindQueryFile fq) = object ["kind" .= File, "query" .= fq]
+  toJSON (KindQueryEvent eq) = object ["kind" .= Event, "query" .= eq]
+  toJSON (KindQueryCalendar cq) = object ["kind" .= Calendar, "query" .= cq]
+  toJSON (KindQuerySyndicate sq) = object ["kind" .= Syndicate, "query" .= sq]
+
+queryFromKind :: Kind -> KindQuery
+queryFromKind = \case
+  Note -> KindQueryNote def
+  File -> KindQueryFile def
+  Event -> KindQueryEvent def
+  Calendar -> KindQueryCalendar def
+  Syndicate -> KindQuerySyndicate def
+
+queryToKind :: KindQuery -> Kind
+queryToKind (KindQueryNote _) = Note
+queryToKind (KindQueryFile _) = File
+queryToKind (KindQueryEvent _) = Event
+queryToKind (KindQueryCalendar _) = Calendar
+queryToKind (KindQuerySyndicate _) = Syndicate
+
+instance FromJSON KindQuery where
+  parseJSON (String txt) = queryFromKind <$> parseJSON (String txt)
+  parseJSON v =
+    withObject
+      "KindQuery"
+      ( \obj ->
+          obj .: "kind" >>= \case
+            Note -> KindQueryNote <$> obj .: "query"
+            File -> KindQueryFile <$> obj .: "query"
+            Event -> KindQueryEvent <$> obj .: "query"
+            Calendar -> KindQueryCalendar <$> obj .: "query"
+            Syndicate -> KindQuerySyndicate <$> obj .: "query"
+      )
+      v
 
 instance ToJSON QueryInCollection where
   toJSON incol =
@@ -249,6 +365,34 @@ instance FromJSON Query where
       <*> obj .: "sort"
       <*> obj .:? "maxresults"
 
+compileNoteQuery :: EntryRowSQLR -> NoteQuery -> Select ()
+compileNoteQuery entry NoteQuery = where_ $ entry ^. sqlEntryKind .== sqlKind Note
+
+compileFileQuery :: EntryRowSQLR -> FileQuery -> Select ()
+compileFileQuery entry fq = case fq ^. queryFileMime of
+  Nothing -> where_ $ entry ^. sqlEntryKind .== sqlKind File
+  Just mime -> do
+    file <- selectTable filesTable
+    where_ $ file ^. sqlFileId .== (entry ^. sqlEntryId)
+    where_ $ sqlMatchRegexCaseInsensitive (file ^. sqlFileMime) (sqlStrictText mime)
+
+compileEventQuery :: EntryRowSQLR -> EventQuery -> Select ()
+compileEventQuery entry EventQuery = where_ $ entry ^. sqlEntryKind .== sqlKind Event
+
+compileCalendarQuery :: EntryRowSQLR -> CalendarQuery -> Select ()
+compileCalendarQuery entry CalendarQuery =
+  where_ $ entry ^. sqlEntryKind .== sqlKind Calendar
+
+compileSyndicateQuery :: EntryRowSQLR -> SyndicateQuery -> Select ()
+compileSyndicateQuery entry (SyndicateQuery Nothing) =
+  where_ $ entry ^. sqlEntryKind .== sqlKind Syndicate
+compileSyndicateQuery entry sq = do
+  syn <- selectTable syndicatesTable
+  where_ $ syn ^. sqlSynId .== (entry ^. sqlEntryId)
+  forM_ (sq ^. querySyndicateUrl) $ \url ->
+    let sqlUrl = fromNullable (sqlStrictText "") (syn ^. sqlSynUrl)
+     in where_ $ sqlMatchRegexCaseInsensitive sqlUrl (sqlStrictText url)
+
 -- Match all that are related by the relation table to the result of the query
 compileRel :: EntryRowSQLR -> Table a RelRowSQL -> Bool -> QueryRel -> Select ()
 compileRel entry tbl direct q = limit 1 $ do
@@ -303,8 +447,12 @@ compileQuery query = do
                 (\p -> stDistance sqlPt p (sqlBool True) .< sqlDist)
                 (entry ^. sqlEntryGeo)
   -- Check the kind
-  forM_ (query ^. queryKind) $ \kd ->
-    where_ $ entry ^. sqlEntryKind .== sqlKind kd
+  forM_ (query ^. queryKind) $ \case
+    KindQueryNote nq -> compileNoteQuery entry nq
+    KindQueryFile fq -> compileFileQuery entry fq
+    KindQueryEvent eq -> compileEventQuery entry eq
+    KindQueryCalendar cq -> compileCalendarQuery entry cq
+    KindQuerySyndicate sq -> compileSyndicateQuery entry sq
   -- Checks againts metadata
   forM_ (query ^. queryMtdt) $ \q -> do
     mtdt <- selectTable entriesMetadataTable

@@ -66,13 +66,13 @@ valuesField =
       fieldEnctype = UrlEncoded
     }
 
-kindField :: Field Handler Kind
+kindField :: Field Handler KindQuery
 kindField = radioField' $ pure $ mkOptionList $ mkOption <$> [minBound .. maxBound]
   where
     mkOption kd =
       Option
         { optionDisplay = displayKind kd,
-          optionInternalValue = kd,
+          optionInternalValue = queryFromKind kd,
           optionExternalValue = displayKind kd
         }
 
@@ -216,7 +216,7 @@ getParameters prefix q display =
         ++ maybe [] (\bf -> [("checkdate", "on"), ("before", displayTime bf)]) (q ^. queryBefore)
         ++ maybe [] (\af -> maybe [("checkdate", "on")] (const []) (q ^. queryBefore) ++ [("after", displayTime af)]) (q ^. queryAfter)
         ++ maybe [] (\(V2 lng lat, dist) -> [("checkgeo", "on"), ("geolng", T.pack $ show lng), ("geolat", T.pack $ show lat), ("geodist", T.pack $ show $ dist / 1000.0)]) (q ^. queryDist)
-        ++ maybe [] (\kd -> [("checkkind", "on"), ("kind", displayKind kd)]) (q ^. queryKind)
+        ++ maybe [] (\kd -> [("checkkind", "on"), ("kind", displayKind (queryToKind kd))]) (q ^. queryKind)
         ++ (if null (q ^. queryMtdt) then [] else ("checkmtdt", "on") : concatMap mtdtAttrs (q ^. queryMtdt))
         ++ maybe [] (\incol -> [("checkincol", "on"), ("incolname", incol ^. colName), ("incolentry", unId $ incol ^. colEntry)]) (q ^. queryInCollection)
         ++ [("showhidden", if q ^. queryShowHidden then "on" else "off")]

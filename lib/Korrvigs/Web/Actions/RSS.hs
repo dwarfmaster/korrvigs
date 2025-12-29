@@ -117,7 +117,7 @@ runSyndicateTarget (TargetEntry entry) = case entry ^? _Syndicate of
   Just syn -> if isJust (syn ^. synUrl) then ActCondAlways else ActCondNever
   Nothing -> ActCondQuery $ def & queryMentioning ?~ QueryRel queryIsSyn True
   where
-    queryIsSyn = def & queryKind ?~ Syndicate
+    queryIsSyn = def & queryKind ?~ queryFromKind Syndicate
 runSyndicateTarget _ = ActCondNever
 
 runSyndicateForm :: ActionTarget -> Handler (AForm Handler (Maybe Text, Bool))

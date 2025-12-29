@@ -33,7 +33,7 @@ getEvents = do
         def
           & queryAfter ?~ start
           & queryBefore ?~ end
-          & queryKind ?~ Event
+          & queryKind ?~ queryFromKind Event
           & querySort .~ (ByDate, SortAsc)
   rSelect $ fst <$> compile query (const $ pure ())
 

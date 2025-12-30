@@ -100,21 +100,43 @@ timeForm prefix after before = do
     beforeVal = mattr before "value" $ T.pack . iso8601Show . zonedTimeToLocalTime
 
 kindForm :: Maybe Text -> Maybe KindQuery -> Handler Widget
-kindForm prefix kdQ =
+kindForm prefix kdQ = do
+  let fileMimeV = kdQ ^? _Just . _KindQueryFile . queryFileMime . _Just
+  fileMimeId <- newIdent
+  let synUrlV = kdQ ^? _Just . _KindQuerySyndicate . querySyndicateUrl . _Just
+  synUrlId <- newIdent
   pure
     [whamlet|
     <details .search-group *{sattr "open" $ isJust kd}>
       <summary>
         <input type=checkbox name=#{applyPrefix prefix "checkkind"} *{sattr "checked" $ isJust kd}>
         Kind
-      $forall skd <- kinds
-        <input type=radio name=#{applyPrefix prefix "kind"} value=#{displayKind skd} *{sattr "checked" $ Just skd == kd}>
-          #{displayKind skd}
-        <br>
+      <ul>
+        <li>
+          <input type=radio name=#{applyPrefix prefix "kind"} value=#{displayKind Note} *{sattr "checked" $ Just Note == kd}>
+          Note
+        <li>
+          <input type=radio name=#{applyPrefix prefix "kind"} value=#{displayKind File} *{sattr "checked" $ Just File == kd}>
+          File
+          <br>
+          <label for=#{fileMimeId}>
+            Mime:
+          <input ##{fileMimeId} type=text name=#{applyPrefix prefix "file-mime"} value=#{fromMaybe "" fileMimeV}>
+        <li>
+          <input type=radio name=#{applyPrefix prefix "kind"} value=#{displayKind Event} *{sattr "checked" $ Just Event == kd}>
+          Event
+        <li>
+          <input type=radio name=#{applyPrefix prefix "kind"} value=#{displayKind Calendar} *{sattr "checked" $ Just Calendar == kd}>
+          Calendar
+        <li>
+          <input type=radio name=#{applyPrefix prefix "kind"} value=#{displayKind Syndicate} *{sattr "checked" $ Just Syndicate == kd}>
+          Syndicate
+          <br>
+          <label for=#{synUrlId}>
+            URL:
+          <input ##{synUrlId} type=text name=#{applyPrefix prefix "syn-url"} value=#{fromMaybe "" synUrlV}>
   |]
   where
-    kinds :: [Kind]
-    kinds = [minBound .. maxBound]
     kd = queryToKind <$> kdQ
 
 mtdtForm :: Maybe Text -> [(Text, JsonQuery)] -> Handler Widget

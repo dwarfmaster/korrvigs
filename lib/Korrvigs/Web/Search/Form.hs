@@ -24,6 +24,7 @@ import qualified Korrvigs.FTS as FTS
 import Korrvigs.Kind
 import Korrvigs.Note.AST (Collection (..))
 import Korrvigs.Query
+import Korrvigs.Utils
 import Korrvigs.Web.Backend
 import Linear.V2
 import Yesod
@@ -66,13 +67,13 @@ valuesField =
       fieldEnctype = UrlEncoded
     }
 
-kindField :: Field Handler KindQuery
+kindField :: Field Handler Kind
 kindField = radioField' $ pure $ mkOptionList $ mkOption <$> [minBound .. maxBound]
   where
     mkOption kd =
       Option
         { optionDisplay = displayKind kd,
-          optionInternalValue = queryFromKind kd,
+          optionInternalValue = kd,
           optionExternalValue = displayKind kd
         }
 
@@ -160,7 +161,7 @@ queryForm mktz prefix =
                     <*> iopt doubleField (applyPrefix prefix "geodist")
                 )
         )
-    <*> (getOpt <$> ireq checkBoxField (applyPrefix prefix "checkkind") <*> iopt kindField (applyPrefix prefix "kind"))
+    <*> kindQueryForm prefix
     <*> ( getOpt
             <$> ireq checkBoxField (applyPrefix prefix "checkmtdt")
             <*> (zip <$> ireq keysField (applyPrefix prefix "mtdtKey") <*> ireq valuesField (applyPrefix prefix "mtdtVal"))
@@ -184,6 +185,38 @@ queryForm mktz prefix =
     mkInCol (Just name) (Just i) = Just $ QueryInCol name $ MkId i
     mkInCol _ _ = Nothing
 
+selectKindQuery ::
+  Maybe Kind ->
+  Maybe NoteQuery ->
+  Maybe FileQuery ->
+  Maybe EventQuery ->
+  Maybe CalendarQuery ->
+  Maybe SyndicateQuery ->
+  Maybe KindQuery
+selectKindQuery (Just Note) (Just nq) _ _ _ _ = Just $ KindQueryNote nq
+selectKindQuery (Just File) _ (Just fq) _ _ _ = Just $ KindQueryFile fq
+selectKindQuery (Just Event) _ _ (Just eq) _ _ = Just $ KindQueryEvent eq
+selectKindQuery (Just Calendar) _ _ _ (Just cq) _ = Just $ KindQueryCalendar cq
+selectKindQuery (Just Syndicate) _ _ _ _ (Just sq) = Just $ KindQuerySyndicate sq
+selectKindQuery _ _ _ _ _ _ = Nothing
+
+kindQueryForm :: Maybe Text -> FormInput Handler (Maybe KindQuery)
+kindQueryForm prefix =
+  getOpt
+    <$> ireq checkBoxField (applyPrefix prefix "checkkind")
+    <*> ( selectKindQuery
+            <$> iopt kindField (applyPrefix prefix "kind")
+            <*> pure (Just NoteQuery)
+            <*> ( Just . FileQuery . joinNull T.null
+                    <$> iopt textField (applyPrefix prefix "file-mime")
+                )
+            <*> pure (Just EventQuery)
+            <*> pure (Just CalendarQuery)
+            <*> ( Just . SyndicateQuery . joinNull T.null
+                    <$> iopt textField (applyPrefix prefix "syn-url")
+                )
+        )
+
 queryRelForm :: (Maybe LocalTime -> Maybe ZonedTime) -> Text -> FormInput Handler (Maybe QueryRel)
 queryRelForm mktz prefix =
   getOpt
@@ -197,6 +230,15 @@ queryRelForm mktz prefix =
 
 displayForm :: Collection -> FormInput Handler Collection
 displayForm c = fromMaybe c <$> iopt displayResultsField "display"
+
+getKindParameters :: Maybe Text -> KindQuery -> [(Text, Text)]
+getKindParameters _ (KindQueryNote NoteQuery) = []
+getKindParameters prefix (KindQueryFile fq) =
+  maybe [] (\mime -> [(applyPrefix prefix "file-mime", mime)]) (fq ^. queryFileMime)
+getKindParameters _ (KindQueryEvent EventQuery) = []
+getKindParameters _ (KindQueryCalendar CalendarQuery) = []
+getKindParameters prefix (KindQuerySyndicate sq) =
+  maybe [] (\url -> [(applyPrefix prefix "syn-url", url)]) (sq ^. querySyndicateUrl)
 
 getParameters :: Maybe Text -> Query -> Collection -> [(Text, Text)]
 getParameters prefix q display =
@@ -216,7 +258,7 @@ getParameters prefix q display =
         ++ maybe [] (\bf -> [("checkdate", "on"), ("before", displayTime bf)]) (q ^. queryBefore)
         ++ maybe [] (\af -> maybe [("checkdate", "on")] (const []) (q ^. queryBefore) ++ [("after", displayTime af)]) (q ^. queryAfter)
         ++ maybe [] (\(V2 lng lat, dist) -> [("checkgeo", "on"), ("geolng", T.pack $ show lng), ("geolat", T.pack $ show lat), ("geodist", T.pack $ show $ dist / 1000.0)]) (q ^. queryDist)
-        ++ maybe [] (\kd -> [("checkkind", "on"), ("kind", displayKind (queryToKind kd))]) (q ^. queryKind)
+        ++ maybe [] (\kd -> [("checkkind", "on"), ("kind", displayKind (queryToKind kd))] ++ getKindParameters prefix kd) (q ^. queryKind)
         ++ (if null (q ^. queryMtdt) then [] else ("checkmtdt", "on") : concatMap mtdtAttrs (q ^. queryMtdt))
         ++ maybe [] (\incol -> [("checkincol", "on"), ("incolname", incol ^. colName), ("incolentry", unId $ incol ^. colEntry)]) (q ^. queryInCollection)
         ++ [("showhidden", if q ^. queryShowHidden then "on" else "off")]

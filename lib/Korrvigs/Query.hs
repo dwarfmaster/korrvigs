@@ -176,6 +176,7 @@ makeLenses ''FileQuery
 makeLenses ''EventQuery
 makeLenses ''CalendarQuery
 makeLenses ''SyndicateQuery
+makePrisms ''KindQuery
 
 instance ToJSON JsonQuery where
   toJSON = toJSON . renderJSQuery

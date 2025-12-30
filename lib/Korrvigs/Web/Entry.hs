@@ -136,10 +136,18 @@ refsWidget entry = do
   where
     cmp :: (EntryRowR, Text) -> (EntryRowR, Text) -> Ordering
     cmp row1 row2 = compare (row1 ^. _1 . sqlEntryName) (row2 ^. _1 . sqlEntryName)
-    relEntries :: Table a RelRowSQL -> Bool -> Select (Field SqlInt4, Field SqlInt4, Field SqlBool)
-    relEntries tbl isSub = do
-      subs <- selectTable tbl
-      pure (subs ^. source, subs ^. target, sqlBool isSub)
+    refEntries :: Select (Field SqlInt4, Field SqlInt4, Field SqlBool)
+    refEntries = do
+      ref <- selectTable entriesRefTable
+      isSub <- inSelect ref $ do
+        sub <- selectTable entriesSubTable
+        pure $ RelRow (sub ^. target) (sub ^. source)
+      where_ $ O.not isSub
+      pure (ref ^. source, ref ^. target, sqlBool False)
+    subEntries :: Select (Field SqlInt4, Field SqlInt4, Field SqlBool)
+    subEntries = do
+      sub <- selectTable entriesSubTable
+      pure (sub ^. source, sub ^. target, sqlBool True)
     i = entry ^. entryName
     entryDataFor :: Field SqlInt4 -> Select (EntryRowSQLR, Field SqlText)
     entryDataFor sqlI = do
@@ -158,7 +166,7 @@ refsWidget entry = do
     notesCC = do
       cc <-
         connectedComponentGraph
-          (unionAll (relEntries entriesSubTable True) (relEntries entriesRefTable False))
+          (unionAll subEntries refEntries)
           (view _1)
           (view _2)
           ( \(eid1, eid2, isSub) orient -> do

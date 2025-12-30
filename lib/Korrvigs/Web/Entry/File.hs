@@ -12,6 +12,7 @@ import Korrvigs.Geometry
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Leaflet
 import Korrvigs.Web.Routes (WebId (WId))
+import Network.Mime
 import Yesod
 
 statusWidget :: FileStatus -> Widget
@@ -27,6 +28,15 @@ statusWidget = \case
         <em>Status:
         #{t}
     |]
+
+mimeWidget :: MimeType -> Widget
+mimeWidget mime =
+  [whamlet|
+  <p>
+    <em>
+      Mime:
+    #{Enc.decodeUtf8 mime}
+|]
 
 sourceFor :: File -> Widget
 sourceFor file =
@@ -116,4 +126,5 @@ content file = do
   embeded <- embed 0 file
   pure $ do
     statusWidget $ file ^. fileStatus
+    mimeWidget $ file ^. fileMime
     embeded

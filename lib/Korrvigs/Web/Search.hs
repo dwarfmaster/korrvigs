@@ -343,13 +343,15 @@ queryWidget prefix query = do
   mtdt <- mtdtForm prefix $ query ^. queryMtdt
   incol <- incolForm prefix $ query ^. queryInCollection
   showHidden <- showHiddenWidget prefix $ query ^. queryShowHidden
-  (subOf, parentOf) <-
+  (subOf, parentOf, mentioning, mentioned) <-
     if isNothing prefix
       then do
         subOf <- queryRelWidget "sub" "Sub of" $ query ^. querySubOf
         parentOf <- queryRelWidget "parent" "Parent of" $ query ^. queryParentOf
-        pure (subOf, parentOf)
-      else pure (mempty, mempty)
+        mentioning <- queryRelWidget "mentioning" "Mentioning" $ query ^. queryMentioning
+        mentioned <- queryRelWidget "mentioned" "Mentioned by" $ query ^. queryMentionedBy
+        pure (subOf, parentOf, mentioning, mentioned)
+      else pure (mempty, mempty, mempty, mempty)
   pure $ do
     showHidden
     title
@@ -361,6 +363,8 @@ queryWidget prefix query = do
     incol
     subOf
     parentOf
+    mentioning
+    mentioned
 
 searchForm :: Query -> Collection -> Handler Widget
 searchForm query display = do

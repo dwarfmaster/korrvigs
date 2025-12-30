@@ -175,8 +175,8 @@ queryForm mktz prefix =
         )
     <*> maybe (queryRelForm mktz "sub") (const $ pure Nothing) prefix
     <*> maybe (queryRelForm mktz "parent") (const $ pure Nothing) prefix
-    <*> pure Nothing
-    <*> pure Nothing
+    <*> maybe (queryRelForm mktz "mentioning") (const $ pure Nothing) prefix
+    <*> maybe (queryRelForm mktz "mentioned") (const $ pure Nothing) prefix
     <*> ireq checkBoxField (applyPrefix prefix "showhidden")
     <*> (fromMaybe (ByDate, SortDesc) <$> iopt optsField "sortopts")
     <*> (join <$> iopt maxResultsField "maxresults")
@@ -243,7 +243,7 @@ getKindParameters prefix (KindQuerySyndicate sq) =
 getParameters :: Maybe Text -> Query -> Collection -> [(Text, Text)]
 getParameters prefix q display =
   (first (applyPrefix prefix) <$> basicAttrs)
-    ++ (if isJust prefix then [] else resAttrs ++ subAttrs ++ parentAttrs)
+    ++ (if isJust prefix then [] else resAttrs ++ subAttrs ++ parentAttrs ++ mentioningAttrs ++ mentionedAttrs)
   where
     displayTime :: ZonedTime -> Text
     displayTime zt = T.pack $ formatTime defaultTimeLocale "%0Y-%m-%dT%H:%M" zt
@@ -265,6 +265,8 @@ getParameters prefix q display =
     relAttrs p = maybe [] (\r -> [(applyPrefix (Just p) "rec", displayBool $ r ^. relRec), (applyPrefix (Just p) "check", "on")] ++ getParameters (Just p) (r ^. relOther) display)
     subAttrs = relAttrs "sub" $ q ^. querySubOf
     parentAttrs = relAttrs "parent" $ q ^. queryParentOf
+    mentioningAttrs = relAttrs "mentioning" $ q ^. queryMentioning
+    mentionedAttrs = relAttrs "mentioned" $ q ^. queryMentionedBy
     sortAttr = maybe "1" optionExternalValue $ find (\opt -> optionInternalValue opt == q ^. querySort) sortOptions
     displayAttr = maybe "1" optionExternalValue $ find (\opt -> optionInternalValue opt == display) displayResultOptions
     resAttrs =

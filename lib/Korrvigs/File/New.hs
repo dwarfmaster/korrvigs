@@ -75,7 +75,7 @@ findMime path = do
   let mime = T.strip . T.pack $ splitLast ':' r
   pure $ Enc.encodeUtf8 mime
   where
-    file = proc "file" ["--mime-type", path]
+    file = proc "mimetype" [path]
 
 inAnnex :: (MonadKorrvigs m) => FilePath -> m Bool
 inAnnex path = do

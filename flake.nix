@@ -24,6 +24,7 @@
       pkgs.exiftool
       pkgs.poppler_utils
       pkgs.git
+      pkgs.perl540Packages.FileMimeInfo
     ];
 
     static = pkgs.callPackage ./static.nix {};

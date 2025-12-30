@@ -75,6 +75,7 @@ overlay: {
     pkgs.haskellPackages.ghc
     pkgs.rustc
     pkgs.ocaml
+    pkgs.perl540Packages.FileMimeInfo
   ];
 in {
   options.programs.korrvigs = {

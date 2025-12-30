@@ -97,6 +97,15 @@ mkRel ids =
         _relOther = def & queryId .~ ids
       }
 
+kindOption :: Parser (Maybe KindQuery)
+kindOption =
+  optional (option kindParser $ long "kind" <> help "Entry must be of provided kind")
+    <|> optional (fromMime <$> option str (long "mime" <> help "Entry must be file with matching mime"))
+    <|> optional (fromURL <$> option str (long "syn-url" <> help "Entry must be syndicate with matching URL"))
+  where
+    fromMime = KindQueryFile . FileQuery . Just
+    fromURL = KindQuerySyndicate . SyndicateQuery . Just
+
 queryParser :: Parser Query
 queryParser =
   Query
@@ -107,7 +116,7 @@ queryParser =
     <*> optional (option dayParser (long "after" <> help "Entry must have date after the provided date"))
     <*> optional (option rectangleParser (long "inrect" <> help "Entries must be located in the given rectangle"))
     <*> optional (option withinParser (long "within" <> help "Filter entries within a certain distance in meters from a point"))
-    <*> optional (option kindParser (long "kind" <> help "Entry must be of provided kind"))
+    <*> kindOption
     <*> many (option mtdtQueryParser (long "mtdt" <> help "Add metadata conditions"))
     <*> optional (option colParser (long "incol" <> help "Entries must be in collection"))
     <*> fmap mkRel (many $ MkId <$> option str (long "sub-of" <> help "Entry must be sub of one of the entries specified by ID"))

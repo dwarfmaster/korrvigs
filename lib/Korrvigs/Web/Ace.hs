@@ -111,6 +111,7 @@ setupAceJs =
     const commonOptions = {
       maxLines: Infinity,
       printMarginColumn: 81,
+      tabSize: 2
     }
     const roOptions = {
       readOnly: true,

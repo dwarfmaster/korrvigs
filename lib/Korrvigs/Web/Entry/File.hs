@@ -124,7 +124,8 @@ embed _ file = do
         (BS.isPrefixOf "text/" mime, textWidget file),
         (mime == "application/pdf", pdfWidget file),
         (mime == "application/gpx+xml", gpxWidget file),
-        (BS.isPrefixOf "application/epub" mime, bookWidget file)
+        (BS.isPrefixOf "application/epub" mime, bookWidget file),
+        (mime == "application/vnd.comicbook+zip", bookWidget file)
       ]
 
 content :: File -> Handler Widget

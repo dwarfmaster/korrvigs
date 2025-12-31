@@ -27,8 +27,8 @@ import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Metadata as Mtdt
 import qualified Korrvigs.Web.Entry.Note as Note
 import qualified Korrvigs.Web.Entry.Syndicate as Syn
-import Korrvigs.Web.Leaflet
-import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
+import Korrvigs.Web.JS.Leaflet
+import qualified Korrvigs.Web.JS.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Public.Crypto as Public
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes

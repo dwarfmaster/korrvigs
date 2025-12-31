@@ -10,8 +10,8 @@ import Korrvigs.Entry
 import qualified Korrvigs.File.Mtdt.GPX as GPX
 import Korrvigs.Geometry
 import Korrvigs.Web.Backend
-import qualified Korrvigs.Web.Foliate as Foliate
-import Korrvigs.Web.Leaflet
+import qualified Korrvigs.Web.JS.Foliate as Foliate
+import Korrvigs.Web.JS.Leaflet
 import Korrvigs.Web.Routes (WebId (WId))
 import Network.Mime
 import Yesod

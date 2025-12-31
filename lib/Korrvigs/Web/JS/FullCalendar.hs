@@ -1,4 +1,4 @@
-module Korrvigs.Web.FullCalendar where
+module Korrvigs.Web.JS.FullCalendar where
 
 import Control.Lens hiding ((.=))
 import Control.Monad.Trans.Maybe

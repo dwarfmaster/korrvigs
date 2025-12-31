@@ -36,12 +36,12 @@ import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Note hiding (code, task)
 import Korrvigs.Utils.JSON
-import qualified Korrvigs.Web.Ace as Ace
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Calendar as Cal
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Syndicate as Syn
+import qualified Korrvigs.Web.JS.Ace as Ace
 import Korrvigs.Web.Public.Crypto (mkPublic)
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes

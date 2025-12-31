@@ -1,4 +1,4 @@
-module Korrvigs.Web.PhotoSwipe where
+module Korrvigs.Web.JS.PhotoSwipe where
 
 import Control.Lens
 import Control.Monad

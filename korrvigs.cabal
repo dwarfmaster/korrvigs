@@ -179,7 +179,6 @@ library korrvigs-lib
     Korrvigs.Utils.Time
     Korrvigs.Utils.XML
     Korrvigs.Web
-    Korrvigs.Web.Ace
     Korrvigs.Web.Actions
     Korrvigs.Web.Actions.Bibtex
     Korrvigs.Web.Actions.Collection
@@ -205,16 +204,17 @@ library korrvigs-lib
     Korrvigs.Web.Entry.Metadata
     Korrvigs.Web.Entry.Note
     Korrvigs.Web.Entry.Syndicate
-    Korrvigs.Web.Foliate
-    Korrvigs.Web.FullCalendar
-    Korrvigs.Web.Fuse
     Korrvigs.Web.Git
     Korrvigs.Web.Home
-    Korrvigs.Web.Leaflet
+    Korrvigs.Web.JS.Ace
+    Korrvigs.Web.JS.Foliate
+    Korrvigs.Web.JS.FullCalendar
+    Korrvigs.Web.JS.Fuse
+    Korrvigs.Web.JS.Leaflet
+    Korrvigs.Web.JS.PhotoSwipe
     Korrvigs.Web.Metadata
     Korrvigs.Web.Note
     Korrvigs.Web.Note.Col
-    Korrvigs.Web.PhotoSwipe
     Korrvigs.Web.Public
     Korrvigs.Web.Public.Crypto
     Korrvigs.Web.Ressources

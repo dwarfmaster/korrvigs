@@ -40,9 +40,9 @@ import Korrvigs.Note.Pandoc
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Entry.Note (embedContent, resultWidget)
-import qualified Korrvigs.Web.Fuse as Fuse
+import qualified Korrvigs.Web.JS.Fuse as Fuse
+import qualified Korrvigs.Web.JS.PhotoSwipe as PhotoSwipe
 import Korrvigs.Web.Note.Col
-import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search

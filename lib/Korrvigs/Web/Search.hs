@@ -17,7 +17,7 @@ import Korrvigs.Note.AST (Collection (..))
 import Korrvigs.Query
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
-import Korrvigs.Web.Leaflet
+import Korrvigs.Web.JS.Leaflet
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Search.Form
 import Korrvigs.Web.Search.Results

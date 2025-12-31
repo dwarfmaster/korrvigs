@@ -22,10 +22,10 @@ import Korrvigs.Utils
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
-import qualified Korrvigs.Web.FullCalendar as Cal
-import qualified Korrvigs.Web.Fuse as Fuse
-import Korrvigs.Web.Leaflet
-import qualified Korrvigs.Web.PhotoSwipe as PhotoSwipe
+import qualified Korrvigs.Web.JS.FullCalendar as Cal
+import qualified Korrvigs.Web.JS.Fuse as Fuse
+import Korrvigs.Web.JS.Leaflet
+import qualified Korrvigs.Web.JS.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils

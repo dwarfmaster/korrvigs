@@ -1,4 +1,4 @@
-module Korrvigs.Web.Fuse where
+module Korrvigs.Web.JS.Fuse where
 
 import Control.Lens hiding ((.=))
 import Data.Maybe

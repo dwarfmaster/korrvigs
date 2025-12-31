@@ -17,7 +17,7 @@ import Korrvigs.Utils.Time
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Note as Note
-import qualified Korrvigs.Web.FullCalendar as FC
+import qualified Korrvigs.Web.JS.FullCalendar as FC
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widgets

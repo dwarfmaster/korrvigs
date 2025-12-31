@@ -1,4 +1,4 @@
-module Korrvigs.Web.Ace (setup, preview, isLanguage, editOnClick, editFn) where
+module Korrvigs.Web.JS.Ace (setup, preview, isLanguage, editOnClick, editFn) where
 
 import Data.Map (Map)
 import qualified Data.Map as M

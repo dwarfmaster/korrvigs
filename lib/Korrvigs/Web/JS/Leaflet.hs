@@ -1,4 +1,4 @@
-module Korrvigs.Web.Leaflet (MapItem (..), mitGeo, mitContent, mitVar, leafletWidget, jsPoint) where
+module Korrvigs.Web.JS.Leaflet (MapItem (..), mitGeo, mitContent, mitVar, leafletWidget, jsPoint) where
 
 import Control.Lens
 import Control.Monad

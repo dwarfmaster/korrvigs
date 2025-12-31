@@ -1,4 +1,4 @@
-module Korrvigs.Web.Foliate where
+module Korrvigs.Web.JS.Foliate where
 
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs

@@ -205,6 +205,7 @@ library korrvigs-lib
     Korrvigs.Web.Entry.Metadata
     Korrvigs.Web.Entry.Note
     Korrvigs.Web.Entry.Syndicate
+    Korrvigs.Web.Foliate
     Korrvigs.Web.FullCalendar
     Korrvigs.Web.Fuse
     Korrvigs.Web.Git

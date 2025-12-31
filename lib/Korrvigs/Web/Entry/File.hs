@@ -10,6 +10,7 @@ import Korrvigs.Entry
 import qualified Korrvigs.File.Mtdt.GPX as GPX
 import Korrvigs.Geometry
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Foliate as Foliate
 import Korrvigs.Web.Leaflet
 import Korrvigs.Web.Routes (WebId (WId))
 import Network.Mime
@@ -95,6 +96,10 @@ gpxWidget file = do
   i <- newIdent
   pure $ leafletWidget i [MapItem (GeoPath pts) Nothing Nothing]
 
+bookWidget :: File -> Handler Widget
+bookWidget file =
+  Foliate.viewer $ EntryDownloadR $ WId $ file ^. fileEntry . entryName
+
 embed :: Int -> File -> Handler Widget
 embed _ file
   | file ^. fileStatus == FileAbsent = pure $ do
@@ -118,7 +123,8 @@ embed _ file = do
         (BS.isPrefixOf "image/" mime, imgWidget file),
         (BS.isPrefixOf "text/" mime, textWidget file),
         (mime == "application/pdf", pdfWidget file),
-        (mime == "application/gpx+xml", gpxWidget file)
+        (mime == "application/gpx+xml", gpxWidget file),
+        (BS.isPrefixOf "application/epub" mime, bookWidget file)
       ]
 
 content :: File -> Handler Widget

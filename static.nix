@@ -76,11 +76,21 @@
     url = "https://pfau-software.de/json-viewer/dist/iife/index.js";
     sha256 = "1b201pjr7b9d9w5cn379spk2mazrnwiwxxrj0qp9gpw4vbxd772p";
   };
+  foliate-js = fetchFromGitHub {
+    owner = "johnfactotum";
+    repo = "foliate-js";
+    rev = "6b11e1744346f60504b727984f7d42f0fef3ab54";
+    sha256 = "025xq23w7y24jkhw2wj99sj06l6narcdarqp499zhw8xglnspmi3";
+  };
 in
   runCommand "korrvigs-static" {} ''
     mkdir -p $out
     cp -r ${nodePackages_latest.mathjax}/lib/node_modules/mathjax $out/mathjax
     cp -r ${leaflet} $out/leaflet
+    cp -r ${foliate-js} $out/foliate
+    chmod +w $out/foliate
+    cp ${./lib/Korrvigs/Web/Ressources/js/foliate.js} $out/foliate/main.js
+    chmod -w $out/foliate
     mkdir -p $out/vis
     cp ${vis-network} $out/vis/vis-network.min.js
     cp ${vis-timeline} $out/vis/vis-timeline-graph2d.min.js

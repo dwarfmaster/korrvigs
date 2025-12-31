@@ -130,3 +130,7 @@ itemCode =
 andypfJsonViewer :: (Route Static -> Route site) -> WidgetFor site ()
 andypfJsonViewer mkStatic =
   addScript $ mkStatic $ StaticRoute ["andypf", "json-viewer.js"] []
+
+foliateJS :: (Route Static -> Route site) -> WidgetFor site ()
+foliateJS mkStatic =
+  addScriptAttrs (mkStatic $ StaticRoute ["foliate", "main.js"] []) [("type", "module")]

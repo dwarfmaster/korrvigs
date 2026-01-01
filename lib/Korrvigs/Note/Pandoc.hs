@@ -100,7 +100,6 @@ bszToHeader bsz doc parent =
             A._hdLevel = bsz ^. bszLevel,
             A._hdContent = reverse $ (bsz ^. bszLeft) <&> \blk -> blk doc (Just hd),
             A._hdParent = parent,
-            A._hdDocument = doc,
             A._hdCollections = bsz ^. bszCollections
           }
    in hd

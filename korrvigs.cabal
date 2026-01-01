@@ -140,6 +140,7 @@ library korrvigs-lib
     Korrvigs.Note.Download
     Korrvigs.Note.Download.Books
     Korrvigs.Note.Download.Video
+    Korrvigs.Note.Edit
     Korrvigs.Note.Helpers
     Korrvigs.Note.Loc
     Korrvigs.Note.New

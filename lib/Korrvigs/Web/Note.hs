@@ -4,6 +4,7 @@ module Korrvigs.Web.Note
     postNoteR,
     getNoteSubR,
     postNoteSubR,
+    postNoteSubActR,
     getNoteColR,
     postNoteColR,
     getNoteNamedSubR,
@@ -36,6 +37,7 @@ import Korrvigs.Monad.Collections
 import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Note
 import Korrvigs.Note.AST
+import Korrvigs.Note.Edit
 import Korrvigs.Note.Pandoc
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
@@ -156,6 +158,38 @@ postNoteSubR (WId i) (WLoc loc) =
       _ -> notFound
   where
     parseTaskStatus txt = maybe (throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid task state") pure $ parseStatusName txt
+
+postNoteSubActR :: WebId -> WebAnyLoc -> Handler Text
+postNoteSubActR (WId i) (WLoc loc) =
+  load i >>= \case
+    Nothing -> notFound
+    Just entry -> case entry ^. entryKindData of
+      NoteD note ->
+        readNote (note ^. notePath) >>= \case
+          Left err -> throwM $ KMiscError err
+          Right doc -> do
+            body <- runConduit $ rawRequestBody .| fold
+            let act = T.strip $ Enc.decodeUtf8 body
+            ndoc <- case loc of
+              LocSub lc -> case act of
+                "sub-first" -> pure $ addSubHeaderFirst lc doc
+                "sub-last" -> pure $ addSubHeaderLast lc doc
+                "header-after" -> pure $ addHeaderAfter lc doc
+                "header-before" -> pure $ addHeaderBefore lc doc
+                _ -> notFound
+              _ -> notFound
+            let path = note ^. notePath
+            fd <- liftIO $ openFile path WriteMode
+            writeNote fd ndoc >>= \case
+              Just err -> do
+                liftIO $ hClose fd
+                throwM $ KMiscError err
+              Nothing -> pure ()
+            liftIO $ hClose fd
+            syncFileOfKind path Note
+            render <- getUrlRenderParams
+            pure $ render (EntryR (WId i)) [("open", renderLoc loc)]
+      _ -> notFound
 
 getNoteColR :: WebId -> Text -> Handler TypedContent
 getNoteColR (WId i) col = do

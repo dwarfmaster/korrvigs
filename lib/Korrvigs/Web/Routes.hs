@@ -40,6 +40,7 @@ korrvigsRoutes =
 /note NoteFuzzyR GET
 /note/#WebId/sub NoteR GET POST
 /note/#WebId/sub/#WebAnyLoc NoteSubR GET POST
+/note/#WebId/sub/#WebAnyLoc/act NoteSubActR POST
 /note/#WebId/col/#Text NoteColR GET POST
 /note/#WebId/col/#Text/bibtex NoteColBibtexR GET
 /note/#WebId/col/#Text/edit NoteColEditR GET POST

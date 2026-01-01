@@ -532,7 +532,7 @@ compileHead entry n hdId t edit task checks subL enableEdit = do
     buttonId <- newIdent
     pure $ do
       editFnJs
-      toWidget [julius|setupHeaderMenu(#{buttonId}, #{rawJS editFn}, #{rawJS openUrl});|]
+      toWidget [julius|setupHeaderMenu(#{buttonId}, #{rawJS editFn}, #{rawJS openUrl}, "@{NoteSubActR (WId entry) (WLoc (LocSub subL))}");|]
       [whamlet|<span ##{buttonId} .hd-menu>⋯</span>|]
   tsk <- Wdgs.taskWidget entry subL task
   compileHeader n [whamlet|^{tsk} #{t} ^{checksDisplay checks} ^{fromMaybe mempty menuW}|]

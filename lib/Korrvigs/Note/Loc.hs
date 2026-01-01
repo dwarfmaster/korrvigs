@@ -10,6 +10,7 @@ module Korrvigs.Note.Loc
     TaskLoc (..),
     taskSub,
     AnyLoc (..),
+    subLvl,
     sub,
     subs,
     getSub,
@@ -95,6 +96,9 @@ sub :: (Applicative f) => SubLoc -> (Header -> f Header) -> Document -> f Docume
 sub (SubLoc []) = const pure
 sub (SubLoc [off]) = docContent . subOff off
 sub (SubLoc (off : offs)) = sub (SubLoc offs) . hdContent . subOff off
+
+subLvl :: SubLoc -> Int
+subLvl (SubLoc lst) = length lst
 
 subsOff :: (Applicative f) => Int -> ([Block] -> f [Block]) -> [Block] -> f [Block]
 subsOff i f bks = expandAt offset f bks

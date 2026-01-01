@@ -26,7 +26,6 @@ module Korrvigs.Note
     hdParent,
     hdTask,
     hdTasks,
-    hdDocument,
     hdCollections,
     Block (..),
     Inline (..),

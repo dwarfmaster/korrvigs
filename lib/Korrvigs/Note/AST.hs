@@ -55,7 +55,6 @@ data Header = Header
     _hdChecks :: Checks,
     _hdLevel :: Int,
     _hdContent :: [Block],
-    _hdParent :: Maybe Header,
     _hdCollections :: Map Text [Id]
   }
   deriving (Show)

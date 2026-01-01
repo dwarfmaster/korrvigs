@@ -42,11 +42,6 @@ import Network.URI
 import Text.Pandoc hiding (Reader)
 import Prelude hiding (readFile)
 
-type WithParent a = A.Document -> Maybe A.Header -> a
-
-noParent :: a -> WithParent a
-noParent a _ _ = a
-
 data BlockStackZipper = BSZ
   { _bszLevel :: Int,
     _bszAttr :: A.Attr,
@@ -54,7 +49,7 @@ data BlockStackZipper = BSZ
     _bszTask :: Maybe Task,
     _bszRefTo :: Set Id,
     _bszChecks :: A.Checks,
-    _bszLeft :: [WithParent A.Block],
+    _bszLeft :: [A.Block],
     _bszTasks :: [Task],
     _bszCollections :: Map Text [Id],
     _bszNamedSubs :: Set Text,
@@ -77,7 +72,7 @@ type ParseM = State ParseState
 getBlock :: ParseM (Maybe Block)
 getBlock = blks %%= (listToMaybe &&& drop 1)
 
-pushBlock :: WithParent A.Block -> ParseM ()
+pushBlock :: A.Block -> ParseM ()
 pushBlock blk = stack . bszLeft %= (blk :)
 
 pushHeader :: Int -> A.Attr -> ParseM ()
@@ -87,8 +82,8 @@ pushHeader lvl attr =
 headerLvl :: ParseM Int
 headerLvl = use $ stack . bszLevel
 
-bszToHeader :: BlockStackZipper -> WithParent A.Header
-bszToHeader bsz doc parent =
+bszToHeader :: BlockStackZipper -> A.Header
+bszToHeader bsz =
   let hd =
         A.Header
           { A._hdAttr = bsz ^. bszAttr,
@@ -98,8 +93,7 @@ bszToHeader bsz doc parent =
             A._hdTasks = bsz ^. bszTasks,
             A._hdChecks = bsz ^. bszChecks,
             A._hdLevel = bsz ^. bszLevel,
-            A._hdContent = reverse $ (bsz ^. bszLeft) <&> \blk -> blk doc (Just hd),
-            A._hdParent = parent,
+            A._hdContent = reverse $ bsz ^. bszLeft,
             A._hdCollections = bsz ^. bszCollections
           }
    in hd
@@ -147,7 +141,7 @@ popHeader = do
       stack . bszNamedCode %= S.union (bsz ^. bszNamedCode)
       stack . bszComputations %= M.union (bsz ^. bszComputations)
       propagateChecks bsz
-      pushBlock $ \doc hd -> A.Sub (bszToHeader bsz doc hd)
+      pushBlock $ A.Sub $ bszToHeader bsz
       pure True
     Nothing -> pure False
 
@@ -164,7 +158,7 @@ run act mtdt bks =
   let doc =
         A.Document
           { A._docMtdt = M.delete (CI.mk "parents") cimtdt,
-            A._docContent = reverse $ st ^. stack . bszLeft <&> \bk -> bk doc Nothing,
+            A._docContent = reverse $ st ^. stack . bszLeft,
             A._docTitle = st ^. stack . bszTitle,
             A._docRefTo = st ^. stack . bszRefTo,
             A._docTask = st ^. stack . bszTask,
@@ -243,7 +237,7 @@ parseTopBlock (Header lvl attr title) = do
     stack . bszTask . _Just . tskLabel .= rendered
     let look = fmap toJSON . flip M.lookup (parsed ^. A.attrMtdt) . CI.foldedCase
     stack . bszTask . _Just %= applyTaskMtdt look
-parseTopBlock bk = mapM_ (pushBlock . noParent) =<< parseBlock bk
+parseTopBlock bk = mapM_ pushBlock =<< parseBlock bk
 
 -- Parse a block that is not a header
 parseBlock :: Block -> ParseM [A.Block]

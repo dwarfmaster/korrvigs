@@ -23,7 +23,6 @@ newHeader lvl =
       _hdChecks = Checks 0 0 0 0 0 0,
       _hdLevel = lvl,
       _hdContent = [],
-      _hdParent = undefined,
       _hdCollections = M.empty
     }
 

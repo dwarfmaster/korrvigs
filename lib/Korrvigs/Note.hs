@@ -23,7 +23,6 @@ module Korrvigs.Note
     hdChecks,
     hdLevel,
     hdContent,
-    hdParent,
     hdTask,
     hdTasks,
     hdCollections,

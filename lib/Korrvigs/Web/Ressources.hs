@@ -102,6 +102,9 @@ checkboxCode mkStatic = do
 codeMenuCode :: WidgetFor site ()
 codeMenuCode = toWidget $ mkJs $(embedFile $ js "code-menu.js")
 
+headerMenuCode :: WidgetFor site ()
+headerMenuCode = toWidget $ mkJs $(embedFile $ js "header-menu.js")
+
 ace :: (Route Static -> Route site) -> WidgetFor site ()
 ace mkStatic =
   addScript $ mkStatic $ StaticRoute ["ace", "ace.js"] []

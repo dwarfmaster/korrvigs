@@ -6,6 +6,13 @@
   --base-done: var(--base0B)
   --base-dont: var(--base08)
 
+.hd-menu
+  cursor: pointer
+  float: right
+  border-radius: 0.25em
+  padding: 0.2em
+  height: 1.2em
+  margin-right: 0.2em
 .edit-button
   cursor: pointer
   float: right
@@ -81,8 +88,6 @@ h1
   a
     color: inherit
     font-weight: inherit
-.edit-header-1
-  background-color: var(--base0C)
 .entry-name
   font-variant: small-caps
   color: var(--base06)
@@ -100,8 +105,6 @@ h2
   a
     color: inherit
     font-weight: inherit
-.edit-header-2
-  background-color: var(--base08)
 .level2
   border-left: 2px solid var(--base08)
   padding-left: 0.25em
@@ -113,8 +116,6 @@ h3
   a
     color: inherit
     font-weight: inherit
-.edit-header-3
-  background-color: var(--base09)
 .level3
   border-left: 2px solid var(--base09)
   padding-left: 0.25em
@@ -126,8 +127,6 @@ h4
   a
     color: inherit
     font-weight: inherit
-.edit-header-4
-  background-color: var(--base0A)
 .level4
   border-left: 2px solid var(--base0A)
   padding-left: 0.25em
@@ -139,8 +138,6 @@ h5
   a
     color: inherit
     font-weight: inherit
-.edit-header-5
-  background-color: var(--base0B)
 .level5
   border-left: 2px solid var(--base0B)
   padding-left: 0.25em
@@ -152,8 +149,6 @@ h6
   a
     color: inherit
     font-weight: inherit
-.edit-header-6
-  background-color: var(--base0D)
 .level6
   border-left: 2px solid var(--base0D)
   padding-left: 0.25em
@@ -210,6 +205,7 @@ mjx-container
   cursor: pointer
   padding-left: 0.2em
   padding-right: 0.2em
+  background-color: var(--base0C)
 
 .edit-code
   position: absolute

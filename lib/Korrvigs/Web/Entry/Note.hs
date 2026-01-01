@@ -2,7 +2,7 @@ module Korrvigs.Web.Entry.Note
   ( content,
     embed,
     embedContent,
-    editButton,
+    aceRedirect,
     embedBody,
     embedLnk,
     resultWidget,
@@ -11,6 +11,7 @@ where
 
 import Control.Lens
 import Control.Monad
+import Control.Monad.Extra (whenMaybe)
 import Control.Monad.Loops (whileJust)
 import Control.Monad.State
 import Data.Array
@@ -156,6 +157,7 @@ embedContent enableEdit repComps lvl subL i doc cnt checks = do
         Ace.setup
         Rcs.mathjax StaticR
         Rcs.codeMenuCode
+        Rcs.headerMenuCode
         [whamlet|
          $if not isEmbedded
            <p .checks-top>
@@ -511,17 +513,37 @@ compileAttr' (MkAttr i clss misc) html = do
 
 compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Maybe Task -> Checks -> SubLoc -> Bool -> Handler Widget
 compileHead entry n hdId t edit task checks subL enableEdit = do
-  btm <- editButton entry (min n 5) hdId edit subL
+  public <- isPublic
+  menuW <- whenMaybe (not public) $ do
+    -- Edit
+    editFn <- if enableEdit then newIdent else pure "null"
+    editFnJs <-
+      if enableEdit
+        then do
+          redirUrl <- aceRedirect entry hdId subL
+          Ace.editFn editFn edit "pandoc" link redirUrl
+        else pure mempty
+    -- Open
+    render <- getUrlRender
+    let openUrl = case hdId of
+          Just i -> quote $ render $ NoteNamedSubR (WId entry) i
+          Nothing -> "null"
+    -- Menu button
+    buttonId <- newIdent
+    pure $ do
+      editFnJs
+      toWidget [julius|setupHeaderMenu(#{buttonId}, #{rawJS editFn}, #{rawJS openUrl});|]
+      [whamlet|<span ##{buttonId} .hd-menu>⋯</span>|]
   tsk <- Wdgs.taskWidget entry subL task
-  let editBtm = if enableEdit then btm else mempty
-  let openBtm = case hdId of
-        Just i ->
-          [whamlet|
-           <a href=@{NoteNamedSubR (WId entry) i}>
-             ^{openIcon}
-         |]
-        Nothing -> mempty
-  compileHeader n [whamlet|^{tsk} #{t} ^{openBtm} ^{checksDisplay checks} ^{editBtm}|]
+  compileHeader n [whamlet|^{tsk} #{t} ^{checksDisplay checks} ^{fromMaybe mempty menuW}|]
+  where
+    quote :: Text -> Text
+    quote = ("\"" <>) . (<> "\"")
+    link :: Route WebData
+    link =
+      if null (subL ^. subOffsets)
+        then NoteR (WId entry)
+        else NoteSubR (WId entry) $ WLoc $ LocSub subL
 
 compileHeader :: Int -> Widget -> Handler Widget
 compileHeader 0 tit =
@@ -546,30 +568,6 @@ aceRedirect i mhdId loc = do
   pure $ case mhdId of
     Nothing -> url
     Just hdId -> url <> "#" <> hdId
-
-editButton :: Id -> Int -> Maybe Text -> Text -> SubLoc -> Handler Widget
-editButton entry i hdId edit subL = do
-  public <- isPublic
-  buttonId <- newIdent
-  redirUrl <- aceRedirect entry hdId subL
-  js <- Ace.editOnClick buttonId edit "pandoc" link redirUrl
-  pure $
-    if public
-      then mempty
-      else do
-        js
-        [whamlet|
-        <span ##{buttonId} .edit-header .#{"edit-header-" <> show lvl}>
-          ✎
-      |]
-  where
-    lvl :: Int
-    lvl = i + 1
-    link :: Route WebData
-    link =
-      if null (subL ^. subOffsets)
-        then NoteR (WId entry)
-        else NoteSubR (WId entry) $ WLoc $ LocSub subL
 
 checksDisplay :: Checks -> Widget
 checksDisplay (Checks todo important ongoing blocked done dont) =

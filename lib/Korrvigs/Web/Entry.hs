@@ -16,7 +16,7 @@ import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
-import Korrvigs.Note.Loc (SubLoc (SubLoc))
+import Korrvigs.Note.Loc hiding (sub, subs)
 import Korrvigs.Utils.Base16
 import Korrvigs.Utils.Opaleye (connectedComponentGraph)
 import Korrvigs.Web.Actions
@@ -27,6 +27,7 @@ import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Metadata as Mtdt
 import qualified Korrvigs.Web.Entry.Note as Note
 import qualified Korrvigs.Web.Entry.Syndicate as Syn
+import qualified Korrvigs.Web.JS.Ace as Ace
 import Korrvigs.Web.JS.Leaflet
 import qualified Korrvigs.Web.JS.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Public.Crypto as Public
@@ -73,7 +74,29 @@ titleWidget entry contentId = do
       EventD _ -> pure Nothing
       CalendarD _ -> pure Nothing
       SyndicateD _ -> pure Nothing
-      NoteD _ -> Just <$> Note.editButton (entry ^. entryName) 0 Nothing contentId (SubLoc [])
+      NoteD _ -> Just <$> editButton (entry ^. entryName) contentId (SubLoc [])
+
+editButton :: Id -> Text -> SubLoc -> Handler Widget
+editButton entry edit subL = do
+  public <- isPublic
+  buttonId <- newIdent
+  redirUrl <- Note.aceRedirect entry Nothing subL
+  js <- Ace.editOnClick buttonId edit "pandoc" link redirUrl
+  pure $
+    if public
+      then mempty
+      else do
+        js
+        [whamlet|
+        <span ##{buttonId} .edit-header>
+          ✎
+      |]
+  where
+    link :: Route WebData
+    link =
+      if null (subL ^. subOffsets)
+        then NoteR (WId entry)
+        else NoteSubR (WId entry) $ WLoc $ LocSub subL
 
 -- TODO make link to day viewer
 dateWidget :: Entry -> Handler Widget

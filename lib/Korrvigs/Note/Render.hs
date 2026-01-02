@@ -208,9 +208,10 @@ renderBlock (Embed (MkId i)) = do
   writeText "```{=embed}" >> flush >> newline
   writeText i >> flush >> newline
   writeText "```"
-renderBlock (EmbedHeader (MkId i)) = do
+renderBlock (EmbedHeader (MkId i) lvl) = do
   writeText "```{=embedhd}" >> flush >> newline
   writeText i >> flush >> newline
+  writeText (T.pack $ show lvl) >> flush >> newline
   writeText "```"
 renderBlock (Collection col nm ids) = do
   writeText "```{=collection}" >> flush >> newline

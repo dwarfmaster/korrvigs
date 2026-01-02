@@ -332,16 +332,15 @@ compileBlock' (Embed i) = do
     ^{lnk}
     ^{widget}
 |]
-compileBlock' (EmbedHeader i) = do
+compileBlock' (EmbedHeader i lvl) = do
   lnk <- lift $ embedLnk i
-  lvl <- use currentLevel
-  (widget, checks, title) <- lift $ embedBody i $ lvl + 1
+  (widget, checks, title) <- lift $ embedBody i lvl
   sqlI <- lift $ rSelectOne (fromName pure $ sqlId i) >>= throwMaybe (KMiscError $ "Couldn't load " <> unId i)
   task <- lift $ loadTask i sqlI title
   taskW <- lift $ Wdgs.taskWidget i (SubLoc []) task
-  titleW <- lift $ compileHeader (lvl + 1) [whamlet|^{taskW} #{fromMaybe "" title} ^{checksDisplay checks} ^{lnk}|]
+  titleW <- lift $ compileHeader lvl [whamlet|^{taskW} #{fromMaybe "" title} ^{checksDisplay checks} ^{lnk}|]
   pure $ do
-    embedId <- Wdgs.mkSection (lvl + 1) [("class", "collapsed")] [] titleW widget
+    embedId <- Wdgs.mkSection lvl [("class", "collapsed")] [] titleW widget
     case task of
       Nothing -> propagateChecks embedId checks
       Just tk -> do

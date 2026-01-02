@@ -176,7 +176,7 @@ updateRefBlock old new (DefinitionList cases) =
 updateRefBlock old new (Figure attr caption bks) =
   pure $ Figure attr (mapMaybe (updateRefBlock old new) caption) (mapMaybe (updateRefBlock old new) bks)
 updateRefBlock old new (Embed i) | i == old = Embed <$> new
-updateRefBlock old new (EmbedHeader i) | i == old = EmbedHeader <$> new
+updateRefBlock old new (EmbedHeader i lvl) | i == old = EmbedHeader <$> new <*> pure lvl
 updateRefBlock old new (Collection col i items) =
   pure $ Collection col i $ mapMaybe updateItem items
   where

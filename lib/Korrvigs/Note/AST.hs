@@ -113,7 +113,7 @@ data Block
   | DefinitionList [([Inline], [[Block]])]
   | Figure Attr [Block] [Block] -- The first block set is the caption
   | Embed Id -- Embed a document
-  | EmbedHeader Id -- Embed a document as a sub header
+  | EmbedHeader Id Int -- Embed a document as a sub header
   | Collection Collection Text [CollectionItem]
   | Syndicate Text Bool [Id]
   | Sub Header

@@ -51,7 +51,7 @@ blockToText (DefinitionList lst) =
   mconcat $ uncurry (<>) . (inlinesToText *** mconcat . fmap blocksToText) <$> lst
 blockToText (Figure _ caption _) = blocksToText caption
 blockToText (Embed _) = mempty
-blockToText (EmbedHeader _) = mempty
+blockToText (EmbedHeader _ _) = mempty
 blockToText (Collection {}) = mempty
 blockToText (Syndicate {}) = mempty
 blockToText (Sub hd) =

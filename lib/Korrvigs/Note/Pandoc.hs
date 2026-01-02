@@ -40,6 +40,7 @@ import Korrvigs.Utils.JSON (jsonAsText)
 import Korrvigs.Utils.Pandoc
 import Network.URI
 import Text.Pandoc hiding (Reader)
+import Text.Read (readMaybe)
 import Prelude hiding (readFile)
 
 data BlockStackZipper = BSZ
@@ -145,10 +146,11 @@ popHeader = do
       pure True
     Nothing -> pure False
 
+popHeaderTo :: Int -> ParseM ()
+popHeaderTo lvl = whileM_ (headerLvl <&> (>= lvl)) popHeader
+
 startHeader :: Int -> A.Attr -> ParseM ()
-startHeader lvl attr = do
-  whileM_ (headerLvl <&> (>= lvl)) popHeader
-  pushHeader lvl attr
+startHeader lvl attr = popHeaderTo lvl >> pushHeader lvl attr
 
 emptyAttr :: A.Attr
 emptyAttr = A.MkAttr "" [] M.empty
@@ -256,9 +258,17 @@ parseBlock (RawBlock (Format fmt) i)
   | CI.mk fmt == "embed" = do
       refTo $ MkId i
       pure . pure . A.Embed . MkId $ i
-  | CI.mk fmt == "embedhd" = do
-      refTo $ MkId i
-      pure . pure . A.EmbedHeader . MkId $ i
+  | CI.mk fmt == "embedhd" = case T.lines i of
+      [entryI] -> do
+        lvl <- use $ stack . bszLevel
+        refTo $ MkId entryI
+        pure $ pure $ A.EmbedHeader (MkId entryI) $ lvl + 1
+      (entryI : lvl : _) -> fromMaybeT [] $ do
+        lift $ refTo $ MkId entryI
+        lvlN <- hoistMaybe $ readMaybe $ T.unpack lvl
+        lift $ popHeaderTo lvlN
+        pure $ pure $ A.EmbedHeader (MkId entryI) lvlN
+      _ -> pure []
   | CI.mk fmt == "collection" = case T.lines i of
       [] -> pure $ pure $ A.Collection A.ColList "TODO" []
       (hd : ids) -> do

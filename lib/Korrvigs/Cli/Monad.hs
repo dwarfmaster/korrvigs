@@ -39,6 +39,7 @@ data KorrState = KState
     _korrSQLLock :: MVar (),
     _korrRoot :: FilePath,
     _korrCaptureRoot :: FilePath,
+    _korrMimeDatabase :: FilePath,
     _korrWeb :: WebState,
     _korrCreds :: Map Text Value,
     _korrTokens :: TVar (Map Text Value),
@@ -53,7 +54,8 @@ data KorrConfig = KConfig
     _kconfigStaticDir :: Maybe FilePath,
     _kconfigStaticRedirect :: Maybe Text,
     _kconfigCaptureRoot :: FilePath,
-    _kconfigCredentials :: Maybe FilePath
+    _kconfigCredentials :: Maybe FilePath,
+    _kconfigMimeDatabase :: FilePath
   }
 
 makeLenses ''KorrState
@@ -73,6 +75,7 @@ instance MonadKorrvigs KorrM where
     pure r
   root = view korrRoot
   captureRoot = view korrCaptureRoot
+  mimeDatabase = view korrMimeDatabase
   getCredential c = do
     creds <- view korrCreds
     pure $ M.lookup c creds >>= fromJSONM
@@ -104,6 +107,7 @@ runKorrM config act = do
             _korrSQLLock = lock,
             _korrRoot = config ^. kconfigRoot,
             _korrCaptureRoot = config ^. kconfigCaptureRoot,
+            _korrMimeDatabase = config ^. kconfigMimeDatabase,
             _korrWeb =
               WState
                 { _webPort = config ^. kconfigPort,
@@ -137,6 +141,7 @@ instance FromJSON KorrConfig where
         <*> v .:? "staticRedirect"
         <*> v .: "capture"
         <*> v .:? "credentials"
+        <*> v .: "mimeDatabase"
 
 configPath :: IO FilePath
 configPath = do

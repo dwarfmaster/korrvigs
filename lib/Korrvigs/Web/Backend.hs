@@ -30,6 +30,7 @@ data WebData = WebData
     web_theme :: Base16Index -> Text,
     web_static :: Static,
     web_static_redirect :: Maybe Text,
+    web_mime_database :: FilePath,
     web_mac_secret :: ByteString,
     web_capture_root :: FilePath,
     web_credentials :: Map Text Value,
@@ -145,6 +146,7 @@ instance MonadKorrvigs Handler where
     pure r
   root = getsYesod web_root
   captureRoot = getsYesod web_capture_root
+  mimeDatabase = getsYesod web_mime_database
   getCredential c = do
     creds <- getsYesod web_credentials
     pure $ M.lookup c creds >>= fromJSONM

@@ -52,6 +52,7 @@ run cmd = do
   toks <- view korrTokens
   conn <- view korrConnection
   lock <- view korrSQLLock
+  mimeDb <- mimeDatabase
   liftIO $
     warp prt $
       WebData
@@ -61,6 +62,7 @@ run cmd = do
           web_theme = theme16 theme,
           web_static = stc,
           web_static_redirect = staticRedirect,
+          web_mime_database = mimeDb,
           web_mac_secret = secret,
           web_capture_root = captureRt,
           web_credentials = creds,

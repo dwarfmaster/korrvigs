@@ -30,6 +30,8 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
+import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Entry.New
@@ -52,30 +54,24 @@ import Network.Mime
 import Network.URI hiding (path)
 import Opaleye hiding (not, null)
 import System.Directory
+import System.Exit
 import System.FilePath
-import System.IO
 import System.IO.Temp
 import qualified System.Posix as Posix
 import System.Process
 import Text.Parsec hiding ((<|>))
 
-splitLast :: (Eq a) => a -> [a] -> [a]
-splitLast c' = either id (view _2) . foldr go (Left [])
-  where
-    go c (Right (f, b)) = Right (c : f, b)
-    go c (Left s)
-      | c == c' = Right ([], s)
-      | otherwise = Left (c : s)
-
-findMime :: FilePath -> IO MimeType
-findMime path | takeExtension path == ".gpx" = pure "application/gpx+xml"
-findMime path = do
-  (_, Just out, _, _) <- createProcess file {std_out = CreatePipe}
-  r <- hGetContents' out
-  let mime = T.strip . T.pack $ splitLast ':' r
+findMime :: FilePath -> FilePath -> IO MimeType
+findMime _ path | takeExtension path == ".gpx" = pure "application/gpx+xml"
+findMime db path = do
+  (exit, out) <- runStdout file
+  case exit of
+    ExitSuccess -> pure ()
+    ExitFailure exitCode -> throwM $ KMiscError $ "Couldn't computate mime for file, mimetype failed with exit code " <> T.pack (show exitCode) <> ":\n" <> T.pack path
+  let mime = T.strip . snd $ T.breakOnEnd ":" $ LT.toStrict $ LEnc.decodeUtf8 out
   pure $ Enc.encodeUtf8 mime
   where
-    file = proc "mimetype" [path]
+    file = proc "mimetype" ["--database", db, path]
 
 inAnnex :: (MonadKorrvigs m) => FilePath -> m Bool
 inAnnex path = do
@@ -134,7 +130,8 @@ update file nfile = do
   -- Replace file
   let oldpath = file ^. filePath
   liftIO $ removeFile oldpath
-  mime <- liftIO $ findMime nfile
+  db <- mimeDatabase
+  mime <- liftIO $ findMime db nfile
   let mimeTxt = Enc.decodeUtf8 mime
   let ext = takeExtension nfile
   let newpath = replaceExtension oldpath ext
@@ -183,7 +180,8 @@ new path' options' = do
   nentry <- applyCover (options ^. nfEntry) title
   ex <- liftIO $ doesFileExist path
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
-  mime <- liftIO $ findMime path
+  db <- mimeDatabase
+  mime <- liftIO $ findMime db path
   let mimeTxt = Enc.decodeUtf8 mime
   let mtdt' = FileMetadata mimeTxt M.empty Nothing Nothing Nothing Nothing title [] M.empty
   mtdt'' <- liftIO $ ($ mtdt') <$> extractMetadata path mime

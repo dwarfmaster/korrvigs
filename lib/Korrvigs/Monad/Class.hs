@@ -39,6 +39,7 @@ class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   root :: m FilePath
   manager :: m Manager
   captureRoot :: m FilePath
+  mimeDatabase :: m FilePath
   getCredential :: (FromJSON cred) => Text -> m (Maybe cred)
   getToken :: (FromJSON tok) => Text -> m (Maybe tok)
   storeToken :: (ToJSON tok) => Text -> tok -> m ()

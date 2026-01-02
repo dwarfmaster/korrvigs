@@ -40,7 +40,7 @@ overlay: {
         base0F
         ;
       credentials = cfg.credentialFile;
-      inherit (cfg) connectionSpec root capture;
+      inherit (cfg) connectionSpec root capture mimeDatabase;
       inherit (server) port;
       staticDir = "${pkgs.korrvigs-static.override {inherit (cfg) theme;}}";
     }
@@ -63,6 +63,11 @@ overlay: {
     pkgs.ffmpeg
     pkgs.swi-prolog
     pkgs.chromium
+    pkgs.perl540Packages.FileMimeInfo
+    pkgs.shared-mime-info
+  ];
+
+  languages = [
     pkgs.graphviz
     pkgs.gcc
     pkgs.nix
@@ -75,7 +80,6 @@ overlay: {
     pkgs.haskellPackages.ghc
     pkgs.rustc
     pkgs.ocaml
-    pkgs.perl540Packages.FileMimeInfo
   ];
 in {
   options.programs.korrvigs = {
@@ -100,6 +104,16 @@ in {
     connectionSpec = mkOption {
       type = types.str;
       description = "Connection string to the postgreSQL database";
+    };
+    mimeDatabase = mkOption {
+      type = types.str;
+      description = "Mime database to use with mimetype";
+      default = "${pkgs.shared-mime-info}/share/mime";
+    };
+    installLanguages = mkOption {
+      type = types.bool;
+      description = "Install languages in environment";
+      default = true;
     };
     theme = {
       base00 = colorOption "#231e18";
@@ -166,7 +180,14 @@ in {
     (mkIf cfg.enable {
       home-manager.users.${cfg.user} = {
         xdg.configFile."korrvigs/config.json".text = builtins.toJSON configContent;
-        home.packages = [cfg.package] ++ dependencies;
+        home.packages =
+          [cfg.package]
+          ++ dependencies
+          ++ (
+            if cfg.installLanguages
+            then languages
+            else []
+          );
       };
     })
 
@@ -212,7 +233,7 @@ in {
         };
 
         script = "${cfg.package}/bin/korr server";
-        path = dependencies;
+        path = dependencies ++ languages;
       };
     })
 

@@ -3,9 +3,11 @@ module Korrvigs.Note.Edit
     addSubHeaderFirst,
     addHeaderAfter,
     addHeaderBefore,
+    reRoot,
   )
 where
 
+import Control.Arrow ((***))
 import Control.Lens
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -60,3 +62,29 @@ addHeaderBefore :: SubLoc -> Document -> Document
 addHeaderBefore loc = subs loc %~ (Sub sb :)
   where
     sb = newHeader $ subLvl loc
+
+reRoot :: Int -> Block -> Block
+reRoot delta (Para inls) = Para $ reRootInline delta <$> inls
+reRoot delta (BlockQuote bks) = BlockQuote $ reRoot delta <$> bks
+reRoot delta (OrderedList bks) = OrderedList $ map (reRoot delta) <$> bks
+reRoot delta (BulletList bks) = BulletList $ map (reRoot delta) <$> bks
+reRoot delta (DefinitionList defs) =
+  DefinitionList $ (map (reRootInline delta) *** map (map $ reRoot delta)) <$> defs
+reRoot delta (Figure attr caption content) =
+  Figure attr (reRoot delta <$> caption) (reRoot delta <$> content)
+reRoot delta (EmbedHeader i lvl) = EmbedHeader i $ lvl + delta
+reRoot delta (Sub hd) =
+  Sub $
+    hd
+      & hdLevel %~ (+ delta)
+      & hdContent . each %~ reRoot delta
+reRoot delta (Table tbl) =
+  Table $
+    tbl
+      & tableCaption . each %~ reRoot delta
+      & tableCells . each . cellData . each %~ reRoot delta
+reRoot _ bk = bk
+
+reRootInline :: Int -> Inline -> Inline
+reRootInline delta (Sidenote bks) = Sidenote $ reRoot delta <$> bks
+reRootInline _ inl = inl

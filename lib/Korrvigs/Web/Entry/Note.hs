@@ -332,7 +332,9 @@ compileBlock' (Embed i) = do
     ^{lnk}
     ^{widget}
 |]
-compileBlock' (EmbedHeader i lvl) = do
+compileBlock' (EmbedHeader i hdLvl) = do
+  rtLvl <- use hdRootLevel
+  let lvl = hdLvl + rtLvl
   lnk <- lift $ embedLnk i
   (widget, checks, title) <- lift $ embedBody i lvl
   sqlI <- lift $ rSelectOne (fromName pure $ sqlId i) >>= throwMaybe (KMiscError $ "Couldn't load " <> unId i)

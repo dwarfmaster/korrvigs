@@ -1,4 +1,10 @@
-module Korrvigs.Web.Compute (getEntryComputeListR, getEntryComputeR, postEntryComputeR) where
+module Korrvigs.Web.Compute
+  ( getEntryComputeListR,
+    getEntryComputeR,
+    getEntryComputeNamedR,
+    postEntryComputeR,
+  )
+where
 
 import Conduit
 import Control.Lens
@@ -40,6 +46,9 @@ serveComputation runner i cmp =
 getEntryComputeR :: WebId -> Text -> Handler TypedContent
 getEntryComputeR (WId i) = serveComputation runVeryLazy i
 
+getEntryComputeNamedR :: WebId -> Text -> Text -> Handler TypedContent
+getEntryComputeNamedR i nm _ = getEntryComputeR i nm
+
 postEntryComputeR :: WebId -> Text -> Handler TypedContent
 postEntryComputeR (WId i) = serveComputation runForce i
 
@@ -50,6 +59,7 @@ serveType VectorGraphic = typeSvg
 serveType ArbitraryJson = typeJson
 serveType ArbitraryText = typePlain
 serveType TabularCsv = "text/csv; charset=utf-8"
+serveType Model3D = "model/gltf-binary"
 
 serveResult :: RunnableResult -> Content
 serveResult res = toContent $ encodeToLBS res

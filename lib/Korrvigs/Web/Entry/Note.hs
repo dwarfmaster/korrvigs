@@ -43,6 +43,7 @@ import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
 import qualified Korrvigs.Web.Entry.Syndicate as Syn
 import qualified Korrvigs.Web.JS.Ace as Ace
+import qualified Korrvigs.Web.JS.ThreePipe as ThreePipe
 import Korrvigs.Web.Public.Crypto (mkPublic)
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
@@ -744,3 +745,5 @@ resultWidget _ _ TabularCsv (ResultText txt) =
                     #{Enc.decodeUtf8Lenient item}
       |]
 resultWidget _ _ TabularCsv _ = pure mempty
+resultWidget i cmp Model3D _ =
+  ThreePipe.viewer $ EntryComputeNamedR (WId i) cmp "model.glb"

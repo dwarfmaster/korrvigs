@@ -26,6 +26,7 @@ data RunnableType
   | ArbitraryJson
   | ArbitraryText
   | TabularCsv
+  | Model3D
   deriving (Show, Eq, Ord, Enum, Bounded)
 
 data RunnableKind = KindText | KindBin | KindJson
@@ -52,6 +53,7 @@ runTypeKind VectorGraphic = KindText
 runTypeKind ArbitraryJson = KindJson
 runTypeKind ArbitraryText = KindText
 runTypeKind TabularCsv = KindText
+runTypeKind Model3D = KindBin
 
 runTypeName :: RunnableType -> Text
 runTypeName ScalarImage = "image"
@@ -60,6 +62,7 @@ runTypeName VectorGraphic = "vector"
 runTypeName ArbitraryJson = "json"
 runTypeName ArbitraryText = "text"
 runTypeName TabularCsv = "csv"
+runTypeName Model3D = "3d"
 
 runTypeExt :: RunnableType -> Text
 runTypeExt ScalarImage = "jpg"
@@ -68,6 +71,7 @@ runTypeExt VectorGraphic = "svg"
 runTypeExt ArbitraryJson = "json"
 runTypeExt ArbitraryText = "txt"
 runTypeExt TabularCsv = "csv"
+runTypeExt Model3D = "glb"
 
 parseTypeName :: Text -> Maybe RunnableType
 parseTypeName =

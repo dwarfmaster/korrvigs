@@ -80,6 +80,8 @@ overlay: {
     pkgs.haskellPackages.ghc
     pkgs.rustc
     pkgs.ocaml
+    pkgs.openscad
+    pkgs.assimp
   ];
 in {
   options.programs.korrvigs = {

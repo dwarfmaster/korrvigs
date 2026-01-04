@@ -25,6 +25,8 @@
       pkgs.poppler_utils
       pkgs.git
       pkgs.perl540Packages.FileMimeInfo
+      pkgs.openscad
+      pkgs.assimp
     ];
 
     static = pkgs.callPackage ./static.nix {};

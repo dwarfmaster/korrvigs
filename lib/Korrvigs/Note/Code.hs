@@ -40,7 +40,8 @@ knownLanguages =
       ("raku", Raku),
       ("haskell", Haskell),
       ("rust", Rust),
-      ("ocaml", OCaml)
+      ("ocaml", OCaml),
+      ("openscad", OpenScad)
     ]
 
 data AttrData = AttrData

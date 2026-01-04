@@ -34,6 +34,7 @@ import qualified Data.Text.IO as TIO
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.Utils.Crypto
+import NeatInterpolation
 import System.Environment
 import System.Exit
 import System.FilePath
@@ -60,6 +61,7 @@ data Executable
   | Haskell
   | Rust
   | OCaml
+  | OpenScad
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -167,6 +169,11 @@ mkExeProc Perl args _ =
 mkExeProc Haskell args _ = mkCLikeBuildScript "ghc" "code.hs" args
 mkExeProc Rust args _ = mkCLikeBuildScript "rustc" "code.rs" args
 mkExeProc OCaml args _ = mkCLikeBuildScript "ocamlc" "code.ml" args
+mkExeProc OpenScad _ VectorGraphic =
+  noCompile "model.scad" $ proc "openscad" ["model.scad", "--export-format", "svg", "-o", "-"]
+mkExeProc OpenScad _ Model3D = openScad3d
+mkExeProc OpenScad _ _ =
+  noCompile "model.scad" $ proc "openscad" ["model.scad", "--export-format", "png", "-o", "-"]
 
 mkCLikeBuildScript :: Text -> FilePath -> [Text] -> ExeProc
 mkCLikeBuildScript gcc code args =
@@ -175,6 +182,19 @@ mkCLikeBuildScript gcc code args =
       _exeCompileScript =
         Just $ gcc <> " -o korrvigs.out " <> T.pack code,
       _exeRun = proc "./korrvigs.out" $ T.unpack <$> args
+    }
+
+openScad3d :: ExeProc
+openScad3d =
+  ExeProc
+    { _exeCode = "model.scad",
+      _exeCompileScript =
+        Just
+          [trimming|
+        openscad model.scad --export-format stl -o model.stl
+        assimp export model.stl model.glb
+      |],
+      _exeRun = proc "cat" ["model.glb"]
     }
 
 hashRunnable ::
@@ -230,6 +250,7 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe Haskell = stringUtf8 "haskell"
     buildExe Rust = stringUtf8 "rust"
     buildExe OCaml = stringUtf8 "ocaml"
+    buildExe OpenScad = stringUtf8 "openscad"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

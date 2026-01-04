@@ -82,6 +82,7 @@ overlay: {
     pkgs.ocaml
     pkgs.openscad
     pkgs.assimp
+    pkgs.povray
   ];
 in {
   options.programs.korrvigs = {

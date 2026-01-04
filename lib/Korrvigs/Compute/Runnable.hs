@@ -62,6 +62,7 @@ data Executable
   | Rust
   | OCaml
   | OpenScad
+  | Povray
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -174,6 +175,8 @@ mkExeProc OpenScad _ VectorGraphic =
 mkExeProc OpenScad _ Model3D = openScad3d
 mkExeProc OpenScad _ _ =
   noCompile "model.scad" $ proc "openscad" ["model.scad", "--export-format", "png", "-o", "-"]
+mkExeProc Povray _ _ =
+  noCompile "model.pov" $ proc "povray" ["model.pov", "-o-"]
 
 mkCLikeBuildScript :: Text -> FilePath -> [Text] -> ExeProc
 mkCLikeBuildScript gcc code args =
@@ -251,6 +254,7 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe Rust = stringUtf8 "rust"
     buildExe OCaml = stringUtf8 "ocaml"
     buildExe OpenScad = stringUtf8 "openscad"
+    buildExe Povray = stringUtf8 "povray"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

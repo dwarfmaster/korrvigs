@@ -27,6 +27,7 @@
       pkgs.perl540Packages.FileMimeInfo
       pkgs.openscad
       pkgs.assimp
+      pkgs.povray
     ];
 
     static = pkgs.callPackage ./static.nix {};

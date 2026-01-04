@@ -12,6 +12,7 @@ import Korrvigs.Geometry
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.JS.Foliate as Foliate
 import Korrvigs.Web.JS.Leaflet
+import qualified Korrvigs.Web.JS.ThreePipe as ThreePipe
 import Korrvigs.Web.Routes (WebId (WId))
 import Network.Mime
 import Yesod
@@ -100,6 +101,10 @@ bookWidget :: File -> Handler Widget
 bookWidget file =
   Foliate.viewer $ EntryDownloadR $ WId $ file ^. fileEntry . entryName
 
+threeWidget :: File -> Handler Widget
+threeWidget file =
+  ThreePipe.viewer $ EntryDownloadNamedR (WId $ file ^. fileEntry . entryName) "model.glb"
+
 embed :: Int -> File -> Handler Widget
 embed _ file
   | file ^. fileStatus == FileAbsent = pure $ do
@@ -125,7 +130,8 @@ embed _ file = do
         (mime == "application/pdf", pdfWidget file),
         (mime == "application/gpx+xml", gpxWidget file),
         (BS.isPrefixOf "application/epub" mime, bookWidget file),
-        (mime == "application/vnd.comicbook+zip", bookWidget file)
+        (mime == "application/vnd.comicbook+zip", bookWidget file),
+        ("model/gltf-binary" == mime, threeWidget file)
       ]
 
 content :: File -> Handler Widget

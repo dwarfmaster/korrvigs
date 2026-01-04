@@ -1,4 +1,4 @@
-module Korrvigs.Web.Download (getEntryDownloadR) where
+module Korrvigs.Web.Download (getEntryDownloadR, getEntryDownloadNamedR) where
 
 import Control.Lens
 import Control.Monad
@@ -35,17 +35,23 @@ suggestExtension (EventD _) = ".ics"
 suggestExtension (CalendarD _) = ".json"
 suggestExtension (SyndicateD _) = ".json"
 
-filenameHint :: Id -> KindData -> Handler ()
+filenameHint :: Text -> KindData -> Handler ()
 filenameHint i dat =
-  addHeader "Content-Disposition" $ "inline; filename=\"" <> unId i <> suggestExtension dat <> "\""
+  addHeader "Content-Disposition" $ "inline; filename=\"" <> i <> suggestExtension dat <> "\""
 
-getEntryDownloadR :: WebId -> Handler TypedContent
-getEntryDownloadR (WId i) =
+getEntryDownloadImpl :: Text -> Id -> Handler TypedContent
+getEntryDownloadImpl nm i =
   load i >>= \case
     Just entry -> do
       public <- isPublic
       private <- isPrivate entry
       when (public && private) $ permissionDenied "Tried to access a private entry"
-      filenameHint i $ entry ^. entryKindData
+      filenameHint nm $ entry ^. entryKindData
       downloadEntry $ entry ^. entryKindData
     Nothing -> notFound
+
+getEntryDownloadR :: WebId -> Handler TypedContent
+getEntryDownloadR (WId i) = getEntryDownloadImpl (unId i) i
+
+getEntryDownloadNamedR :: WebId -> Text -> Handler TypedContent
+getEntryDownloadNamedR (WId i) nm = getEntryDownloadImpl nm i

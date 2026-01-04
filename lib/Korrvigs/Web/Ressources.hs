@@ -137,3 +137,10 @@ andypfJsonViewer mkStatic =
 foliateJS :: (Route Static -> Route site) -> WidgetFor site ()
 foliateJS mkStatic =
   addScriptAttrs (mkStatic $ StaticRoute ["foliate", "main.js"] []) [("type", "module")]
+
+threePipeJS :: (Route Static -> Route site) -> WidgetFor site ()
+threePipeJS mkStatic = do
+  addScript $ mkStatic $ StaticRoute ["threepipe", "threepipe.js"] []
+  addScriptAttrs
+    (mkStatic $ StaticRoute ["threepipe", "main.js"] [])
+    [("type", "module")]

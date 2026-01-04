@@ -213,6 +213,7 @@ library korrvigs-lib
     Korrvigs.Web.JS.Fuse
     Korrvigs.Web.JS.Leaflet
     Korrvigs.Web.JS.PhotoSwipe
+    Korrvigs.Web.JS.ThreePipe
     Korrvigs.Web.Metadata
     Korrvigs.Web.Note
     Korrvigs.Web.Note.Col

@@ -31,6 +31,7 @@ korrvigsRoutes =
 /entry SearchR GET
 /entry/#WebId EntryR GET
 /entry/#WebId/download EntryDownloadR GET
+/entry/#WebId/download/#Text EntryDownloadNamedR GET
 /entry/#WebId/metadata EntryMtdtR GET POST
 /entry/#WebId/compute EntryComputeListR GET
 /entry/#WebId/compute/#Text EntryComputeR GET POST

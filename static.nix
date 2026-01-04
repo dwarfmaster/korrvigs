@@ -72,6 +72,10 @@
     url = "https://unpkg.com/@popperjs/core@2";
     sha256 = "10l7js3vq14a7iznqig6rcg857wrdzqsh91bssp54qx80nsz84n2";
   };
+  threepipe = fetchurl {
+    url = "https://unpkg.com/threepipe@0.4.3";
+    sha256 = "061yph3gx0gr0bziaf68vgrl4zag3kk26ph1igjvmzv9nrcin6fk";
+  };
   json-viewer = fetchurl {
     url = "https://pfau-software.de/json-viewer/dist/iife/index.js";
     sha256 = "1b201pjr7b9d9w5cn379spk2mazrnwiwxxrj0qp9gpw4vbxd772p";
@@ -103,9 +107,13 @@ in
     cp -r ${fullcalendar} $out/fullcalendar/index.global.min.js
     mkdir -p $out/popperjs
     cp ${popperjs} $out/popperjs/popperjs.min.js
+    mkdir -p $out/threepipe
+    cp ${threepipe} $out/threepipe/threepipe.js
+    cp ${./lib/Korrvigs/Web/Ressources/js/three-viewer.js} $out/threepipe/main.js
     cp ${./ressources/favicon.ico} $out/favicon.ico
     mkdir -p $out/andypf
     ln -s ${json-viewer} $out/andypf/json-viewer.js
+
     mkdir $out/icons
     ${sed} 's/stroke="#000000"/stroke="${theme.base09}"/' ${./ressources/icons/checkbox-todo.svg} > $out/icons/checkbox-todo.svg
     ${sed} 's/stroke="#000000"/stroke="${theme.base0A}"/' ${./ressources/icons/checkbox-important.svg} > $out/icons/checkbox-important.svg
@@ -133,6 +141,8 @@ in
     ln -s ${./ressources/icons/rss.png} $out/icons/rss.png
     ln -s ${./ressources/icons/title.png} $out/icons/title.png
     ln -s ${./ressources/icons/action.png} $out/icons/action.png
+
     mkdir -p $out/font
     cp ${charis}/web/*.woff2 $out/font
+    cp ${./ressources/hdrmap.hdr} $out/hdrmap.hdr
   ''

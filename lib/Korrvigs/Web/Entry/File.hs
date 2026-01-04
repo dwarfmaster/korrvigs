@@ -7,6 +7,7 @@ import Data.Text (Text)
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.IO as TIO
 import Korrvigs.Entry
+import Korrvigs.File.Computation (hasModel)
 import qualified Korrvigs.File.Mtdt.GPX as GPX
 import Korrvigs.Geometry
 import Korrvigs.Web.Backend
@@ -101,9 +102,11 @@ bookWidget :: File -> Handler Widget
 bookWidget file =
   Foliate.viewer $ EntryDownloadR $ WId $ file ^. fileEntry . entryName
 
-threeWidget :: File -> Handler Widget
-threeWidget file =
+threeWidget :: Bool -> File -> Handler Widget
+threeWidget True file =
   ThreePipe.viewer $ EntryDownloadNamedR (WId $ file ^. fileEntry . entryName) "model.glb"
+threeWidget False file =
+  ThreePipe.viewer $ EntryComputeNamedR (WId $ file ^. fileEntry . entryName) "model" "model.glb"
 
 embed :: Int -> File -> Handler Widget
 embed _ file
@@ -131,7 +134,8 @@ embed _ file = do
         (mime == "application/gpx+xml", gpxWidget file),
         (BS.isPrefixOf "application/epub" mime, bookWidget file),
         (mime == "application/vnd.comicbook+zip", bookWidget file),
-        ("model/gltf-binary" == mime, threeWidget file)
+        ("model/gltf-binary" == mime, threeWidget True file),
+        (hasModel mime, threeWidget False file)
       ]
 
 content :: File -> Handler Widget

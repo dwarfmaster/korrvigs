@@ -1,4 +1,4 @@
-module Korrvigs.File.Computation (fileComputations) where
+module Korrvigs.File.Computation (fileComputations, hasModel) where
 
 import qualified Data.ByteString as BS
 import Data.Map (Map)
@@ -14,20 +14,24 @@ fileComputations :: Id -> MimeType -> Map Text Runnable
 fileComputations i mime =
   mconcat
     [ miniature i mime,
-      size i mime
+      size i mime,
+      model i mime
     ]
 
-mkMinRunnable :: Id -> Text -> Map Text Runnable
-mkMinRunnable i code =
-  M.singleton "miniature" $
+mkRunnable :: Text -> RunnableType -> Id -> Text -> Map Text Runnable
+mkRunnable nm tp i code =
+  M.singleton nm $
     Runnable
       { _runExecutable = Bash,
-        _runType = ScalarImage,
+        _runType = tp,
         _runArgs = [ArgEntry i],
         _runEnv = M.empty,
         _runStdIn = Nothing,
         _runCode = code
       }
+
+mkMinRunnable :: Id -> Text -> Map Text Runnable
+mkMinRunnable = mkRunnable "miniature" ScalarImage
 
 miniature :: Id -> MimeType -> Map Text Runnable
 miniature i mime
@@ -39,16 +43,7 @@ miniature i mime
 miniature _ _ = M.empty
 
 mkSizeRunnable :: Id -> Text -> Map Text Runnable
-mkSizeRunnable i code =
-  M.singleton "size" $
-    Runnable
-      { _runExecutable = Bash,
-        _runType = ArbitraryJson,
-        _runArgs = [ArgEntry i],
-        _runEnv = M.empty,
-        _runStdIn = Nothing,
-        _runCode = code
-      }
+mkSizeRunnable = mkRunnable "size" ArbitraryJson
 
 size :: Id -> MimeType -> Map Text Runnable
 size i mime
@@ -70,3 +65,29 @@ size i mime
           fi
         |]
 size _ _ = M.empty
+
+mkModelRunnable :: Id -> Text -> Map Text Runnable
+mkModelRunnable = mkRunnable "model" Model3D
+
+assimpMimes :: [MimeType]
+assimpMimes =
+  [ "model/obj",
+    "model/gltf+json",
+    "model/stl",
+    "model/x.stl-ascii",
+    "model/x.stl-binary"
+  ]
+
+hasModel :: MimeType -> Bool
+hasModel = flip elem assimpMimes
+
+model :: Id -> MimeType -> Map Text Runnable
+model i mime
+  | hasModel mime =
+      mkModelRunnable
+        i
+        [trimming|
+    assimp export $$1 model.glb
+    cat model.glb
+  |]
+model _ _ = M.empty

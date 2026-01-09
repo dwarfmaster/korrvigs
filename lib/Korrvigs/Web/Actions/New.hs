@@ -4,6 +4,7 @@ import Control.Arrow
 import Control.Lens
 import Control.Monad
 import Data.Default
+import Data.List (sortBy)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
@@ -184,7 +185,12 @@ newMediaForm =
     <*> langForm
   where
     types :: [(Text, Maybe MediaType)]
-    types = ("Auto", Nothing) : ((displayMediaType &&& Just) <$> [minBound .. maxBound])
+    types = ("Auto", Nothing) : (second Just <$> concreteTypes)
+    concreteTypes :: [(Text, MediaType)]
+    concreteTypes =
+      sortBy
+        (\(nm1, _) (nm2, _) -> compare nm1 nm2)
+        ((displayMediaType &&& id) <$> [minBound .. maxBound])
 
 newMediaTitle :: ActionTarget -> Text
 newMediaTitle = mkNewTitle "new media"

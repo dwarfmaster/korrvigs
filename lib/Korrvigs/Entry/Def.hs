@@ -64,7 +64,7 @@ data Syndicate = MkSyndicate
     _synUrl :: Maybe Text,
     _synPath :: FilePath,
     _synETag :: Maybe Text,
-    _synFilter :: Maybe (Id, Text),
+    _synFilters :: [(Id, Text)],
     _synExpiration :: Maybe UTCTime
   }
   deriving (Show)

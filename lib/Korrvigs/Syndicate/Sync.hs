@@ -80,7 +80,8 @@ syncSynJSON i path json = do
   let title = json ^. synjsTitle
   let erow = EntryRow Nothing Syndicate i tm dur geom Nothing title :: EntryRowW
   let mtdtrows = first CI.mk <$> M.toList mtdt
-  let srow sqlI = SyndicateRow sqlI (json ^. synjsUrl) path (json ^. synjsETag) (view _1 <$> json ^. synjsFilter) (view _2 <$> json ^. synjsFilter) (json ^. synjsExpiration) :: SyndicateRow
+  let renderFilter (MkId fId, fCode) = fId <> "#" <> fCode
+  let srow sqlI = SyndicateRow sqlI (json ^. synjsUrl) path (json ^. synjsETag) (renderFilter <$> json ^. synjsFilters) (json ^. synjsExpiration) :: SyndicateRow
   let insert sqlI =
         Insert
           { iTable = syndicatesTable,
@@ -96,7 +97,7 @@ syncSynJSON i path json = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  let refs = toList (json ^? synjsFilter . _Just . _1) ++ mapMaybe (view synitInstance) (json ^. synjsItems)
+  let refs = (json ^.. synjsFilters . each . _1) ++ mapMaybe (view synitInstance) (json ^. synjsItems)
   pure $ SyncData erow (\sqlI -> [insert sqlI, insertItemRows sqlI]) mtdtrows (json ^. synjsText) (MkId <$> json ^. synjsParents) refs M.empty
 
 updateFile :: (MonadKorrvigs m) => Id -> FilePath -> (SyndicateJSON -> m SyndicateJSON) -> m ()
@@ -128,12 +129,12 @@ updateRef syn old new =
     pure
       . (synjsParents %~ upd)
       . (synjsMetadata %~ updateInMetadata old new)
-      . (synjsFilter %~ (>>= updFilter))
+      . (synjsFilters %~ (>>= updFilter))
       . (synjsItems . each %~ updItem)
   where
     upd = maybe id (\i -> (unId i :)) new . filter (/= unId old)
-    updFilter (entry, code) | entry == old = (,code) <$> new
-    updFilter (entry, code) = Just (entry, code)
+    updFilter (entry, code) | entry == old = (,code) <$> toList new
+    updFilter (entry, code) = [(entry, code)]
     updItem item | item ^. synitInstance == Just old = item & synitInstance .~ new
     updItem item = item
 

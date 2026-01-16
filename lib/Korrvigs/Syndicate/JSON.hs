@@ -1,12 +1,15 @@
 module Korrvigs.Syndicate.JSON where
 
 import Control.Lens hiding ((.=))
+import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Map (Map)
 import Data.Text (Text)
 import Data.Time.Clock (UTCTime)
 import Data.Time.LocalTime
+import Data.Vector ((!))
+import qualified Data.Vector as V
 import Korrvigs.Entry
 import Korrvigs.Geometry
 import Korrvigs.Monad
@@ -16,7 +19,7 @@ import System.FilePath (joinPath)
 data SyndicateJSON = SyndicateJSON
   { _synjsUrl :: Maybe Text,
     _synjsETag :: Maybe Text,
-    _synjsFilter :: Maybe (Id, Text),
+    _synjsFilters :: [(Id, Text)],
     _synjsExpiration :: Maybe UTCTime,
     _synjsItems :: [SyndicatedItem],
     _synjsMetadata :: Map Text Value,
@@ -31,17 +34,22 @@ data SyndicateJSON = SyndicateJSON
 makeLenses ''SyndicateJSON
 
 parseFilter :: Value -> Parser (Id, Text)
-parseFilter = withObject "SyndicateJSON filter" $ \obj ->
-  (,) . MkId
-    <$> obj .: "entry"
-    <*> obj .: "code"
+parseFilter = withArray "SyndicateJSON filter" $ \arr -> do
+  guard $ V.length arr == 2
+  i <- parseJSON $ arr ! 0
+  code <- parseJSON $ arr ! 1
+  pure (MkId i, code)
+
+parseFilters :: Maybe [Value] -> Parser [(Id, Text)]
+parseFilters Nothing = pure []
+parseFilters (Just vs) = mapM parseFilter vs
 
 instance FromJSON SyndicateJSON where
   parseJSON = withObject "SyndicateJSON" $ \obj ->
     SyndicateJSON
       <$> obj .:? "url"
       <*> obj .:? "etag"
-      <*> (obj .:? "filter" >>= mapM parseFilter)
+      <*> (obj .:? "filters" >>= parseFilters)
       <*> obj .:? "expiration"
       <*> obj .: "items"
       <*> obj .: "metadata"
@@ -52,8 +60,8 @@ instance FromJSON SyndicateJSON where
       <*> obj .:? "title"
       <*> obj .: "parents"
 
-renderFilter :: (Id, Text) -> Value
-renderFilter (entry, code) = object ["entry" .= unId entry, "code" .= code]
+filterToJSON :: (Id, Text) -> Value
+filterToJSON (entry, code) = Array $ V.fromList $ toJSON <$> [unId entry, code]
 
 instance ToJSON SyndicateJSON where
   toJSON (SyndicateJSON url etag flt expiration items mtdt dt dur geo txt title prts) =
@@ -63,7 +71,7 @@ instance ToJSON SyndicateJSON where
         "parents" .= prts
       ]
         ++ maybe [] ((: []) . ("url" .=)) url
-        ++ maybe [] ((: []) . ("filter" .=) . renderFilter) flt
+        ++ ["filters" .= (filterToJSON <$> flt) | not (null flt)]
         ++ maybe [] ((: []) . ("etag" .=)) etag
         ++ maybe [] ((: []) . ("expiration" .=)) expiration
         ++ maybe [] ((: []) . ("date" .=)) dt

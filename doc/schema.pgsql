@@ -115,8 +115,7 @@ CREATE TABLE IF NOT EXISTS syndicates (
   url TEXT,
   path TEXT NOT NULL,
   etag TEXT,
-  filter_entry TEXT,
-  filter_code TEXT,
+  filters TEXT[] NOT NULL,
   expiration TIMESTAMP WITH TIME ZONE,
   CONSTRAINT syndicates_entries
     FOREIGN KEY (id,kind) references entries(id,kind)

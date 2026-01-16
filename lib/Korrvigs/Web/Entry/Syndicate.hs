@@ -45,7 +45,7 @@ embed lvl syn = do
       <p>
         $maybe url <- murl
           <a href=#{url}>#{url}
-        $maybe (entry,code) <- view synFilter syn
+        $forall (entry,code) <- view synFilters syn
           <code>
             #{T.pack "|> "}
             $if public

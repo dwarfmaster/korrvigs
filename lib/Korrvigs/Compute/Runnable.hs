@@ -13,6 +13,7 @@ module Korrvigs.Compute.Runnable
     runDeps,
     run,
     runInOut,
+    runPipe,
     runOut,
   )
 where
@@ -26,6 +27,7 @@ import qualified Crypto.Hash as Hsh
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder
 import Data.Conduit.Process
+import Data.List.NonEmpty (NonEmpty (..))
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -296,6 +298,24 @@ run ::
 run rbl resolveArg stdin stdout stderr = withRunInIO $ \runInIO ->
   withSystemTempDirectory "korrvigs" $ \tmp ->
     runInIO $ runImpl rbl tmp resolveArg stdin stdout stderr
+
+runPipe ::
+  (MonadUnliftIO m, MonadResource m) =>
+  NonEmpty (Id, Runnable) ->
+  (Id -> FilePath -> RunArg -> m Text) ->
+  ConduitT () ByteString m () -> -- stdin
+  ConduitT ByteString Void m a -> -- stdout
+  m (Either ExitCode a) -- Return the exit code of the first failed runnable or the final value
+runPipe (rbl :| []) resolveArg stdin stdout = do
+  (exit, r) <- runInOut (rbl ^. _2) (resolveArg $ rbl ^. _1) stdin stdout
+  case exit of
+    ExitSuccess -> pure $ Right r
+    ExitFailure _ -> pure $ Left exit
+runPipe (rbl :| (nrbl : nrbls)) resolveArg stdin stdout = do
+  (exit, output) <- runInOut (rbl ^. _2) (resolveArg $ rbl ^. _1) stdin sinkLazy
+  case exit of
+    ExitFailure _ -> pure $ Left exit
+    ExitSuccess -> runPipe (nrbl :| nrbls) resolveArg (sourceLazy output) stdout
 
 runInOut ::
   (MonadUnliftIO m, MonadResource m) =>

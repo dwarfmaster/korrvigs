@@ -2,10 +2,12 @@
 
 module Korrvigs.Syndicate.SQL where
 
+import Control.Arrow ((***))
 import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time.Clock
 import GHC.Int (Int64)
 import Korrvigs.Entry
@@ -18,25 +20,24 @@ import Opaleye
 
 -- Syndicates table
 
-data SyndicateRowImpl a b c d e f g = SyndicateRow
+data SyndicateRowImpl a b c d e f = SyndicateRow
   { _sqlSynId :: a,
     _sqlSynUrl :: b,
     _sqlSynPath :: c,
     _sqlSynETag :: d,
-    _sqlSynFilterEntry :: e,
-    _sqlSynFilterCode :: f,
-    _sqlSynExpiration :: g
+    _sqlSynFilters :: e,
+    _sqlSynExpiration :: f
   }
 
 makeLenses ''SyndicateRowImpl
 makeAdaptorAndInstanceInferrable "pSynRow" ''SyndicateRowImpl
 
-type SyndicateRow = SyndicateRowImpl Int (Maybe Text) FilePath (Maybe Text) (Maybe Id) (Maybe Text) (Maybe UTCTime)
+type SyndicateRow = SyndicateRowImpl Int (Maybe Text) FilePath (Maybe Text) [Text] (Maybe UTCTime)
 
-type SyndicateRowSQL = SyndicateRowImpl (Field SqlInt4) (FieldNullable SqlText) (Field SqlText) (FieldNullable SqlText) (FieldNullable SqlText) (FieldNullable SqlText) (FieldNullable SqlTimestamptz)
+type SyndicateRowSQL = SyndicateRowImpl (Field SqlInt4) (FieldNullable SqlText) (Field SqlText) (FieldNullable SqlText) (Field (SqlArray SqlText)) (FieldNullable SqlTimestamptz)
 
 instance Default ToFields SyndicateRow SyndicateRowSQL where
-  def = pSynRow $ SyndicateRow def def def def def def def
+  def = pSynRow $ SyndicateRow def def def def def def
 
 syndicatesTable :: Table SyndicateRowSQL SyndicateRowSQL
 syndicatesTable =
@@ -47,8 +48,7 @@ syndicatesTable =
         (tableField "url")
         (tableField "path")
         (tableField "etag")
-        (tableField "filter_entry")
-        (tableField "filter_code")
+        (tableField "filters")
         (tableField "expiration")
 
 synFromRow :: SyndicateRow -> Entry -> Syndicate
@@ -58,9 +58,12 @@ synFromRow row entry =
       _synUrl = row ^. sqlSynUrl,
       _synPath = row ^. sqlSynPath,
       _synETag = row ^. sqlSynETag,
-      _synFilter = (,) <$> row ^. sqlSynFilterEntry <*> row ^. sqlSynFilterCode,
+      _synFilters = parseFilter <$> row ^. sqlSynFilters,
       _synExpiration = row ^. sqlSynExpiration
     }
+  where
+    parseFilter :: Text -> (Id, Text)
+    parseFilter = (MkId *** T.tail) . T.break (== '#')
 
 -- syndicated_items table
 

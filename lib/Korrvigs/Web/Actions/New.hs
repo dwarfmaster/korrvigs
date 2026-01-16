@@ -235,14 +235,17 @@ runNewSyn nsyn tgt = do
                 & neLanguage .~ nsyn ^. nsynLang
                 & neMtdt %~ insertJS,
             NSyn._nsUrl = nsyn ^. nsynUrl,
-            NSyn._nsFilter = nsyn ^. nsynFilter >>= parseSyndicateFilter
+            NSyn._nsFilters = parseSyndicateFilter $ nsyn ^. nsynFilter
           }
   i <- NSyn.new nsyndicate
   when (nsyn ^. nsynMkSyndicate) $ forM_ (tgt ^? _TargetEntry) $ \entry ->
     updateMetadata entry (M.singleton (mtdtSqlName SyndicateMtdt) $ toJSON $ unId i) []
   mkReaction tgt "new syndicate" i
 
-parseSyndicateFilter :: Text -> Maybe (Id, Text)
-parseSyndicateFilter txt = case T.split (== '#') txt of
-  [i, code] -> Just (MkId i, code)
-  _ -> Nothing
+parseSyndicateFilter :: Maybe Text -> [(Id, Text)]
+parseSyndicateFilter Nothing = []
+parseSyndicateFilter (Just txt) = do
+  filterId <- T.split (== ',') txt
+  case T.split (== '#') filterId of
+    [i, code] -> pure (MkId i, code)
+    _ -> []

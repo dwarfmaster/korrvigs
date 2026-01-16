@@ -2,6 +2,7 @@ module Korrvigs.Syndicate.Run where
 
 import Conduit
 import Control.Applicative
+import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Identity
@@ -12,6 +13,8 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.UTF8 as BSU8
 import Data.Conduit.Aeson
 import Data.List
+import Data.List.NonEmpty (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty as NE
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Set as S
@@ -35,11 +38,11 @@ import Korrvigs.Syndicate.Item
 import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.New (lazyUpdateDate, lookupFromUrl)
 import Korrvigs.Syndicate.Sync (updateImpl)
+import Korrvigs.Utils
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.URI
 import Network.URI
-import System.Exit
 import System.IO
 import System.Process
 import qualified Text.Atom.Feed as Atom
@@ -89,9 +92,9 @@ run syn = case syn ^. synUrl of
     lazyDownload man url (syn ^. synExpiration) (syn ^. synETag) runJs >>= \case
       Nothing -> pure False
       Just (dat, netag, cleanup) -> do
-        (imp, items) <- case syn ^. synFilter of
-          Nothing -> runWithoutFilter dat
-          Just flt -> runWithFilter dat flt
+        (imp, items) <- case syn ^. synFilters of
+          [] -> runWithoutFilter dat
+          (flt : flts) -> runWithFilters dat (flt :| flts)
         cleanup
         let setETag = synjsETag .~ netag
         let updItems synjs = do
@@ -101,20 +104,23 @@ run syn = case syn ^. synUrl of
         syncFileOfKind (syn ^. synPath) Syndicate
         pure True
 
-runWithFilter ::
+runWithFilters ::
   (MonadKorrvigs m, MonadResource m) =>
   ConduitT () BSU8.ByteString m () ->
-  (Id, Text) ->
+  NonEmpty (Id, Text) ->
   m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
-runWithFilter dat (i, code) =
-  getComputation i code >>= \case
-    Nothing -> pure (id, [])
-    Just comp -> do
-      let rec tmp arg = runIdentityT $ resolveArg i (runVeryLazy' $ S.singleton (i, code)) tmp arg
-      (exit, items) <- runInOut (comp ^. cmpRun) rec dat $ conduitArray .| sinkList
-      case exit of
-        ExitSuccess -> pure (id, items)
-        ExitFailure _ -> pure (id, [])
+runWithFilters dat flts = fromMaybeT (id, []) $ do
+  comps <- forM flts $ hoistLift . uncurry getComputation
+  let seen = S.fromList $ (view cmpEntry &&& view cmpName) <$> NE.toList comps
+  let rec i tmp arg = runIdentityT $ resolveArg i (runVeryLazy' seen) tmp arg
+  items <-
+    hoistEitherLift
+      $ runPipe
+        ((view cmpEntry &&& view cmpRun) <$> comps)
+        rec
+        dat
+      $ conduitArray .| sinkList
+  pure (id, items)
 
 runWithoutFilter ::
   (MonadKorrvigs m, MonadResource m) =>

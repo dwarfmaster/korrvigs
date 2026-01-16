@@ -33,7 +33,7 @@ import Opaleye
 data NewSyndicate = NewSyndicate
   { _nsEntry :: NewEntry,
     _nsUrl :: Maybe Text,
-    _nsFilter :: Maybe (Id, Text)
+    _nsFilters :: [(Id, Text)]
   }
 
 makeLenses ''NewSyndicate
@@ -65,7 +65,7 @@ create ns = do
         SyndicateJSON
           { _synjsUrl = ns ^. nsUrl,
             _synjsETag = Nothing,
-            _synjsFilter = ns ^. nsFilter,
+            _synjsFilters = ns ^. nsFilters,
             _synjsExpiration = Nothing,
             _synjsItems = [],
             _synjsMetadata = mtdtJson,

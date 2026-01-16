@@ -94,7 +94,7 @@ runSyndicate (flt, runJS) (TargetEntry entry) = do
   feed <- rSelectOne (baseSelectTextMtdt Feed $ sqlInt4 $ entry ^. entryId) >>= throwMaybe (KMiscError $ "Entry " <> unId (entry ^. entryName) <> " has no feed metadata")
   let insertJS = if runJS then M.insert (mtdtName RunJavascript) (toJSON True) else id
   title <- mkTitle <$> rSelectMtdt MediaMtdt (sqlId $ entry ^. entryName)
-  let ns = NewSyndicate (def & neParents .~ [entry ^. entryName] & neTitle .~ title & neMtdt %~ insertJS) (Just feed) $ flt >>= parseSyndicateFilter
+  let ns = NewSyndicate (def & neParents .~ [entry ^. entryName] & neTitle .~ title & neMtdt %~ insertJS) (Just feed) $ parseSyndicateFilter flt
   i <- new ns
   updateMetadata entry (M.singleton (mtdtSqlName SyndicateMtdt) (toJSON $ unId i)) []
   render <- getUrlRenderParams

@@ -12,7 +12,8 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.UTF8 as BSU8
 import Data.Conduit.Aeson
-import Data.List
+import Data.Foldable1 (last)
+import Data.List hiding (last)
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe
@@ -51,6 +52,7 @@ import Text.Feed.Types
 import Text.HTML.TagSoup
 import qualified Text.RSS.Syntax as RSS
 import qualified Text.RSS1.Syntax as RSS1
+import Prelude hiding (last)
 
 -- Return Nothing if the ressource has expired or if it hasn't changed
 lazyDownload ::
@@ -106,6 +108,18 @@ run syn = case syn ^. synUrl of
         syncFileOfKind (syn ^. synPath) Syndicate
         pure True
 
+sinkFeed :: (MonadKorrvigs m) => ConduitT BSU8.ByteString Void m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
+sinkFeed = sinkLazy >>= parseFeed
+  where
+    parseFeed lbs = lift $ do
+      feed <- throwMaybe (KMiscError "Failed to parse feed") $ parseFeedSource lbs
+      current <- liftIO getCurrentTime
+      pure $ case feed of
+        AtomFeed fd -> importFromAtom fd
+        RSSFeed fd -> importFromRSS current fd
+        RSS1Feed fd -> importFromRSS1 fd
+        XMLFeed xml -> importFromXML xml
+
 runWithFilters ::
   (MonadKorrvigs m, MonadResource m) =>
   ConduitT () BSU8.ByteString m () ->
@@ -113,30 +127,24 @@ runWithFilters ::
   m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
 runWithFilters dat flts = fromMaybeT (id, []) $ do
   comps <- forM flts $ hoistLift . uncurry getComputation
+  let lastComp = last comps
   let seen = S.fromList $ (view cmpEntry &&& view cmpName) <$> NE.toList comps
   let rec i tmp arg = runIdentityT $ resolveArg i (runVeryLazy' seen) tmp arg
-  items <-
-    hoistEitherLift
-      $ runPipe
-        ((view cmpEntry &&& view cmpRun) <$> comps)
-        rec
-        dat
-      $ conduitArray .| sinkList
-  pure (id, items)
+  let sink = case lastComp ^. cmpRun . runType of
+        ArbitraryText -> sinkFeed
+        _ -> conduitArray .| (id,) <$> sinkList
+  hoistEitherLift $
+    runPipe
+      ((view cmpEntry &&& view cmpRun) <$> comps)
+      rec
+      dat
+      sink
 
 runWithoutFilter ::
   (MonadKorrvigs m, MonadResource m) =>
   ConduitT () BSU8.ByteString m () ->
   m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
-runWithoutFilter dat = do
-  lbs <- runConduit $ dat .| sinkLazy
-  feed <- throwMaybe (KMiscError "Failed to parse feed") $ parseFeedSource lbs
-  current <- liftIO getCurrentTime
-  pure $ case feed of
-    AtomFeed fd -> importFromAtom fd
-    RSSFeed fd -> importFromRSS current fd
-    RSS1Feed fd -> importFromRSS1 fd
-    XMLFeed xml -> importFromXML xml
+runWithoutFilter dat = runConduit $ dat .| sinkFeed
 
 mergeItemsInto :: (MonadKorrvigs m) => [SyndicatedItem] -> [SyndicatedItem] -> m [SyndicatedItem]
 mergeItemsInto = flip (foldM (flip insertOneItem)) . reverse

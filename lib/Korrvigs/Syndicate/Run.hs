@@ -68,7 +68,9 @@ lazyDownload man url expiration etag runJs = runMaybeT $ do
   if not runJs
     then do
       req' <- parseRequest $ T.unpack url
-      let req = req' {requestHeaders = maybe [] (\etg -> [("If-None-Match", Enc.encodeUtf8 etg)]) etag ++ requestHeaders req'}
+      let userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0"
+      let headers = ("User-Agent", userAgent) : requestHeaders req'
+      let req = req' {requestHeaders = maybe [] (\etg -> [("If-None-Match", Enc.encodeUtf8 etg)]) etag ++ headers}
       resp <- lift $ http req man
       let scode = statusCode $ responseStatus resp
       guard $ scode /= 304

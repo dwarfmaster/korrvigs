@@ -191,6 +191,7 @@ library korrvigs-lib
     Korrvigs.Web.Actions.Metadata
     Korrvigs.Web.Actions.New
     Korrvigs.Web.Actions.Parent
+    Korrvigs.Web.Actions.RecreateId
     Korrvigs.Web.Actions.Remove
     Korrvigs.Web.Actions.RSS
     Korrvigs.Web.Actions.Share

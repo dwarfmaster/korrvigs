@@ -37,6 +37,7 @@ import Korrvigs.Web.Actions.Metadata
 import Korrvigs.Web.Actions.New
 import Korrvigs.Web.Actions.Parent
 import Korrvigs.Web.Actions.RSS
+import Korrvigs.Web.Actions.RecreateId
 import Korrvigs.Web.Actions.Remove
 import Korrvigs.Web.Actions.Share
 import Korrvigs.Web.Actions.Syndicate
@@ -52,6 +53,7 @@ import Yesod.Static
 
 data ActionLabel
   = LabRemove
+  | LabRecreateId
   | LabNewFile
   | LabNewFileDownload
   | LabNewNote
@@ -81,6 +83,7 @@ mkIcon icon color = (StaticR $ StaticRoute ["icons", icon <> ".png"] [], color)
 
 actIcon :: ActionLabel -> (Route WebData, Base16Index)
 actIcon LabRemove = mkIcon "remove" Base08
+actIcon LabRecreateId = mkIcon "update" Base0B
 actIcon LabNewFile = mkIcon "file" Base0B
 actIcon LabNewFileDownload = mkIcon "downloads" Base0B
 actIcon LabNewNote = mkIcon "note" Base0B
@@ -106,6 +109,7 @@ actIcon LabSynUpdate = mkIcon "update" Base0E
 
 actName :: ActionLabel -> Text
 actName LabRemove = "remove"
+actName LabRecreateId = "recreateid"
 actName LabNewFile = "newfile"
 actName LabNewFileDownload = "newfiledl"
 actName LabNewNote = "newnote"
@@ -183,6 +187,7 @@ actUrl lbl (TargetNoteCode note sub) = ActNoteCodeR (actName lbl) (WId $ note ^.
 
 actForm :: ActionLabel -> ActionTarget -> Handler Widget
 actForm l@LabRemove = genForm removeForm removeTitle $ actUrl l
+actForm l@LabRecreateId = genForm recreateIdForm recreateIdTitle $ actUrl l
 actForm l@LabNewFile = genForm newFileForm newFileTitle $ actUrl l
 actForm l@LabNewFileDownload = genForm newFileDlForm newFileDlTitle $ actUrl l
 actForm l@LabNewNote = genForm newNoteForm newNoteTitle $ actUrl l
@@ -242,6 +247,7 @@ runPostM getForm runner tgt = do
 
 actPost :: ActionLabel -> ActionTarget -> Handler ActionReaction
 actPost LabRemove = runPost removeForm runRemove
+actPost LabRecreateId = runPost recreateIdForm runRecreateId
 actPost LabNewFile = runPost newFileForm runNewFile
 actPost LabNewFileDownload = runPost newFileDlForm runNewFileDl
 actPost LabNewNote = runPost newNoteForm runNewNote
@@ -294,6 +300,7 @@ runActCond f tgt = evaluateCond tgt $ f tgt
 
 actCond :: ActionLabel -> ActionTarget -> Handler Bool
 actCond LabRemove = runActCond removeTarget
+actCond LabRecreateId = runActCond recreateIdTarget
 actCond LabNewFile = runActCond newTarget
 actCond LabNewFileDownload = runActCond newTarget
 actCond LabNewNote = runActCond newTarget

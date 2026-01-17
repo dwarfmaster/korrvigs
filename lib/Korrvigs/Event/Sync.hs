@@ -65,7 +65,7 @@ createIdFor ical ievent = do
   let start = resolveICalTime ical <$> startSpec
   let parents = ievent ^. iceParents
   newId $
-    imk "ics"
+    imk (choosePrefix PrefixEvent)
       & idTitle .~ summary
       & idDate .~ start
       & idLanguage ?~ fromMaybe "fr" language

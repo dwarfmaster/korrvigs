@@ -26,7 +26,7 @@ import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.SQL
 import Korrvigs.Syndicate.Sync
-import Korrvigs.Utils (joinNull)
+import Korrvigs.Utils (joinNull, recursiveRemoveFile)
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
 import Opaleye
 
@@ -76,7 +76,7 @@ create ns = do
             _synjsTitle = title,
             _synjsParents = parents
           }
-  idmk <- applyNewEntry nentry $ imk "syn"
+  idmk <- applyNewEntry nentry $ imk $ choosePrefix PrefixSyndicate
   i <- newId idmk
   rt <- synJSONPath
   let jsonTT = synTreeType
@@ -85,6 +85,21 @@ create ns = do
   syncFileOfKind pth Syndicate
   applyOnNewEntry nentry i
   pure i
+
+moveFile :: (MonadKorrvigs m) => Syndicate -> Id -> m ()
+moveFile syn ni = do
+  rt <- synJSONPath
+  let day = localDay . zonedTimeToLocalTime <$> syn ^. synEntry . entryDate
+  path <- storeFile rt synTreeType day (unId ni <> ".json") $ FileCopy $ syn ^. synPath
+  recursiveRemoveFile rt $ syn ^. synPath
+  void $ atomicSQL $ \conn ->
+    runUpdate conn $
+      Update
+        { uTable = syndicatesTable,
+          uUpdateWith = sqlSynPath .~ sqlString path,
+          uWhere = \s -> s ^. sqlSynId .== sqlInt4 (syn ^. synEntry . entryId),
+          uReturning = rCount
+        }
 
 lookupFromUrl :: (MonadKorrvigs m) => Text -> m (Maybe Id)
 lookupFromUrl url = rSelectOne $ do

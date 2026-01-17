@@ -2,7 +2,7 @@ module Korrvigs.Event.New where
 
 import Conduit (throwM)
 import Control.Lens
-import Control.Monad (unless)
+import Control.Monad (unless, void)
 import Control.Monad.IO.Class
 import Data.Aeson (toJSON)
 import Data.Default
@@ -14,16 +14,19 @@ import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
 import Data.Time.Format
 import Data.Time.LocalTime
 import Korrvigs.Calendar.SQL
+import Korrvigs.Entry.Def
 import Korrvigs.Entry.Ident
 import Korrvigs.Entry.New
 import Korrvigs.Entry.SQL
 import Korrvigs.Event.ICalendar
+import Korrvigs.Event.SQL
 import Korrvigs.Event.Sync
 import Korrvigs.File.New
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync
+import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
 import Opaleye hiding (not, null)
 
@@ -124,3 +127,19 @@ new opts = do
   syncFileOfKind path Event
   applyOnNewEntry nentry i
   pure i
+
+moveFile :: (MonadKorrvigs m) => Event -> Id -> m ()
+moveFile ev ni = do
+  rt <- eventsDirectory
+  let day = localDay . zonedTimeToLocalTime <$> ev ^. eventEntry . entryDate
+  let filename = unId ni <> "_" <> unId (ev ^. eventCalendar) <> ".ics"
+  path <- storeFile rt eventTreeType day filename $ FileCopy $ ev ^. eventFile
+  recursiveRemoveFile rt path
+  void $ atomicSQL $ \conn ->
+    runUpdate conn $
+      Update
+        { uTable = eventsTable,
+          uUpdateWith = sqlEventFile .~ sqlString path,
+          uWhere = \e -> e ^. sqlEventId .== sqlInt4 (ev ^. eventEntry . entryId),
+          uReturning = rCount
+        }

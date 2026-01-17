@@ -3,6 +3,7 @@ module Korrvigs.Calendar.New where
 import Control.Arrow (first)
 import Control.Lens
 import Control.Monad.IO.Class
+import qualified Data.ByteString.Lazy as BSL
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
@@ -35,7 +36,7 @@ new :: (MonadKorrvigs m) => NewCalendar -> m Id
 new nc = do
   nentry <- applyCover (nc ^. ncEntry) $ Just $ nc ^. ncCalendar
   -- Create ID
-  idmk <- applyNewEntry nentry $ imk "cal" & idTitle ?~ nc ^. ncCalendar
+  idmk <- applyNewEntry nentry $ imk (choosePrefix PrefixCalendar) & idTitle ?~ nc ^. ncCalendar
   i <- newId idmk
   -- Make sure directory exists
   dir <- calJSONPath
@@ -61,3 +62,10 @@ new nc = do
   syncFileOfKind path Calendar
   applyOnNewEntry nentry i
   pure i
+
+moveFile :: (MonadKorrvigs m) => Calendar -> Id -> m ()
+moveFile cal ni = do
+  oldPath <- calendarPath' $ cal ^. calEntry . entryName
+  path <- calendarPath' ni
+  liftIO $ BSL.writeFile path =<< BSL.readFile oldPath
+  liftIO $ removeFile oldPath

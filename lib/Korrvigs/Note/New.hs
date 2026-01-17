@@ -1,6 +1,7 @@
-module Korrvigs.Note.New (new, NewNote (..), nnEntry, nnTitle, nnTitleOverride, nnIgnoreUrl) where
+module Korrvigs.Note.New (new, NewNote (..), nnEntry, nnTitle, nnTitleOverride, nnIgnoreUrl, moveFile) where
 
 import Control.Lens
+import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Lens
@@ -19,7 +20,7 @@ import qualified Data.Text as T
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Entry.New
-import Korrvigs.File.New hiding (new)
+import Korrvigs.File.New hiding (moveFile, new)
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
@@ -28,7 +29,9 @@ import Korrvigs.Monad.Sync
 import Korrvigs.Note.AST
 import qualified Korrvigs.Note.Download as Dl
 import Korrvigs.Note.Render
+import Korrvigs.Note.SQL
 import Korrvigs.Note.Sync
+import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
 import Korrvigs.Utils.Time
 import Opaleye hiding (not, null)
@@ -77,7 +80,7 @@ create note = do
           then fromMaybe (note ^. nnTitle) $ nentry' ^. neTitle
           else note ^. nnTitle
   nentry <- applyCover nentry' $ Just title
-  idmk' <- applyNewEntry nentry (imk "note")
+  idmk' <- applyNewEntry nentry (imk $ choosePrefix PrefixNote)
   let idmk = idmk' & idTitle ?~ title
   i <- newId idmk
   tz <- liftIO getCurrentTimeZone
@@ -108,3 +111,18 @@ create note = do
   syncFileOfKind path Note
   applyOnNewEntry nentry i
   pure i
+
+moveFile :: (MonadKorrvigs m) => Note -> Id -> m ()
+moveFile note ni = do
+  rt <- noteDirectory
+  let day = localDay . zonedTimeToLocalTime <$> note ^. noteEntry . entryDate
+  path <- storeFile rt noteTreeType day (unId ni <> ".md") $ FileCopy $ note ^. notePath
+  recursiveRemoveFile rt $ note ^. notePath
+  void $ atomicSQL $ \conn ->
+    runUpdate conn $
+      Update
+        { uTable = notesTable,
+          uUpdateWith = sqlNotePath .~ sqlString path,
+          uWhere = \n -> n ^. sqlNoteId .== sqlInt4 (note ^. noteEntry . entryId),
+          uReturning = rCount
+        }

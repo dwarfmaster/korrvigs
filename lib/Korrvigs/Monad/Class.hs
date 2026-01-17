@@ -8,6 +8,7 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
+import qualified Data.ByteString as BS
 import Data.Profunctor.Product.Default
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -17,6 +18,7 @@ import Database.PostgreSQL.Simple (Connection, withTransaction)
 import qualified Database.PostgreSQL.Simple as Simple
 import Korrvigs.Entry
 import Network.HTTP.Client
+import Network.Mime
 import Opaleye hiding (null)
 
 data KorrvigsError
@@ -57,6 +59,26 @@ rSelectOne query =
   rSelect (limit 1 query) >>= \case
     [r] -> pure $ Just r
     _ -> pure Nothing
+
+data PrefixData
+  = PrefixNote
+  | PrefixFile MimeType
+  | PrefixEvent
+  | PrefixCalendar
+  | PrefixSyndicate
+
+choosePrefix :: PrefixData -> Text
+choosePrefix PrefixNote = "note"
+choosePrefix (PrefixFile mime)
+  | BS.isPrefixOf "audio" mime = "audio"
+  | BS.isPrefixOf "video" mime = "vid"
+  | BS.isPrefixOf "font" mime = "font"
+  | BS.isPrefixOf "image" mime = "img"
+  | BS.isPrefixOf "text" mime = "file"
+  | otherwise = "doc"
+choosePrefix PrefixEvent = "ics"
+choosePrefix PrefixCalendar = "cal"
+choosePrefix PrefixSyndicate = "syn"
 
 newId :: (MonadKorrvigs m) => IdMaker -> m Id
 newId = newId' S.empty

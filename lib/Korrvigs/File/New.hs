@@ -9,6 +9,7 @@ module Korrvigs.File.New
     ndlEntry,
     update,
     applyCover,
+    moveFile,
   )
 where
 
@@ -44,7 +45,7 @@ import Korrvigs.Metadata.Android
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync (syncFileOfKind)
-import Korrvigs.Utils (joinNull, resolveSymbolicLink)
+import Korrvigs.Utils (joinNull, recursiveRemoveFile, resolveSymbolicLink)
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
 import Korrvigs.Utils.Process
 import Network.HTTP.Conduit hiding (path)
@@ -104,15 +105,6 @@ data NewDownloadedFile = NewDownloadedFile
   }
 
 makeLenses ''NewDownloadedFile
-
-choosePrefix :: MimeType -> Text
-choosePrefix mime
-  | BS.isPrefixOf "audio" mime = "audio"
-  | BS.isPrefixOf "video" mime = "vid"
-  | BS.isPrefixOf "font" mime = "font"
-  | BS.isPrefixOf "image" mime = "img"
-  | BS.isPrefixOf "text" mime = "file"
-  | otherwise = "doc"
 
 applyNewOptions :: (MonadIO m) => NewEntry -> m (FileMetadata -> FileMetadata)
 applyNewOptions ne = do
@@ -187,7 +179,7 @@ new path' options' = do
   mtdt'' <- liftIO $ ($ mtdt') <$> extractMetadata path mime
   mtdt <- ($ mtdt'') <$> applyNewOptions nentry
   let idmk' =
-        imk (choosePrefix mime)
+        imk (choosePrefix $ PrefixFile mime)
           & idTitle .~ title
           & idDate .~ mtdt ^. exDate
   idmk <- applyNewEntry nentry idmk'
@@ -209,6 +201,29 @@ new path' options' = do
   when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path'
   applyOnNewEntry nentry i
   pure i
+
+-- Moves a file already in the annex to a new emplacement determined by new ID
+moveFile :: (MonadKorrvigs m) => File -> Id -> m ()
+moveFile file ni = do
+  let path = file ^. filePath
+  let meta = file ^. fileMeta
+  let day = localDay . zonedTimeToLocalTime <$> file ^. fileEntry . entryDate
+  let nm = unId ni <> T.pack (takeExtension path)
+  dir <- filesDirectory
+  newPath <- storeFile dir filesTreeType day nm (FileMove path)
+  let newMeta = metaPath newPath
+  liftIO $ BSL.writeFile newMeta =<< BSL.readFile meta
+  recursiveRemoveFile dir meta
+  void $ atomicSQL $ \conn ->
+    runUpdate conn $
+      Update
+        { uTable = filesTable,
+          uUpdateWith =
+            (sqlFilePath .~ sqlString newPath)
+              . (sqlFileMeta .~ sqlString newMeta),
+          uWhere = \f -> f ^. sqlFileId .== sqlInt4 (file ^. fileEntry . entryId),
+          uReturning = rCount
+        }
 
 fileNameP :: Parsec ByteString () (Maybe (Bool, FilePath))
 fileNameP = do

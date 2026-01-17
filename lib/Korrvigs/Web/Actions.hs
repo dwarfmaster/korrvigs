@@ -33,6 +33,7 @@ import Korrvigs.Web.Actions.Compute
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Actions.EventSync
 import Korrvigs.Web.Actions.Export
+import Korrvigs.Web.Actions.Metadata
 import Korrvigs.Web.Actions.New
 import Korrvigs.Web.Actions.Parent
 import Korrvigs.Web.Actions.RSS
@@ -61,6 +62,7 @@ data ActionLabel
   | LabParentAdd
   | LabParentRm
   | LabUpdate
+  | LabMtdtHook
   | LabImportRSS
   | LabNewSyndicate
   | LabRunSyndicate
@@ -89,6 +91,7 @@ actIcon LabShare = mkIcon "share" Base0E
 actIcon LabParentAdd = mkIcon "parent" Base0B
 actIcon LabParentRm = mkIcon "parent" Base08
 actIcon LabUpdate = mkIcon "upload" Base0F
+actIcon LabMtdtHook = mkIcon "update" Base0F
 actIcon LabImportRSS = mkIcon "rss" Base0F
 actIcon LabNewSyndicate = mkIcon "rss" Base0E
 actIcon LabRunSyndicate = mkIcon "rss" Base0E
@@ -113,6 +116,7 @@ actName LabShare = "share"
 actName LabParentAdd = "addparent"
 actName LabParentRm = "rmparent"
 actName LabUpdate = "update"
+actName LabMtdtHook = "metadatahook"
 actName LabImportRSS = "importrss"
 actName LabNewSyndicate = "newsyndicate"
 actName LabRunSyndicate = "runsyndicate"
@@ -189,6 +193,7 @@ actForm l@LabShare = genForm shareForm shareTitle $ actUrl l
 actForm l@LabParentAdd = genForm parentForm parentAddTitle $ actUrl l
 actForm l@LabParentRm = genForm parentForm parentRmTitle $ actUrl l
 actForm l@LabUpdate = genForm updateForm updateTitle $ actUrl l
+actForm l@LabMtdtHook = genForm mtdtHookForm mtdtHookTitle $ actUrl l
 actForm l@LabImportRSS = genForm importRssForm importRssTitle $ actUrl l
 actForm l@LabNewSyndicate = genForm syndicateForm syndicateTitle $ actUrl l
 actForm l@LabRunSyndicate = genFormM runSyndicateForm runSyndicateTitle $ actUrl l
@@ -247,6 +252,7 @@ actPost LabShare = runPost shareForm runShare
 actPost LabParentAdd = runPost parentForm runParentAdd
 actPost LabParentRm = runPost parentForm runParentRm
 actPost LabUpdate = runPost updateForm runUpdate
+actPost LabMtdtHook = runPost mtdtHookForm runMtdtHook
 actPost LabImportRSS = runPost importRssForm runImportRSS
 actPost LabNewSyndicate = runPost syndicateForm runSyndicate
 actPost LabRunSyndicate = runPostM runSyndicateForm runRunSyndicate
@@ -298,6 +304,7 @@ actCond LabShare = runActCond shareTarget
 actCond LabParentAdd = runActCond parentTarget
 actCond LabParentRm = runActCond parentTarget
 actCond LabUpdate = runActCond updateTarget
+actCond LabMtdtHook = runActCond mtdtHookTarget
 actCond LabImportRSS = runActCond importRssTarget
 actCond LabNewSyndicate = runActCond syndicateTarget
 actCond LabRunSyndicate = runActCond runSyndicateTarget

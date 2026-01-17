@@ -188,6 +188,7 @@ library korrvigs-lib
     Korrvigs.Web.Actions.Defs
     Korrvigs.Web.Actions.EventSync
     Korrvigs.Web.Actions.Export
+    Korrvigs.Web.Actions.Metadata
     Korrvigs.Web.Actions.New
     Korrvigs.Web.Actions.Parent
     Korrvigs.Web.Actions.Remove

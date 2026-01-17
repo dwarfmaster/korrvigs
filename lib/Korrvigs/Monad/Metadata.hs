@@ -6,6 +6,8 @@ module Korrvigs.Monad.Metadata
     listCompute,
     updateRefs,
     updateAggregate,
+    MetadataHook (..),
+    runHook,
   )
 where
 

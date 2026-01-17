@@ -16,6 +16,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
+import Data.Time.Clock
+import Data.Time.Format.ISO8601
 import Data.Time.LocalTime
 import Korrvigs.Calendar (listCalendars)
 import Korrvigs.Entry
@@ -34,6 +36,7 @@ import qualified Korrvigs.Utils.DAV.Cal as DAV
 import Korrvigs.Utils.DAV.Web (DavRessource (..), DavTag (..))
 import qualified Korrvigs.Utils.DAV.Web as Web
 import Korrvigs.Utils.DateTree
+import Korrvigs.Utils.Time (measureTimeMs)
 import Network.URI hiding (path)
 import Opaleye hiding (null)
 
@@ -64,18 +67,29 @@ sync report pwd = fmap isJust $ runMaybeT $ do
   forM_ cals $ \cal -> do
     let i = cal ^. calEntry . entryName
     lift $ report $ "> Syncing " <> unId i
-    cdd <- lift $ setupCDD cal pwd
-    nctag <-
-      lift (DAV.getCTag cdd) >>= \case
-        Left err -> reportE err >> mzero
-        Right ctag -> pure ctag
-    ctag <- lift $ rSelectTextMtdt DAVCTag $ sqlId i
-    if ctag == Just (extractDavTag nctag)
-      then lift $ report $ "Nothing to do for " <> unId i
-      else do
-        pullAndMerge report cal cdd
-        pushNew report cal cdd
-        lift $ updateMetadata (cal ^. calEntry) (M.singleton (mtdtSqlName DAVCTag) (toJSON nctag)) []
+    (time, mtdt) <- measureTimeMs $ do
+      cdd <- lift $ setupCDD cal pwd
+      nctag <-
+        lift (DAV.getCTag cdd) >>= \case
+          Left err -> reportE err >> mzero
+          Right ctag -> pure ctag
+      ctag <- lift $ rSelectTextMtdt DAVCTag $ sqlId i
+      if ctag == Just (extractDavTag nctag)
+        then do
+          lift $ report $ "Nothing to do for " <> unId i
+          pure M.empty
+        else do
+          pullAndMerge report cal cdd
+          pushNew report cal cdd
+          pure $ M.singleton (mtdtSqlName DAVCTag) (toJSON nctag)
+    date <- liftIO getCurrentTime
+    let metaMtdt =
+          M.fromList
+            [ (mtdtSqlName RunTime, toJSON time),
+              (mtdtSqlName RunDate, toJSON $ iso8601Show date)
+            ]
+    lift $ updateMetadata (cal ^. calEntry) (M.union metaMtdt mtdt) []
+    pure undefined
   where
     reportE = lift . reportErr report
 

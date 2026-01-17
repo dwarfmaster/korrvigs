@@ -26,6 +26,9 @@ ap2 f (C.Column a) (C.Column b) = C.Column $ HPQ.FunExpr f [a, b]
 ap3 :: String -> Field a -> Field b -> Field c -> Field d
 ap3 f (C.Column a) (C.Column b) (C.Column c) = C.Column $ HPQ.FunExpr f [a, b, c]
 
+ap4 :: String -> Field a -> Field b -> Field c -> Field d -> Field e
+ap4 f (C.Column a) (C.Column b) (C.Column c) (C.Column d) = C.Column $ HPQ.FunExpr f [a, b, c, d]
+
 sel1 :: String -> Field_ n a -> Select (Field_ n' b)
 sel1 f (C.Column a) = O.relationValuedExpr $ const $ HPQ.FunExpr f [a]
 

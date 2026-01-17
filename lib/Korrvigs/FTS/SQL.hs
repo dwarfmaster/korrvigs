@@ -31,8 +31,13 @@ data SqlTSVector
 instance IsSqlType SqlTSVector where
   showSqlType _ = "tsvector"
 
+tsPrepareText :: Field SqlText -> Field SqlText
+tsPrepareText txt = UOp.ap4 "regexp_replace" txt (pgtxt "[<>]") (pgtxt "") (pgtxt "g")
+  where
+    pgtxt = sqlStrictText
+
 tsParse :: Field SqlRegConfig -> Field SqlText -> Field SqlTSVector
-tsParse = UOp.ap2 "to_tsvector"
+tsParse config = UOp.ap2 "to_tsvector" config . tsPrepareText
 
 tsParseEnglish :: Field SqlText -> Field SqlTSVector
 tsParseEnglish = tsParse tsConfigEnglish

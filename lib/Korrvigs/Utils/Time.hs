@@ -5,6 +5,7 @@ module Korrvigs.Utils.Time
     dayToZonedTime,
     getCurrentZonedTime,
     measureTime,
+    measureTimeMs,
     measureTime_,
   )
 where
@@ -45,16 +46,24 @@ getCurrentZonedTime = do
   pure $ ZonedTime local tz
 
 measureTime :: (MonadIO m) => m a -> m (Text, a)
-measureTime act = do
-  tm1 <- liftIO $ getTime Monotonic
-  r <- act
-  tm2 <- liftIO $ getTime Monotonic
-  pure (printTime $ tm2 - tm1, r)
+measureTime = measureTimeImpl printTime
   where
     printTime :: TimeSpec -> Text
     printTime (TimeSpec s ns) | s /= 0 || ns > 1000000 = T.pack (show $ s * 1000 + ns `div` 1000000) <> "ms"
     printTime (TimeSpec _ ns) | ns > 1000 = T.pack (show $ ns `div` 1000) <> "μs"
     printTime (TimeSpec _ ns) = T.pack (show ns) <> "ns"
+
+measureTimeMs :: (MonadIO m) => m a -> m (Int, a)
+measureTimeMs = measureTimeImpl toMs
+  where
+    toMs (TimeSpec s ns) = fromInteger $ toInteger $ s * 1000 + ns `div` 1000000
+
+measureTimeImpl :: (MonadIO m) => (TimeSpec -> r) -> m a -> m (r, a)
+measureTimeImpl f act = do
+  tm1 <- liftIO $ getTime Monotonic
+  r <- act
+  tm2 <- liftIO $ getTime Monotonic
+  pure (f $ tm2 - tm1, r)
 
 measureTime_ :: (MonadIO m) => m a -> m Text
 measureTime_ = fmap fst . measureTime

@@ -40,6 +40,7 @@ import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.New (lazyUpdateDate, lookupFromUrl)
 import Korrvigs.Syndicate.Sync (updateImpl)
 import Korrvigs.Utils
+import Korrvigs.Utils.Time (measureTimeMs)
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.URI
@@ -91,22 +92,27 @@ run :: (MonadKorrvigs m, MonadResource m) => Syndicate -> m Bool
 run syn = case syn ^. synUrl of
   Nothing -> pure False
   Just url -> do
-    man <- manager
-    runJs <- fromMaybe False <$> rSelectMtdt RunJavascript (sqlId $ syn ^. synEntry . entryName)
-    lazyDownload man url (syn ^. synExpiration) (syn ^. synETag) runJs >>= \case
-      Nothing -> pure False
-      Just (dat, netag, cleanup) -> do
-        (imp, items) <- case syn ^. synFilters of
-          [] -> runWithoutFilter dat
-          (flt : flts) -> runWithFilters dat (flt :| flts)
-        cleanup
-        let setETag = synjsETag .~ netag
-        let updItems synjs = do
-              nitems <- mergeItemsInto items $ synjs ^. synjsItems
-              pure $ synjs & synjsItems .~ nitems
-        updateImpl syn $ updItems . setETag . imp
-        syncFileOfKind (syn ^. synPath) Syndicate
-        pure True
+    (time, (f, r)) <- measureTimeMs $ do
+      man <- manager
+      runJs <- fromMaybe False <$> rSelectMtdt RunJavascript (sqlId $ syn ^. synEntry . entryName)
+      lazyDownload man url (syn ^. synExpiration) (syn ^. synETag) runJs >>= \case
+        Nothing -> pure (pure, False)
+        Just (dat, netag, cleanup) -> do
+          (imp, items) <- case syn ^. synFilters of
+            [] -> runWithoutFilter dat
+            (flt : flts) -> runWithFilters dat (flt :| flts)
+          cleanup
+          let setETag = synjsETag .~ netag
+          let updItems synjs = do
+                nitems <- mergeItemsInto items $ synjs ^. synjsItems
+                pure $ synjs & synjsItems .~ nitems
+          pure (updItems . setETag . imp, True)
+    date <- liftIO getCurrentTime
+    let setTime = synjsMetadata . at (mtdtSqlName RunTime) ?~ toJSON time
+    let setDate = synjsMetadata . at (mtdtSqlName RunDate) ?~ toJSON (iso8601Show date)
+    updateImpl syn $ f . setTime . setDate
+    syncFileOfKind (syn ^. synPath) Syndicate
+    pure r
 
 sinkFeed :: (MonadKorrvigs m) => ConduitT BSU8.ByteString Void m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
 sinkFeed = sinkLazy >>= parseFeed

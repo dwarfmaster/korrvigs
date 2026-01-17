@@ -15,6 +15,7 @@ import Korrvigs.Kind
 import Korrvigs.Monad.Collections
 import Korrvigs.Note.AST (Collection (..))
 import Korrvigs.Query
+import Korrvigs.Utils.Time (measureTime)
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import Korrvigs.Web.JS.Leaflet
@@ -410,11 +411,21 @@ getSearchR = do
   let q = displayFixQuery display $ (if hasMaxResults then id else fixMaxResults) $ fixOrder q'
   search <- searchForm q display
   actions <- actionsWidget $ TargetSearch q display
-  results <- displayResults display False =<< runQuery display q
+  (time, (results, resultsW)) <- measureTime $ do
+    results <- runQuery display q
+    resultsW <- displayResults display False results
+    pure (results, resultsW)
+  let numResults = length results
+  let resultTxt :: Text = if numResults == 1 then "result" else "results"
   defaultLayout $ do
     setTitle "Korrvigs search"
     setDescriptionIdemp "Korrvigs search page"
     unless public $ do
       search
       actions
-    [whamlet|<div .search-results> ^{results}|]
+    [whamlet|
+      <p .search-count>
+        #{show numResults} #{resultTxt} in #{time}
+      <div .search-results>
+        ^{resultsW}
+    |]

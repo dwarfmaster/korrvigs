@@ -5,6 +5,7 @@ module Korrvigs.Monad.Metadata
     updateTitle,
     listCompute,
     updateRefs,
+    updateAggregate,
   )
 where
 
@@ -12,6 +13,7 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
+import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -25,7 +27,9 @@ import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
 import qualified Korrvigs.Kind as Kd
+import Korrvigs.Metadata
 import Korrvigs.Monad.Class
+import qualified Korrvigs.Monad.Metadata.Hooks as Hooks
 import Korrvigs.Monad.SQL (idMetadata, indexedMetadata, loadSql)
 import Korrvigs.Monad.Sync (syncOne)
 import Korrvigs.Note.SQL
@@ -34,10 +38,39 @@ import qualified Korrvigs.Syndicate.Sync as Syn
 import Opaleye hiding (not, null)
 import qualified Opaleye as O
 
+data MetadataHook = HookAggregate
+  deriving (Eq, Show, Ord, Enum, Bounded)
+
+updateMetadataFromHook :: (MonadKorrvigs m) => Entry -> Map Text Value -> [Text] -> m ()
+updateMetadataFromHook = updateMetadataImpl False
+
+updateAggregate :: (MonadKorrvigs m) => Entry -> Syndicate -> m ()
+updateAggregate = Hooks.updateAggregate updateMetadataFromHook
+
+runHook :: (MonadKorrvigs m) => Entry -> MetadataHook -> m ()
+runHook entry HookAggregate = Hooks.updateAggregateFor updateMetadataFromHook entry
+
+mtdtHooks :: Map (CI Text) (S.Set MetadataHook)
+mtdtHooks =
+  M.fromList
+    [ (mtdtName SyndicateMtdt, S.singleton HookAggregate),
+      (mtdtName AggregateMethod, S.singleton HookAggregate),
+      (mtdtName LastRead, S.singleton HookAggregate),
+      (mtdtName FirstUnread, S.singleton HookAggregate)
+    ]
+
+runHooks :: (MonadKorrvigs m) => Entry -> S.Set (CI Text) -> m ()
+runHooks entry touchedMetadata = do
+  let hooks = mconcat $ fromMaybe S.empty . flip M.lookup mtdtHooks <$> S.toList touchedMetadata
+  forM_ hooks $ runHook entry
+
 -- Update the metadate on the database from a list of updates to do and a list of
 -- metadata to remove.
 updateMetadata :: (MonadKorrvigs m) => Entry -> Map Text Value -> [Text] -> m ()
-updateMetadata entry upd rm = do
+updateMetadata = updateMetadataImpl True
+
+updateMetadataImpl :: (MonadKorrvigs m) => Bool -> Entry -> Map Text Value -> [Text] -> m ()
+updateMetadataImpl enableHooks entry upd rm = do
   case entry ^. entryKindData of
     FileD file -> File.updateMetadata file upd rm
     NoteD note -> Note.updateMetadata note upd rm
@@ -48,6 +81,7 @@ updateMetadata entry upd rm = do
   if S.disjoint idMetadata touchedMetadata
     then updateMetadataSQL entry upd rm
     else syncOne entry
+  when enableHooks $ runHooks entry touchedMetadata
 
 updateMetadataSQL :: (MonadKorrvigs m) => Entry -> Map Text Value -> [Text] -> m ()
 updateMetadataSQL entry upd rm = do

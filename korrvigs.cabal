@@ -130,6 +130,7 @@ library korrvigs-lib
     Korrvigs.Monad.Collections
     Korrvigs.Monad.Computation
     Korrvigs.Monad.Metadata
+    Korrvigs.Monad.Metadata.Hooks
     Korrvigs.Monad.Remove
     Korrvigs.Monad.SQL
     Korrvigs.Monad.Sync

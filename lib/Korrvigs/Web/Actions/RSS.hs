@@ -11,7 +11,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.LocalTime
-import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.Kind
@@ -30,7 +29,6 @@ import qualified Korrvigs.Syndicate.Run as Syn
 import Korrvigs.Syndicate.SQL
 import qualified Korrvigs.Syndicate.Sync as Sync
 import Korrvigs.Utils.JSON
-import Korrvigs.Utils.Opaleye
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Actions.New (parseSyndicateFilter)
 import Korrvigs.Web.Backend
@@ -213,44 +211,6 @@ doRunSyndicates synIds = do
     |]
           render
   pure $ def & reactMsg ?~ msg
-
-updateAggregate :: Entry -> Syndicate -> Handler ()
-updateAggregate entry syn =
-  rSelectTextMtdt AggregateMethod (sqlId $ entry ^. entryName) >>= \case
-    Just "count-since-last" -> do
-      mseq <- rSelectOne $ do
-        (mtdtKey, isStrict) <-
-          values
-            [ (sqlStrictText $ mtdtSqlName LastRead, sqlBool True),
-              (sqlStrictText $ mtdtSqlName FirstUnread, sqlBool False)
-            ]
-        mtdt <- selectTable entriesMetadataTable
-        where_ $ mtdt ^. sqlEntry .== sqlInt4 sqlI
-        where_ $ mtdt ^. sqlKey .== mtdtKey
-        url <- fromNullableSelect $ pure $ sqlJsonToText $ toNullable $ mtdt ^. sqlValue
-        item <- selectTable syndicatedItemsTable
-        where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
-        where_ $ item ^. sqlSynItUrl .== url
-        pure (item ^. sqlSynItSequence, isStrict)
-      forM_ mseq $ \(sq, isStrict) -> do
-        mcnt :: Maybe Int64 <- rSelectOne $ aggregate count $ do
-          item <- selectTable syndicatedItemsTable
-          where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
-          let op = if isStrict then (.>) else (.>=)
-          where_ $ (item ^. sqlSynItSequence) `op` sqlInt4 sq
-          pure $ item ^. sqlSynItSequence
-        forM_ mcnt $ \cnt -> updateMetadata entry (M.singleton (mtdtSqlName AggregateCount) (toJSON cnt)) []
-    Just "count-new" -> do
-      mcnt :: Maybe Int64 <- rSelectOne $ aggregate count $ do
-        item <- selectTable syndicatedItemsTable
-        where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
-        where_ $ isNull $ item ^. sqlSynItInstance
-        where_ $ item ^. sqlSynItRead .== sqlBool False
-        pure $ item ^. sqlSynItSequence
-      forM_ mcnt $ \cnt -> updateMetadata entry (M.singleton (mtdtSqlName AggregateCount) (toJSON cnt)) []
-    _ -> pure ()
-  where
-    sqlI = entry ^. entryId
 
 --    ____            _                    _ _       _
 --   / ___|__ _ _ __ | |_ _   _ _ __ ___  | (_)_ __ | | __

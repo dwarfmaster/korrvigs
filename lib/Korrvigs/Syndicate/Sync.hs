@@ -132,7 +132,9 @@ updateRef syn old new =
       . (synjsFilters %~ (>>= updFilter))
       . (synjsItems . each %~ updItem)
   where
-    upd = maybe id (\i -> (unId i :)) new . filter (/= unId old)
+    upd [] = []
+    upd (p : ps) | p == unId old = maybe id ((:) . unId) new ps
+    upd (p : ps) = p : upd ps
     updFilter (entry, code) | entry == old = (,code) <$> toList new
     updFilter (entry, code) = [(entry, code)]
     updItem item | item ^. synitInstance == Just old = item & synitInstance .~ new

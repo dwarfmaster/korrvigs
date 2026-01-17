@@ -157,7 +157,7 @@ updateRef note old new =
       . (docParents %~ upd)
       . (docContent %~ mapMaybe (updateRefBlock old new))
   where
-    upd = maybe id S.insert new . S.delete old
+    upd s = if S.member old s then maybe id S.insert new (S.delete old s) else s
 
 updateRefBlock :: Id -> Maybe Id -> Block -> Maybe Block
 updateRefBlock old new (Para inls) = pure $ Para $ updateRefInline old new =<< inls

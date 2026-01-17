@@ -153,7 +153,9 @@ updateParents event toAdd toRm =
 updateRef :: (MonadKorrvigs m) => Event -> Id -> Maybe Id -> m ()
 updateRef ev old new = updateImpl ev $ pure . (icEvent . _Just . iceParents %~ upd) . (icEvent . _Just . iceMtdt %~ updateInMetadata old new)
   where
-    upd = maybe id (:) new . filter (/= old)
+    upd [] = []
+    upd (p : ps) | p == old = maybe id (:) new ps
+    upd (p : ps) = p : upd ps
 
 updateTitle :: (MonadKorrvigs m) => Event -> Maybe Text -> m ()
 updateTitle ev ntitle = updateImpl ev $ pure . (icEvent . _Just . iceSummary .~ ntitle)

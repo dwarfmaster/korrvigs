@@ -35,6 +35,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Database.PostgreSQL.Simple as Simple
 import GHC.Int (Int64)
 import qualified Korrvigs.Calendar.SQL as Cal
 import Korrvigs.Compute.SQL
@@ -203,6 +204,8 @@ makeLenses ''SyncData
 syncSQL :: (MonadKorrvigs m) => Bool -> Map Id Int -> SyncData -> m (Map Id Int)
 syncSQL updateCompDeps nameToId' dt = atomicSQL $ \conn -> do
   let i = dt ^. syncEntryRow . sqlEntryName
+  -- Suppress messages for this transaction
+  void $ Simple.execute_ conn "SET LOCAL client_min_messages TO WARNING"
   -- Update entry
   mprev :: [EntryRowR] <- runSelect conn $ limit 1 $ do
     entry <- selectTable entriesTable

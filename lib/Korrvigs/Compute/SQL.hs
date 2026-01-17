@@ -6,6 +6,7 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
+import Data.Time.Clock
 import GHC.Int (Int64)
 import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.Type
@@ -15,6 +16,8 @@ import Opaleye
 data ComputationResult = ComputationResult
   { _cmpResType :: RunnableType,
     _cmpResHash :: Hash,
+    _cmpResDate :: UTCTime,
+    _cmpResRuntime :: Int, -- In milliseconds
     _cmpResData :: RunnableResult
   }
   deriving (Eq, Show)

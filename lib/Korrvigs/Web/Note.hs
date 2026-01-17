@@ -28,6 +28,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
+import Data.Time.Format.ISO8601
 import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -270,7 +271,8 @@ getNoteNamedCodeR (WId i) cd = do
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   (attrs, txt) <- maybe notFound pure $ md ^? docContent . each . bkNamedCode cd
   (widget, _) <- embedContent False False 0 Nothing i md [CodeBlock attrs txt] def
-  rwidget <- case M.lookup cd (md ^. docComputations) of
+  let result = M.lookup cd $ md ^. docComputations
+  rwidget <- case result of
     Nothing -> pure mempty
     Just res -> resultWidget i cd (res ^. cmpResType) (res ^. cmpResData)
   public <- isPublic
@@ -280,6 +282,10 @@ getNoteNamedCodeR (WId i) cd = do
     Rcs.checkboxCode StaticR
     PhotoSwipe.photoswipeHeader
     unless public actions
+    forM_ result $ \r ->
+      [whamlet|
+        <p>Run in #{show (view cmpResRuntime r)}ms (#{iso8601Show (view cmpResDate r)})
+      |]
     widget
     [whamlet|
       <div .computation-result>

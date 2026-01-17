@@ -16,6 +16,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.Clock
 import Data.Time.LocalTime
 import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.SQL
@@ -240,6 +241,6 @@ getComputation note cmp = do
               _cmpResult = doc ^. docComputations . at cmp
             }
 
-storeComputationResult :: (MonadKorrvigs m) => Note -> Text -> RunnableType -> Hash -> RunnableResult -> m ()
-storeComputationResult note cmp tp hash res =
-  updateImpl note $ pure . (docComputations . at cmp ?~ ComputationResult tp hash res)
+storeComputationResult :: (MonadKorrvigs m) => Note -> Text -> RunnableType -> Hash -> UTCTime -> Int -> RunnableResult -> m ()
+storeComputationResult note cmp tp hash date time res =
+  updateImpl note $ pure . (docComputations . at cmp ?~ ComputationResult tp hash date time res)

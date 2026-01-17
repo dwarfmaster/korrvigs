@@ -19,6 +19,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
+import Data.Time.Format.ISO8601
 import qualified Data.Vector as V
 import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
@@ -139,7 +140,9 @@ renderBlock (CodeBlock attr code) = do
     writeText "{=result}" >> flush >> newline
     writeText (attr ^. attrId) >> flush >> newline
     writeText (runTypeName $ cmp ^. cmpResType) >> flush >> newline
-    writeText (digestToText $ cmp ^. cmpResHash) >> flush >> newline
+    writeText (digestToText $ cmp ^. cmpResHash) >> writeText " "
+    writeText (T.pack $ iso8601Show $ cmp ^. cmpResDate) >> writeText " "
+    writeText (T.pack $ show $ cmp ^. cmpResRuntime) >> flush >> newline
     forM_ lns $ \ln -> writeText ln >> flush >> newline
     writeText $ T.replicate ticks "`"
   where

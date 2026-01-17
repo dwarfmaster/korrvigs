@@ -3,6 +3,7 @@ module Korrvigs.Monad.Computation where
 import Conduit
 import Control.Lens
 import Data.Text (Text)
+import Data.Time.Clock
 import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
@@ -21,10 +22,10 @@ getComputation i cmp =
       FileD file -> File.getComputation file cmp
       _ -> pure Nothing
 
-storeComputationResult :: (MonadKorrvigs m) => Id -> Text -> RunnableType -> Hash -> RunnableResult -> m ()
-storeComputationResult i cmp tp hsh res = do
+storeComputationResult :: (MonadKorrvigs m) => Id -> Text -> RunnableType -> Hash -> UTCTime -> Int -> RunnableResult -> m ()
+storeComputationResult i cmp tp hsh date time res = do
   entry <- load i >>= throwMaybe (KCantLoad i "Failed to load entry")
   case entry ^. entryKindData of
-    NoteD note -> Note.storeComputationResult note cmp tp hsh res
-    FileD file -> File.storeComputationResult file cmp tp hsh res
+    NoteD note -> Note.storeComputationResult note cmp tp hsh date time res
+    FileD file -> File.storeComputationResult file cmp tp hsh date time res
     _ -> throwM $ KMiscError $ "Tried to save computation to " <> unId i <> ", which is neither a note nor a file"

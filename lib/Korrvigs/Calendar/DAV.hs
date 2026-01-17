@@ -89,7 +89,6 @@ sync report pwd = fmap isJust $ runMaybeT $ do
               (mtdtSqlName RunDate, toJSON $ iso8601Show date)
             ]
     lift $ updateMetadata (cal ^. calEntry) (M.union metaMtdt mtdt) []
-    pure undefined
   where
     reportE = lift . reportErr report
 

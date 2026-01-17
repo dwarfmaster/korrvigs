@@ -14,6 +14,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
+import Data.Time.Clock
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.SQL
@@ -22,6 +23,7 @@ import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Monad.Computation
 import Korrvigs.Utils.Process
+import Korrvigs.Utils.Time (measureTimeMs)
 import System.Exit
 import System.FilePath
 import System.Process
@@ -158,13 +160,14 @@ doRun' rec seen cmp =
             T.intercalate " <> " $
               (\(i, c) -> unId i <> "#" <> c) <$> S.toList seen
     else do
-      (exit, res, stderr) <-
-        runResourceT $
-          runOut
-            (cmp ^. cmpRun)
-            (resolveArg (cmp ^. cmpEntry) $ rec nseen)
-            (runOutputConduit $ runTypeKind $ cmp ^. cmpRun . runType)
-            (decodeUtf8Lenient .| sinkLazy)
+      (time, (exit, res, stderr)) <-
+        measureTimeMs $
+          runResourceT $
+            runOut
+              (cmp ^. cmpRun)
+              (resolveArg (cmp ^. cmpEntry) $ rec nseen)
+              (runOutputConduit $ runTypeKind $ cmp ^. cmpRun . runType)
+              (decodeUtf8Lenient .| sinkLazy)
       case exit of
         ExitFailure i ->
           throwM $
@@ -177,11 +180,14 @@ doRun' rec seen cmp =
           forM_ res $ \r -> do
             mhsh <- hashComputation cmp
             forM_ mhsh $ \hsh -> do
+              date <- liftIO getCurrentTime
               storeComputationResult
                 (cmp ^. cmpEntry)
                 (cmp ^. cmpName)
                 (cmp ^. cmpRun . runType)
                 hsh
+                date
+                time
                 r
           pure res
   where

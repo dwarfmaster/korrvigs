@@ -19,6 +19,8 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
+import Data.Time.Clock
+import Data.Time.Format.ISO8601
 import Data.Time.LocalTime
 import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.SQL
@@ -56,13 +58,17 @@ parseCompResult = withObject "Computation result" $ \obj -> do
   tp <- maybe (fail "Unknown type") pure . parseTypeName =<< obj .: "type"
   ComputationResult tp
     <$> (maybe (fail "Invalid hash") pure . digestFromText =<< obj .: "hash")
+    <*> (iso8601ParseM =<< obj .: "date")
+    <*> obj .: "time"
     <*> (maybe (fail "Can't parse result") pure . decodeFromJson tp =<< obj .: "result")
 
 compResultToJSON :: ComputationResult -> Value
-compResultToJSON (ComputationResult tp hash res) =
+compResultToJSON (ComputationResult tp hash date runtime res) =
   object
     [ "type" .= runTypeName tp,
       "hash" .= digestToText hash,
+      "date" .= iso8601Show date,
+      "time" .= runtime,
       "result" .= encodeToJSON res
     ]
 
@@ -228,6 +234,6 @@ getComputation file cmp = case M.lookup cmp comps of
     i = file ^. fileEntry . entryName
     comps = fileComputations i (file ^. fileMime)
 
-storeComputationResult :: (MonadKorrvigs m) => File -> Text -> RunnableType -> Hash -> RunnableResult -> m ()
-storeComputationResult file cmp tp hash res =
-  updateImpl file $ pure . (computations . at cmp ?~ ComputationResult tp hash res)
+storeComputationResult :: (MonadKorrvigs m) => File -> Text -> RunnableType -> Hash -> UTCTime -> Int -> RunnableResult -> m ()
+storeComputationResult file cmp tp hash date time res =
+  updateImpl file $ pure . (computations . at cmp ?~ ComputationResult tp hash date time res)

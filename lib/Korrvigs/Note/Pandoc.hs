@@ -26,6 +26,7 @@ import qualified Data.Text as T
 import Data.Text.IO (readFile)
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
+import Data.Time.Format.ISO8601
 import Korrvigs.Compute.Runnable (Runnable)
 import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
@@ -288,11 +289,17 @@ parseBlock (RawBlock (Format fmt) i)
         forM_ ids $ refTo . MkId
         pure $ pure $ A.Syndicate nm onlyNew $ MkId <$> ids
   | CI.mk fmt == "result" = case T.lines i of
-      (cmp : tpT : hashT : content) -> fromMaybeT [] $ do
+      (cmp : tpT : hashLineT : content) -> fromMaybeT [] $ do
         tp <- hoistMaybe $ parseTypeName tpT
         res <- hoistMaybe $ decodeFromText tp $ T.unlines content
-        hash <- hoistMaybe $ digestFromText hashT
-        stack . bszComputations %= M.insert cmp (ComputationResult tp hash res)
+        (hash, date, time) <- case T.words hashLineT of
+          [hashT, dateT, timeT] -> do
+            hash <- hoistMaybe $ digestFromText hashT
+            date <- iso8601ParseM $ T.unpack dateT
+            time <- hoistMaybe $ readMaybe $ T.unpack timeT
+            pure (hash, date, time)
+          _ -> mzero
+        stack . bszComputations %= M.insert cmp (ComputationResult tp hash date time res)
         pure []
       _ -> pure []
 parseBlock (RawBlock _ _) = pure []

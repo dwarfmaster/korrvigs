@@ -120,9 +120,9 @@ runVeryLazy = runVeryLazy' S.empty
 runVeryLazy' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m (Either Text RunnableResult)
 runVeryLazy' seen cmp = case cmp ^. cmpResult of
   Nothing -> doRun' runVeryLazy' seen cmp
-  Just (rtp, _, res) -> do
+  Just res -> do
     let tp = cmp ^. cmpRun . runType
-    if tp == rtp then pure (Right res) else doRun' runVeryLazy' seen cmp
+    if tp == res ^. cmpResType then pure (Right $ res ^. cmpResData) else doRun' runVeryLazy' seen cmp
 
 runLazy :: (MonadKorrvigs m) => Computation -> m (Either Text RunnableResult)
 runLazy = runLazy' S.empty
@@ -130,10 +130,10 @@ runLazy = runLazy' S.empty
 runLazy' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m (Either Text RunnableResult)
 runLazy' seen cmp = case cmp ^. cmpResult of
   Nothing -> doRun' runLazy' seen cmp
-  Just (_, rhsh, res) ->
+  Just res ->
     hashComputation cmp >>= \case
       Nothing -> throwM $ KMiscError $ "Failed to hash computation " <> cmpNm
-      Just hsh -> if hsh == rhsh then pure (Right res) else doRun' runLazy' seen cmp
+      Just hsh -> if hsh == res ^. cmpResHash then pure (Right $ res ^. cmpResData) else doRun' runLazy' seen cmp
   where
     cmpNm = unId (cmp ^. cmpEntry) <> "#" <> cmp ^. cmpName
 

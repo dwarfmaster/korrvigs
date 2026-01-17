@@ -28,6 +28,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
+import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
@@ -271,7 +272,7 @@ getNoteNamedCodeR (WId i) cd = do
   (widget, _) <- embedContent False False 0 Nothing i md [CodeBlock attrs txt] def
   rwidget <- case M.lookup cd (md ^. docComputations) of
     Nothing -> pure mempty
-    Just (tp, _, res) -> resultWidget i cd tp res
+    Just res -> resultWidget i cd (res ^. cmpResType) (res ^. cmpResData)
   public <- isPublic
   defaultLayout $ do
     Rcs.entryStyle

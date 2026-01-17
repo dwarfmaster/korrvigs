@@ -20,7 +20,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Vector as V
-import Korrvigs.Compute.Runnable
+import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
 import Korrvigs.Entry.Ident
 import Korrvigs.Metadata.Task
@@ -79,7 +79,7 @@ writeNote file doc = do
 writeNoteLazy :: Document -> BSL.ByteString
 writeNoteLazy doc = runRenderM 80 (doc ^. docComputations) (render doc)
 
-writeHeaderLazy :: Header -> Map Text (RunnableType, Hash, RunnableResult) -> BSL.ByteString
+writeHeaderLazy :: Header -> Map Text ComputationResult -> BSL.ByteString
 writeHeaderLazy hd comps = runRenderM 80 comps $ renderBlock $ Sub hd
 
 render :: Document -> RenderM ()
@@ -131,15 +131,15 @@ renderBlock (CodeBlock attr code) = do
   renderRawText code >> flush >> newline
   writeText $ T.replicate codeTicks "`"
   mres <- view $ _2 . at (attr ^. attrId)
-  forM_ mres $ \(tp, hash, res) -> do
-    let lns = T.lines $ encodeToText res
+  forM_ mres $ \cmp -> do
+    let lns = T.lines $ encodeToText $ cmp ^. cmpResData
     let ticks = ticksCount lns
     flush >> newline >> newline
     writeText $ T.replicate ticks "`"
     writeText "{=result}" >> flush >> newline
     writeText (attr ^. attrId) >> flush >> newline
-    writeText (runTypeName tp) >> flush >> newline
-    writeText (digestToText hash) >> flush >> newline
+    writeText (runTypeName $ cmp ^. cmpResType) >> flush >> newline
+    writeText (digestToText $ cmp ^. cmpResHash) >> flush >> newline
     forM_ lns $ \ln -> writeText ln >> flush >> newline
     writeText $ T.replicate ticks "`"
   where

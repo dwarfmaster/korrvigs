@@ -224,13 +224,13 @@ compileBlock' (CodeBlock attr code) = do
   let aceWidget = lift $ ("sourceCode",) <$> Ace.preview code language
   widgets <-
     use currentDoc >>= \doc -> case if repComp then M.lookup (attr ^. attrId) (doc ^. docComputations) else Nothing of
-      Just (tp, _, res) -> case displayKind of
+      Just res -> case displayKind of
         Just "code" -> singleton . (True,) <$> aceWidget
         Just "both" -> do
           aceW <- aceWidget
-          resW <- resWidget tp res
+          resW <- resWidget (res ^. cmpResType) (res ^. cmpResData)
           pure [(True, aceW), (False, resW)]
-        _ -> singleton . (True,) <$> resWidget tp res
+        _ -> singleton . (True,) <$> resWidget (res ^. cmpResType) (res ^. cmpResData)
       Nothing -> singleton . (True,) <$> aceWidget
   entry <- use currentEntry
   subL <- use subLoc

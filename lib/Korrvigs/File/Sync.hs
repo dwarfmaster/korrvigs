@@ -46,20 +46,20 @@ data FileMetadata = FileMetadata
     _exText :: Maybe Text,
     _exTitle :: Maybe Text,
     _exParents :: [Id],
-    _computations :: Map Text (RunnableType, Hash, RunnableResult)
+    _computations :: Map Text ComputationResult
   }
 
 makeLenses ''FileMetadata
 
-parseCompResult :: Value -> Parser (RunnableType, Hash, RunnableResult)
+parseCompResult :: Value -> Parser ComputationResult
 parseCompResult = withObject "Computation result" $ \obj -> do
   tp <- maybe (fail "Unknown type") pure . parseTypeName =<< obj .: "type"
-  (tp,,)
+  ComputationResult tp
     <$> (maybe (fail "Invalid hash") pure . digestFromText =<< obj .: "hash")
     <*> (maybe (fail "Can't parse result") pure . decodeFromJson tp =<< obj .: "result")
 
-compResultToJSON :: (RunnableType, Hash, RunnableResult) -> Value
-compResultToJSON (tp, hash, res) =
+compResultToJSON :: ComputationResult -> Value
+compResultToJSON (ComputationResult tp hash res) =
   object
     [ "type" .= runTypeName tp,
       "hash" .= digestToText hash,
@@ -230,4 +230,4 @@ getComputation file cmp = case M.lookup cmp comps of
 
 storeComputationResult :: (MonadKorrvigs m) => File -> Text -> RunnableType -> Hash -> RunnableResult -> m ()
 storeComputationResult file cmp tp hash res =
-  updateImpl file $ pure . (computations . at cmp ?~ (tp, hash, res))
+  updateImpl file $ pure . (computations . at cmp ?~ ComputationResult tp hash res)

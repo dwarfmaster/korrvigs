@@ -12,11 +12,18 @@ import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Opaleye
 
+data ComputationResult = ComputationResult
+  { _cmpResType :: RunnableType,
+    _cmpResHash :: Hash,
+    _cmpResData :: RunnableResult
+  }
+  deriving (Eq, Show)
+
 data Computation = Computation
   { _cmpEntry :: Id,
     _cmpName :: Text,
     _cmpRun :: Runnable,
-    _cmpResult :: Maybe (RunnableType, Hash, RunnableResult)
+    _cmpResult :: Maybe ComputationResult
   }
   deriving (Eq, Show)
 
@@ -32,6 +39,7 @@ data CompDepRowImpl a b c d = CompDepRow
     _sqlCompDepDstName :: d
   }
 
+makeLenses ''ComputationResult
 makeLenses ''Computation
 makeLenses ''CompRowImpl
 makeLenses ''CompDepRowImpl

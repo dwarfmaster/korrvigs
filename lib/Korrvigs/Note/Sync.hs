@@ -242,4 +242,4 @@ getComputation note cmp = do
 
 storeComputationResult :: (MonadKorrvigs m) => Note -> Text -> RunnableType -> Hash -> RunnableResult -> m ()
 storeComputationResult note cmp tp hash res =
-  updateImpl note $ pure . (docComputations . at cmp ?~ (tp, hash, res))
+  updateImpl note $ pure . (docComputations . at cmp ?~ ComputationResult tp hash res)

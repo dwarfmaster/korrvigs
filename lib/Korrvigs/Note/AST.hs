@@ -9,8 +9,7 @@ import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Compute.Runnable
-import Korrvigs.Compute.Type
+import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import Korrvigs.Metadata.Task
 import Korrvigs.Query
@@ -42,7 +41,7 @@ data Document = Document
     _docCollections :: Map Text [Id],
     _docNamedSubs :: Set Text,
     _docNamedCode :: Set Text,
-    _docComputations :: Map Text (RunnableType, Hash, RunnableResult)
+    _docComputations :: Map Text ComputationResult
   }
   deriving (Show)
 

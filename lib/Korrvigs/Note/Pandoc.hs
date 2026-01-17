@@ -26,7 +26,8 @@ import qualified Data.Text as T
 import Data.Text.IO (readFile)
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
-import Korrvigs.Compute.Runnable (Hash, Runnable)
+import Korrvigs.Compute.Runnable (Runnable)
+import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.Metadata.Task
@@ -55,7 +56,7 @@ data BlockStackZipper = BSZ
     _bszCollections :: Map Text [Id],
     _bszNamedSubs :: Set Text,
     _bszNamedCode :: Set Text,
-    _bszComputations :: Map Text (RunnableType, Hash, RunnableResult),
+    _bszComputations :: Map Text ComputationResult,
     _bszParent :: Maybe BlockStackZipper
   }
 
@@ -291,7 +292,7 @@ parseBlock (RawBlock (Format fmt) i)
         tp <- hoistMaybe $ parseTypeName tpT
         res <- hoistMaybe $ decodeFromText tp $ T.unlines content
         hash <- hoistMaybe $ digestFromText hashT
-        stack . bszComputations %= M.insert cmp (tp, hash, res)
+        stack . bszComputations %= M.insert cmp (ComputationResult tp hash res)
         pure []
       _ -> pure []
 parseBlock (RawBlock _ _) = pure []

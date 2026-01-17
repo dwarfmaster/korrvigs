@@ -15,8 +15,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Compute.Runnable
-import Korrvigs.Compute.Type
+import Korrvigs.Compute.SQL
 import Korrvigs.Note.AST
 import Korrvigs.Utils.Text
 import Prelude hiding (break)
@@ -46,7 +45,7 @@ atStart = to (\x -> (x, x)) . alongside cursor prefixLen . to (uncurry (==))
 -- The write part is the document itself.
 -- The state is the current cursor position in terms of width with the symbol,
 -- and a stack of prefixes.
-type RenderM = RWS (Int, Map Text (RunnableType, Hash, RunnableResult)) Builder RenderState
+type RenderM = RWS (Int, Map Text ComputationResult) Builder RenderState
 
 -- Clear the currently building symbol and adds it to the document.
 flush :: RenderM ()
@@ -156,7 +155,7 @@ separatedRenders n rdrs =
 for :: (Traversable t) => t a -> (a -> b) -> t b
 for = flip fmap
 
-runRenderM :: Int -> Map Text (RunnableType, Hash, RunnableResult) -> RenderM () -> BSL.ByteString
+runRenderM :: Int -> Map Text ComputationResult -> RenderM () -> BSL.ByteString
 runRenderM width comps rdr =
   B.toLazyByteString . (^. _3) $
     runRWS rdr (width, comps) $

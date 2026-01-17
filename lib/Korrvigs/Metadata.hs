@@ -122,3 +122,4 @@ mkMtdt "RunJavascript" "run-javascript" [t|Bool|]
 mkMtdt "RunBatch" "run-batch" [t|[Text]|]
 mkMtdt "RunTime" "run-time" [t|Int|] -- In milliseconds
 mkMtdt "RunDate" "run-date" [t|Text|]
+mkMtdt "AutoRun" "autorun" [t|Text|]

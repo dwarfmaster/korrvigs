@@ -44,6 +44,7 @@ library korrvigs-lib
     Korrvigs.Calendar.Sync
     Korrvigs.Cli
     Korrvigs.Cli.ADB
+    Korrvigs.Cli.Autorun
     Korrvigs.Cli.Compute
     Korrvigs.Cli.Config
     Korrvigs.Cli.ERIS
@@ -130,6 +131,7 @@ library korrvigs-lib
     Korrvigs.Monad.Collections
     Korrvigs.Monad.Computation
     Korrvigs.Monad.Metadata
+    Korrvigs.Monad.Metadata.Autorun
     Korrvigs.Monad.Metadata.Hooks
     Korrvigs.Monad.Remove
     Korrvigs.Monad.SQL

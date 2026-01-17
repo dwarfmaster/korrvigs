@@ -147,8 +147,8 @@ mtdtForm prefix qs = do
   pure $ do
     let nrowTxt :: Text =
           mconcat
-            [ "<td><input type=\"text\" name=\"mtdtKey\" /></td>",
-              "<td><input type=\"text\" name=\"mtdtVal\" /></td>",
+            [ "<td><input type=\"text\" name=\"" <> applyPrefix prefix "mtdtKey" <> "\" /></td>",
+              "<td><input type=\"text\" name=\"" <> applyPrefix prefix "mtdtVal" <> "\" /></td>",
               "<td><button type=\"button\" onclick='rmMetaField(\"{}\")'>-</button></td>"
             ]
     unless (isJust prefix) $

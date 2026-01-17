@@ -38,6 +38,7 @@ import Korrvigs.Web.Actions.Parent
 import Korrvigs.Web.Actions.RSS
 import Korrvigs.Web.Actions.Remove
 import Korrvigs.Web.Actions.Share
+import Korrvigs.Web.Actions.Syndicate
 import Korrvigs.Web.Actions.Title
 import Korrvigs.Web.Actions.Update
 import Korrvigs.Web.Backend
@@ -70,6 +71,7 @@ data ActionLabel
   | LabUpdateTitle
   | LabRmTitle
   | LabCompute
+  | LabSynUpdate
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 mkIcon :: Text -> Base16Index -> (Route WebData, Base16Index)
@@ -97,6 +99,7 @@ actIcon LabBibtex = mkIcon "bib" Base0E
 actIcon LabUpdateTitle = mkIcon "title" Base0E
 actIcon LabRmTitle = mkIcon "title" Base08
 actIcon LabCompute = mkIcon "action" Base0E
+actIcon LabSynUpdate = mkIcon "update" Base0E
 
 actName :: ActionLabel -> Text
 actName LabRemove = "remove"
@@ -120,6 +123,7 @@ actName LabBibtex = "exportbib"
 actName LabUpdateTitle = "updatetitle"
 actName LabRmTitle = "rmtitle"
 actName LabCompute = "compute"
+actName LabSynUpdate = "synupdate"
 
 actWidget :: Text -> ActionLabel -> Widget
 actWidget formId act = do
@@ -195,6 +199,7 @@ actForm l@LabBibtex = genForm bibtexForm bibtexTitle $ actUrl l
 actForm l@LabUpdateTitle = genForm titleForm titleTitle $ actUrl l
 actForm l@LabRmTitle = genForm rmTitleForm rmTitleTitle $ actUrl l
 actForm l@LabCompute = genFormM computeForm computeTitle $ actUrl l
+actForm l@LabSynUpdate = genFormM (pure . synUpdateForm) synUpdateTitle $ actUrl l
 
 runPost :: AForm Handler a -> (a -> ActionTarget -> Handler ActionReaction) -> ActionTarget -> Handler ActionReaction
 runPost form = runPostM $ const $ pure form
@@ -252,6 +257,7 @@ actPost LabBibtex = runPost bibtexForm runBibtex
 actPost LabUpdateTitle = runPost titleForm runTitle
 actPost LabRmTitle = runPost rmTitleForm runRmTitle
 actPost LabCompute = runPostM computeForm runCompute
+actPost LabSynUpdate = runPostM (pure . synUpdateForm) runSynUpdate
 
 evaluateCond :: ActionTarget -> ActionCond -> Handler Bool
 evaluateCond _ ActCondNever = pure False
@@ -302,6 +308,7 @@ actCond LabBibtex = runActCond bibtexTarget
 actCond LabUpdateTitle = runActCond titleTarget
 actCond LabRmTitle = runActCond rmTitleTarget
 actCond LabCompute = runActCond computeTarget
+actCond LabSynUpdate = runActCond synUpdateTarget
 
 postHandler :: ActionLabel -> ActionTarget -> Handler Value
 postHandler lbl tgt = toJSON <$> actPost lbl tgt

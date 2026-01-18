@@ -137,13 +137,13 @@ instance RenderMessage WebData FormMessage where
   renderMessage _ _ = defaultFormMessage
 
 instance MonadKorrvigs Handler where
-  withSQL act = do
+  lockSQL = do
     lock <- getsYesod web_sql_lock
     liftIO $ takeMVar lock
-    conn <- getsYesod web_connection
-    r <- act conn
+    getsYesod web_connection
+  unlockSQL = do
+    lock <- getsYesod web_sql_lock
     liftIO $ putMVar lock ()
-    pure r
   root = getsYesod web_root
   captureRoot = getsYesod web_capture_root
   mimeDatabase = getsYesod web_mime_database

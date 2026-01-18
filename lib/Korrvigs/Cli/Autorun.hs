@@ -47,9 +47,6 @@ parser =
       <> progDesc "Autorun some targets"
       <> header "korr autorun -- autorun targets"
 
-displayTarget :: AutoRunnableTarget -> Text
-displayTarget (AutoSyn syn) = "syn:" <> unId (syn ^. synEntry . entryName)
-
 displayPeriod :: RunPeriod -> Text
 displayPeriod period =
   mconcat
@@ -84,4 +81,4 @@ run (List time) = do
   targets <- maybe targetsToRun targetsToRunTimed time
   forM_ targets $ \tgt -> do
     liftIO $ TIO.putStrLn $ displayAuto tgt
-run (Run time) = undefined
+run (Run time) = targetsRun time

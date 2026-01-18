@@ -10,6 +10,8 @@ module Korrvigs.Monad.Metadata.Autorun
     autoRunTime,
     targetsToRun,
     targetsToRunTimed,
+    targetsRun,
+    displayTarget,
   )
 where
 
@@ -28,6 +30,7 @@ import Data.Time.Format.ISO8601
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Monad
+import qualified Korrvigs.Syndicate.Run as Syn
 import Korrvigs.Syndicate.SQL
 import Korrvigs.Utils
 import Korrvigs.Utils.JSON
@@ -152,3 +155,17 @@ targetsToRunTimed time = do
   let nrt s tgt = let ns = s + fromMaybe 0 (tgt ^. autoRunTime) in (ns, (ns, tgt))
   let targetsWithTime = snd $ mapAccumL nrt 0 targets
   pure $ snd <$> takeWhile ((< time) . fst) targetsWithTime
+
+targetRun :: (MonadKorrvigs m) => AutoRunnableTarget -> m ()
+targetRun (AutoSyn syn) = void $ runResourceT $ Syn.run syn
+
+displayTarget :: AutoRunnableTarget -> Text
+displayTarget (AutoSyn syn) = "syn:" <> unId (syn ^. synEntry . entryName)
+
+targetsRun :: (MonadKorrvigs m) => Int -> m ()
+targetsRun time = do
+  targets <- targetsToRunTimed time
+  forM_ targets $ \auto -> do
+    let tgt = auto ^. autoTarget
+    liftIO $ putStrLn $ "Running " <> T.unpack (displayTarget tgt)
+    targetRun tgt

@@ -2,11 +2,10 @@
 
 module Korrvigs.Monad.Class where
 
-import Conduit (MonadThrow, MonadUnliftIO, throwM)
+import Conduit
 import Control.Exception
 import Control.Lens
 import Control.Monad
-import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.ByteString as BS
 import Data.Profunctor.Product.Default
@@ -37,7 +36,8 @@ instance Exception KorrvigsError
 -- Tokens are read-write data not persisted across restarts, but shared
 -- across the entire application
 class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
-  withSQL :: (Connection -> m a) -> m a -- Ensure only one concurrent communication with postgreSQL
+  lockSQL :: m Connection -- Spin until no concurrent access, returned connection should not be used after call to unlockSQL
+  unlockSQL :: m ()
   root :: m FilePath
   manager :: m Manager
   captureRoot :: m FilePath
@@ -45,6 +45,24 @@ class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   getCredential :: (FromJSON cred) => Text -> m (Maybe cred)
   getToken :: (FromJSON tok) => Text -> m (Maybe tok)
   storeToken :: (ToJSON tok) => Text -> tok -> m ()
+
+instance (MonadKorrvigs m) => MonadKorrvigs (ResourceT m) where
+  lockSQL = lift lockSQL
+  unlockSQL = lift unlockSQL
+  root = lift root
+  manager = lift manager
+  captureRoot = lift captureRoot
+  mimeDatabase = lift mimeDatabase
+  getCredential = lift . getCredential
+  getToken = lift . getToken
+  storeToken tokName = lift . storeToken tokName
+
+withSQL :: (MonadKorrvigs m) => (Connection -> m a) -> m a
+withSQL act = do
+  conn <- lockSQL
+  r <- act conn
+  unlockSQL
+  pure r
 
 setupPsql :: (MonadKorrvigs m) => m ()
 setupPsql = withSQL $ \conn ->

@@ -66,13 +66,13 @@ newtype KorrM a = KorrM (ReaderT KorrState IO a)
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader KorrState, MonadThrow, MonadUnliftIO)
 
 instance MonadKorrvigs KorrM where
-  withSQL act = do
+  lockSQL = do
     lock <- view korrSQLLock
     liftIO $ takeMVar lock
-    conn <- view korrConnection
-    r <- act conn
+    view korrConnection
+  unlockSQL = do
+    lock <- view korrSQLLock
     liftIO $ putMVar lock ()
-    pure r
   root = view korrRoot
   captureRoot = view korrCaptureRoot
   mimeDatabase = view korrMimeDatabase

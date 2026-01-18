@@ -8,8 +8,8 @@ module Korrvigs.Monad.Metadata.Autorun
     autoPeriod,
     autoLastRun,
     autoRunTime,
-    listTargets,
     targetsToRun,
+    targetsToRunTimed,
   )
 where
 
@@ -145,3 +145,10 @@ targetsToRun :: (MonadKorrvigs m) => m [AutoRunnable]
 targetsToRun = do
   today <- liftIO $ utctDay <$> getCurrentTime
   sortBy compareTargets . filter (shouldRunTarget today) <$> listTargets
+
+targetsToRunTimed :: (MonadKorrvigs m) => Int -> m [AutoRunnable]
+targetsToRunTimed time = do
+  targets <- targetsToRun
+  let nrt s tgt = let ns = s + fromMaybe 0 (tgt ^. autoRunTime) in (ns, (ns, tgt))
+  let targetsWithTime = snd $ mapAccumL nrt 0 targets
+  pure $ snd <$> takeWhile ((< time) . fst) targetsWithTime

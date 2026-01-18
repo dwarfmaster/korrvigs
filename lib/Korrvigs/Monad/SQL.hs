@@ -4,6 +4,7 @@ module Korrvigs.Monad.SQL
     loadMetadata,
     removeKindDB,
     removeDB,
+    SyncComputationData,
     SyncData (..),
     syncSQL,
     syncRelsSQL,
@@ -35,6 +36,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.Clock
 import qualified Database.PostgreSQL.Simple as Simple
 import GHC.Int (Int64)
 import qualified Korrvigs.Calendar.SQL as Cal
@@ -189,6 +191,8 @@ genRemoveDB i dels =
 removeDB :: (MonadKorrvigs m) => Entry -> m ()
 removeDB entry = dispatchRemove genRemoveDB $ entry ^. entryKindData
 
+type SyncComputationData = (Maybe Text, Maybe UTCTime, Maybe Int, [(Id, Text)])
+
 data SyncData = SyncData
   { _syncEntryRow :: EntryRowW,
     _syncDataRows :: Int -> [Insert Int64],
@@ -196,7 +200,7 @@ data SyncData = SyncData
     _syncTextContent :: Maybe Text,
     _syncParents :: [Id],
     _syncRefs :: [Id],
-    _syncCompute :: Map Text [(Id, Text)]
+    _syncCompute :: Map Text SyncComputationData
   }
 
 makeLenses ''SyncData
@@ -286,6 +290,7 @@ syncSQL updateCompDeps nameToId' dt = atomicSQL $ \conn -> do
     pure $ comp ^. sqlCompName
   let toRm = S.difference oldComps comps
   let toAdd = S.difference comps oldComps
+  let toAddComps = M.intersectionWith const (dt ^. syncCompute) (M.fromList $ (,()) <$> S.toList toAdd)
   when updateCompDeps $
     void $
       runDelete conn $
@@ -308,7 +313,9 @@ syncSQL updateCompDeps nameToId' dt = atomicSQL $ \conn -> do
             dReturning = rCount
           }
   unless (S.null toAdd) $ do
-    let compRows = CompRow sqlI <$> S.toList toAdd
+    let mkCompRow (code, (autorun, lastRun, runTime, _)) =
+          CompRow sqlI code autorun lastRun runTime
+    let compRows = mkCompRow <$> M.toList toAddComps
     void $
       runInsert conn $
         Insert
@@ -319,7 +326,7 @@ syncSQL updateCompDeps nameToId' dt = atomicSQL $ \conn -> do
           }
   when updateCompDeps $ do
     let depRows = do
-          (cmp, deps) <- M.toList $ dt ^. syncCompute
+          (cmp, (_, _, _, deps)) <- M.toList $ dt ^. syncCompute
           (dstId, dstCmp) <- deps
           dstSqlI <- toList $ M.lookup dstId nameToId
           pure $ CompDepRow sqlI cmp dstSqlI dstCmp

@@ -1,7 +1,7 @@
 module Korrvigs.Note.Sync where
 
 import Control.Applicative
-import Control.Arrow (first, second, (&&&))
+import Control.Arrow (first, (&&&))
 import Control.Lens
 import Control.Monad (void, when)
 import Control.Monad.IO.Class
@@ -89,17 +89,20 @@ syncDocument i path doc = do
   let mtdt' = foldr M.delete mtdt ["geometry", "date", "duration"]
   let mrows = M.toList mtdt'
   let nrow sqlI = NoteRow sqlI path (M.keys $ doc ^. docCollections) :: NoteRow
+  let mkCmp (code, (autorun, rbl)) =
+        let result = M.lookup code $ doc ^. docComputations
+         in (code, (autorun, view cmpResDate <$> result, view cmpResRuntime <$> result, runDeps rbl))
   let cmps =
         doc
           ^.. docContent
             . each
             . bkSubBlocks
             . _CodeBlock
-            . to (view (_1 . attrId) &&& uncurry toRunnable)
+            . to (view (_1 . attrId) &&& (view (_1 . attrMtdt . at "autorun") &&& uncurry toRunnable))
             . to raiseMaybe
             . _Just
             . filtered (not . T.null . view _1)
-            . to (second runDeps)
+            . to mkCmp
   let insertNoteRow sqlI =
         Insert
           { iTable = notesTable,
@@ -118,8 +121,8 @@ syncDocument i path doc = do
   let txt = renderDocument doc
   pure $ SyncData erow (\sqlI -> [insertNoteRow sqlI, insertColRows sqlI]) mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) (M.fromList cmps)
   where
-    raiseMaybe (_, Nothing) = Nothing
-    raiseMaybe (a, Just b) = Just (a, b)
+    raiseMaybe (_, (_, Nothing)) = Nothing
+    raiseMaybe (a, (b, Just c)) = Just (a, (b, c))
 
 updateImpl' :: (MonadKorrvigs m) => Note -> (Document -> m (Document, a)) -> m a
 updateImpl' note f = do
@@ -238,7 +241,8 @@ getComputation note cmp = do
             { _cmpEntry = i,
               _cmpName = cmp,
               _cmpRun = rbl,
-              _cmpResult = doc ^. docComputations . at cmp
+              _cmpResult = doc ^. docComputations . at cmp,
+              _cmpAutorun = code ^? _Just . _1 . attrMtdt . ix "autorun"
             }
 
 storeComputationResult :: (MonadKorrvigs m) => Note -> Text -> RunnableType -> Hash -> UTCTime -> Int -> RunnableResult -> m ()

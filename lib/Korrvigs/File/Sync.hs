@@ -153,6 +153,13 @@ sync :: (MonadKorrvigs m) => m (Map Id SyncData)
 sync =
   M.fromList <$> (allFiles >>= mapM (sequence . (fileIdFromPath &&& syncOne)))
 
+prepComp :: FileMetadata -> Text -> Runnable -> SyncComputationData
+prepComp json code rbl =
+  (Nothing, view cmpResDate <$> result, view cmpResRuntime <$> result, deps)
+  where
+    deps = runDeps rbl
+    result = M.lookup code $ json ^. computations
+
 syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
 syncOne path = do
   let i = fileIdFromPath path
@@ -160,7 +167,7 @@ syncOne path = do
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   let mtdt = json ^. annoted
   let mime = Enc.encodeUtf8 $ json ^. savedMime
-  let cmps = runDeps <$> fileComputations i mime
+  let cmps = M.mapWithKey (prepComp json) $ fileComputations i mime
   status <- liftIO $ computeStatus path
   let geom = json ^. exGeo
   let tm = json ^. exDate
@@ -228,7 +235,8 @@ getComputation file cmp = case M.lookup cmp comps of
           { _cmpEntry = i,
             _cmpName = cmp,
             _cmpRun = rbl,
-            _cmpResult = json ^. computations . at cmp
+            _cmpResult = json ^. computations . at cmp,
+            _cmpAutorun = Nothing
           }
   where
     i = file ^. fileEntry . entryName

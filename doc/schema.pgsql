@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS entries_ref_to (
 CREATE TABLE IF NOT EXISTS computations (
   entry INTEGER NOT NULL REFERENCES entries(id),
   name TEXT NOT NULL,
+  autorun TEXT,
+  last_run TIME WITH TIME ZONE,
+  run_time INTEGER,
   CONSTRAINT computations_ref_unique
     UNIQUE(entry,name)
 );

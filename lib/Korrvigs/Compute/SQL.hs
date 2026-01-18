@@ -26,13 +26,17 @@ data Computation = Computation
   { _cmpEntry :: Id,
     _cmpName :: Text,
     _cmpRun :: Runnable,
-    _cmpResult :: Maybe ComputationResult
+    _cmpResult :: Maybe ComputationResult,
+    _cmpAutorun :: Maybe Text
   }
   deriving (Eq, Show)
 
-data CompRowImpl a b = CompRow
+data CompRowImpl a b c d e = CompRow
   { _sqlCompEntry :: a,
-    _sqlCompName :: b
+    _sqlCompName :: b,
+    _sqlCompAutorun :: c,
+    _sqlCompLastRun :: d,
+    _sqlCompRunTime :: e
   }
 
 data CompDepRowImpl a b c d = CompDepRow
@@ -49,12 +53,12 @@ makeLenses ''CompDepRowImpl
 $(makeAdaptorAndInstanceInferrable "pCompRow" ''CompRowImpl)
 $(makeAdaptorAndInstanceInferrable "pCompDepRow" ''CompDepRowImpl)
 
-type CompRow = CompRowImpl Int Text
+type CompRow = CompRowImpl Int Text (Maybe Text) (Maybe UTCTime) (Maybe Int)
 
-type CompRowSQL = CompRowImpl (Field SqlInt4) (Field SqlText)
+type CompRowSQL = CompRowImpl (Field SqlInt4) (Field SqlText) (FieldNullable SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlInt4)
 
 instance Default ToFields CompRow CompRowSQL where
-  def = pCompRow $ CompRow def def
+  def = pCompRow $ CompRow def def def def def
 
 computationsTable :: Table CompRowSQL CompRowSQL
 computationsTable =
@@ -63,6 +67,9 @@ computationsTable =
       CompRow
         (tableField "entry")
         (tableField "name")
+        (tableField "autorun")
+        (tableField "last_run")
+        (tableField "run_time")
 
 type CompDepRow = CompDepRowImpl Int Text Int Text
 

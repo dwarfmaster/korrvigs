@@ -15,6 +15,7 @@ overlay: {
   cfg = config.programs.korrvigs;
   server = cfg.server;
   psql = cfg.postgresql;
+  autorun = cfg.autorun;
   nginx = server.nginx;
   postgre = config.services.postgresql;
 
@@ -149,6 +150,19 @@ in {
       description = "Path to the credential file";
       default = null;
     };
+    autorun = {
+      enable = mkEnableOption "Enable autorunning of korrvigs targets";
+      timeWindow = mkOption {
+        type = types.int;
+        description = "Time to run targets, in seconds";
+        default = 3600;
+      };
+      activationTime = mkOption {
+        type = types.str;
+        description = "A systemd timer OnCalendar string describing when to run the targets";
+        default = "*-*-* 2:00:00";
+      };
+    };
 
     server = {
       enable = mkEnableOption "Korrvigs server";
@@ -222,10 +236,35 @@ in {
       };
     })
 
+    (mkIf (cfg.enable && autorun.enable) {
+      systemd.services.korrvigs-autorun = {
+        description = "Autorun korrvigs targets";
+        script = "${cfg.package}/bin/korr autorun run ${toString (1000 * autorun.timeWindow)}";
+        path = dependencies ++ languages;
+
+        serviceConfig = {
+          User = cfg.user;
+          Group = config.users.users.${cfg.user}.group;
+          Type = "simple";
+        };
+      };
+
+      systemd.timers.korrvigs = {
+        enable = true;
+        wantedBy = ["multi-user.target"];
+        after = ["postgresql.service"];
+
+        timerConfig = {
+          OnCalendar = autorun.activationTime;
+          Unit = "korrvigs-autorun.service";
+        };
+      };
+    })
+
     (mkIf (cfg.enable && server.enable) {
       systemd.services.korrvigs = {
         description = "Korrvigs server";
-        wantedBy = ["multi-user.target"];
+        wantedBy = ["timers.target"];
         after = ["postgresql.service"];
         before = ["nginx.service"];
 

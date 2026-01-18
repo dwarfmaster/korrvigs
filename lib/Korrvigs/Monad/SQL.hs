@@ -283,14 +283,6 @@ syncSQL updateCompDeps nameToId' dt = atomicSQL $ \conn -> do
           iOnConflict = Just doNothing
         }
   -- Update computations
-  let comps = S.fromList $ M.keys (dt ^. syncCompute)
-  oldComps <- fmap S.fromList $ runSelect conn $ do
-    comp <- selectTable computationsTable
-    where_ $ comp ^. sqlCompEntry .== sqlInt4 sqlI
-    pure $ comp ^. sqlCompName
-  let toRm = S.difference oldComps comps
-  let toAdd = S.difference comps oldComps
-  let toAddComps = M.intersectionWith const (dt ^. syncCompute) (M.fromList $ (,()) <$> S.toList toAdd)
   when updateCompDeps $
     void $
       runDelete conn $
@@ -299,20 +291,18 @@ syncSQL updateCompDeps nameToId' dt = atomicSQL $ \conn -> do
             dWhere = \dep -> dep ^. sqlCompDepSrcEntry .== sqlInt4 sqlI,
             dReturning = rCount
           }
-  unless (S.null toRm) $ do
-    let rmNames = sqlStrictText <$> S.toList toRm
-    void $
-      runDelete conn $
-        Delete
-          { dTable = computationsTable,
-            dWhere = \comp ->
-              comp
-                ^. sqlCompEntry
-                  .== sqlInt4 sqlI
-                  .&& in_ rmNames (comp ^. sqlCompName),
-            dReturning = rCount
-          }
-  unless (S.null toAdd) $ do
+  void $
+    runDelete conn $
+      Delete
+        { dTable = computationsTable,
+          dWhere = \comp ->
+            comp
+              ^. sqlCompEntry
+                .== sqlInt4 sqlI,
+          dReturning = rCount
+        }
+  let toAddComps = dt ^. syncCompute
+  unless (M.null toAddComps) $ do
     let mkCompRow (code, (autorun, lastRun, runTime, _)) =
           CompRow sqlI code autorun lastRun runTime
     let compRows = mkCompRow <$> M.toList toAddComps

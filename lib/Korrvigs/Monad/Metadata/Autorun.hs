@@ -27,19 +27,24 @@ import Data.Profunctor.Product.Default
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding.Base64
+import qualified Data.Text.IO as TIO
 import Data.Time.Calendar hiding (periodLength)
 import Data.Time.Clock
 import Data.Time.Format.ISO8601
 import qualified Korrvigs.Calendar.DAV as Cal
 import Korrvigs.Calendar.SQL
+import qualified Korrvigs.Compute.Run as Comp
+import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Monad
+import Korrvigs.Monad.Computation (getComputation)
 import qualified Korrvigs.Syndicate.Run as Syn
 import Korrvigs.Syndicate.SQL
 import Korrvigs.Utils
 import Korrvigs.Utils.JSON
 import Opaleye hiding (lower)
+import qualified Opaleye as O
 import Text.Parsec
 import Text.Parsec.Number
 
@@ -81,6 +86,7 @@ parsePeriod txt = case parse periodParser "<period>" txt of
 data AutoRunnableTarget
   = AutoSyn Syndicate
   | AutoCal Calendar
+  | AutoCode Id Text
   deriving (Show)
 
 data AutoRunnable = AutoRunnable
@@ -93,6 +99,25 @@ data AutoRunnable = AutoRunnable
 
 makePrisms ''AutoRunnableTarget
 makeLenses ''AutoRunnable
+
+listComputationTargets :: (MonadKorrvigs m) => m [AutoRunnable]
+listComputationTargets = do
+  sql <- rSelect $ do
+    comp <- selectTable computationsTable
+    where_ $ O.not $ isNull $ comp ^. sqlCompAutorun
+    let autorun = fromNullable (sqlStrictText "") $ comp ^. sqlCompAutorun
+    entry <- nameFor $ comp ^. sqlCompEntry
+    pure $ comp & sqlCompEntry .~ entry & sqlCompAutorun .~ autorun
+  fmap mconcat $ forM sql $ \comp -> fromMaybeT [] $ do
+    period <- hoistEither $ parsePeriod $ comp ^. sqlCompAutorun
+    pure $
+      singleton $
+        AutoRunnable
+          { _autoTarget = AutoCode (comp ^. sqlCompEntry) (comp ^. sqlCompName),
+            _autoPeriod = period,
+            _autoLastRun = comp ^. sqlCompLastRun,
+            _autoRunTime = comp ^. sqlCompRunTime
+          }
 
 listEntryTargets ::
   (MonadKorrvigs m, Default FromFields sql row, Default Unpackspec sql sql) =>
@@ -139,7 +164,8 @@ listTargets =
   mconcat
     <$> sequence
       [ listSyndicateTargets,
-        listCalendarTargets
+        listCalendarTargets,
+        listComputationTargets
       ]
 
 shouldRunTarget :: Day -> AutoRunnable -> Bool
@@ -190,10 +216,18 @@ targetRun (AutoCal cal) = fromMaybeT () $ do
   pwdEnc <- hoistMaybe $ M.lookup (cal ^. calServer) davCreds
   let pwd = T.strip $ decodeBase64Lenient pwdEnc
   void $ lift $ Cal.syncCalendar (liftIO . putStrLn . T.unpack) cal pwd
+targetRun (AutoCode i code) = fromMaybeT () $ do
+  comp <- hoistLift $ getComputation i code
+  r <- lift $ Comp.runForce comp
+  case r of
+    Left err ->
+      liftIO $ TIO.putStrLn $ "Computation " <> unId i <> "#" <> code <> " failed: " <> err
+    Right _ -> pure ()
 
 displayTarget :: AutoRunnableTarget -> Text
 displayTarget (AutoSyn syn) = "syn:" <> unId (syn ^. synEntry . entryName)
 displayTarget (AutoCal cal) = "cal:" <> unId (cal ^. calEntry . entryName)
+displayTarget (AutoCode i code) = "code:" <> unId i <> "#" <> code
 
 targetsRun :: (MonadKorrvigs m) => Int -> m ()
 targetsRun time = do

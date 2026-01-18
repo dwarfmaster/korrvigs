@@ -9,7 +9,6 @@ import qualified Data.Text.IO as TIO
 import Data.Time.Calendar hiding (periodLength)
 import Data.Time.Format.ISO8601
 import Korrvigs.Cli.Monad
-import Korrvigs.Entry
 import Korrvigs.Monad.Metadata.Autorun
 import Options.Applicative
 

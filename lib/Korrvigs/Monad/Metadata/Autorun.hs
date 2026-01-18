@@ -20,13 +20,18 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Data.List
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Ord
+import Data.Profunctor.Product.Default
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Text.Encoding.Base64
 import Data.Time.Calendar hiding (periodLength)
 import Data.Time.Clock
 import Data.Time.Format.ISO8601
+import qualified Korrvigs.Calendar.DAV as Cal
+import Korrvigs.Calendar.SQL
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Monad
@@ -73,7 +78,9 @@ parsePeriod txt = case parse periodParser "<period>" txt of
   Left err -> Left . T.pack $ show err
   Right p -> Right p
 
-newtype AutoRunnableTarget = AutoSyn Syndicate
+data AutoRunnableTarget
+  = AutoSyn Syndicate
+  | AutoCal Calendar
   deriving (Show)
 
 data AutoRunnable = AutoRunnable
@@ -87,33 +94,53 @@ data AutoRunnable = AutoRunnable
 makePrisms ''AutoRunnableTarget
 makeLenses ''AutoRunnable
 
-listSyndicateTargets :: (MonadKorrvigs m) => m [AutoRunnable]
-listSyndicateTargets = do
+listEntryTargets ::
+  (MonadKorrvigs m, Default FromFields sql row, Default Unpackspec sql sql) =>
+  Table sql sql ->
+  (sql -> Field SqlInt4) ->
+  (a -> KindData) ->
+  (row -> Entry -> a) ->
+  (a -> AutoRunnableTarget) ->
+  m [AutoRunnable]
+listEntryTargets tbl getId constr fromRow mkTarget = do
   sql <- rSelect $ do
     entry <- selectTable entriesTable
-    syn <- selectTable syndicatesTable
-    where_ $ entry ^. sqlEntryId .== (syn ^. sqlSynId)
+    kd <- selectTable tbl
+    where_ $ entry ^. sqlEntryId .== getId kd
     autorun <- baseSelectTextMtdt AutoRun $ entry ^. sqlEntryId
     lastRun <- selectTextMtdt RunDate $ entry ^. sqlEntryId
     runTime <- selectMtdt RunTime $ entry ^. sqlEntryId
-    pure (entry, syn, autorun, lastRun, runTime)
-  parsed <- forM sql $ \(entryR, synR, autorunT, lastRunT, runTimeV) -> fromMaybeT [] $ do
-    let syn = entryFromRow SyndicateD entryR (synFromRow synR)
+    pure (entry, kd, autorun, lastRun, runTime)
+  parsed <- forM sql $ \(entryR, kdR, autorunT, lastRunT, runTimeV) -> fromMaybeT [] $ do
+    let kd = entryFromRow constr entryR (fromRow kdR)
     period <- hoistEither $ parsePeriod autorunT
     date <- forM lastRunT $ iso8601ParseM . T.unpack
     time <- forM runTimeV $ hoistMaybe . fromJSONM
     pure $
       singleton $
         AutoRunnable
-          { _autoTarget = AutoSyn syn,
+          { _autoTarget = mkTarget kd,
             _autoPeriod = period,
             _autoLastRun = date,
             _autoRunTime = time
           }
   pure $ mconcat parsed
 
+listSyndicateTargets :: (MonadKorrvigs m) => m [AutoRunnable]
+listSyndicateTargets =
+  listEntryTargets syndicatesTable (view sqlSynId) SyndicateD synFromRow AutoSyn
+
+listCalendarTargets :: (MonadKorrvigs m) => m [AutoRunnable]
+listCalendarTargets =
+  listEntryTargets calendarsTable (view sqlCalId) CalendarD calFromRow AutoCal
+
 listTargets :: (MonadKorrvigs m) => m [AutoRunnable]
-listTargets = listSyndicateTargets
+listTargets =
+  mconcat
+    <$> sequence
+      [ listSyndicateTargets,
+        listCalendarTargets
+      ]
 
 shouldRunTarget :: Day -> AutoRunnable -> Bool
 shouldRunTarget today tgt = case tgt ^? autoLastRun . _Just . to utctDay of
@@ -158,9 +185,15 @@ targetsToRunTimed time = do
 
 targetRun :: (MonadKorrvigs m) => AutoRunnableTarget -> m ()
 targetRun (AutoSyn syn) = void $ runResourceT $ Syn.run syn
+targetRun (AutoCal cal) = fromMaybeT () $ do
+  davCreds <- hoistLift $ getCredential "caldav"
+  pwdEnc <- hoistMaybe $ M.lookup (cal ^. calServer) davCreds
+  let pwd = T.strip $ decodeBase64Lenient pwdEnc
+  void $ lift $ Cal.syncCalendar (liftIO . putStrLn . T.unpack) cal pwd
 
 displayTarget :: AutoRunnableTarget -> Text
 displayTarget (AutoSyn syn) = "syn:" <> unId (syn ^. synEntry . entryName)
+displayTarget (AutoCal cal) = "cal:" <> unId (cal ^. calEntry . entryName)
 
 targetsRun :: (MonadKorrvigs m) => Int -> m ()
 targetsRun time = do

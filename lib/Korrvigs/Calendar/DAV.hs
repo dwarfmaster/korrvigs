@@ -1,4 +1,4 @@
-module Korrvigs.Calendar.DAV (sync, DAVCTag (..), DAVPath (..), DAVETag (..)) where
+module Korrvigs.Calendar.DAV (sync, syncCalendar, DAVCTag (..), DAVPath (..), DAVETag (..)) where
 
 import Control.Applicative
 import Control.Arrow ((***))
@@ -64,31 +64,38 @@ reportErr report err =
 sync :: (MonadKorrvigs m) => (Text -> m ()) -> Text -> m Bool
 sync report pwd = fmap isJust $ runMaybeT $ do
   cals <- lift listCalendars
-  forM_ cals $ \cal -> do
-    let i = cal ^. calEntry . entryName
-    lift $ report $ "> Syncing " <> unId i
-    (time, mtdt) <- measureTimeMs $ do
-      cdd <- lift $ setupCDD cal pwd
-      nctag <-
-        lift (DAV.getCTag cdd) >>= \case
-          Left err -> reportE err >> mzero
-          Right ctag -> pure ctag
-      ctag <- lift $ rSelectTextMtdt DAVCTag $ sqlId i
-      if ctag == Just (extractDavTag nctag)
-        then do
-          lift $ report $ "Nothing to do for " <> unId i
-          pure M.empty
-        else do
-          pullAndMerge report cal cdd
-          pushNew report cal cdd
-          pure $ M.singleton (mtdtSqlName DAVCTag) (toJSON nctag)
-    date <- liftIO getCurrentTime
-    let metaMtdt =
-          M.fromList
-            [ (mtdtSqlName RunTime, toJSON time),
-              (mtdtSqlName RunDate, toJSON $ iso8601Show date)
-            ]
-    lift $ updateMetadata (cal ^. calEntry) (M.union metaMtdt mtdt) []
+  forM_ cals $ \cal -> syncCalendarImpl report cal pwd
+
+syncCalendar :: (MonadKorrvigs m) => (Text -> m ()) -> Calendar -> Text -> m Bool
+syncCalendar report cal pwd =
+  fmap isJust $ runMaybeT $ syncCalendarImpl report cal pwd
+
+syncCalendarImpl :: (MonadKorrvigs m) => (Text -> m ()) -> Calendar -> Text -> MaybeT m ()
+syncCalendarImpl report cal pwd = do
+  let i = cal ^. calEntry . entryName
+  lift $ report $ "> Syncing " <> unId i
+  (time, mtdt) <- measureTimeMs $ do
+    cdd <- lift $ setupCDD cal pwd
+    nctag <-
+      lift (DAV.getCTag cdd) >>= \case
+        Left err -> reportE err >> mzero
+        Right ctag -> pure ctag
+    ctag <- lift $ rSelectTextMtdt DAVCTag $ sqlId i
+    if ctag == Just (extractDavTag nctag)
+      then do
+        lift $ report $ "Nothing to do for " <> unId i
+        pure M.empty
+      else do
+        pullAndMerge report cal cdd
+        pushNew report cal cdd
+        pure $ M.singleton (mtdtSqlName DAVCTag) (toJSON nctag)
+  date <- liftIO getCurrentTime
+  let metaMtdt =
+        M.fromList
+          [ (mtdtSqlName RunTime, toJSON time),
+            (mtdtSqlName RunDate, toJSON $ iso8601Show date)
+          ]
+  lift $ updateMetadata (cal ^. calEntry) (M.union metaMtdt mtdt) []
   where
     reportE = lift . reportErr report
 

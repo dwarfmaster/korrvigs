@@ -81,7 +81,7 @@ displayAuto autoRun =
 
 run :: Cmd -> KorrM ()
 run (List time) = do
-  targets <- listTargets
+  targets <- targetsToRun
   forM_ targets $ \tgt -> do
     liftIO $ TIO.putStrLn $ displayAuto tgt
 run (Run time) = undefined

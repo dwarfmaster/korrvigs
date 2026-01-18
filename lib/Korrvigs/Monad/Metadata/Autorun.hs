@@ -9,6 +9,7 @@ module Korrvigs.Monad.Metadata.Autorun
     autoLastRun,
     autoRunTime,
     listTargets,
+    targetsToRun,
   )
 where
 
@@ -17,6 +18,8 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Maybe
 import Data.List
+import Data.Maybe
+import Data.Ord
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar hiding (periodLength)
@@ -108,3 +111,37 @@ listSyndicateTargets = do
 
 listTargets :: (MonadKorrvigs m) => m [AutoRunnable]
 listTargets = listSyndicateTargets
+
+shouldRunTarget :: Day -> AutoRunnable -> Bool
+shouldRunTarget today tgt = case tgt ^? autoLastRun . _Just . to utctDay of
+  Nothing -> True
+  Just runDay ->
+    let diff = diffGregorianDurationClip today runDay
+     in ( (cdMonths len > 0 && cdMonths diff >= cdMonths len)
+            || (cdDays len > 0 && 28 * cdMonths diff + cdDays diff >= cdDays len)
+        )
+          && maybe True (ensureDayInWindow diff runDay) (tgt ^. autoPeriod . periodAlign)
+  where
+    len = tgt ^. autoPeriod . periodLength
+    ensureDayInWindow diff runDay day =
+      cdMonths diff > 0
+        || cdDays diff >= 7
+        || (dayOfWeek today > day && dayOfWeek runDay <= day)
+        || (dayOfWeek today > day && dayOfWeek runDay > dayOfWeek today)
+
+compareTargets :: AutoRunnable -> AutoRunnable -> Ordering
+compareTargets tgt1 tgt2 =
+  compare
+    (hasRun1, period1, tgt1 ^. autoLastRun, Down $ tgt1 ^. autoRunTime)
+    (hasRun2, period2, tgt2 ^. autoLastRun, Down $ tgt2 ^. autoRunTime)
+  where
+    hasRun1 = isJust $ tgt1 ^. autoLastRun
+    hasRun2 = isJust $ tgt2 ^. autoLastRun
+    toDays diff = 28 * cdMonths diff + cdDays diff
+    period1 = tgt1 ^. autoPeriod . periodLength . to toDays
+    period2 = tgt2 ^. autoPeriod . periodLength . to toDays
+
+targetsToRun :: (MonadKorrvigs m) => m [AutoRunnable]
+targetsToRun = do
+  today <- liftIO $ utctDay <$> getCurrentTime
+  sortBy compareTargets . filter (shouldRunTarget today) <$> listTargets

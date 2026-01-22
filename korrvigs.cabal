@@ -35,6 +35,9 @@ library korrvigs-lib
     Data.ERIS.Encode
     Data.ERIS.StreamingEncode
     Data.ERIS.Test
+    Data.FIT
+    Data.FIT.Data
+    Data.FIT.Parser
     Korrvigs
     Korrvigs.Calendar
     Korrvigs.Calendar.DAV
@@ -259,6 +262,7 @@ library korrvigs-lib
     , conduit-aeson         ^>=0.1.1.0
     , conduit-extra         ^>=1.3.6
     , containers            ^>=0.6.5.0
+    , crc                   ^>=0.1.1.1
     , crypton               ^>=1.0.4
     , crypton-connection    ^>=0.4.4
     , data-default          ^>=0.7.1.0

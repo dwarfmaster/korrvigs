@@ -65,6 +65,7 @@
             hpkgs.conduit-aeson
             hpkgs.neat-interpolation
             hpkgs.base32
+            hpkgs.crc
           ]);
 
           git-hooks.hooks = {

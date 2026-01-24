@@ -43,10 +43,10 @@ makeLenses ''ParsingState
 
 testParser :: FilePath -> IO ()
 testParser path =
-  runResourceT $ runConduit $ CC.sourceFile path .| fitParser .| CC.print
+  runResourceT $ runConduit $ CC.sourceFile path .| fitParser (Just path) .| CC.print
 
-fitParser :: (MonadIO m) => ConduitT ByteString FitRecord m ()
-fitParser = do
+fitParser :: (MonadIO m) => Maybe FilePath -> ConduitT ByteString FitRecord m ()
+fitParser mpath = do
   state <-
     liftIO $
       newIORef $
@@ -60,7 +60,7 @@ fitParser = do
     next state =
       liftIO (readIORef state) >>= \st -> case st ^. step of
         ParseFail msg -> do
-          liftIO $ putStrLn $ T.unpack msg
+          liftIO $ putStrLn $ fromMaybe "<>" mpath <> ": " <> T.unpack msg
           pure Nothing
         _ -> await
 
@@ -76,7 +76,7 @@ runParserOn doYield input state = case state ^. step of
         state
           & step .~ ParseData (runGetIncremental $ getRecord $ const Nothing)
           & messages .~ M.empty
-          & remainingSize .~ (hd ^. fitHdDataSize - fromInteger (toInteger $ hd ^. fitHdSize))
+          & remainingSize .~ hd ^. fitHdDataSize
   ParseCRC dec -> case pushChunk dec input of
     Fail _ _ msg -> pure $ state & step .~ ParseFail (T.pack msg)
     ndec@(Partial _) -> pure $ state & step .~ ParseCRC ndec
@@ -88,9 +88,14 @@ runParserOn doYield input state = case state ^. step of
           & remainingSize .~ 0
   ParseData dec -> case pushChunk dec input of
     Fail _ _ msg -> pure $ state & step .~ ParseFail (T.pack msg)
-    ndec@(Partial _) -> pure $ state & step .~ ParseData ndec
+    ndec@(Partial _) -> do
+      let remainSize = state ^. remainingSize - fromInteger (toInteger $ BS.length input)
+      pure $
+        state
+          & step .~ ParseData ndec
+          & remainingSize .~ remainSize
     Done remain _ dat -> do
-      let consumed = BS.length remain - BS.length input
+      let consumed = BS.length input - BS.length remain
       let remainSize = state ^. remainingSize - fromInteger (toInteger consumed)
       let updMsgs = fromMaybe id $ do
             normal <- dat ^? _FitNormal
@@ -98,7 +103,7 @@ runParserOn doYield input state = case state ^. step of
             pure $ M.insert (normal ^. fitRecLocalType) $ defMsg def
       let nmsgs = state ^. messages . to updMsgs
       let nextStep =
-            if remainSize == 2
+            if remainSize == 0
               then ParseCRC $ runGetIncremental getWord16le
               else ParseData $ runGetIncremental $ getRecord $ flip M.lookup nmsgs
       let nstate =

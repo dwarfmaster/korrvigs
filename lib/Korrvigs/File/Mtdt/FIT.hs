@@ -41,7 +41,6 @@ extract path _
       let act = join $ mkActivity <$> sport <*> subsport
       let dates = msgs ^.. each . _FitMsgRecord . fitRecordTimestamp . _Just
       let start = minimum dates
-      print start
       let end = maximum dates
       let duration = diffUTCTime end start
       let titleTime = T.pack $ formatTime defaultTimeLocale "(%d %B %Y)" start

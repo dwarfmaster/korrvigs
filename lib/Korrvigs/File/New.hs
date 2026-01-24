@@ -185,15 +185,15 @@ new path' options' = do
   isFromAndroid <- recogniseCaptured path
   options <- ($ options') <$> maybe (pure id) fromAndroid isFromAndroid
   let basename = listToMaybe [T.pack (takeBaseName path') | null (options ^. nfEntry . neParents)]
-  let title = joinNull T.null (options ^. nfEntry . neTitle) <|> basename
-  nentry <- applyCover (options ^. nfEntry) title
   ex <- liftIO $ doesFileExist path
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   db <- mimeDatabase
   mime <- liftIO $ findMime db path
   let mimeTxt = Enc.decodeUtf8 mime
-  let mtdt' = FileMetadata mimeTxt M.empty Nothing Nothing Nothing Nothing title [] M.empty
+  let mtdt' = FileMetadata mimeTxt M.empty Nothing Nothing Nothing Nothing basename [] M.empty
   mtdt'' <- liftIO $ ($ mtdt') <$> extractMetadata path mime
+  let title = mtdt'' ^. exTitle <|> joinNull T.null (options ^. nfEntry . neTitle)
+  nentry <- applyCover (options ^. nfEntry) title
   mtdt <- ($ mtdt'') <$> applyNewOptions nentry
   alreadyPresent <- isAlreadyPresent mtdt
   case alreadyPresent of

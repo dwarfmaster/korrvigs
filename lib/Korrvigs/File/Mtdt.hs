@@ -2,6 +2,7 @@ module Korrvigs.File.Mtdt (extractMetadata) where
 
 import Control.Concurrent.Async
 import qualified Korrvigs.File.Mtdt.ExifTool as ExifTool
+import qualified Korrvigs.File.Mtdt.FIT as FIT
 import qualified Korrvigs.File.Mtdt.GPX as GPX
 import qualified Korrvigs.File.Mtdt.Pandoc as Pandoc
 import qualified Korrvigs.File.Mtdt.PdfToText as PdfToText
@@ -15,10 +16,11 @@ extractMetadata path mime = do
   mps <-
     mapConcurrently
       process
-      [ ExifTool.extract,
+      [ FIT.extract,
         PdfToText.extract,
         Pandoc.extract,
-        GPX.extract
+        GPX.extract,
+        ExifTool.extract
       ]
   pure $ foldr (.) id mps
   where

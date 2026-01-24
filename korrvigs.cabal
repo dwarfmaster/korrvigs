@@ -92,6 +92,7 @@ library korrvigs-lib
     Korrvigs.File.Computation
     Korrvigs.File.Mtdt
     Korrvigs.File.Mtdt.ExifTool
+    Korrvigs.File.Mtdt.FIT
     Korrvigs.File.Mtdt.GPX
     Korrvigs.File.Mtdt.Pandoc
     Korrvigs.File.Mtdt.PdfToText

@@ -3,6 +3,8 @@ module Korrvigs.File.Mtdt.FIT where
 import Conduit
 import Control.Lens
 import Control.Monad
+import Control.Monad.Loops
+import Control.Monad.Trans.Maybe
 import Data.Aeson
 import Data.FIT
 import qualified Data.Text as T
@@ -12,9 +14,22 @@ import Data.Time.LocalTime
 import Korrvigs.File.Sync
 import Korrvigs.Geometry
 import Korrvigs.Metadata
+import Korrvigs.Utils
 import Linear.V2
 import Network.Mime
 import System.FilePath
+
+extractPoints :: FilePath -> IO [Point]
+extractPoints path = do
+  runResourceT $
+    runConduit $
+      sourceFile path .| fitInterpret (Just path) .| extractPoint .| sinkList
+  where
+    extractPoint = whileJust_ await $ \msg -> fromMaybeT () $ do
+      rec <- hoistMaybe $ msg ^? _FitMsgRecord
+      lat <- hoistMaybe $ rec ^. fitRecordPosLat
+      lon <- hoistMaybe $ rec ^. fitRecordPosLon
+      lift $ yield $ V2 lon lat
 
 extract :: FilePath -> MimeType -> IO (FileMetadata -> FileMetadata)
 extract path _

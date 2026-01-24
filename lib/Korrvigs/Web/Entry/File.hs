@@ -8,6 +8,7 @@ import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.IO as TIO
 import Korrvigs.Entry
 import Korrvigs.File.Computation (hasModel)
+import qualified Korrvigs.File.Mtdt.FIT as FIT
 import qualified Korrvigs.File.Mtdt.GPX as GPX
 import Korrvigs.Geometry
 import Korrvigs.Web.Backend
@@ -98,6 +99,12 @@ gpxWidget file = do
   i <- newIdent
   pure $ leafletWidget i [MapItem (GeoPath pts) Nothing Nothing]
 
+fitWidget :: File -> Handler Widget
+fitWidget file = do
+  pts <- liftIO $ FIT.extractPoints $ file ^. filePath
+  i <- newIdent
+  pure $ leafletWidget i [MapItem (GeoPath pts) Nothing Nothing]
+
 bookWidget :: File -> Handler Widget
 bookWidget file =
   Foliate.viewer $ EntryDownloadR $ WId $ file ^. fileEntry . entryName
@@ -132,6 +139,7 @@ embed _ file = do
         (BS.isPrefixOf "text/" mime, textWidget file),
         (mime == "application/pdf", pdfWidget file),
         (mime == "application/gpx+xml", gpxWidget file),
+        (mime == "application/fits", fitWidget file),
         (BS.isPrefixOf "application/epub" mime, bookWidget file),
         (mime == "application/vnd.comicbook+zip", bookWidget file),
         ("model/gltf-binary" == mime, threeWidget True file),

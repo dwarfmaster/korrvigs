@@ -45,8 +45,9 @@ import Korrvigs.Metadata.Android
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync (syncFileOfKind)
-import Korrvigs.Utils (joinNull, recursiveRemoveFile, resolveSymbolicLink)
+import Korrvigs.Utils
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
+import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Process
 import Network.HTTP.Conduit hiding (path)
 import qualified Network.HTTP.Types as H
@@ -161,6 +162,22 @@ fromAndroid (adb, rel) = fmap (fromMaybe id) $ runMaybeT $ do
     (nfEntry . neMtdt %~ addPhone . addFile)
       . (nfRemove .~ True)
 
+isDevicePresent :: (MonadKorrvigs m) => Text -> ZonedTime -> m (Maybe Id)
+isDevicePresent dev dt = rSelectOne $ do
+  devM <- selectTable entriesMetadataTable
+  where_ $ devM ^. sqlKey .== sqlStrictText (mtdtSqlName Device)
+  where_ $ devM ^. sqlValue .== sqlValueJSONB dev
+  entry <- selectTable entriesTable
+  where_ $ entry ^. sqlEntryId .== (devM ^. sqlEntry)
+  where_ $ matchNullable (sqlBool False) (.== sqlZonedTime dt) (entry ^. sqlEntryDate)
+  pure $ entry ^. sqlEntryName
+
+isAlreadyPresent :: (MonadKorrvigs m) => FileMetadata -> m (Maybe Id)
+isAlreadyPresent mtdt = runMaybeT $ do
+  dev <- hoistMaybe $ mtdt ^? annoted . at (mtdtSqlName Device) . _Just . to fromJSONM . _Just
+  dt <- hoistMaybe $ mtdt ^. exDate
+  hoistLift $ isDevicePresent dev dt
+
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
 new path' options' = do
   alreadyAnnexed <- inAnnex path'
@@ -178,29 +195,33 @@ new path' options' = do
   let mtdt' = FileMetadata mimeTxt M.empty Nothing Nothing Nothing Nothing title [] M.empty
   mtdt'' <- liftIO $ ($ mtdt') <$> extractMetadata path mime
   mtdt <- ($ mtdt'') <$> applyNewOptions nentry
-  let idmk' =
-        imk (choosePrefix $ PrefixFile mime)
-          & idTitle .~ title
-          & idDate .~ mtdt ^. exDate
-  idmk <- applyNewEntry nentry idmk'
-  i <- newId idmk
-  let ext = T.pack $ takeExtension path
-  let nm = unId i <> ext
-  dir <- filesDirectory
-  let day = localDay . zonedTimeToLocalTime <$> mtdt ^. exDate
-  content <-
-    if alreadyAnnexed
-      then pure $ (if options ^. nfRemove then FileMove else FileCopy) path'
-      else liftIO $ FileLazy <$> BSL.readFile path
-  stored <- storeFile dir filesTreeType day nm content
-  let metapath = metaPath stored
-  liftIO $ BSL.writeFile metapath $ encodePretty mtdt
-  rt <- root
-  when alreadyAnnexed $ void $ runSilentK (proc "git" ["annex", "fix", stored]) {cwd = Just rt}
-  syncFileOfKind stored File
-  when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path'
-  applyOnNewEntry nentry i
-  pure i
+  alreadyPresent <- isAlreadyPresent mtdt
+  case alreadyPresent of
+    Just i -> pure i
+    Nothing -> do
+      let idmk' =
+            imk (choosePrefix $ PrefixFile mime)
+              & idTitle .~ title
+              & idDate .~ mtdt ^. exDate
+      idmk <- applyNewEntry nentry idmk'
+      i <- newId idmk
+      let ext = T.pack $ takeExtension path
+      let nm = unId i <> ext
+      dir <- filesDirectory
+      let day = localDay . zonedTimeToLocalTime <$> mtdt ^. exDate
+      content <-
+        if alreadyAnnexed
+          then pure $ (if options ^. nfRemove then FileMove else FileCopy) path'
+          else liftIO $ FileLazy <$> BSL.readFile path
+      stored <- storeFile dir filesTreeType day nm content
+      let metapath = metaPath stored
+      liftIO $ BSL.writeFile metapath $ encodePretty mtdt
+      rt <- root
+      when alreadyAnnexed $ void $ runSilentK (proc "git" ["annex", "fix", stored]) {cwd = Just rt}
+      syncFileOfKind stored File
+      when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path'
+      applyOnNewEntry nentry i
+      pure i
 
 -- Moves a file already in the annex to a new emplacement determined by new ID
 moveFile :: (MonadKorrvigs m) => File -> Id -> m ()

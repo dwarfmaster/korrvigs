@@ -1,7 +1,6 @@
 module Data.FIT.Data where
 
 import Control.Lens
-import Data.Digest.CRC16
 import Data.Endian
 import Data.Int
 import Data.Text (Text)
@@ -12,7 +11,7 @@ data FitHeader = FitHeader
     _fitHdProtocolVersion :: Word8,
     _fitHdProfileVersion :: Word16,
     _fitHdDataSize :: Word32,
-    _fitHdCrc :: Maybe CRC16
+    _fitHdCrc :: Maybe Word16
   }
   deriving (Show)
 
@@ -118,7 +117,7 @@ data FitRecord
 
 data FitFile = FitFile
   { _fitHeader :: FitHeader,
-    _fitCRC :: CRC16
+    _fitCRC :: Word16
   }
   deriving (Show)
 

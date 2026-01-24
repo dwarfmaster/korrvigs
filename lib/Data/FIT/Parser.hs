@@ -10,7 +10,6 @@ import Data.Binary.Get
 import Data.Bits
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import Data.Digest.CRC16
 import Data.Endian
 import Data.FIT.Data
 import Data.IORef
@@ -127,7 +126,7 @@ getHeader = do
   profVersion <- getWord16le
   dataSize <- getWord32le
   replicateM_ 4 getWord8
-  crc <- whenMaybe (hdSize >= 14) $ CRC16 <$> getWord16le
+  crc <- whenMaybe (hdSize >= 14) getWord16le
   when (hdSize > 14) $ replicateM_ (fromInteger (toInteger hdSize) - 14) getWord8
   pure $
     FitHeader

@@ -1,6 +1,6 @@
 module Korrvigs.Metadata where
 
-import Control.Arrow (first)
+import Control.Arrow (first, (&&&))
 import Control.Lens
 import Data.Aeson
 import Data.CaseInsensitive (CI)
@@ -10,6 +10,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad.Class
@@ -123,3 +124,35 @@ mkMtdt "RunBatch" "run-batch" [t|[Text]|]
 mkMtdt "RunTime" "run-time" [t|Int|] -- In milliseconds
 mkMtdt "RunDate" "run-date" [t|Text|]
 mkMtdt "AutoRun" "autorun" [t|Text|]
+
+-- Activity
+data Activity
+  = ActRoadCycling
+  | ActFatBiking
+  | ActMountainBiking
+  | ActTrackBiking
+  | ActHiking
+  | ActSnowShoeing
+  deriving (Eq, Show, Enum, Bounded, Ord)
+
+activityName :: Activity -> Text
+activityName ActRoadCycling = "roadcycling"
+activityName ActFatBiking = "fatbiking"
+activityName ActMountainBiking = "mountainbiking"
+activityName ActTrackBiking = "trackbiking"
+activityName ActHiking = "hiking"
+activityName ActSnowShoeing = "snowshoeing"
+
+parseActivity :: Text -> Maybe Activity
+parseActivity txt =
+  M.lookup txt $ M.fromList $ (activityName &&& id) <$> [minBound .. maxBound]
+
+instance FromJSON Activity where
+  parseJSON = withText "Activity" $ \txt -> case parseActivity txt of
+    Nothing -> fail $ "Invalid activity name: " <> T.unpack txt
+    Just a -> pure a
+
+instance ToJSON Activity where
+  toJSON a = String $ activityName a
+
+mkMtdt "ActivityMtdt" "activity" [t|Text|]

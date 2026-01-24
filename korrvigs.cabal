@@ -37,6 +37,8 @@ library korrvigs-lib
     Data.ERIS.Test
     Data.FIT
     Data.FIT.Data
+    Data.FIT.Interpreter
+    Data.FIT.Messages
     Data.FIT.Parser
     Korrvigs
     Korrvigs.Calendar

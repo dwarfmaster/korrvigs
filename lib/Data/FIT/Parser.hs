@@ -10,7 +10,6 @@ import Data.Binary.Get
 import Data.Bits
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import qualified Data.Conduit.Combinators as CC
 import Data.Digest.CRC16
 import Data.Endian
 import Data.FIT.Data
@@ -40,10 +39,6 @@ data ParsingState = ParsingState
   }
 
 makeLenses ''ParsingState
-
-testParser :: FilePath -> IO ()
-testParser path =
-  runResourceT $ runConduit $ CC.sourceFile path .| fitParser (Just path) .| CC.print
 
 fitParser :: (MonadIO m) => Maybe FilePath -> ConduitT ByteString FitRecord m ()
 fitParser mpath = do

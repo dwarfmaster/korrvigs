@@ -179,8 +179,10 @@ updateRefBlock old new (DefinitionList cases) =
     updateCase (inls, bks) = (updateRefInline old new =<< inls, mapMaybe (updateRefBlock old new) <$> bks)
 updateRefBlock old new (Figure attr caption bks) =
   pure $ Figure attr (mapMaybe (updateRefBlock old new) caption) (mapMaybe (updateRefBlock old new) bks)
-updateRefBlock old new (Embed i) | i == old = Embed <$> new
-updateRefBlock old new (EmbedHeader i lvl) | i == old = EmbedHeader <$> new <*> pure lvl
+updateRefBlock old new (Embed (Right i)) | i == old = Embed . Right <$> new
+updateRefBlock old new (EmbedHeader (Right i) lvl)
+  | i == old =
+      EmbedHeader . Right <$> new <*> pure lvl
 updateRefBlock old new (Collection col i items) =
   pure $ Collection col i $ mapMaybe updateItem items
   where

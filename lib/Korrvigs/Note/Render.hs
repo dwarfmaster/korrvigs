@@ -207,13 +207,13 @@ renderBlock (Figure attr caption bks) = withoutBreak $ do
   separatedBks 0 bks
   writeText ")"
   renderAttr attr
-renderBlock (Embed (MkId i)) = do
+renderBlock (Embed ref) = do
   writeText "```{=embed}" >> flush >> newline
-  writeText i >> flush >> newline
+  renderEmbedRef ref >> flush >> newline
   writeText "```"
-renderBlock (EmbedHeader (MkId i) lvl) = do
+renderBlock (EmbedHeader ref lvl) = do
   writeText "```{=embedhd}" >> flush >> newline
-  writeText i >> flush >> newline
+  renderEmbedRef ref >> flush >> newline
   writeText (T.pack $ show lvl) >> flush >> newline
   writeText "```"
 renderBlock (Collection col nm ids) = do
@@ -246,6 +246,10 @@ renderBlock (Table tbl) = do
   width <- view _1
   comps <- view _2
   renderTable width (\w -> runRenderM w comps . renderTopLevel False) tbl
+
+renderEmbedRef :: Either Text Id -> RenderM ()
+renderEmbedRef (Left mtdt) = writeText "mtdt:" >> writeText mtdt
+renderEmbedRef (Right (MkId i)) = writeText i
 
 renderColItem :: CollectionItem -> RenderM ()
 renderColItem (ColItemEntry i) = writeText ". " >> writeText (unId i)

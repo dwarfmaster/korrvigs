@@ -111,8 +111,8 @@ data Block
   | BulletList [[Block]]
   | DefinitionList [([Inline], [[Block]])]
   | Figure Attr [Block] [Block] -- The first block set is the caption
-  | Embed Id -- Embed a document
-  | EmbedHeader Id Int -- Embed a document as a sub header
+  | Embed (Either Text Id) -- Embed a document
+  | EmbedHeader (Either Text Id) Int -- Embed a document as a sub header
   | Collection Collection Text [CollectionItem]
   | Syndicate Text Bool (Maybe Int) [Id]
   | Sub Header

@@ -60,7 +60,7 @@ initContent :: Map (CI Text) Value -> [Block]
 initContent mtdt =
   mconcat
     [ [Para [MtdtLink Nothing (mtdtSqlName Url)] | _ <- get Url],
-      [Embed (MkId i) | i <- get Cover],
+      [Embed (Left $ mtdtSqlName Cover) | M.member (mtdtName Cover) mtdt],
       [Para (mkContent txt) | txt <- get Abstract]
     ]
   where

@@ -14,8 +14,10 @@ import Control.Monad
 import Control.Monad.Extra (whenMaybe)
 import Control.Monad.Loops (whileJust)
 import Control.Monad.State
+import Data.Aeson.Lens
 import Data.Array
 import Data.ByteString (ByteString)
+import qualified Data.CaseInsensitive as CI
 import qualified Data.Csv as Csv
 import Data.Default
 import Data.List
@@ -321,41 +323,47 @@ compileBlock' (Figure attr caption fig) = do
     ^{figW}
     <figcaption>^{captionW}
   |]
-compileBlock' (Embed i) = do
-  lnk <- lift $ embedLnk i
-  lvl <- use currentLevel
-  embedId <- newIdent
-  (widget, checks, _) <- lift $ embedBody i lvl
-  pure $ do
-    propagateChecks embedId checks
-    [whamlet|
-  <div ##{embedId} .embedded>
-    ^{lnk}
-    ^{widget}
-|]
-compileBlock' (EmbedHeader i hdLvl) = do
-  rtLvl <- use hdRootLevel
-  let lvl = hdLvl + rtLvl
-  lnk <- lift $ embedLnk i
-  (widget, checks, title) <- lift $ embedBody i lvl
-  sqlI <- lift $ rSelectOne (fromName pure $ sqlId i) >>= throwMaybe (KMiscError $ "Couldn't load " <> unId i)
-  task <- lift $ loadTask i sqlI title
-  taskW <- lift $ Wdgs.taskWidget i (SubLoc []) task
-  titleW <- lift $ compileHeader lvl [whamlet|^{taskW} #{fromMaybe "" title} ^{checksDisplay checks} ^{lnk}|]
-  pure $ do
-    embedId <- Wdgs.mkSection lvl [("class", "collapsed")] [] titleW widget
-    case task of
-      Nothing -> propagateChecks embedId checks
-      Just tk -> do
-        let tkchecks =
-              Checks
-                (if tk ^. tskStatus == TaskTodo then 1 else 0)
-                (if tk ^. tskStatus == TaskImportant then 1 else 0)
-                (if tk ^. tskStatus == TaskOngoing then 1 else 0)
-                (if tk ^. tskStatus == TaskBlocked then 1 else 0)
-                (if tk ^. tskStatus == TaskDone then 1 else 0)
-                (if tk ^. tskStatus == TaskDont then 1 else 0)
-        propagateChecks embedId tkchecks
+compileBlock' (Embed ref) =
+  resolveEmbedRef ref >>= \case
+    Nothing -> pure mempty
+    Just i -> do
+      lnk <- lift $ embedLnk i
+      lvl <- use currentLevel
+      embedId <- newIdent
+      (widget, checks, _) <- lift $ embedBody i lvl
+      pure $ do
+        propagateChecks embedId checks
+        [whamlet|
+    <div ##{embedId} .embedded>
+      ^{lnk}
+      ^{widget}
+  |]
+compileBlock' (EmbedHeader ref hdLvl) =
+  resolveEmbedRef ref >>= \case
+    Nothing -> pure mempty
+    Just i -> do
+      rtLvl <- use hdRootLevel
+      let lvl = hdLvl + rtLvl
+      lnk <- lift $ embedLnk i
+      (widget, checks, title) <- lift $ embedBody i lvl
+      sqlI <- lift $ rSelectOne (fromName pure $ sqlId i) >>= throwMaybe (KMiscError $ "Couldn't load " <> unId i)
+      task <- lift $ loadTask i sqlI title
+      taskW <- lift $ Wdgs.taskWidget i (SubLoc []) task
+      titleW <- lift $ compileHeader lvl [whamlet|^{taskW} #{fromMaybe "" title} ^{checksDisplay checks} ^{lnk}|]
+      pure $ do
+        embedId <- Wdgs.mkSection lvl [("class", "collapsed")] [] titleW widget
+        case task of
+          Nothing -> propagateChecks embedId checks
+          Just tk -> do
+            let tkchecks =
+                  Checks
+                    (if tk ^. tskStatus == TaskTodo then 1 else 0)
+                    (if tk ^. tskStatus == TaskImportant then 1 else 0)
+                    (if tk ^. tskStatus == TaskOngoing then 1 else 0)
+                    (if tk ^. tskStatus == TaskBlocked then 1 else 0)
+                    (if tk ^. tskStatus == TaskDone then 1 else 0)
+                    (if tk ^. tskStatus == TaskDont then 1 else 0)
+            propagateChecks embedId tkchecks
 compileBlock' (Collection col nm items) = do
   dat <- lift $ loadCollection col items
   let checks = foldr (updChecks . snd) def dat
@@ -440,6 +448,11 @@ compileBlock' (Table tbl) = do
     <figcaption>
       ^{captionW}
   |]
+
+resolveEmbedRef :: Either Text Id -> CompileM (Maybe Id)
+resolveEmbedRef (Right i) = pure $ Just i
+resolveEmbedRef (Left mtdt) =
+  preuse $ currentDoc . docMtdt . ix (CI.mk mtdt) . _JSON . to MkId
 
 colWidget :: Id -> Text -> Text -> Widget -> Handler Widget
 colWidget i nm webId widget = do

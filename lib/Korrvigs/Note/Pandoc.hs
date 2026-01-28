@@ -243,6 +243,11 @@ parseTopBlock (Header lvl attr title) = do
     stack . bszTask . _Just %= applyTaskMtdt look
 parseTopBlock bk = mapM_ pushBlock =<< parseBlock bk
 
+parseEmbedRef :: Text -> Either Text Id
+parseEmbedRef ref = case T.stripPrefix "mtdt:" ref of
+  Just mtdt -> Left mtdt
+  Nothing -> Right $ MkId ref
+
 -- Parse a block that is not a header
 parseBlock :: Block -> ParseM [A.Block]
 parseBlock (Plain inls) = pure . A.Para <$> parseInlines inls
@@ -258,18 +263,21 @@ parseBlock (CodeBlock attr txt) = do
   pure . pure $ A.CodeBlock nattr txt
 parseBlock (RawBlock (Format fmt) i)
   | CI.mk fmt == "embed" = do
-      refTo $ MkId i
-      pure . pure . A.Embed . MkId $ i
+      let ref = parseEmbedRef i
+      mapM_ refTo $ ref ^? _Right
+      pure . pure . A.Embed $ ref
   | CI.mk fmt == "embedhd" = case T.lines i of
       [entryI] -> do
         lvl <- use $ stack . bszLevel
-        refTo $ MkId entryI
-        pure $ pure $ A.EmbedHeader (MkId entryI) $ lvl + 1
+        let ref = parseEmbedRef entryI
+        mapM_ refTo $ ref ^? _Right
+        pure $ pure $ A.EmbedHeader ref $ lvl + 1
       (entryI : lvl : _) -> fromMaybeT [] $ do
-        lift $ refTo $ MkId entryI
+        let ref = parseEmbedRef entryI
+        mapM_ (lift . refTo) $ ref ^? _Right
         lvlN <- hoistMaybe $ readMaybe $ T.unpack lvl
         lift $ popHeaderTo lvlN
-        pure $ pure $ A.EmbedHeader (MkId entryI) lvlN
+        pure $ pure $ A.EmbedHeader ref lvlN
       _ -> pure []
   | CI.mk fmt == "collection" = case T.lines i of
       [] -> pure $ pure $ A.Collection A.ColList "TODO" []

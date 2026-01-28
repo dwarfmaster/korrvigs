@@ -377,7 +377,7 @@ compileBlock' (Collection col nm items) = do
       Just TaskDone -> ckDone %~ (+ 1)
       Just TaskDont -> ckDont %~ (+ 1)
       Nothing -> id
-compileBlock' (Syndicate nm onlyNew ids) = do
+compileBlock' (Syndicate nm onlyNew lim ids) = do
   entries <- fmap catMaybes $ forM ids $ lift . load
   let syns = mapMaybe (^? _Syndicate) entries
   itemsWidget <-
@@ -386,6 +386,7 @@ compileBlock' (Syndicate nm onlyNew ids) = do
         def
           & Syn.renderOnlyNew .~ onlyNew
           & Syn.renderShowSyndicate .~ True
+          & Syn.renderLimitPerSyn .~ lim
   isEmbedded <- use embedded
   webId <- if isEmbedded then newIdent else pure nm
   pure

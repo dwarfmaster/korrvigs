@@ -114,7 +114,7 @@ data Block
   | Embed Id -- Embed a document
   | EmbedHeader Id Int -- Embed a document as a sub header
   | Collection Collection Text [CollectionItem]
-  | Syndicate Text Bool [Id]
+  | Syndicate Text Bool (Maybe Int) [Id]
   | Sub Header
   | Table Table
   deriving (Show)

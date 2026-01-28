@@ -281,13 +281,18 @@ parseBlock (RawBlock (Format fmt) i)
         forM_ directItems refTo
         pure . pure . A.Collection col colname $ items
   | CI.mk fmt == "syndicate" = case T.lines i of
-      [] -> pure $ pure $ A.Syndicate "TODO" False []
+      [] -> pure $ pure $ A.Syndicate "TODO" False Nothing []
       (hd : ids) -> do
-        let (onlyNew, nm) = case T.stripPrefix "+" hd of
-              Just suffix -> (True, suffix)
-              Nothing -> (False, hd)
-        forM_ ids $ refTo . MkId
-        pure $ pure $ A.Syndicate nm onlyNew $ MkId <$> ids
+        let parseHd h = case T.words h of
+              [r] -> (r, Nothing)
+              [r, l] -> (r, readMaybe $ T.unpack l)
+              _ -> (h, Nothing)
+        let (onlyNew, (nm, limit)) = case T.stripPrefix "+" hd of
+              Just suffix -> (True, parseHd suffix)
+              Nothing -> (False, parseHd hd)
+        let parsed = MkId <$> ids
+        forM_ parsed refTo
+        pure $ pure $ A.Syndicate nm onlyNew limit parsed
   | CI.mk fmt == "result" = case T.lines i of
       (cmp : tpT : hashLineT : content) -> fromMaybeT [] $ do
         tp <- hoistMaybe $ parseTypeName tpT

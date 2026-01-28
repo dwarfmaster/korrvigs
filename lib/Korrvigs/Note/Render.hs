@@ -221,10 +221,12 @@ renderBlock (Collection col nm ids) = do
   renderCollection col nm
   forM_ ids $ \colItem -> renderColItem colItem >> flush >> newline
   writeText "```"
-renderBlock (Syndicate nm onlyNew ids) = do
+renderBlock (Syndicate nm onlyNew limit ids) = do
   writeText "```{=syndicate}" >> flush >> newline
   when onlyNew $ writeText "+"
-  writeText nm >> flush >> newline
+  writeText nm
+  forM_ limit $ \l -> writeText $ T.pack $ " " <> show l
+  flush >> newline
   forM_ ids $ \i -> writeText (unId i) >> flush >> newline
   writeText "```"
 renderBlock (Sub header) = do

@@ -25,13 +25,14 @@ import Yesod hiding (Field)
 
 data RenderSpec = RenderSpec
   { _renderOnlyNew :: Bool,
-    _renderShowSyndicate :: Bool
+    _renderShowSyndicate :: Bool,
+    _renderLimitPerSyn :: Maybe Int
   }
 
 makeLenses ''RenderSpec
 
 instance Default RenderSpec where
-  def = RenderSpec False False
+  def = RenderSpec False False Nothing
 
 embed :: Int -> Syndicate -> Handler Widget
 embed lvl syn = do
@@ -67,9 +68,20 @@ renderItems syns spec = do
   let ordBySeq = desc $ view _6
   itemsSQL :: [(Text, Text, Text, Maybe Id, Maybe UTCTime, Int, Bool, Maybe Text, Maybe Text)] <-
     rSelect $ orderBy (ordByDate <> ordBySeq) $ do
-      (synName, synId, synTitle :: FieldNullable SqlText) <- values $ (\entry -> (sqlId $ entry ^. entryName, sqlInt4 $ entry ^. entryId, toFields $ entry ^. entryTitle)) . view synEntry <$> syns
-      item <- selectTable syndicatedItemsTable
-      where_ $ item ^. sqlSynItSyndicate .== synId
+      let mkVal syn =
+            let e = syn ^. synEntry
+             in ( sqlId $ e ^. entryName,
+                  sqlInt4 $ e ^. entryId,
+                  toFields $ e ^. entryTitle
+                )
+      (synName, synId, synTitle :: FieldNullable SqlText) <- values $ mkVal <$> syns
+      let ordItByDate = descNullsFirst $ view sqlSynItDate
+      let ordItBySeq = desc $ view sqlSynItSequence
+      let ordIt = orderBy $ ordItByDate <> ordItBySeq
+      item <- maybe id (\l -> limit l . ordIt) (spec ^. renderLimitPerSyn) $ do
+        item <- selectTable syndicatedItemsTable
+        where_ $ item ^. sqlSynItSyndicate .== synId
+        pure item
       task <- fmap joinMField $ optional $ limit 1 $ fromNullableSelect $ do
         task <- selectTable entriesMetadataTable
         entry <- selectTable entriesTable

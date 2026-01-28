@@ -16,6 +16,7 @@ import qualified Korrvigs.Web.JS.Foliate as Foliate
 import Korrvigs.Web.JS.Leaflet
 import qualified Korrvigs.Web.JS.ThreePipe as ThreePipe
 import Korrvigs.Web.Routes (WebId (WId))
+import qualified Korrvigs.Web.Widgets as Widgets
 import Network.Mime
 import Yesod
 
@@ -91,7 +92,7 @@ textWidget file = do
 pdfWidget :: File -> Handler Widget
 pdfWidget file =
   let i = file ^. fileEntry . entryName
-   in pure [whamlet|<embed src=@{EntryDownloadR $ WId i} width=100% height=700 type="application/pdf">|]
+   in pure $ Widgets.embedPdf $ EntryDownloadR $ WId i
 
 gpxWidget :: File -> Handler Widget
 gpxWidget file = do

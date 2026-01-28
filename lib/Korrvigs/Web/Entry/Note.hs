@@ -50,7 +50,7 @@ import Korrvigs.Web.Public.Crypto (mkPublic)
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search.Results
-import Korrvigs.Web.Widgets (applyAttr, openIcon)
+import Korrvigs.Web.Widgets (applyAttr, embedPdf, openIcon)
 import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye hiding (min, not, null)
 import Text.Blaze hiding ((!))
@@ -764,3 +764,5 @@ resultWidget _ _ TabularCsv (ResultText txt) =
 resultWidget _ _ TabularCsv _ = pure mempty
 resultWidget i cmp Model3D _ =
   ThreePipe.viewer $ EntryComputeNamedR (WId i) cmp "model.glb"
+resultWidget i cmp VectorDocument _ =
+  pure $ embedPdf $ EntryComputeR (WId i) cmp

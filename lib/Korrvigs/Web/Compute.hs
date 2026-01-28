@@ -61,6 +61,7 @@ serveType ArbitraryJson = typeJson
 serveType ArbitraryText = typePlain
 serveType TabularCsv = "text/csv; charset=utf-8"
 serveType Model3D = "model/gltf-binary"
+serveType VectorDocument = "application/pdf"
 
 serveResult :: RunnableResult -> Content
 serveResult res = toContent $ encodeToLBS res

@@ -28,6 +28,7 @@ data RunnableType
   | ArbitraryText
   | TabularCsv
   | Model3D
+  | VectorDocument
   deriving (Show, Eq, Ord, Enum, Bounded)
 
 data RunnableKind = KindErr | KindText | KindBin | KindJson
@@ -60,6 +61,7 @@ runTypeKind ArbitraryJson = KindJson
 runTypeKind ArbitraryText = KindText
 runTypeKind TabularCsv = KindText
 runTypeKind Model3D = KindBin
+runTypeKind VectorDocument = KindBin
 
 runTypeName :: RunnableType -> Text
 runTypeName RunError = "error"
@@ -70,6 +72,7 @@ runTypeName ArbitraryJson = "json"
 runTypeName ArbitraryText = "text"
 runTypeName TabularCsv = "csv"
 runTypeName Model3D = "3d"
+runTypeName VectorDocument = "pdf"
 
 runTypeExt :: RunnableType -> Text
 runTypeExt RunError = "log"
@@ -80,6 +83,7 @@ runTypeExt ArbitraryJson = "json"
 runTypeExt ArbitraryText = "txt"
 runTypeExt TabularCsv = "csv"
 runTypeExt Model3D = "glb"
+runTypeExt VectorDocument = "pdf"
 
 parseTypeName :: Text -> Maybe RunnableType
 parseTypeName =

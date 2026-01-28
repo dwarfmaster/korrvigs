@@ -134,3 +134,7 @@ openIcon =
   [whamlet|
   <img width=16 height=16 style="display: inline; vertical-align: -10%;" src=@{StaticR $ StaticRoute ["icons", "open-white.png"] []}>
 |]
+
+embedPdf :: Route WebData -> Widget
+embedPdf url =
+  [whamlet|<embed src=@{url} width=100% height=700 type="application/pdf">|]

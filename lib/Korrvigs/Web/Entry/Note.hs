@@ -714,6 +714,9 @@ plainLink mtitle url = do
   pure (applyAttr (Attr.href $ textValue url) $ Html.a titleH, titleW)
 
 resultWidget :: Id -> Text -> RunnableType -> RunnableResult -> Handler Widget
+resultWidget _ _ _ (ResultError err) =
+  pure [whamlet|<pre>ERROR: #{err}</pre>|]
+resultWidget _ _ RunError _ = pure mempty
 resultWidget i cmp ScalarImage _ =
   pure [whamlet|<img src=@{EntryComputeR (WId i) cmp} .computation-img>|]
 resultWidget i cmp ScalarGraphic _ =

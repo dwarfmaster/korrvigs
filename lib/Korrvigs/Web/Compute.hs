@@ -31,7 +31,7 @@ getEntryComputeListR (WId i) = do
   pure $ toJSON comps
 
 serveComputation ::
-  (Computation -> Handler (Either Text RunnableResult)) ->
+  (Computation -> Handler RunnableResult) ->
   Id ->
   Text ->
   Handler TypedContent
@@ -40,8 +40,8 @@ serveComputation runner i cmp =
     Nothing -> notFound
     Just comp ->
       runner comp >>= \case
-        Left err -> throwM $ KMiscError $ "Failed to run computation: " <> err
-        Right res -> pure $ toTypedContent (serveType $ comp ^. cmpRun . runType, serveResult res)
+        ResultError err -> throwM $ KMiscError $ "Failed to run computation: " <> err
+        res -> pure $ toTypedContent (serveType $ comp ^. cmpRun . runType, serveResult res)
 
 getEntryComputeR :: WebId -> Text -> Handler TypedContent
 getEntryComputeR (WId i) = serveComputation runVeryLazy i
@@ -53,6 +53,7 @@ postEntryComputeR :: WebId -> Text -> Handler TypedContent
 postEntryComputeR (WId i) = serveComputation runForce i
 
 serveType :: RunnableType -> ContentType
+serveType RunError = typePlain
 serveType ScalarImage = typeJpeg
 serveType ScalarGraphic = typePng
 serveType VectorGraphic = typeSvg

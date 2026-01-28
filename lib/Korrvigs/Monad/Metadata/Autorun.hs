@@ -35,6 +35,7 @@ import qualified Korrvigs.Calendar.DAV as Cal
 import Korrvigs.Calendar.SQL
 import qualified Korrvigs.Compute.Run as Comp
 import Korrvigs.Compute.SQL
+import Korrvigs.Compute.Type (RunnableResult (..))
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Monad
@@ -220,9 +221,9 @@ targetRun (AutoCode i code) = fromMaybeT () $ do
   comp <- hoistLift $ getComputation i code
   r <- lift $ Comp.runForce comp
   case r of
-    Left err ->
+    ResultError err ->
       liftIO $ TIO.putStrLn $ "Computation " <> unId i <> "#" <> code <> " failed: " <> err
-    Right _ -> pure ()
+    _ -> pure ()
 
 displayTarget :: AutoRunnableTarget -> Text
 displayTarget (AutoSyn syn) = "syn:" <> unId (syn ^. synEntry . entryName)

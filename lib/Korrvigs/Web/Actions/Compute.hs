@@ -52,13 +52,19 @@ runCompute _ _ = pure def
 
 doRunCompute :: Id -> Text -> Bool -> Handler ActionReaction
 doRunCompute i cmp force = do
-  render <- getUrlRenderParams
   getComputation i cmp >>= \case
-    Nothing -> pure $ def & reactMsg ?~ [hamlet|<p>Failed to load computation.|] render
+    Nothing -> pure $ def & reactMsg ?~ [shamlet|<p>Failed to load computation.</p>|]
     Just comp ->
       runner comp >>= \case
-        Left err ->
-          pure $ def & reactMsg ?~ [hamlet|<p>Computation failed with: #{err}|] render
-        Right _ -> pure $ def & reactMsg ?~ [hamlet|<p>Success !|] render
+        ResultError err -> do
+          let msg =
+                [shamlet|
+              <p>
+                Computation failed with:
+              <pre>
+                #{err}
+            |]
+          pure $ def & reactMsg ?~ msg
+        _ -> pure $ def & reactMsg ?~ [shamlet|<p>Success !</p>|]
   where
     runner = if force then runForce else runLazy

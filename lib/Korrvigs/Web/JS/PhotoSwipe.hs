@@ -52,7 +52,7 @@ miniatureEntryImpl tp day i = do
   urlSignature <- Public.signRoute url []
   miniatureSignature <- Public.signRoute miniatureUrl []
   pure $ do
-    sz :: Map Text Int <- szR ^? _Just . _Right . _ResultJson . _JSON
+    sz :: Map Text Int <- szR ^? _Just . _ResultJson . _JSON
     width <- M.lookup "width" sz
     height <- M.lookup "height" sz
     pure $

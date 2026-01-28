@@ -9,7 +9,7 @@ import Data.Text.IO (putStr, putStrLn)
 import Korrvigs.Cli.Monad
 import qualified Korrvigs.Compute.Run as Run
 import Korrvigs.Compute.SQL
-import Korrvigs.Compute.Type (encodeToLBS)
+import Korrvigs.Compute.Type (RunnableResult (..), encodeToLBS)
 import Korrvigs.Entry
 import Korrvigs.Monad
 import Korrvigs.Monad.Computation
@@ -81,8 +81,8 @@ run (Run i cmp lz) =
     Nothing -> liftIO $ putStrLn "Failed to load computation"
     Just comp ->
       runner comp >>= \case
-        Left err -> liftIO $ putStrLn $ "Computation failed with " <> err
-        Right res -> liftIO $ LBS.putStr $ encodeToLBS res
+        ResultError err -> liftIO $ putStrLn $ "Computation failed with " <> err
+        res -> liftIO $ LBS.putStr $ encodeToLBS res
   where
     runner = if lz then Run.runLazy else Run.runForce
 run (List i) = do

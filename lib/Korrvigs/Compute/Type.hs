@@ -20,7 +20,8 @@ rightToMaybe (Right v) = Just v
 rightToMaybe _ = Nothing
 
 data RunnableType
-  = ScalarImage
+  = RunError
+  | ScalarImage
   | ScalarGraphic
   | VectorGraphic
   | ArbitraryJson
@@ -29,11 +30,12 @@ data RunnableType
   | Model3D
   deriving (Show, Eq, Ord, Enum, Bounded)
 
-data RunnableKind = KindText | KindBin | KindJson
+data RunnableKind = KindErr | KindText | KindBin | KindJson
   deriving (Show, Eq, Ord, Enum, Bounded)
 
 data RunnableResult
-  = ResultText Text
+  = ResultError Text
+  | ResultText Text
   | ResultBinary ByteString
   | ResultJson Value
   deriving (Show, Eq)
@@ -42,11 +44,15 @@ makePrisms ''RunnableResult
 
 extractResult :: RunnableType -> ByteString -> Maybe RunnableResult
 extractResult tp stream = case runTypeKind tp of
-  KindText -> ResultText . LT.toStrict <$> rightToMaybe (LEnc.decodeUtf8' stream)
+  KindErr -> toTxt ResultError
+  KindText -> toTxt ResultText
   KindBin -> Just $ ResultBinary stream
   KindJson -> ResultJson <$> rightToMaybe (eitherDecode stream)
+  where
+    toTxt cstr = cstr . LT.toStrict <$> rightToMaybe (LEnc.decodeUtf8' stream)
 
 runTypeKind :: RunnableType -> RunnableKind
+runTypeKind RunError = KindErr
 runTypeKind ScalarImage = KindBin
 runTypeKind ScalarGraphic = KindBin
 runTypeKind VectorGraphic = KindText
@@ -56,6 +62,7 @@ runTypeKind TabularCsv = KindText
 runTypeKind Model3D = KindBin
 
 runTypeName :: RunnableType -> Text
+runTypeName RunError = "error"
 runTypeName ScalarImage = "image"
 runTypeName ScalarGraphic = "graphic"
 runTypeName VectorGraphic = "vector"
@@ -65,6 +72,7 @@ runTypeName TabularCsv = "csv"
 runTypeName Model3D = "3d"
 
 runTypeExt :: RunnableType -> Text
+runTypeExt RunError = "log"
 runTypeExt ScalarImage = "jpg"
 runTypeExt ScalarGraphic = "png"
 runTypeExt VectorGraphic = "svg"
@@ -78,11 +86,13 @@ parseTypeName =
   flip M.lookup $ M.fromList $ (runTypeName &&& id) <$> [minBound .. maxBound]
 
 encodeToJSON :: RunnableResult -> Value
+encodeToJSON (ResultError err) = toJSON err
 encodeToJSON (ResultText txt) = toJSON txt
 encodeToJSON (ResultBinary bin) = toJSON $ extractBase64 $ B64.encodeBase64 bin
 encodeToJSON (ResultJson v) = v
 
 encodeToText :: RunnableResult -> Text
+encodeToText (ResultError err) = err
 encodeToText (ResultText txt) = txt
 encodeToText (ResultBinary bin) =
   LT.toStrict $
@@ -93,6 +103,7 @@ encodeToText (ResultBinary bin) =
 encodeToText (ResultJson v) = LT.toStrict $ LEnc.decodeUtf8 $ encodePretty v
 
 encodeToLBS :: RunnableResult -> LBS.ByteString
+encodeToLBS (ResultError err) = LEnc.encodeUtf8 $ LT.fromStrict err
 encodeToLBS (ResultText txt) = LEnc.encodeUtf8 $ LT.fromStrict txt
 encodeToLBS (ResultBinary bin) = bin
 encodeToLBS (ResultJson v) = encode v
@@ -109,6 +120,7 @@ decodeJsonFromJson = Just
 
 decodeFromJson :: RunnableType -> Value -> Maybe RunnableResult
 decodeFromJson tp val = case runTypeKind tp of
+  KindErr -> ResultError <$> decodeTextFromJson val
   KindText -> ResultText <$> decodeTextFromJson val
   KindBin -> ResultBinary <$> decodeBinFromJson val
   KindJson -> ResultJson <$> decodeJsonFromJson val
@@ -129,6 +141,7 @@ decodeJsonFromText = rightToMaybe . eitherDecode . LEnc.encodeUtf8 . LT.fromStri
 
 decodeFromText :: RunnableType -> Text -> Maybe RunnableResult
 decodeFromText tp txt = case runTypeKind tp of
+  KindErr -> ResultError <$> decodeTextFromText txt
   KindText -> ResultText <$> decodeTextFromText txt
   KindBin -> ResultBinary <$> decodeBinFromText txt
   KindJson -> ResultJson <$> decodeJsonFromText txt

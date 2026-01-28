@@ -91,7 +91,7 @@ hashComputation = runMaybeT . hashComputation'
 resolveArg ::
   (MonadKorrvigs m, MonadTrans t, MonadIO (t m)) =>
   Id ->
-  (Computation -> m (Either Text RunnableResult)) ->
+  (Computation -> m RunnableResult) ->
   FilePath ->
   RunArg ->
   t m Text
@@ -99,15 +99,15 @@ resolveArg _ _ _ (ArgPlain txt) = pure txt
 resolveArg _ runRec tmpdir (ArgResult i cmp) =
   lift (getComputation i cmp) >>= \case
     Nothing -> pure "/dev/null"
-    Just comp ->
-      lift (runRec comp) >>= \case
-        Left _ -> pure "/dev/null"
-        Right result -> do
-          let tp = comp ^. cmpRun . runType
-          let filename = T.unpack $ unId i <> "_" <> cmp <> runTypeExt tp
-          let path = tmpdir </> filename
-          liftIO $ LBS.writeFile path $ encodeToLBS result
-          pure $ T.pack path
+    Just comp -> do
+      result <- lift $ runRec comp
+      let tp = case result of
+            ResultError _ -> RunError
+            _ -> comp ^. cmpRun . runType
+      let filename = T.unpack $ unId i <> "_" <> cmp <> runTypeExt tp
+      let path = tmpdir </> filename
+      liftIO $ LBS.writeFile path $ encodeToLBS result
+      pure $ T.pack path
 resolveArg curId runRec tmpdir (ArgResultSame cmp) =
   resolveArg curId runRec tmpdir (ArgResult curId cmp)
 resolveArg _ _ _ (ArgEntry i) =
@@ -116,94 +116,94 @@ resolveArg _ _ _ (ArgEntry i) =
       Nothing -> pure "/dev/null"
       Just entry -> T.pack <$> entryFile entry
 
-runVeryLazy :: (MonadKorrvigs m) => Computation -> m (Either Text RunnableResult)
+runVeryLazy :: (MonadKorrvigs m) => Computation -> m RunnableResult
 runVeryLazy = runVeryLazy' S.empty
 
-runVeryLazy' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m (Either Text RunnableResult)
+runVeryLazy' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m RunnableResult
 runVeryLazy' seen cmp = case cmp ^. cmpResult of
-  Nothing -> doRun' runVeryLazy' seen cmp
+  Nothing -> doRun runVeryLazy' seen cmp
   Just res -> do
     let tp = cmp ^. cmpRun . runType
-    if tp == res ^. cmpResType then pure (Right $ res ^. cmpResData) else doRun' runVeryLazy' seen cmp
+    if tp == res ^. cmpResType || res ^. cmpResType == RunError
+      then pure $ res ^. cmpResData
+      else doRun runVeryLazy' seen cmp
 
-runLazy :: (MonadKorrvigs m) => Computation -> m (Either Text RunnableResult)
+runLazy :: (MonadKorrvigs m) => Computation -> m RunnableResult
 runLazy = runLazy' S.empty
 
-runLazy' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m (Either Text RunnableResult)
+runLazy' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m RunnableResult
 runLazy' seen cmp = case cmp ^. cmpResult of
-  Nothing -> doRun' runLazy' seen cmp
+  Nothing -> doRun runLazy' seen cmp
   Just res ->
     hashComputation cmp >>= \case
       Nothing -> throwM $ KMiscError $ "Failed to hash computation " <> cmpNm
-      Just hsh -> if hsh == res ^. cmpResHash then pure (Right $ res ^. cmpResData) else doRun' runLazy' seen cmp
+      Just hsh -> if hsh == res ^. cmpResHash then pure $ res ^. cmpResData else doRun runLazy' seen cmp
   where
     cmpNm = unId (cmp ^. cmpEntry) <> "#" <> cmp ^. cmpName
 
-runForce :: (MonadKorrvigs m) => Computation -> m (Either Text RunnableResult)
+runForce :: (MonadKorrvigs m) => Computation -> m RunnableResult
 runForce = runForce' S.empty
 
-runForce' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m (Either Text RunnableResult)
-runForce' = doRun' runForce'
+runForce' :: (MonadKorrvigs m) => Set (Id, Text) -> Computation -> m RunnableResult
+runForce' = doRun runForce'
 
-doRun' ::
+doRun ::
   (MonadKorrvigs m) =>
-  (Set (Id, Text) -> Computation -> m (Either Text RunnableResult)) ->
+  (Set (Id, Text) -> Computation -> m RunnableResult) ->
   Set (Id, Text) ->
   Computation ->
-  m (Either Text RunnableResult)
-doRun' rec seen cmp =
-  if alreadySeen
-    then
-      pure $
-        Left $
-          ("Circular dependencies between computations: " <>) $
-            T.intercalate " <> " $
-              (\(i, c) -> unId i <> "#" <> c) <$> S.toList seen
-    else do
-      (time, (exit, res, stderr)) <-
-        measureTimeMs $
-          runResourceT $
-            runOut
-              (cmp ^. cmpRun)
-              (resolveArg (cmp ^. cmpEntry) $ rec nseen)
-              (runOutputConduit $ runTypeKind $ cmp ^. cmpRun . runType)
-              (decodeUtf8Lenient .| sinkLazy)
-      case exit of
-        ExitFailure i ->
-          throwM $
-            KMiscError $
-              "Runnable failed with exit code "
-                <> T.pack (show i)
-                <> ": "
-                <> LT.toStrict stderr
-        ExitSuccess -> do
-          forM_ res $ \r -> do
-            mhsh <- hashComputation cmp
-            forM_ mhsh $ \hsh -> do
-              date <- liftIO getCurrentTime
-              storeComputationResult
-                (cmp ^. cmpEntry)
-                (cmp ^. cmpName)
-                (cmp ^. cmpRun . runType)
-                hsh
-                date
-                time
-                r
-          pure res
+  m RunnableResult
+doRun rec seen cmp = do
+  (time, res, tp) <-
+    if alreadySeen
+      then do
+        let res =
+              ResultText $
+                ("Circular dependencies between computations: " <>) $
+                  T.intercalate " <> " $
+                    (\(i, c) -> unId i <> "#" <> c) <$> S.toList seen
+        pure (0, res, RunError)
+      else do
+        (time, (exit, res, stderr)) <-
+          measureTimeMs $
+            runResourceT $
+              runOut
+                (cmp ^. cmpRun)
+                (resolveArg (cmp ^. cmpEntry) $ rec nseen)
+                (runOutputConduit $ runTypeKind $ cmp ^. cmpRun . runType)
+                (decodeUtf8Lenient .| sinkLazy)
+        case exit of
+          ExitFailure i -> do
+            let err =
+                  ResultError $
+                    "Runnable failed with exit code "
+                      <> T.pack (show i)
+                      <> ": "
+                      <> LT.toStrict stderr
+            pure (time, err, RunError)
+          ExitSuccess -> pure (time, res, cmp ^. cmpRun . runType)
+  mhsh <- hashComputation cmp
+  forM_ mhsh $ \hsh -> do
+    date <- liftIO getCurrentTime
+    storeComputationResult
+      (cmp ^. cmpEntry)
+      (cmp ^. cmpName)
+      tp
+      hsh
+      date
+      time
+      res
+  pure res
   where
     current = (cmp ^. cmpEntry, cmp ^. cmpName)
     alreadySeen = S.member current seen
     nseen = S.insert current seen
 
-runOutputConduit :: (MonadKorrvigs m) => RunnableKind -> ConduitT ByteString Void (ResourceT m) (Either Text RunnableResult)
-runOutputConduit KindBin = Right . ResultBinary <$> sinkLazy
+runOutputConduit :: (MonadKorrvigs m) => RunnableKind -> ConduitT ByteString Void (ResourceT m) RunnableResult
+runOutputConduit KindErr = runOutputConduit KindText
+runOutputConduit KindBin = ResultBinary <$> sinkLazy
 runOutputConduit KindText =
-  Right . ResultText . LT.toStrict <$> (decodeUtf8Lenient .| sinkLazy)
+  ResultText . LT.toStrict <$> (decodeUtf8Lenient .| sinkLazy)
 runOutputConduit KindJson = dec <$> sinkLazy
   where
-    dec =
-      mapLeft T.pack
-        . fmap ResultJson
-        . eitherDecode
-    mapLeft _ (Right x) = Right x
-    mapLeft f (Left x) = Left $ f x
+    dec = either (ResultError . T.pack) ResultJson . eitherDecode

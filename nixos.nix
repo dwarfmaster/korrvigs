@@ -84,6 +84,7 @@ overlay: {
     pkgs.openscad
     pkgs.assimp
     pkgs.povray
+    pkgs.texliveFull
   ];
 in {
   options.programs.korrvigs = {

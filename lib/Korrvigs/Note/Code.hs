@@ -42,7 +42,9 @@ knownLanguages =
       ("rust", Rust),
       ("ocaml", OCaml),
       ("openscad", OpenScad),
-      ("povray", Povray)
+      ("povray", Povray),
+      ("latex", LaTeX),
+      ("context", ConTeXt)
     ]
 
 data AttrData = AttrData
@@ -145,6 +147,8 @@ languageToType PlainText = Just ArbitraryText
 languageToType Graphviz = Just VectorGraphic
 languageToType NixData = Just ArbitraryJson
 languageToType Dhall = Just ArbitraryJson
+languageToType LaTeX = Just VectorDocument
+languageToType ConTeXt = Just VectorDocument
 languageToType _ = Nothing
 
 toRunnable :: Attr -> Text -> Maybe Runnable

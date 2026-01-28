@@ -20,6 +20,7 @@ modeMap =
       ("css", "css"),
       ("dot", "dot"),
       ("latex", "latex"),
+      ("context", "latex"),
       ("bibtex", "bibtex"),
       -- Languages
       ("c", "c_cpp"),

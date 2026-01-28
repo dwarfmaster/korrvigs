@@ -65,6 +65,8 @@ data Executable
   | OCaml
   | OpenScad
   | Povray
+  | LaTeX
+  | ConTeXt
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -179,6 +181,8 @@ mkExeProc OpenScad _ _ =
   noCompile "model.scad" $ proc "openscad" ["model.scad", "--export-format", "png", "-o", "-"]
 mkExeProc Povray _ _ =
   noCompile "model.pov" $ proc "povray" ["model.pov", "-o-"]
+mkExeProc LaTeX _ _ = texBuild "pdflatex"
+mkExeProc ConTeXt _ _ = texBuild "context"
 
 mkCLikeBuildScript :: Text -> FilePath -> [Text] -> ExeProc
 mkCLikeBuildScript gcc code args =
@@ -200,6 +204,14 @@ openScad3d =
         assimp export model.stl model.glb
       |],
       _exeRun = proc "cat" ["model.glb"]
+    }
+
+texBuild :: Text -> ExeProc
+texBuild tex =
+  ExeProc
+    { _exeCode = "doc.tex",
+      _exeCompileScript = Just $ tex <> " doc.tex",
+      _exeRun = proc "cat" ["doc.pdf"]
     }
 
 hashRunnable ::
@@ -257,6 +269,8 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe OCaml = stringUtf8 "ocaml"
     buildExe OpenScad = stringUtf8 "openscad"
     buildExe Povray = stringUtf8 "povray"
+    buildExe LaTeX = stringUtf8 "latex"
+    buildExe ConTeXt = stringUtf8 "context"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

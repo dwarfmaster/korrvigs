@@ -16,7 +16,9 @@ import Data.Aeson.Lens
 import Data.Foldable
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Monoid
 import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.Metadata
@@ -35,7 +37,9 @@ import qualified Korrvigs.Metadata.Media.Steam as Steam
 import qualified Korrvigs.Metadata.Media.Youtube as Yt
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
+import qualified Korrvigs.Note.Download as Dl
 import qualified Korrvigs.Note.New as Note
+import Network.URI
 
 data NewMedia = NewMedia
   { _nmEntry :: NewEntry,
@@ -100,13 +104,16 @@ dispatchMedia nm = do
 
 prepareNewMedia :: (MonadKorrvigs m) => NewMedia -> m Note.NewNote
 prepareNewMedia nm = do
+  fromUrl <- case parseURI $ T.unpack $ nm ^. nmInput of
+    Nothing -> pure mempty
+    Just _ -> Dl.downloadInformation $ nm ^. nmInput
   md <- dispatchMedia nm
   let ne =
-        md (nm ^. nmEntry)
+        md (appEndo fromUrl $ nm ^. nmEntry)
           & neMtdt %~ M.insert (mtdtName TaskMtdt) "todo"
   let tp = fromMaybe Blogpost $ ne ^? neMtdt . at (mtdtName MediaMtdt) . _Just . _JSON
   let title = fromMaybe (medTxt tp <> " " <> nm ^. nmInput) $ ne ^. neTitle
-  pure $ Note.NewNote ne title (isNothing $ ne ^. neTitle) False
+  pure $ Note.NewNote ne title (isNothing $ ne ^. neTitle) True
   where
     medTxt :: MediaType -> Text
     medTxt Article = "Article"

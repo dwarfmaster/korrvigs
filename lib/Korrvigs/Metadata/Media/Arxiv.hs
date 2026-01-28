@@ -130,7 +130,8 @@ queryArxiv i = do
                   setMtdtValue Url $ entryId entry,
                   processLinks entry,
                   processArxivMtdts entry,
-                  neChildren %~ (dls <>)
+                  neChildren %~ (dls <>),
+                  neCover .~ Nothing
                 ]
   where
     prepAbstract :: Text -> Text

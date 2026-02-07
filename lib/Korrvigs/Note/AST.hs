@@ -145,7 +145,7 @@ data Style
 data Attr = MkAttr
   { _attrId :: Text,
     _attrClasses :: [Text],
-    _attrMtdt :: Map Text Text
+    _attrMtdt :: Map Text [Text]
   }
   deriving (Show, Eq)
 

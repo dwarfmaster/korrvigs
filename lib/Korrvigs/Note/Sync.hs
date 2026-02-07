@@ -98,7 +98,7 @@ syncDocument i path doc = do
             . each
             . bkSubBlocks
             . _CodeBlock
-            . to (view (_1 . attrId) &&& (view (_1 . attrMtdt . at "autorun") &&& uncurry toRunnable))
+            . to (view (_1 . attrId) &&& (view (_1 . attrMtdt . at "autorun" . to (>>= listToMaybe)) &&& uncurry toRunnable))
             . to raiseMaybe
             . _Just
             . filtered (not . T.null . view _1)
@@ -244,7 +244,7 @@ getComputation note cmp = do
               _cmpName = cmp,
               _cmpRun = rbl,
               _cmpResult = doc ^. docComputations . at cmp,
-              _cmpAutorun = code ^? _Just . _1 . attrMtdt . ix "autorun"
+              _cmpAutorun = code ^? _Just . _1 . attrMtdt . ix "autorun" . to listToMaybe . _Just
             }
 
 storeComputationResult :: (MonadKorrvigs m) => Note -> Text -> RunnableType -> Hash -> UTCTime -> Int -> RunnableResult -> m ()

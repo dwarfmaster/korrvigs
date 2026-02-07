@@ -1,5 +1,7 @@
 module Korrvigs.Compute.Runnable
   ( Executable (..),
+    RunProfile (..),
+    RunnableSetup (..),
     Runnable (..),
     RunArg (..),
     Hash,
@@ -10,6 +12,11 @@ module Korrvigs.Compute.Runnable
     runArgs,
     runEnv,
     runStdIn,
+    runSetup,
+    runStpProfile,
+    runStpFlags,
+    runStpVersion,
+    runStpOpt,
     runDeps,
     run,
     runInOut,
@@ -19,6 +26,7 @@ module Korrvigs.Compute.Runnable
 where
 
 import Conduit
+import Control.Applicative ((<|>))
 import Control.Arrow ((***))
 import Control.Lens
 import Control.Monad
@@ -27,9 +35,13 @@ import qualified Crypto.Hash as Hsh
 import Data.ByteString (ByteString)
 import Data.ByteString.Builder
 import Data.Conduit.Process
+import Data.Default
+import Data.Foldable (toList)
+import Data.List (singleton)
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -76,18 +88,48 @@ data RunArg
   | ArgEntry Id
   deriving (Show, Eq, Ord)
 
+data RunProfile
+  = RunRelease
+  | RunDebug
+  deriving (Show, Eq, Ord)
+
+data RunnableSetup = RunnableSetup
+  { _runStpProfile :: Maybe RunProfile,
+    _runStpOpt :: Maybe Text,
+    _runStpFlags :: [Text],
+    _runStpVersion :: Maybe Text
+  }
+  deriving (Show, Eq, Ord)
+
 data Runnable = Runnable
   { _runExecutable :: Executable,
     _runCode :: Text,
     _runType :: RunnableType,
     _runArgs :: [RunArg],
     _runEnv :: Map Text RunArg,
-    _runStdIn :: Maybe RunArg
+    _runStdIn :: Maybe RunArg,
+    _runSetup :: RunnableSetup
   }
   deriving (Show, Eq, Ord)
 
+makeLenses ''RunnableSetup
 makeLenses ''Runnable
 makePrisms ''RunArg
+
+instance Default RunnableSetup where
+  def = RunnableSetup Nothing Nothing [] Nothing
+
+instance Semigroup RunnableSetup where
+  r1 <> r2 =
+    RunnableSetup
+      { _runStpProfile = r1 ^. runStpProfile <|> r2 ^. runStpProfile,
+        _runStpOpt = r1 ^. runStpOpt <|> r2 ^. runStpOpt,
+        _runStpFlags = r1 ^. runStpFlags <> r2 ^. runStpFlags,
+        _runStpVersion = r1 ^. runStpVersion <|> r2 ^. runStpVersion
+      }
+
+instance Monoid RunnableSetup where
+  mempty = def
 
 runDeps :: Runnable -> [(Id, Text)]
 runDeps rbl =
@@ -117,7 +159,7 @@ runProc ::
   m (Maybe CreateProcess, CreateProcess)
 runProc resolveArg tmp rbl = do
   args <- mapM resolveArg $ rbl ^. runArgs
-  let exePrc = mkExeProc (rbl ^. runExecutable) args (rbl ^. runType)
+  let exePrc = mkExeProc (rbl ^. runExecutable) (rbl ^. runSetup) args (rbl ^. runType)
   let scriptPath = joinPath [tmp, exePrc ^. exeCode]
   liftIO $ TIO.writeFile scriptPath $ rbl ^. runCode
   ev' <- M.fromList . fmap (T.pack *** T.pack) <$> liftIO getEnvironment
@@ -139,80 +181,123 @@ runProc resolveArg tmp rbl = do
         }
     )
 
-mkExeProc :: Executable -> [Text] -> RunnableType -> ExeProc
-mkExeProc Bash args _ =
-  noCompile "code.sh" $ proc "bash" $ "code.sh" : (T.unpack <$> args)
-mkExeProc SwiProlog args _ =
-  noCompile "code.pl" $ proc "swipl" $ "code.pl" : "--" : (T.unpack <$> args)
-mkExeProc PlainJson _ _ =
-  noCompile "data.json" $ proc "cat" ["data.json"]
-mkExeProc PlainCsv _ _ =
-  noCompile "data.csv" $ proc "cat" ["data.csv"]
-mkExeProc PlainText _ _ =
-  noCompile "data.txt" $ proc "cat" ["data.txt"]
-mkExeProc Graphviz _ tp = noCompile "data.dot" $ case tp of
-  ScalarImage -> proc "dot" ["-Tjpg", "data.dot"]
-  ScalarGraphic -> proc "dot" ["-Tpng", "data.dot"]
-  VectorGraphic -> proc "dot" ["-Tsvg", "data.dot"]
-  _ -> proc "false" []
-mkExeProc CLang args _ = mkCLikeBuildScript "gcc -std=c23" "code.c" args
-mkExeProc CPPLang args _ = mkCLikeBuildScript "g++ -std=c++23" "code.cpp" args
-mkExeProc NixData _ _ =
-  noCompile "data.nix" $ proc "nix" ["eval", "--impure", "--json", "--file", "data.nix"]
-mkExeProc Python args _ =
-  noCompile "code.py" $ proc "python3" $ "code.py" : (T.unpack <$> args)
-mkExeProc Lua args _ =
-  noCompile "code.lua" $ proc "lua" $ "code.lua" : (T.unpack <$> args)
-mkExeProc Julia args _ =
-  noCompile "code.jl" $ proc "julia" $ "code.jl" : (T.unpack <$> args)
-mkExeProc Dhall _ _ =
-  noCompile "data.dhall" $ proc "dhall-to-json" ["--file", "data.dhall"]
-mkExeProc Raku args _ =
-  noCompile "code.raku" $ proc "raku" $ "code.raku" : (T.unpack <$> args)
-mkExeProc Perl args _ =
-  noCompile "code.pl" $ proc "perl" $ "code.pl" : (T.unpack <$> args)
-mkExeProc Haskell args _ = mkCLikeBuildScript "ghc" "code.hs" args
-mkExeProc Rust args _ = mkCLikeBuildScript "rustc" "code.rs" args
-mkExeProc OCaml args _ = mkCLikeBuildScript "ocamlc" "code.ml" args
-mkExeProc OpenScad _ VectorGraphic =
-  noCompile "model.scad" $ proc "openscad" ["model.scad", "--export-format", "svg", "-o", "-"]
-mkExeProc OpenScad _ Model3D = openScad3d
-mkExeProc OpenScad _ _ =
-  noCompile "model.scad" $ proc "openscad" ["model.scad", "--export-format", "png", "-o", "-"]
-mkExeProc Povray _ _ =
-  noCompile "model.pov" $ proc "povray" ["model.pov", "-o-"]
-mkExeProc LaTeX _ _ = texBuild "pdflatex"
-mkExeProc ConTeXt _ _ = texBuild "context"
+procArgs :: Text -> RunnableSetup -> [Text] -> CreateProcess
+procArgs bin stp = proc (T.unpack bin) . map T.unpack . (stp ^. runStpFlags <>)
 
-mkCLikeBuildScript :: Text -> FilePath -> [Text] -> ExeProc
-mkCLikeBuildScript gcc code args =
+onDebug :: [Text] -> RunProfile -> [Text]
+onDebug flags RunDebug = flags
+onDebug _ RunRelease = []
+
+mkExeProc :: Executable -> RunnableSetup -> [Text] -> RunnableType -> ExeProc
+mkExeProc Bash stp args _ =
+  noCompile "code.sh" $ procArgs "bash" stp $ "code.sh" : args
+mkExeProc SwiProlog stp args _ =
+  noCompile "code.pl" $ procArgs "swipl" stp $ "code.pl" : "--" : args
+mkExeProc PlainJson _ _ _ =
+  noCompile "data.json" $ proc "cat" ["data.json"]
+mkExeProc PlainCsv _ _ _ =
+  noCompile "data.csv" $ proc "cat" ["data.csv"]
+mkExeProc PlainText _ _ _ =
+  noCompile "data.txt" $ proc "cat" ["data.txt"]
+mkExeProc Graphviz stp _ tp = noCompile "data.dot" $ case tp of
+  ScalarImage -> procArgs "dot" stp ["-Tjpg", "data.dot"]
+  ScalarGraphic -> procArgs "dot" stp ["-Tpng", "data.dot"]
+  VectorGraphic -> procArgs "dot" stp ["-Tsvg", "data.dot"]
+  _ -> proc "false" []
+mkExeProc CLang stp' args _ = mkCLikeBuildScript cfg "gcc" stp "code.c" args
+  where
+    cfg = (onDebug ["-g"], singleton . ("-O" <>), singleton . ("-std=" <>))
+    stp = stp' & runStpVersion %~ Just . fromMaybe "c23"
+mkExeProc CPPLang stp' args _ = mkCLikeBuildScript cfg "g++" stp "code.cpp" args
+  where
+    cfg = (onDebug ["-g"], singleton . ("-O" <>), singleton . ("-std=" <>))
+    stp = stp' & runStpVersion %~ Just . fromMaybe "c++23"
+mkExeProc NixData stp _ _ =
+  noCompile "data.nix" $ procArgs "nix" stp ["eval", "--impure", "--json", "--file", "data.nix"]
+mkExeProc Python stp args _ =
+  noCompile "code.py" $ procArgs "python3" stp $ "code.py" : args
+mkExeProc Lua stp args _ =
+  noCompile "code.lua" $ procArgs "lua" stp $ "code.lua" : args
+mkExeProc Julia stp args _ =
+  noCompile "code.jl" $ procArgs "julia" stp $ "code.jl" : args
+mkExeProc Dhall stp _ _ =
+  noCompile "data.dhall" $ procArgs "dhall-to-json" stp ["--file", "data.dhall"]
+mkExeProc Raku stp args _ =
+  noCompile "code.raku" $ procArgs "raku" stp $ "code.raku" : args
+mkExeProc Perl stp args _ =
+  noCompile "code.pl" $ procArgs "perl" stp $ "code.pl" : args
+mkExeProc Haskell stp' args _ = mkCLikeBuildScript cfg "ghc" stp "code.hs" args
+  where
+    cfg = (onDebug ["-g"], singleton . ("-O" <>), singleton . ("-X" <>))
+    stp = stp' & runStpVersion %~ Just . fromMaybe "Haskell2010"
+mkExeProc Rust stp args _ = mkCLikeBuildScript cfg "rustc" stp "code.rs" args
+  where
+    cfg = (onDebug ["-C", "debuginfo=2"], \o -> ["-C", "opt-level=" <> o], const [])
+mkExeProc OCaml stp args _ = mkCLikeBuildScript cfg "ocamlc" stp "code.ml" args
+  where
+    cfg = (onDebug ["-g"], const [], const [])
+mkExeProc OpenScad stp _ VectorGraphic =
+  noCompile "model.scad" $ procArgs "openscad" stp ["model.scad", "--export-format", "svg", "-o", "-"]
+mkExeProc OpenScad stp _ Model3D = openScad3d stp
+mkExeProc OpenScad stp _ _ =
+  noCompile "model.scad" $ procArgs "openscad" stp ["model.scad", "--export-format", "png", "-o", "-"]
+mkExeProc Povray stp _ _ =
+  noCompile "model.pov" $ procArgs "povray" stp ["model.pov", "-o-"]
+mkExeProc LaTeX stp _ _ = texBuild stp "pdflatex"
+mkExeProc ConTeXt stp _ _ = texBuild stp "context"
+
+bashFlags :: [Text] -> Text
+bashFlags flags = T.intercalate " " $ escape <$> flags
+  where
+    escape f = "'" <> T.replace "'" "\\'" f <> "'"
+
+mkCLikeBuildScript ::
+  (RunProfile -> [Text], Text -> [Text], Text -> [Text]) ->
+  Text ->
+  RunnableSetup ->
+  FilePath ->
+  [Text] ->
+  ExeProc
+mkCLikeBuildScript (prof, opt, version) gcc stp code args =
   ExeProc
     { _exeCode = code,
       _exeCompileScript =
-        Just $ gcc <> " -o korrvigs.out " <> T.pack code,
+        Just $ gcc <> " " <> bashFlags flags <> " -o korrvigs.out " <> T.pack code,
       _exeRun = proc "./korrvigs.out" $ T.unpack <$> args
     }
+  where
+    mkFlag :: (a -> [Text]) -> Maybe a -> [Text]
+    mkFlag bld val = bld =<< toList val
+    flags =
+      mkFlag prof (stp ^. runStpProfile)
+        <> mkFlag opt (stp ^. runStpOpt)
+        <> mkFlag version (stp ^. runStpVersion)
+        <> stp ^. runStpFlags
 
-openScad3d :: ExeProc
-openScad3d =
+openScad3d :: RunnableSetup -> ExeProc
+openScad3d stp =
   ExeProc
     { _exeCode = "model.scad",
       _exeCompileScript =
         Just
           [trimming|
-        openscad model.scad --export-format stl -o model.stl
+        openscad $flags model.scad --export-format stl -o model.stl
         assimp export model.stl model.glb
       |],
       _exeRun = proc "cat" ["model.glb"]
     }
+  where
+    flags = bashFlags $ stp ^. runStpFlags
 
-texBuild :: Text -> ExeProc
-texBuild tex =
+texBuild :: RunnableSetup -> Text -> ExeProc
+texBuild stp tex =
   ExeProc
     { _exeCode = "doc.tex",
-      _exeCompileScript = Just $ tex <> " doc.tex",
+      _exeCompileScript = Just $ tex <> " " <> flags <> " doc.tex",
       _exeRun = proc "cat" ["doc.pdf"]
     }
+  where
+    flags = bashFlags $ stp ^. runStpFlags
 
 hashRunnable ::
   (MonadFail m) =>
@@ -243,6 +328,19 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
   forM_ (rbl ^. runStdIn) $ \stdin -> do
     buildRunArg stdin
     tell sep
+  forM_ (rbl ^. runSetup . runStpProfile) $ \case
+    RunRelease -> tell "r"
+    RunDebug -> tell "d"
+  tell sep
+  forM_ (rbl ^. runSetup . runStpOpt) $ tell . stringUtf8 . T.unpack
+  tell sep
+  tell $ stringUtf8 $ show $ length $ rbl ^. runSetup . runStpFlags
+  tell sep
+  forM_ (rbl ^. runSetup . runStpFlags) $ \flag -> do
+    tell $ stringUtf8 $ T.unpack flag
+    tell sep
+  forM_ (rbl ^. runSetup . runStpVersion) $ tell . stringUtf8 . T.unpack
+  tell sep
   where
     doHash :: Builder -> Hash
     doHash = Hsh.hashlazy . toLazyByteString

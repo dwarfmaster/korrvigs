@@ -1,13 +1,13 @@
 module Korrvigs.Note.Code where
 
 import Control.Applicative ((<|>))
-import Control.Arrow ((***))
+import Control.Arrow (second, (***))
 import Control.Lens
 import Control.Monad
 import Data.Foldable (toList)
+import Data.List (singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Compute.Runnable
@@ -51,7 +51,8 @@ data AttrData = AttrData
   { _attrArg :: Map Int RunArg,
     _attrEnv :: Map Text RunArg,
     _attrStdIn :: Maybe RunArg,
-    _attrType :: Maybe RunnableType
+    _attrType :: Maybe RunnableType,
+    _attrSetup :: RunnableSetup
   }
   deriving (Show, Eq)
 
@@ -63,19 +64,26 @@ instance Semigroup AttrData where
       { _attrArg = M.union (dt1 ^. attrArg) (dt2 ^. attrArg),
         _attrEnv = M.union (dt1 ^. attrEnv) (dt2 ^. attrEnv),
         _attrStdIn = (dt1 ^. attrStdIn) <|> (dt2 ^. attrStdIn),
-        _attrType = (dt1 ^. attrType) <|> (dt2 ^. attrType)
+        _attrType = (dt1 ^. attrType) <|> (dt2 ^. attrType),
+        _attrSetup = (dt1 ^. attrSetup) <> (dt2 ^. attrSetup)
       }
 
 instance Monoid AttrData where
-  mempty = AttrData M.empty M.empty Nothing Nothing
+  mempty = AttrData M.empty M.empty Nothing Nothing mempty
 
-renderAttrData :: AttrData -> [(Text, Text)]
+renderAttrData :: AttrData -> Map Text [Text]
 renderAttrData attrData =
-  (renderArg <$> M.toList (attrData ^. attrArg))
-    ++ (renderEnv <$> M.toList (attrData ^. attrEnv))
-    ++ (renderVal "stdin" <$> toList (attrData ^. attrStdIn))
-    ++ (renderType <$> toList (attrData ^. attrType))
+  M.fromListWith (<>) . fmap (second singleton) $
+    (renderArg <$> M.toList (attrData ^. attrArg))
+      ++ (renderEnv <$> M.toList (attrData ^. attrEnv))
+      ++ (renderVal "stdin" <$> toList (attrData ^. attrStdIn))
+      ++ (renderType <$> toList (attrData ^. attrType))
+      ++ (("profile",) <$> toList (stp ^? runStpProfile . _Just . to renderProfile))
+      ++ (("o",) <$> toList (stp ^. runStpOpt))
+      ++ (("flag",) <$> stp ^. runStpFlags)
+      ++ (("version",) <$> toList (stp ^. runStpVersion))
   where
+    stp = attrData ^. attrSetup
     renderVal :: Text -> RunArg -> (Text, Text)
     renderVal prefix (ArgPlain val) = (prefix, val)
     renderVal prefix (ArgResult i cmp) = (prefix <> ":comp", unId i <> "#" <> cmp)
@@ -87,9 +95,14 @@ renderAttrData attrData =
     renderEnv (ev, arg) = renderVal ("env:" <> ev) arg
     renderType :: RunnableType -> (Text, Text)
     renderType tp = ("type", runTypeName tp)
+    renderProfile RunRelease = "release"
+    renderProfile RunDebug = "debug"
 
-parseAttrMtdt :: Text -> Text -> AttrData
-parseAttrMtdt key val = case parse (typeP <|> argP <|> envP <|> stdinP) "<codearg>" key of
+parseAttrMtdt :: Text -> [Text] -> AttrData
+parseAttrMtdt key vals = mconcat $ parseAttrMtdt' key <$> vals
+
+parseAttrMtdt' :: Text -> Text -> AttrData
+parseAttrMtdt' key val = case parse (parser <* eof) "<codearg>" key of
   Left _ -> mempty
   Right attrDat -> attrDat
   where
@@ -108,6 +121,9 @@ parseAttrMtdt key val = case parse (typeP <|> argP <|> envP <|> stdinP) "<codear
               else ArgResultSame val
         "entry" -> pure $ ArgEntry $ MkId val
         _ -> fail $ kd <> " is not a recognised RunArg type"
+    parser :: (Stream s Identity Char) => Parsec s () AttrData
+    parser =
+      typeP <|> argP <|> envP <|> stdinP <|> profP <|> optP <|> flagP <|> versionP
     argP :: (Stream s Identity Char) => Parsec s () AttrData
     argP = do
       void $ string "arg:"
@@ -130,6 +146,26 @@ parseAttrMtdt key val = case parse (typeP <|> argP <|> envP <|> stdinP) "<codear
       void $ string "type"
       tp <- maybe (fail $ T.unpack val <> " is not a valid runnable type") pure $ parseTypeName val
       pure $ mempty & attrType ?~ tp
+    profP :: (Stream s Identity Char) => Parsec s () AttrData
+    profP = do
+      void $ string "profile"
+      prof <- case val of
+        "debug" -> pure RunDebug
+        "release" -> pure RunRelease
+        _ -> fail $ T.unpack val <> " is not a valid profile"
+      pure $ mempty & attrSetup . runStpProfile ?~ prof
+    optP :: (Stream s Identity Char) => Parsec s () AttrData
+    optP = do
+      void $ string "o"
+      pure $ mempty & attrSetup . runStpOpt ?~ val
+    flagP :: (Stream s Identity Char) => Parsec s () AttrData
+    flagP = do
+      void $ string "flag"
+      pure $ mempty & attrSetup . runStpFlags .~ [val]
+    versionP :: (Stream s Identity Char) => Parsec s () AttrData
+    versionP = do
+      void $ string "version"
+      pure $ mempty & attrSetup . runStpVersion ?~ val
 
 codeRefs :: Attr -> [Id]
 codeRefs attr = argToRef =<< attrDat ^.. (attrArg . each <> attrEnv . each <> attrStdIn . _Just)
@@ -164,7 +200,8 @@ toRunnable attr code = do
         _runType = tp,
         _runArgs = fmap snd $ M.toList $ attrDat ^. attrArg,
         _runEnv = attrDat ^. attrEnv,
-        _runStdIn = attrDat ^. attrStdIn
+        _runStdIn = attrDat ^. attrStdIn,
+        _runSetup = attrDat ^. attrSetup
       }
 
 updateRefInAttrData :: Id -> Maybe Id -> AttrData -> AttrData
@@ -173,7 +210,8 @@ updateRefInAttrData old new attrData =
     { _attrArg = M.mapMaybe updateRefInVal $ attrData ^. attrArg,
       _attrEnv = M.mapMaybe updateRefInVal $ attrData ^. attrEnv,
       _attrStdIn = (attrData ^. attrStdIn) >>= updateRefInVal,
-      _attrType = attrData ^. attrType
+      _attrType = attrData ^. attrType,
+      _attrSetup = attrData ^. attrSetup
     }
   where
     updateRefInVal :: RunArg -> Maybe RunArg
@@ -185,12 +223,13 @@ updateRefInAttrData old new attrData =
     updateRefInVal (ArgEntry i) = Just $ ArgEntry i
 
 updateRefInAttr :: Id -> Maybe Id -> Attr -> Attr
-updateRefInAttr old new = attrMtdt %~ M.fromList . mapMaybe updateRefInMtdt . M.toList
+updateRefInAttr old new = attrMtdt %~ mconcat . map updateRefInMtdt . M.toList
   where
-    updateRefInMtdt :: (Text, Text) -> Maybe (Text, Text)
-    updateRefInMtdt (key, val) =
-      let oldMtdt = parseAttrMtdt key val
+    updateRefInMtdt :: (Text, [Text]) -> Map Text [Text]
+    updateRefInMtdt (key, vals) =
+      let oldMtdt = parseAttrMtdt key vals
        in let newMtdt = updateRefInAttrData old new oldMtdt
-           in case renderAttrData newMtdt of
-                [] -> if oldMtdt == newMtdt then Just (key, val) else Nothing
-                (nkey, nval) : _ -> Just (nkey, nval)
+           in let rendered = renderAttrData newMtdt
+               in if M.null rendered
+                    then (if oldMtdt == newMtdt then M.singleton key vals else M.empty)
+                    else rendered

@@ -1,6 +1,6 @@
 module Korrvigs.Note.Pandoc (readNote, readNoteFromText, parsePandoc, parseTopBlocks, extractItem, codeRunnable) where
 
-import Control.Arrow (first, (&&&))
+import Control.Arrow (first, second, (&&&))
 import Control.Exception (SomeException, try)
 import Control.Lens hiding ((<|))
 import Control.Monad
@@ -15,6 +15,7 @@ import qualified Data.Array.ST as SAr
 import Data.Bitraversable (bimapM)
 import qualified Data.CaseInsensitive as CI
 import Data.Foldable (toList)
+import Data.List (singleton)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -465,7 +466,8 @@ parseInline (Note bks) = pure . A.Sidenote <$> concatMapM parseBlock bks
 parseInline (Span _ inls) = parseInlines inls
 
 parseAttr :: Attr -> A.Attr
-parseAttr (i, cls, mtdt) = A.MkAttr i cls $ M.fromList mtdt
+parseAttr (i, cls, mtdt) =
+  A.MkAttr i cls $ M.fromListWith (<>) $ second singleton <$> mtdt
 
 -- Tables
 tableSize :: [Row] -> (Int, Int)

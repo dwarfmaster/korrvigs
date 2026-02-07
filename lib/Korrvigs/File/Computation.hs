@@ -27,7 +27,8 @@ mkRunnable nm tp i code =
         _runArgs = [ArgEntry i],
         _runEnv = M.empty,
         _runStdIn = Nothing,
-        _runCode = code
+        _runCode = code,
+        _runSetup = mempty
       }
 
 mkMinRunnable :: Id -> Text -> Map Text Runnable

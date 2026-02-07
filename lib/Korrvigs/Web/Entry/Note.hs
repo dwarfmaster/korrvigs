@@ -23,7 +23,6 @@ import Data.Default
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe
-import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -227,8 +226,8 @@ compileBlock' (CodeBlock attr code) = do
   widgets <-
     use currentDoc >>= \doc -> case if repComp then M.lookup (attr ^. attrId) (doc ^. docComputations) else Nothing of
       Just res -> case displayKind of
-        Just "code" -> singleton . (True,) <$> aceWidget
-        Just "both" -> do
+        Just ["code"] -> singleton . (True,) <$> aceWidget
+        Just ["both"] -> do
           aceW <- aceWidget
           resW <- resWidget (res ^. cmpResType) (res ^. cmpResData)
           pure [(True, aceW), (False, resW)]
@@ -512,20 +511,18 @@ compileAttrWithClasses cls attr = do
   pure $
     [("id", attr ^. attrId) | not (T.null $ attr ^. attrId) && not isEmbedded]
       ++ [("class", T.intercalate " " $ cls ++ (attr ^. attrClasses))]
-      ++ M.toList (attr ^. attrMtdt)
 
 compileAttr :: Attr -> CompileM [(Text, Text)]
 compileAttr = compileAttrWithClasses []
 
 compileAttr' :: Attr -> Html -> CompileM Html
-compileAttr' (MkAttr i clss misc) html = do
+compileAttr' (MkAttr i clss _) html = do
   isEmbedded <- use embedded
   uId <- if isEmbedded then pure "" else pure i
-  pure $ applyId uId . applyClasses . applyMisc $ html
+  pure $ applyId uId . applyClasses $ html
   where
     applyId usedId = if T.null usedId then id else applyAttr $ Attr.id $ textValue usedId
     applyClasses = if null clss then id else applyAttr $ Attr.class_ $ textValue $ T.intercalate " " clss
-    applyMisc = appEndo $ foldMap (\(k, v) -> Endo $ applyAttr $ customAttribute (textTag k) $ textValue v) $ M.toList misc
 
 compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Maybe Task -> Checks -> SubLoc -> Bool -> Handler Widget
 compileHead entry n hdId t edit task checks subL enableEdit = do

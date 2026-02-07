@@ -348,7 +348,7 @@ renderAttr attr = listOnLine as (writeText "{") (writeText " ") (writeText "}")
   where
     i = [writeText "#" >> writeText (attr ^. attrId) | not . T.null $ attr ^. attrId]
     cls = [writeText "." >> writeText c | c <- attr ^. attrClasses]
-    attributes = [writeText key >> writeText "=\"" >> writeText value >> writeText "\"" | (key, value) <- M.toList (attr ^. attrMtdt)]
+    attributes = [writeText key >> writeText "=\"" >> writeText value >> writeText "\"" | (key, values) <- M.toList (attr ^. attrMtdt), value <- values]
     as = i ++ cls ++ attributes
 
 renderMetadata :: Text -> Set Id -> Map (CI Text) Value -> RenderM ()

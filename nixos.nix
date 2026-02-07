@@ -86,6 +86,7 @@ overlay: {
     pkgs.povray
     pkgs.texliveFull
     pkgs.gnuplot
+    pkgs.asymptote
   ];
 in {
   options.programs.korrvigs = {

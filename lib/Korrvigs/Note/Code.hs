@@ -45,7 +45,8 @@ knownLanguages =
       ("povray", Povray),
       ("latex", LaTeX),
       ("context", ConTeXt),
-      ("gnuplot", GnuPlot)
+      ("gnuplot", GnuPlot),
+      ("asymptote", Asymptote)
     ]
 
 data AttrData = AttrData

@@ -51,6 +51,7 @@ modeMap =
       ("json", "json"),
       ("toml", "toml"),
       ("xml", "xml"),
+      ("asymptote", "c_cpp"),
       -- Misc
       ("nix", "nix"),
       ("mysql", "mysql"),

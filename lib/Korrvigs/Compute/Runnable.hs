@@ -80,6 +80,7 @@ data Executable
   | LaTeX
   | ConTeXt
   | GnuPlot
+  | Asymptote
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -254,6 +255,13 @@ mkExeProc GnuPlot stp _ tp =
     tpFlag VectorGraphic = "svg"
     tpFlag VectorDocument = "pdf"
     tpFlag _ = "jpeg"
+mkExeProc Asymptote stp _ tp =
+  noCompile "code.asy" $ procArgs "asy" stp ["-f", tpName tp, "code.asy", "-o", "-"]
+  where
+    tpName ScalarImage = "jpg"
+    tpName ScalarGraphic = "png"
+    tpName VectorDocument = "pdf"
+    tpName _ = "pdf"
 
 bashFlags :: [Text] -> Text
 bashFlags flags = T.intercalate " " $ escape <$> flags
@@ -379,6 +387,7 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe LaTeX = stringUtf8 "latex"
     buildExe ConTeXt = stringUtf8 "context"
     buildExe GnuPlot = stringUtf8 "gnuplot"
+    buildExe Asymptote = stringUtf8 "asymptote"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

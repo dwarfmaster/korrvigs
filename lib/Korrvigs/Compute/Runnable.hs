@@ -215,8 +215,21 @@ mkExeProc CPPLang stp' args _ = mkCLikeBuildScript cfg "g++" stp "code.cpp" args
   where
     cfg = (onDebug ["-g"], singleton . ("-O" <>), singleton . ("-std=" <>))
     stp = stp' & runStpVersion %~ Just . fromMaybe "c++23"
-mkExeProc NixData stp _ _ =
-  noCompile "data.nix" $ procArgs "nix" stp ["eval", "--impure", "--json", "--file", "data.nix"]
+mkExeProc NixData stp args _ =
+  ExeProc
+    { _exeCode = "data.nix",
+      _exeCompileScript =
+        Just
+          [trimming|
+      cat << EOF > eval.nix
+      import ./data.nix $nixArgs
+      EOF
+    |],
+      _exeRun = procArgs "nix" stp ["eval", "--impure", "--json", "--file", "eval.nix"]
+    }
+  where
+    nixArgs = T.intercalate " " $ nixEscape <$> args
+    nixEscape arg = "\"" <> T.replace "\"" "\\\"" (T.replace "\\" "\\\\" arg) <> "\""
 mkExeProc Python stp args _ =
   noCompile "code.py" $ procArgs "python3" stp $ "code.py" : args
 mkExeProc Lua stp args _ =

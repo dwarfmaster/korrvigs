@@ -22,6 +22,7 @@ modeMap =
       ("latex", "latex"),
       ("context", "latex"),
       ("bibtex", "bibtex"),
+      ("tikz", "latex"),
       -- Languages
       ("c", "c_cpp"),
       ("cpp", "c_cpp"),

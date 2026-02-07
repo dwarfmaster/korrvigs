@@ -46,7 +46,8 @@ knownLanguages =
       ("latex", LaTeX),
       ("context", ConTeXt),
       ("gnuplot", GnuPlot),
-      ("asymptote", Asymptote)
+      ("asymptote", Asymptote),
+      ("tikz", TiKZ)
     ]
 
 data AttrData = AttrData
@@ -187,6 +188,7 @@ languageToType NixData = Just ArbitraryJson
 languageToType Dhall = Just ArbitraryJson
 languageToType LaTeX = Just VectorDocument
 languageToType ConTeXt = Just VectorDocument
+languageToType TiKZ = Just VectorDocument
 languageToType _ = Nothing
 
 toRunnable :: Attr -> Text -> Maybe Runnable

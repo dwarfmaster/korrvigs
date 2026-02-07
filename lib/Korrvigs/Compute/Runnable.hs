@@ -81,6 +81,7 @@ data Executable
   | ConTeXt
   | GnuPlot
   | Asymptote
+  | TiKZ
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -262,6 +263,24 @@ mkExeProc Asymptote stp _ tp =
     tpName ScalarGraphic = "png"
     tpName VectorDocument = "pdf"
     tpName _ = "pdf"
+mkExeProc TiKZ stp _ _ =
+  ExeProc
+    { _exeCode = "input.tikz",
+      _exeCompileScript =
+        Just
+          [trimming|
+      cat << EOF > doc.tex
+      \documentclass[tikz]{standalone}
+      \begin{document}\begin{tikzpicture}
+      \input{input.tikz}
+      \end{tikzpicture}\end{document}
+      EOF
+      pdflatex $flags doc.tex
+    |],
+      _exeRun = proc "cat" ["doc.pdf"]
+    }
+  where
+    flags = bashFlags $ stp ^. runStpFlags
 
 bashFlags :: [Text] -> Text
 bashFlags flags = T.intercalate " " $ escape <$> flags
@@ -388,6 +407,7 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe ConTeXt = stringUtf8 "context"
     buildExe GnuPlot = stringUtf8 "gnuplot"
     buildExe Asymptote = stringUtf8 "asymptote"
+    buildExe TiKZ = stringUtf8 "tikz"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

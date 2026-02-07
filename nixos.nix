@@ -78,7 +78,7 @@ overlay: {
     pkgs.dhall-json
     pkgs.rakudo
     pkgs.perl
-    pkgs.haskellPackages.ghc
+    (pkgs.haskellPackages.ghc.withPackages (hpkgs: [hpkgs.diagrams-core hpkgs.diagrams-lib hpkgs.diagrams-contrib hpkgs.diagrams-svg hpkgs.diagrams-rasterific]))
     pkgs.rustc
     pkgs.ocaml
     pkgs.openscad

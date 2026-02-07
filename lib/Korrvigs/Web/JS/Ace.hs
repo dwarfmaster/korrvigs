@@ -27,6 +27,7 @@ modeMap =
       ("c", "c_cpp"),
       ("cpp", "c_cpp"),
       ("haskell", "haskell"),
+      ("haskell-diagrams", "haskell"),
       ("rust", "rust"),
       ("zig", "zig"),
       ("ada", "ada"),

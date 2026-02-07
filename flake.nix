@@ -65,6 +65,11 @@
             hpkgs.conduit-aeson
             hpkgs.neat-interpolation
             hpkgs.base32
+            hpkgs.diagrams-core
+            hpkgs.diagrams-lib
+            hpkgs.diagrams-contrib
+            hpkgs.diagrams-svg
+            hpkgs.diagrams-rasterific
           ]);
 
           git-hooks.hooks = {

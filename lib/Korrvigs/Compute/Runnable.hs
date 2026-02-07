@@ -73,6 +73,7 @@ data Executable
   | Perl
   | Raku
   | Haskell
+  | HaskellDiagrams
   | Rust
   | OCaml
   | OpenScad
@@ -246,6 +247,28 @@ mkExeProc Haskell stp' args _ = mkCLikeBuildScript cfg "ghc" stp "code.hs" args
   where
     cfg = (onDebug ["-g"], singleton . ("-O" <>), singleton . ("-X" <>))
     stp = stp' & runStpVersion %~ Just . fromMaybe "Haskell2010"
+mkExeProc HaskellDiagrams stp' args tp =
+  ExeProc
+    { _exeCode = "code.hs",
+      _exeCompileScript =
+        Just
+          [trimming|
+      tac code.hs | awk '!p && /import/{print "main = mainWith diagram\nimport Diagrams.Backend.$backend.CmdLine"; p=1} 1' | tac > build.hs
+      $compile
+      ./korrvigs.out $nargs
+    |],
+      _exeRun = proc "cat" [T.unpack outfile]
+    }
+  where
+    cfg = (onDebug ["-g"], singleton . ("-O" <>), singleton . ("-X" <>))
+    stp = stp' & runStpVersion %~ Just . fromMaybe "Haskell2010"
+    nargs = bashFlags $ args <> ["-o", outfile, "-w", "1000"]
+    backend = case tp of
+      VectorGraphic -> "SVG"
+      _ -> "Rasterific"
+    ext = runTypeExt tp
+    outfile = "korrvigs." <> ext
+    compile = clikeCompile cfg "ghc" stp "build.hs"
 mkExeProc Rust stp args _ = mkCLikeBuildScript cfg "rustc" stp "code.rs" args
   where
     cfg = (onDebug ["-C", "debuginfo=2"], \o -> ["-C", "opt-level=" <> o], const [])
@@ -300,20 +323,14 @@ bashFlags flags = T.intercalate " " $ escape <$> flags
   where
     escape f = "'" <> T.replace "'" "\\'" f <> "'"
 
-mkCLikeBuildScript ::
+clikeCompile ::
   (RunProfile -> [Text], Text -> [Text], Text -> [Text]) ->
   Text ->
   RunnableSetup ->
   FilePath ->
-  [Text] ->
-  ExeProc
-mkCLikeBuildScript (prof, opt, version) gcc stp code args =
-  ExeProc
-    { _exeCode = code,
-      _exeCompileScript =
-        Just $ gcc <> " " <> bashFlags flags <> " -o korrvigs.out " <> T.pack code,
-      _exeRun = proc "./korrvigs.out" $ T.unpack <$> args
-    }
+  Text
+clikeCompile (prof, opt, version) gcc stp code =
+  gcc <> " " <> bashFlags flags <> " -o korrvigs.out " <> T.pack code
   where
     mkFlag :: (a -> [Text]) -> Maybe a -> [Text]
     mkFlag bld val = bld =<< toList val
@@ -322,6 +339,21 @@ mkCLikeBuildScript (prof, opt, version) gcc stp code args =
         <> mkFlag opt (stp ^. runStpOpt)
         <> mkFlag version (stp ^. runStpVersion)
         <> stp ^. runStpFlags
+
+mkCLikeBuildScript ::
+  (RunProfile -> [Text], Text -> [Text], Text -> [Text]) ->
+  Text ->
+  RunnableSetup ->
+  FilePath ->
+  [Text] ->
+  ExeProc
+mkCLikeBuildScript setup gcc stp code args =
+  ExeProc
+    { _exeCode = code,
+      _exeCompileScript =
+        Just $ clikeCompile setup gcc stp code,
+      _exeRun = proc "./korrvigs.out" $ T.unpack <$> args
+    }
 
 openScad3d :: RunnableSetup -> ExeProc
 openScad3d stp =
@@ -412,6 +444,7 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe Raku = stringUtf8 "raku"
     buildExe Perl = stringUtf8 "perl"
     buildExe Haskell = stringUtf8 "haskell"
+    buildExe HaskellDiagrams = stringUtf8 "haskell-diagrams"
     buildExe Rust = stringUtf8 "rust"
     buildExe OCaml = stringUtf8 "ocaml"
     buildExe OpenScad = stringUtf8 "openscad"

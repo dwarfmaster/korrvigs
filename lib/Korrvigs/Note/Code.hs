@@ -39,6 +39,7 @@ knownLanguages =
       ("perl", Perl),
       ("raku", Raku),
       ("haskell", Haskell),
+      ("haskell-diagrams", HaskellDiagrams),
       ("rust", Rust),
       ("ocaml", OCaml),
       ("openscad", OpenScad),
@@ -200,7 +201,7 @@ toRunnable attr code = do
   pure $
     Runnable
       { _runExecutable = language,
-        _runCode = code,
+        _runCode = code <> "\n",
         _runType = tp,
         _runArgs = fmap snd $ M.toList $ attrDat ^. attrArg,
         _runEnv = attrDat ^. attrEnv,

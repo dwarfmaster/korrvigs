@@ -44,7 +44,8 @@ knownLanguages =
       ("openscad", OpenScad),
       ("povray", Povray),
       ("latex", LaTeX),
-      ("context", ConTeXt)
+      ("context", ConTeXt),
+      ("gnuplot", GnuPlot)
     ]
 
 data AttrData = AttrData

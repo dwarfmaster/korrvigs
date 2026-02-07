@@ -79,6 +79,7 @@ data Executable
   | Povray
   | LaTeX
   | ConTeXt
+  | GnuPlot
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data RunArg
@@ -245,6 +246,14 @@ mkExeProc Povray stp _ _ =
   noCompile "model.pov" $ procArgs "povray" stp ["model.pov", "-o-"]
 mkExeProc LaTeX stp _ _ = texBuild stp "pdflatex"
 mkExeProc ConTeXt stp _ _ = texBuild stp "context"
+mkExeProc GnuPlot stp _ tp =
+  noCompile "code.dem" $ procArgs "gnuplot" stp ["-e", "set term " <> tpFlag tp, "code.dem"]
+  where
+    tpFlag ScalarImage = "jpeg"
+    tpFlag ScalarGraphic = "png"
+    tpFlag VectorGraphic = "svg"
+    tpFlag VectorDocument = "pdf"
+    tpFlag _ = "jpeg"
 
 bashFlags :: [Text] -> Text
 bashFlags flags = T.intercalate " " $ escape <$> flags
@@ -369,6 +378,7 @@ hashRunnable hashEntry hashComp curId rbl = fmap doHash . execWriterT $ do
     buildExe Povray = stringUtf8 "povray"
     buildExe LaTeX = stringUtf8 "latex"
     buildExe ConTeXt = stringUtf8 "context"
+    buildExe GnuPlot = stringUtf8 "gnuplot"
     buildRunArg (ArgPlain txt) = do
       tell $ char8 'p'
       tell $ stringUtf8 $ T.unpack txt

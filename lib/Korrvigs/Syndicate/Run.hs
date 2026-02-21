@@ -190,7 +190,10 @@ insertOneItem it = findAndInsert
   where
     merge :: (MonadKorrvigs m) => SyndicatedItem -> SyndicatedItem -> m SyndicatedItem
     merge new old =
-      tryInstantiate $ new & synitInstance .~ old ^. synitInstance
+      tryInstantiate $
+        new
+          & synitInstance .~ old ^. synitInstance
+          & synitRead .~ old ^. synitRead
     findAndInsert :: (MonadKorrvigs m) => [SyndicatedItem] -> m [SyndicatedItem]
     findAndInsert [] = (: []) <$> tryInstantiate it
     findAndInsert (oit : oits) | isSame it oit = (: oits) <$> merge it oit

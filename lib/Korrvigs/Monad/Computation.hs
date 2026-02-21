@@ -2,6 +2,7 @@ module Korrvigs.Monad.Computation where
 
 import Conduit
 import Control.Lens
+import Control.Monad
 import Data.Text (Text)
 import Data.Time.Clock
 import Korrvigs.Compute.Runnable
@@ -12,6 +13,8 @@ import qualified Korrvigs.File.Sync as File
 import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL
 import qualified Korrvigs.Note.Sync as Note
+import Opaleye
+import Prelude hiding (null)
 
 getComputation :: (MonadKorrvigs m) => Id -> Text -> m (Maybe Computation)
 getComputation i cmp =
@@ -25,6 +28,20 @@ getComputation i cmp =
 storeComputationResult :: (MonadKorrvigs m) => Id -> Text -> RunnableType -> Hash -> UTCTime -> Int -> RunnableResult -> m ()
 storeComputationResult i cmp tp hsh date time res = do
   entry <- load i >>= throwMaybe (KCantLoad i "Failed to load entry")
+  void $ atomicSQL $ \conn ->
+    runUpdate conn $
+      Update
+        { uTable = computationsTable,
+          uWhere = \c ->
+            (c ^. sqlCompEntry)
+              .== sqlInt4 (entry ^. entryId)
+              .&& (c ^. sqlCompName)
+              .== sqlStrictText cmp,
+          uUpdateWith =
+            (sqlCompLastRun .~ toNullable (sqlUTCTime date))
+              . (sqlCompRunTime .~ toNullable (sqlInt4 time)),
+          uReturning = rCount
+        }
   case entry ^. entryKindData of
     NoteD note -> Note.storeComputationResult note cmp tp hsh date time res
     FileD file -> File.storeComputationResult file cmp tp hsh date time res
@@ -32,6 +49,19 @@ storeComputationResult i cmp tp hsh date time res = do
 
 clearComputationsResult :: (MonadKorrvigs m) => Entry -> [Text] -> m ()
 clearComputationsResult entry cmps = do
+  void $ atomicSQL $ \conn ->
+    runUpdate conn $
+      Update
+        { uTable = computationsTable,
+          uWhere = \c ->
+            (c ^. sqlCompEntry)
+              .== sqlInt4 (entry ^. entryId)
+              .&& in_ (sqlStrictText <$> cmps) (c ^. sqlCompName),
+          uUpdateWith =
+            (sqlCompLastRun .~ null)
+              . (sqlCompRunTime .~ null),
+          uReturning = rCount
+        }
   case entry ^. entryKindData of
     NoteD note -> Note.clearComputationsResult note cmps
     FileD file -> File.clearComputationsResult file cmps

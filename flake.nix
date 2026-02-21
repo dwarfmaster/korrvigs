@@ -125,11 +125,12 @@
         nixvimInjections = true;
       };
       colorschemes.everforest.enable = true;
+      plugins.web-devicons.enable = true;
       plugins.telescope.enable = true;
       plugins.headlines.enable = true;
       plugins.nvim-ufo = {
         enable = true;
-        providerSelector = ''
+        settings.provider_selector = ''
           function(bufnr, filetype, buftype)
             return {'treesitter', 'indent'}
           end

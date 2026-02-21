@@ -175,6 +175,18 @@ function m.attach_file(dir)
   })
 end
 
+function m.follow_link()
+  local range, linkName, linkValue = extract_link_at_cursor()
+  if string.find(linkValue, ":") then
+    os.execute("xdg-open \"" .. linkValue .. "\"")
+  else
+    local handle = io.popen("korr query --format \"{path}\" --id " .. linkValue)
+    local path = handle:read("*a")
+    handle:close()
+    vim.cmd.edit(path)
+  end
+end
+
 function m.setup()
   vim.g.korrvigs_root = os.execute('korr config root')
   vim.filetype.add({

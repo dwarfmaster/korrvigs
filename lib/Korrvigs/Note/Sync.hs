@@ -250,3 +250,7 @@ getComputation note cmp = do
 storeComputationResult :: (MonadKorrvigs m) => Note -> Text -> RunnableType -> Hash -> UTCTime -> Int -> RunnableResult -> m ()
 storeComputationResult note cmp tp hash date time res =
   updateImpl note $ pure . (docComputations . at cmp ?~ ComputationResult tp hash date time res)
+
+clearComputationsResult :: (MonadKorrvigs m) => Note -> [Text] -> m ()
+clearComputationsResult note cmps =
+  updateImpl note $ pure . (docComputations %~ (`M.difference` (M.fromList $ (,()) <$> cmps)))

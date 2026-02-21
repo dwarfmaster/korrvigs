@@ -29,3 +29,10 @@ storeComputationResult i cmp tp hsh date time res = do
     NoteD note -> Note.storeComputationResult note cmp tp hsh date time res
     FileD file -> File.storeComputationResult file cmp tp hsh date time res
     _ -> throwM $ KMiscError $ "Tried to save computation to " <> unId i <> ", which is neither a note nor a file"
+
+clearComputationsResult :: (MonadKorrvigs m) => Entry -> [Text] -> m ()
+clearComputationsResult entry cmps = do
+  case entry ^. entryKindData of
+    NoteD note -> Note.clearComputationsResult note cmps
+    FileD file -> File.clearComputationsResult file cmps
+    _ -> pure ()

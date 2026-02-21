@@ -34,6 +34,7 @@ import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.LocalTime
+import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.Mtdt
@@ -44,6 +45,7 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.Android
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
+import qualified Korrvigs.Monad.Computation as Comp
 import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
@@ -150,6 +152,12 @@ update file nfile = do
               uWhere = \row -> row ^. sqlFileId .== sqlInt4 i,
               uReturning = rCount
             }
+  -- Clear cached computations
+  cmps <- rSelect $ do
+    cmp <- selectTable computationsTable
+    where_ $ cmp ^. sqlCompEntry .== sqlInt4 i
+    pure $ cmp ^. sqlCompName
+  Comp.clearComputationsResult (file ^. fileEntry) cmps
 
 fromAndroid :: (MonadKorrvigs m) => (Text, FilePath) -> m (NewFile -> NewFile)
 fromAndroid (adb, rel) = fmap (fromMaybe id) $ runMaybeT $ do

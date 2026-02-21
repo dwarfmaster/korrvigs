@@ -245,3 +245,7 @@ getComputation file cmp = case M.lookup cmp comps of
 storeComputationResult :: (MonadKorrvigs m) => File -> Text -> RunnableType -> Hash -> UTCTime -> Int -> RunnableResult -> m ()
 storeComputationResult file cmp tp hash date time res =
   updateImpl file $ pure . (computations . at cmp ?~ ComputationResult tp hash date time res)
+
+clearComputationsResult :: (MonadKorrvigs m) => File -> [Text] -> m ()
+clearComputationsResult file cmps =
+  updateImpl file $ pure . (computations %~ (`M.difference` (M.fromList $ (,()) <$> cmps)))

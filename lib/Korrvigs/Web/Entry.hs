@@ -49,6 +49,7 @@ titleWidget entry contentId = do
   taskW <- Wdgs.taskWidget (entry ^. entryName) (SubLoc []) =<< loadTask (entry ^. entryName) (entry ^. entryId) title
   medit <- if public then pure mempty else editWidget
   downloadUrl <- Public.mkPublic $ EntryDownloadR $ WId $ entry ^. entryName
+  mAgCount <- rSelectMtdt AggregateCount $ sqlId $ entry ^. entryName
   pure $ do
     case title of
       Just t -> setTitle $ toMarkup t
@@ -60,6 +61,9 @@ titleWidget entry contentId = do
         ⬇
     <h1>
       ^{taskW}
+      $maybe agCount <- mAgCount
+        <span .aggregate-count>
+          #{show agCount}
       $maybe t <- title
         #{t}
       <span .entry-name>

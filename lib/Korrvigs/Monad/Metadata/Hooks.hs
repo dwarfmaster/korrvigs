@@ -47,7 +47,7 @@ updateAggregate updateMetadata entry syn =
         where_ $ item ^. sqlSynItUrl .== url
         pure (item ^. sqlSynItSequence, isStrict)
       forM_ mseq $ \(sq, isStrict) -> do
-        mcnt :: Maybe Int64 <- rSelectOne $ aggregate count $ do
+        mcnt :: Maybe Int64 <- rSelectOne $ countRows $ do
           item <- selectTable syndicatedItemsTable
           where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
           let op = if isStrict then (.>) else (.>=)
@@ -55,7 +55,7 @@ updateAggregate updateMetadata entry syn =
           pure $ item ^. sqlSynItSequence
         forM_ mcnt $ \cnt -> updateMetadata entry (M.singleton (mtdtSqlName AggregateCount) (toJSON cnt)) []
     Just "count-new" -> do
-      mcnt :: Maybe Int64 <- rSelectOne $ aggregate count $ do
+      mcnt :: Maybe Int64 <- rSelectOne $ countRows $ do
         item <- selectTable syndicatedItemsTable
         where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
         where_ $ isNull $ item ^. sqlSynItInstance

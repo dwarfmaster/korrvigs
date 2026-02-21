@@ -83,8 +83,8 @@ dispatchMedia nm = do
     DispatcherSuccess md -> pure md
     DispatcherSkip ->
       pure $
-        setMtdtValue MediaMtdt (fromMaybe Blogpost $ nm ^. nmType)
-          . setMtdtValue Url (nm ^. nmInput)
+        setMtdtValueLazy MediaMtdt (fromMaybe Blogpost $ nm ^. nmType)
+          . setMtdtValueLazy Url (nm ^. nmInput)
     DispatcherFail lbl -> throwM $ KMiscError $ "Failed to import from " <> lbl
   where
     dispatchers =

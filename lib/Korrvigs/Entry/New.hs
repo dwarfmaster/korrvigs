@@ -20,6 +20,7 @@ module Korrvigs.Entry.New
     setMtdtValueLazyV,
     setMtdtValueM,
     setMtdtValueLazyM,
+    reifyNew,
   )
 where
 
@@ -158,3 +159,12 @@ setMtdtValueM mtdt (Just val) = setMtdtValue mtdt val
 setMtdtValueLazyM :: (ExtraMetadata mtdt, ToJSON (MtdtType mtdt)) => mtdt -> Maybe (MtdtType mtdt) -> NewEntry -> NewEntry
 setMtdtValueLazyM _ Nothing = id
 setMtdtValueLazyM mtdt (Just val) = setMtdtValueLazy mtdt val
+
+reifyNew :: (MonadKorrvigs m) => NewEntry -> m NewEntry
+reifyNew ne = case ne ^. neLanguage of
+  Just _ -> pure ne
+  Nothing -> case ne ^. neParents of
+    [] -> pure ne
+    p : _ -> do
+      language <- rSelectTextMtdt Language $ sqlId p
+      pure $ ne & neLanguage .~ language

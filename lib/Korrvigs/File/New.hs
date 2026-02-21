@@ -325,4 +325,5 @@ applyCover ne title = do
         ne
           & neMtdt . at (mtdtName Cover) ?~ toJSON (unId covId)
           & neChildren %~ (covId :)
-  pure $ fromMaybe ne mne
+  let rne = fromMaybe ne mne
+  reifyNew rne

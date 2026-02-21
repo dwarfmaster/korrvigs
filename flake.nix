@@ -157,7 +157,6 @@
       nvim-korrvigs = korrvigs-plugin;
       default = self.packages.${system}.korrvigs;
       nvim-with-korrvigs = nvim;
-      tmp = pkgs.haskellPackages.alfred-margaret;
       inherit pkgs;
     };
 

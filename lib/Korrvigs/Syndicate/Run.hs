@@ -164,7 +164,7 @@ insertOneItem it = findAndInsert
     findAndInsert :: (MonadKorrvigs m) => [SyndicatedItem] -> m [SyndicatedItem]
     findAndInsert [] = (: []) <$> tryInstantiate it
     findAndInsert (oit : oits) | isSame it oit = (: oits) <$> merge it oit
-    findAndInsert (oit : oits) = (:) <$> tryInstantiate oit <*> findAndInsert oits
+    findAndInsert (oit : oits) = (oit :) <$> findAndInsert oits
 
 tryInstantiate :: (MonadKorrvigs m) => SyndicatedItem -> m SyndicatedItem
 tryInstantiate it = case it ^. synitInstance of

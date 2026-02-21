@@ -121,6 +121,7 @@ mkMtdt "LastRead" "last-read" [t|Text|]
 mkMtdt "FirstUnread" "first-unread" [t|Text|]
 mkMtdt "Archived" "archived" [t|Bool|]
 mkMtdt "RunJavascript" "run-javascript" [t|Bool|]
+mkMtdt "KeepFragment" "keep-fragment" [t|Bool|]
 mkMtdt "RunBatch" "run-batch" [t|[Text]|]
 mkMtdt "RunTime" "run-time" [t|Int|] -- In milliseconds
 mkMtdt "RunDate" "run-date" [t|Text|]

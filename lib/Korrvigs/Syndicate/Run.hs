@@ -1,3 +1,5 @@
+{-# LANGUAGE UndecidableInstances #-}
+
 module Korrvigs.Syndicate.Run where
 
 import Conduit
@@ -18,6 +20,7 @@ import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe
 import Data.Monoid
+import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -40,11 +43,13 @@ import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.New (lazyUpdateDate, lookupFromUrl)
 import Korrvigs.Syndicate.Sync (updateImpl)
 import Korrvigs.Utils
+import Korrvigs.Utils.JSON (sqlJsonToBool)
 import Korrvigs.Utils.Time (measureTimeMs)
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
 import Network.HTTP.Types.URI
 import Network.URI
+import Opaleye hiding (not)
 import System.IO
 import System.Process
 import qualified Text.Atom.Feed as Atom
@@ -55,6 +60,21 @@ import qualified Text.RSS.Syntax as RSS
 import qualified Text.RSS1.Syntax as RSS1
 import Prelude hiding (last)
 
+data SyndicateSettingsImpl a b = SyndicateSettings
+  { _runJavascript :: a,
+    _keepFragment :: b
+  }
+
+type SyndicateSettings = SyndicateSettingsImpl Bool Bool
+
+type SyndicateSettingsSQL = SyndicateSettingsImpl (Field SqlBool) (Field SqlBool)
+
+defSettings :: SyndicateSettings
+defSettings = SyndicateSettings False False
+
+makeLenses ''SyndicateSettingsImpl
+makeAdaptorAndInstanceInferrable "pSyndicateSettings" ''SyndicateSettingsImpl
+
 -- Return Nothing if the ressource has expired or if it hasn't changed
 lazyDownload ::
   (MonadIO m, MonadThrow m, MonadResource m) =>
@@ -62,9 +82,10 @@ lazyDownload ::
   Text ->
   Maybe UTCTime ->
   Maybe Text ->
-  Bool ->
+  SyndicateSettings ->
   m (Maybe (ConduitT () BSU8.ByteString m (), Maybe Text, m ()))
-lazyDownload man url expiration etag runJs = runMaybeT $ do
+lazyDownload man url expiration etag settings = runMaybeT $ do
+  let runJs = settings ^. runJavascript
   forM_ expiration $ \expi -> do
     current <- liftIO getCurrentTime
     guard $ current > expi
@@ -94,13 +115,20 @@ run syn = case syn ^. synUrl of
   Just url -> do
     (time, (f, r)) <- measureTimeMs $ do
       man <- manager
-      runJs <- fromMaybe False <$> rSelectMtdt RunJavascript (sqlId $ syn ^. synEntry . entryName)
-      lazyDownload man url (syn ^. synExpiration) (syn ^. synETag) runJs >>= \case
+      let sqlI = sqlInt4 $ syn ^. synEntry . entryId
+      let getSqlBool = fromNullable (sqlBool False) . sqlJsonToBool
+      settings <-
+        fmap (fromMaybe defSettings) $
+          rSelectOne $
+            SyndicateSettings . getSqlBool
+              <$> selectMtdt RunJavascript sqlI
+              <*> (getSqlBool <$> selectMtdt KeepFragment sqlI)
+      lazyDownload man url (syn ^. synExpiration) (syn ^. synETag) settings >>= \case
         Nothing -> pure (pure, False)
         Just (dat, netag, cleanup) -> do
           (imp, items) <- case syn ^. synFilters of
-            [] -> runWithoutFilter dat
-            (flt : flts) -> runWithFilters dat (flt :| flts)
+            [] -> runWithoutFilter settings dat
+            (flt : flts) -> runWithFilters settings dat (flt :| flts)
           cleanup
           let setETag = synjsETag .~ netag
           let updItems synjs = do
@@ -114,30 +142,31 @@ run syn = case syn ^. synUrl of
     syncFileOfKind (syn ^. synPath) Syndicate
     pure r
 
-sinkFeed :: (MonadKorrvigs m) => ConduitT BSU8.ByteString Void m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
-sinkFeed = sinkLazy >>= parseFeed
+sinkFeed :: (MonadKorrvigs m) => SyndicateSettings -> ConduitT BSU8.ByteString Void m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
+sinkFeed settings = sinkLazy >>= parseFeed
   where
     parseFeed lbs = lift $ do
       feed <- throwMaybe (KMiscError "Failed to parse feed") $ parseFeedSource lbs
       current <- liftIO getCurrentTime
       pure $ case feed of
-        AtomFeed fd -> importFromAtom fd
-        RSSFeed fd -> importFromRSS current fd
-        RSS1Feed fd -> importFromRSS1 fd
-        XMLFeed xml -> importFromXML xml
+        AtomFeed fd -> importFromAtom settings fd
+        RSSFeed fd -> importFromRSS settings current fd
+        RSS1Feed fd -> importFromRSS1 settings fd
+        XMLFeed xml -> importFromXML settings xml
 
 runWithFilters ::
   (MonadKorrvigs m, MonadResource m) =>
+  SyndicateSettings ->
   ConduitT () BSU8.ByteString m () ->
   NonEmpty (Id, Text) ->
   m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
-runWithFilters dat flts = fromMaybeT (id, []) $ do
+runWithFilters settings dat flts = fromMaybeT (id, []) $ do
   comps <- forM flts $ hoistLift . uncurry getComputation
   let lastComp = last comps
   let seen = S.fromList $ (view cmpEntry &&& view cmpName) <$> NE.toList comps
   let rec i tmp arg = runIdentityT $ resolveArg i (runVeryLazy' seen) tmp arg
   let sink = case lastComp ^. cmpRun . runType of
-        ArbitraryText -> sinkFeed
+        ArbitraryText -> sinkFeed settings
         _ -> conduitArray .| (id,) <$> sinkList
   hoistEitherLift $
     runPipe
@@ -148,9 +177,10 @@ runWithFilters dat flts = fromMaybeT (id, []) $ do
 
 runWithoutFilter ::
   (MonadKorrvigs m, MonadResource m) =>
+  SyndicateSettings ->
   ConduitT () BSU8.ByteString m () ->
   m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
-runWithoutFilter dat = runConduit $ dat .| sinkFeed
+runWithoutFilter settings dat = runConduit $ dat .| sinkFeed settings
 
 mergeItemsInto :: (MonadKorrvigs m) => [SyndicatedItem] -> [SyndicatedItem] -> m [SyndicatedItem]
 mergeItemsInto = flip (foldM (flip insertOneItem)) . reverse
@@ -183,16 +213,16 @@ parseDate date =
     dt = T.unpack date
 
 -- Remove utm_* parameters
-normalizeURL :: Text -> Text
-normalizeURL url = case parseURI $ T.unpack url of
+normalizeURL :: SyndicateSettings -> Text -> Text
+normalizeURL settings url = case parseURI $ T.unpack url of
   Nothing -> url
   Just uri ->
     let q = parseQuery $ BS8.pack $ uriQuery uri
      in let nq = filter (not . BS.isPrefixOf "utm_" . fst) q
-         in T.pack $ show $ uri {uriQuery = BSU8.toString $ renderQuery True nq, uriFragment = ""}
+         in T.pack $ show $ uri {uriQuery = BSU8.toString $ renderQuery True nq, uriFragment = if settings ^. keepFragment then uriFragment uri else ""}
 
-importFromAtom :: Atom.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
-importFromAtom feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.feedEntries feed)
+importFromAtom :: SyndicateSettings -> Atom.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
+importFromAtom settings feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.feedEntries feed)
   where
     setTitle = synjsTitle %~ Just . fromMaybe (extractText $ Atom.feedTitle feed)
     setAuthors = synjsMetadata . at (mtdtSqlName Authors) ?~ toJSON (Atom.personName <$> Atom.feedAuthors feed)
@@ -203,7 +233,7 @@ importFromAtom feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.fe
       pure $
         SyndicatedItem
           { _synitTitle = extractText $ Atom.entryTitle entry,
-            _synitUrl = normalizeURL url,
+            _synitUrl = normalizeURL settings url,
             _synitRead = False,
             _synitGUID = Just $ Atom.entryId entry,
             _synitDate = parseDate dt,
@@ -226,8 +256,8 @@ extractXMLText = T.intercalate " " . exElem
     exNode _ = []
     exElem el = exNode =<< elementNodes el
 
-importFromRSS :: UTCTime -> RSS.RSS -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
-importFromRSS time feed = (setTitle . setDesc . setTTL, mapMaybe importFromItem $ RSS.rssItems channel)
+importFromRSS :: SyndicateSettings -> UTCTime -> RSS.RSS -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
+importFromRSS settings time feed = (setTitle . setDesc . setTTL, mapMaybe importFromItem $ RSS.rssItems channel)
   where
     channel = RSS.rssChannel feed
     setTitle = synjsTitle %~ Just . fromMaybe (RSS.rssTitle channel)
@@ -240,15 +270,15 @@ importFromRSS time feed = (setTitle . setDesc . setTTL, mapMaybe importFromItem 
       pure $
         SyndicatedItem
           { _synitTitle = title,
-            _synitUrl = normalizeURL url,
+            _synitUrl = normalizeURL settings url,
             _synitRead = False,
             _synitGUID = RSS.rssGuidValue <$> RSS.rssItemGuid item,
             _synitDate = parseDate =<< RSS.rssItemPubDate item,
             _synitInstance = Nothing
           }
 
-importFromRSS1 :: RSS1.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
-importFromRSS1 feed = (setTitle . setDesc, importFromItem <$> RSS1.feedItems feed)
+importFromRSS1 :: SyndicateSettings -> RSS1.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
+importFromRSS1 settings feed = (setTitle . setDesc, importFromItem <$> RSS1.feedItems feed)
   where
     channel = RSS1.feedChannel feed
     setTitle = synjsTitle %~ Just . fromMaybe (RSS1.channelTitle channel)
@@ -257,15 +287,15 @@ importFromRSS1 feed = (setTitle . setDesc, importFromItem <$> RSS1.feedItems fee
     importFromItem item =
       SyndicatedItem
         { _synitTitle = RSS1.itemTitle item,
-          _synitUrl = normalizeURL $ RSS1.itemURI item,
+          _synitUrl = normalizeURL settings $ RSS1.itemURI item,
           _synitRead = False,
           _synitGUID = Nothing,
           _synitDate = Nothing,
           _synitInstance = Nothing
         }
 
-importFromXML :: Element -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
-importFromXML xml = (appEndo synEndo, mapMaybe extractItem $ elementNodes xml)
+importFromXML :: SyndicateSettings -> Element -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
+importFromXML settings xml = (appEndo synEndo, mapMaybe extractItem $ elementNodes xml)
   where
     checkName :: Text -> Name -> Bool
     checkName nm e =
@@ -302,7 +332,7 @@ importFromXML xml = (appEndo synEndo, mapMaybe extractItem $ elementNodes xml)
           Endo $ synitTitle .~ extractXMLText e
     extractItemV (NodeElement e)
       | checkName "link" (elementName e) =
-          maybe mempty (Endo . (synitUrl .~) . extractContentsText . snd) $ find (checkName "href" . fst) $ elementAttributes e
+          maybe mempty (Endo . (synitUrl .~) . normalizeURL settings . extractContentsText . snd) $ find (checkName "href" . fst) $ elementAttributes e
     extractItemV (NodeElement e)
       | checkName "id" (elementName e) =
           Endo $ synitGUID ?~ extractXMLText e

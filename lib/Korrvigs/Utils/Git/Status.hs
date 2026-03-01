@@ -13,7 +13,7 @@ import Data.ByteString.Lazy
 import qualified Data.ByteString.Lazy as LBS
 import Data.Char
 import Data.Maybe
-import Data.Text hiding (isAscii)
+import Data.Text hiding (isAscii, show)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc

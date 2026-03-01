@@ -57,14 +57,14 @@ overlay: {
     pkgs.bash
     pkgs.file
     pkgs.exiftool
-    pkgs.poppler_utils
+    pkgs.poppler-utils
     pkgs.pandoc
     pkgs.imagemagick
     pkgs.ghostscript
     pkgs.ffmpeg
     pkgs.swi-prolog
     pkgs.chromium
-    pkgs.perl540Packages.FileMimeInfo
+    pkgs.perl5Packages.FileMimeInfo
     pkgs.shared-mime-info
   ];
 
@@ -72,7 +72,7 @@ overlay: {
     pkgs.graphviz
     pkgs.gcc
     pkgs.nix
-    pkgs.python3Full
+    pkgs.python3
     pkgs.luajit
     pkgs.julia
     pkgs.dhall-json

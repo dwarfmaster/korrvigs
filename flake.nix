@@ -2,7 +2,7 @@
   description = "Intelligent knowledge database system";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     devenv.url = "github:cachix/devenv";
     nixvim.url = "github:nix-community/nixvim";
   };
@@ -22,9 +22,9 @@
 
     deps = [
       pkgs.exiftool
-      pkgs.poppler_utils
+      pkgs.poppler-utils
       pkgs.git
-      pkgs.perl540Packages.FileMimeInfo
+      pkgs.perl5Packages.FileMimeInfo
       pkgs.openscad
       pkgs.assimp
       pkgs.povray

@@ -16,7 +16,7 @@ import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
-import Data.Text
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Word

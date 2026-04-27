@@ -8,9 +8,8 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
-import Data.Time.Format
+import Korrvigs.Compute
 import Korrvigs.Entry
-import Korrvigs.Entry.Ident
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Blog.Mtdt
@@ -28,6 +27,7 @@ data BlogUrl
   = BlogTopLevel Text
   | BlogFilePlain Text
   | BlogPostNote Text
+  | BlogComputation Text Text RunnableType
   deriving (Eq, Ord, Show)
 
 data BlogContent

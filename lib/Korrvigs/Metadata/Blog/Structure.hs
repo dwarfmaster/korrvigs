@@ -9,7 +9,6 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
-import Data.Time.Format
 import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -33,6 +32,8 @@ data BlogUrl
   | BlogComputation Text Text RunnableType
   | BlogArchive
   | BlogArchiveTag Text
+  | BlogAtom
+  | BlogAtomTag Text
   deriving (Eq, Ord, Show)
 
 data BlogContent

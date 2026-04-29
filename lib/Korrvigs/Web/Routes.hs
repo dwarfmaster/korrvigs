@@ -76,6 +76,8 @@ korrvigsRoutes =
 /blog/posts/#Text/#Text BlogPostCompR GET
 /blog/archive/all.html BlogArchiveAllR GET
 /blog/archive/tag/#Text BlogArchiveTagR GET
+/blog/atom/feed.xml BlogAtomAllR GET
+/blog/atom/tag/#Text/feed.xml BlogAtomTagR GET
 
 -- Public
 /public PublicR GET

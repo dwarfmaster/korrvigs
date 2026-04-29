@@ -2,12 +2,14 @@ module Korrvigs.Metadata.Blog.Structure where
 
 import Control.Arrow
 import Control.Lens
+import Control.Monad.IO.Class
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
+import Data.Time.Format
 import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -15,6 +17,7 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.Blog.Mtdt
 import Korrvigs.Monad
 import Korrvigs.Utils.JSON
+import Korrvigs.Utils.Opaleye
 import Opaleye
 
 data BlogConfig = BlogConfig
@@ -28,6 +31,8 @@ data BlogUrl
   | BlogFilePlain Text
   | BlogPostNote Text
   | BlogComputation Text Text RunnableType
+  | BlogArchive
+  | BlogArchiveTag Text
   deriving (Eq, Ord, Show)
 
 data BlogContent
@@ -88,8 +93,6 @@ loadFiles cfg = do
   let postsMapping = mkMapping BlogPostNote postsSQL
   pure (topLevels <> files <> posts, filesMapping <> postsMapping)
   where
-    parsePub :: Text -> Maybe Day
-    parsePub = parseTimeM True defaultTimeLocale "%F" . T.unpack
     mkMapping :: (Text -> BlogUrl) -> [((Text, Id), Maybe Text)] -> Map Id (BlogUrl, Maybe Day)
     mkMapping f = M.fromList . fmap (view (_1 . _2) &&& (f . fst . fst &&& (>>= parsePub) . snd))
     parseTopContent :: Text -> BlogContent
@@ -97,6 +100,42 @@ loadFiles cfg = do
       ["", code] -> BlogFromCode (cfg ^. blogCfgNote) code
       [i, code] -> BlogFromCode (MkId i) code
       _ -> BlogFromNote $ MkId targetId
+
+parsePub :: Text -> Maybe Day
+parsePub = parseTimeM True defaultTimeLocale "%F" . T.unpack
+
+selectBlogTitle :: EntryRowSQLR -> Select (Field SqlText)
+selectBlogTitle entry = do
+  btitle <- selectTextMtdt BlogTitle $ entry ^. sqlEntryId
+  title <- fromNullableSelect $ pure $ entry ^. sqlEntryTitle
+  pure $ fromNullable title btitle
+
+loadForTag :: (MonadKorrvigs m) => Maybe Text -> Maybe Int -> m [(Text, Day, Text)]
+loadForTag mtag mlimit = do
+  time <- liftIO getCurrentTime
+  let day = utctDay time
+  let dayStr = formatTime defaultTimeLocale "%F" day
+  tags <- rSelect $ applyLimit $ orderBy (desc (view _2) <> asc (view _1)) $ do
+    entry <- selectTable entriesTable
+    post <- baseSelectTextMtdt BlogPost $ entry ^. sqlEntryId
+    title <- selectBlogTitle entry
+    mpub <- selectTextMtdt PublishedDate $ entry ^. sqlEntryId
+    let pub = fromNullable (sqlString dayStr) mpub
+    case mtag of
+      Nothing -> pure ()
+      Just tag -> limit 1 $ do
+        tags <- baseSelectMtdt BlogTags $ entry ^. sqlEntryId
+        sqlTag <- sqlJsonElementsText $ toNullable tags
+        where_ $ sqlStrictText tag .== sqlTag
+    pure (post, pub, title)
+  pure $ prepTag day <$> tags
+  where
+    prepTag :: Day -> (Text, Text, Text) -> (Text, Day, Text)
+    prepTag day = _2 %~ (fromMaybe day . parsePub)
+    applyLimit :: Select a -> Select a
+    applyLimit = case mlimit of
+      Nothing -> id
+      Just lim -> limit lim
 
 loadStructure :: (MonadKorrvigs m) => BlogConfig -> m BlogStructure
 loadStructure cfg = do

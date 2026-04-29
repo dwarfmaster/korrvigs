@@ -212,6 +212,7 @@ library korrvigs-lib
     Korrvigs.Web.Actions.Update
     Korrvigs.Web.Backend
     Korrvigs.Web.Bibtex
+    Korrvigs.Web.Blog
     Korrvigs.Web.Compute
     Korrvigs.Web.Download
     Korrvigs.Web.Entry

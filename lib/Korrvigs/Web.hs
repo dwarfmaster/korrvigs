@@ -5,6 +5,7 @@ module Korrvigs.Web where
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Bibtex
+import Korrvigs.Web.Blog
 import Korrvigs.Web.Compute
 import Korrvigs.Web.Download
 import Korrvigs.Web.Entry

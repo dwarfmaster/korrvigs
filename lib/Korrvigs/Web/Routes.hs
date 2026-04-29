@@ -68,6 +68,15 @@ korrvigsRoutes =
 /static StaticR Static getStaticR
 /favicon.ico FaviconR GET
 
+-- Blog
+/blog BlogR GET
+/blog/#Text BlogTopR GET
+/blog/files/#Text BlogFileR GET
+/blog/posts/#Text BlogPostR GET
+/blog/posts/#Text/#Text BlogPostCompR GET
+/blog/archive/all.html BlogArchiveAllR GET
+/blog/archive/tag/#Text BlogArchiveTagR GET
+
 -- Public
 /public PublicR GET
 /public/#Text/entry/#WebId PublicEntryR GET

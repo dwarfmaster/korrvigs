@@ -10,13 +10,12 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import Data.Time
-import Data.Time.Format
 import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Blog
-import Korrvigs.Metadata.Blog.Export (renderMeta)
+import Korrvigs.Metadata.Blog.Export (BlogPageContent (..), renderPageContent)
 import Korrvigs.Metadata.Blog.Structure
 import Korrvigs.Monad
 import Korrvigs.Note
@@ -140,23 +139,15 @@ generateArchivePage :: Text -> Html -> [(Text, Day, Text)] -> Handler Html
 generateArchivePage title extra entries = do
   cfg <- blogConfig
   mtdt <- loadMtdt cfg
-  let hd =
-        H.head $
-          mconcat
-            [ H.meta ! A.charset "UTF-8",
-              H.title $ H.toMarkup title,
-              renderMeta mtdt
-            ]
   preppedEntries <- mapM (\(u, d, t) -> (,d,t) <$> renderUrl (BlogPostNote u)) entries
   let byYear = NE.groupBy (\(_, d1, _) (_, d2, _) -> getYear d1 == getYear d2) preppedEntries
   let content =
-        H.body $
-          mconcat
-            [ H.h1 $ H.toMarkup title,
-              mconcat $ renderYear <$> byYear,
-              extra
-            ]
-  pure $ H.docTypeHtml $ hd <> content
+        mconcat
+          [ H.h1 $ H.toMarkup title,
+            mconcat $ renderYear <$> byYear,
+            extra
+          ]
+  renderPageContent $ BlogPageContent content mtdt title renderUrl
   where
     getYear :: Day -> Year
     getYear = dayPeriod

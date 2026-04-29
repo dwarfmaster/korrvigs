@@ -24,6 +24,7 @@ import Opaleye
 import Text.Blaze
 import Text.Blaze.Html5
 import qualified Text.Blaze.Html5.Attributes as A
+import Prelude hiding (div)
 
 data RenderContext m = RenderContext
   { _rdrDoc :: Document,
@@ -32,28 +33,52 @@ data RenderContext m = RenderContext
     _rdrCurLevel :: Int
   }
 
+data BlogPageContent m = BlogPageContent
+  { _blogPageContent :: Html,
+    _blogPageMetadata :: Map Text Text,
+    _blogPageTitle :: Text,
+    _blogPageRenderUrl :: BlogUrl -> m Text
+  }
+
 makeLenses ''RenderContext
+makeLenses ''BlogPageContent
 
 renderPost :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Map Text Text -> Id -> m Html
 renderPost renderUrl mtdt noteId = do
   entry <- load noteId >>= throwMaybe (KCantLoad noteId "Failed to load entry for blog")
   note <- throwMaybe (KMiscError "Blog post is not a note") $ entry ^? _Note
   doc <- readNote (note ^. notePath) >>= throwEither (\e -> KMiscError $ "Failed to load note for blog post: " <> e)
-  let headHtml = renderHead mtdt doc
+  let t =
+        fromMaybe (doc ^. docTitle) $
+          M.lookup (mtdtName BlogTitle) (doc ^. docMtdt) >>= fromJSONM
   contentHtml <- renderDocument renderUrl doc
-  pure $ docTypeHtml $ headHtml <> contentHtml
+  renderPageContent $ BlogPageContent contentHtml mtdt t renderUrl
 
-renderHead :: Map Text Text -> Document -> Html
-renderHead mtdt note =
+renderPageContent :: (MonadKorrvigs m) => BlogPageContent m -> m Html
+renderPageContent pc = do
+  stl <- pc ^. blogPageRenderUrl $ BlogTopLevel "style.css"
+  hd <- renderHeader $ pc ^. blogPageRenderUrl
+  pure $
+    docTypeHtml $
+      renderHead (pc ^. blogPageMetadata) (pc ^. blogPageTitle) stl
+        <> (body $ hd <> pc ^. blogPageContent)
+
+renderHead :: Map Text Text -> Text -> Text -> Html
+renderHead mtdt t stl =
   mconcat
     [ meta ! A.charset "UTF-8",
       title (toMarkup t),
+      link ! A.rel "stylesheet" ! A.href (toValue stl),
       renderMeta mtdt
     ]
-  where
-    t =
-      fromMaybe (note ^. docTitle) $
-        M.lookup (mtdtName BlogTitle) (note ^. docMtdt) >>= fromJSONM
+
+renderHeader :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> m Html
+renderHeader renderUrl = do
+  home <- renderUrl $ BlogTopLevel "default.html"
+  let homeH = div (a "Home" ! A.href (toValue home)) ! A.class_ "home-div"
+  archive <- renderUrl BlogArchive
+  let archiveH = div (a "Archive" ! A.href (toValue archive)) ! A.class_ "archive-div"
+  pure $ div (homeH <> archiveH) ! A.class_ "header-div"
 
 renderMeta :: Map Text Text -> Html
 renderMeta mtdt = mconcat $ render <$> M.toList mtdt

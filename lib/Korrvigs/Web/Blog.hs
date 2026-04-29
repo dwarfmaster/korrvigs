@@ -1,6 +1,7 @@
 module Korrvigs.Web.Blog where
 
 import Control.Lens
+import Data.Binary.Builder
 import Data.Foldable (fold)
 import qualified Data.Foldable1 as F1
 import qualified Data.List.NonEmpty as NE
@@ -72,8 +73,13 @@ getBlogTopR file = do
       entry <- load i >>= maybe notFound pure
       note <- maybe notFound pure $ entry ^? _Note
       doc <- readNote (note ^. notePath) >>= either (const notFound) pure
-      content <- maybe notFound pure $ doc ^? docContent . each . bkNamedCode cd . _2
-      pure $ toTypedContent content
+      (attr, content) <- maybe notFound pure $ doc ^? docContent . each . bkNamedCode cd
+      let classes = attr ^. attrClasses
+      let mime = case () of
+            _ | "css" `elem` classes -> typeCss
+            _ | "html" `elem` classes -> typeHtml
+            _ -> typePlain
+      pure $ toTypedContent (mime, ContentBuilder (fromByteString $ Enc.encodeUtf8 content) (Just $ T.length content))
 
 getBlogFileR :: Text -> Handler TypedContent
 getBlogFileR filename = do

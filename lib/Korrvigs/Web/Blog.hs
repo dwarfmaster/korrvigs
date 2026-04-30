@@ -20,7 +20,7 @@ import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Blog
-import Korrvigs.Metadata.Blog.Export (BlogPageContent (..), renderPageContent)
+import Korrvigs.Metadata.Blog.Export (BlogPageContent (..), renderPageContent, renderRssIcon)
 import Korrvigs.Metadata.Blog.Structure
 import Korrvigs.Monad
 import Korrvigs.Note
@@ -133,7 +133,7 @@ getBlogArchiveAllR = do
     where_ $ mtdt ^. sqlKey .== sqlStrictText (mtdtSqlName BlogTags)
     sqlJsonElementsText $ toNullable $ mtdt ^. sqlValue
   preppedTags <- mapM prepTag tags
-  page <- generateArchivePage "Archive" (alltags preppedTags) =<< loadForTag Nothing Nothing
+  page <- generateArchivePage Nothing (alltags preppedTags) =<< loadForTag Nothing Nothing
   pure $ toTypedContent page
   where
     alltags tags =
@@ -147,7 +147,7 @@ getBlogArchiveAllR = do
 
 getBlogArchiveTagR :: Text -> Handler TypedContent
 getBlogArchiveTagR tag = do
-  page <- generateArchivePage ("Archive for " <> tag) mempty =<< loadForTag (Just tag) Nothing
+  page <- generateArchivePage (Just tag) mempty =<< loadForTag (Just tag) Nothing
   pure $ toTypedContent page
 
 getBlogAtomAllR :: Handler TypedContent
@@ -157,20 +157,22 @@ getBlogAtomTagR :: Text -> Handler TypedContent
 getBlogAtomTagR tag =
   renderAtom (Just tag) ("Blog feed for tag " <> tag) =<< loadForTag (Just tag) (Just 10)
 
-generateArchivePage :: Text -> Html -> [(Text, Day, Text)] -> Handler Html
-generateArchivePage title extra entries = do
+generateArchivePage :: (Maybe Text) -> Html -> [(Text, Day, Text)] -> Handler Html
+generateArchivePage tag extra entries = do
   cfg <- blogConfig
   mtdt <- loadMtdt cfg
   preppedEntries <- mapM (\(u, d, t) -> (,d,t) <$> renderUrl (BlogPostNote u)) entries
   let byYear = NE.groupBy (\(_, d1, _) (_, d2, _) -> getYear d1 == getYear d2) preppedEntries
+  icon <- renderRssIcon renderUrl tag
   let content =
         mconcat
-          [ H.h1 $ H.toMarkup title,
+          [ H.h1 $ icon <> " " <> H.toMarkup title,
             mconcat $ renderYear <$> byYear,
             extra
           ]
   renderPageContent $ BlogPageContent content mtdt title renderUrl
   where
+    title = maybe "Archive" ("Archive for " <>) tag
     getYear :: Day -> Year
     getYear = dayPeriod
     renderYear :: NE.NonEmpty (Text, Day, Text) -> Html

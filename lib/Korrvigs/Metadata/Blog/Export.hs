@@ -60,26 +60,34 @@ renderPageContent :: (MonadKorrvigs m) => BlogPageContent m -> m Html
 renderPageContent pc = do
   stl <- pc ^. blogPageRenderUrl $ BlogTopLevel "style.css"
   hd <- renderHeader $ pc ^. blogPageRenderUrl
+  feed <- pc ^. blogPageRenderUrl $ BlogAtom
   pure $
     docTypeHtml $
-      renderHead (pc ^. blogPageMetadata) (pc ^. blogPageTitle) stl
+      renderHead (pc ^. blogPageMetadata) (pc ^. blogPageTitle) stl feed
         <> (body $ hd <> pc ^. blogPageContent)
 
-renderHead :: Map Text Text -> Text -> Text -> Html
-renderHead mtdt t stl =
+renderHead :: Map Text Text -> Text -> Text -> Text -> Html
+renderHead mtdt t stl feed =
   mconcat
     [ meta ! A.charset "UTF-8",
       title (toMarkup t),
       link ! A.rel "stylesheet" ! A.href (toValue stl),
+      link ! A.rel "alternate" ! A.type_ "application/atom+xml" ! A.href (toValue feed),
       renderMeta mtdt
     ]
+
+renderRssIcon :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Maybe Text -> m Html
+renderRssIcon renderUrl tag = do
+  url <- renderUrl $ maybe BlogAtom BlogAtomTag tag
+  pure $ a (img ! A.src "https://upload.wikimedia.org/wikipedia/commons/4/46/Generic_Feed-icon.svg" ! A.class_ "icon") ! A.href (toValue url)
 
 renderHeader :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> m Html
 renderHeader renderUrl = do
   home <- renderUrl $ BlogTopLevel "default.html"
   let homeH = div (a "Home" ! A.href (toValue home)) ! A.class_ "home-div"
   archive <- renderUrl BlogArchive
-  let archiveH = div (a "Archive" ! A.href (toValue archive)) ! A.class_ "archive-div"
+  icon <- renderRssIcon renderUrl Nothing
+  let archiveH = div (a "Archive" ! A.href (toValue archive) <> " " <> icon) ! A.class_ "archive-div"
   pure $ div (homeH <> archiveH) ! A.class_ "header-div"
 
 renderMeta :: Map Text Text -> Html

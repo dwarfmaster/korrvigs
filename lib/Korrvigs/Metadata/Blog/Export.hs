@@ -63,8 +63,9 @@ renderPageContent pc = do
   feed <- pc ^. blogPageRenderUrl $ BlogAtom
   pure $
     docTypeHtml $
-      renderHead (pc ^. blogPageMetadata) (pc ^. blogPageTitle) stl feed
-        <> (body $ hd <> pc ^. blogPageContent)
+      html $
+        renderHead (pc ^. blogPageMetadata) (pc ^. blogPageTitle) stl feed
+          <> (body $ hd <> pc ^. blogPageContent)
 
 renderHead :: Map Text Text -> Text -> Text -> Text -> Html
 renderHead mtdt t stl feed =

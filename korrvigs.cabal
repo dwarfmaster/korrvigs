@@ -116,6 +116,8 @@ library korrvigs-lib
     Korrvigs.Metadata.Android
     Korrvigs.Metadata.Android.ADB
     Korrvigs.Metadata.Blog
+    Korrvigs.Metadata.Blog.Archive
+    Korrvigs.Metadata.Blog.Atom
     Korrvigs.Metadata.Blog.Export
     Korrvigs.Metadata.Blog.Mtdt
     Korrvigs.Metadata.Blog.Structure

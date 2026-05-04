@@ -26,7 +26,7 @@ import Korrvigs.Syndicate.SQL
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Opaleye hiding (null)
-import Text.Parsec
+import Text.Parsec hiding (count)
 import Text.Parsec.Number
 import Prelude hiding (not)
 
@@ -459,7 +459,7 @@ compileQuery query = do
     mtdt <- selectTable entriesMetadataTable
     where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryId)
     where_ $ mtdt ^. sqlKey .== sqlStrictText (q ^. _1)
-    where_ $ compileJsonQuery (q ^. _2) (toNullable $ mtdt ^. sqlValue)
+    compileJsonQuery (q ^. _2) (toNullable $ mtdt ^. sqlValue)
   -- Collection
   forM_ (query ^. queryInCollection) $ \incol -> do
     col <- selectTable notesCollectionsTable
@@ -518,13 +518,11 @@ compile query other = lmt (query ^. queryMaxResults) $ sort (query ^. querySort)
     lmt :: Maybe Int -> Select a -> Select a
     lmt = maybe id limit
 
-compileJsonQuery :: JsonQuery -> FieldNullable SqlJsonb -> Field SqlBool
-compileJsonQuery AnyQuery _ = sqlBool True
-compileJsonQuery (TypeQuery tp) value =
-  matchNullable
-    (sqlBool False)
-    (\v -> sqlJsonTypeof v .== sqlStrictText (tpText tp))
-    value
+compileJsonQuery :: JsonQuery -> FieldNullable SqlJsonb -> Select ()
+compileJsonQuery AnyQuery _ = pure ()
+compileJsonQuery (TypeQuery tp) value = do
+  v <- fromNullableSelect $ pure value
+  where_ $ sqlJsonTypeof v .== sqlStrictText (tpText tp)
   where
     tpText JSIsText = "string"
     tpText JSIsNum = "number"
@@ -532,16 +530,20 @@ compileJsonQuery (TypeQuery tp) value =
     tpText JSIsArray = "array"
     tpText JSIsBool = "boolean"
     tpText JSIsNull = "null"
-compileJsonQuery (TextQuery q) value =
-  matchNullable (sqlBool False) (compileJsonTextQuery q) (sqlJsonToText value)
-compileJsonQuery (NumQuery q) value =
-  matchNullable (sqlBool False) (compileJsonNumQuery q) (sqlJsonToNum value)
-compileJsonQuery (BoolQuery q) value =
-  matchNullable (sqlBool False) (compileJsonBoolQuery q) (sqlJsonToBool value)
-compileJsonQuery (ObjectQuery q) value =
-  matchNullable (sqlBool False) (compileJsonObjectQuery q) value
+compileJsonQuery (TextQuery q) value = do
+  txt <- fromNullableSelect $ pure $ sqlJsonToText value
+  where_ $ compileJsonTextQuery q txt
+compileJsonQuery (NumQuery q) value = do
+  num <- fromNullableSelect $ pure $ sqlJsonToNum value
+  where_ $ compileJsonNumQuery q num
+compileJsonQuery (BoolQuery q) value = do
+  bool <- fromNullableSelect $ pure $ sqlJsonToBool value
+  where_ $ compileJsonBoolQuery q bool
+compileJsonQuery (ObjectQuery q) value = do
+  v <- fromNullableSelect $ pure value
+  compileJsonObjectQuery q v
 compileJsonQuery (ArrayQuery q) value =
-  matchNullable (sqlBool False) (compileJsonArrayQuery q) (sqlJsonToArray value)
+  compileJsonArrayQuery q $ sqlJsonElements value
 
 compileJsonTextQuery :: JsonTextQuery -> Field SqlText -> Field SqlBool
 compileJsonTextQuery (JSTextLevenshtein obj dist) value =
@@ -558,15 +560,21 @@ compileJsonBoolQuery :: JsonBoolQuery -> Field SqlBool -> Field SqlBool
 compileJsonBoolQuery JSBoolTrue = id
 compileJsonBoolQuery JSBoolFalse = not
 
-compileJsonObjectQuery :: JsonObjectQuery -> Field SqlJsonb -> Field SqlBool
-compileJsonObjectQuery (JSObjHasSub sub) v = v .? sqlStrictText sub
+compileJsonObjectQuery :: JsonObjectQuery -> Field SqlJsonb -> Select ()
+compileJsonObjectQuery (JSObjHasSub sub) v = where_ $ v .? sqlStrictText sub
 compileJsonObjectQuery (JSObjSubQuery sub q) v =
   compileJsonQuery q $ toNullable v .-> sqlStrictText sub
 
-compileJsonArrayQuery :: JsonArrayQuery -> Field (SqlArray SqlJsonb) -> Field SqlBool
-compileJsonArrayQuery (JSArrLenEq i) arr = sqlArrayLength arr 1 .== sqlInt4 i
-compileJsonArrayQuery (JSArrLenLessThan i) arr = sqlArrayLength arr 1 .< sqlInt4 i
-compileJsonArrayQuery (JSArrLenMoreThan i) arr = sqlArrayLength arr 1 .> sqlInt4 i
+compileJsonArrayQuery :: JsonArrayQuery -> Select (Field SqlJsonb) -> Select ()
+compileJsonArrayQuery (JSArrLenEq i) arr = do
+  c <- aggregate count arr
+  where_ $ c .== sqlInt8 (fromIntegral i)
+compileJsonArrayQuery (JSArrLenLessThan i) arr = do
+  c <- aggregate count arr
+  where_ $ c .< sqlInt8 (fromIntegral i)
+compileJsonArrayQuery (JSArrLenMoreThan i) arr = do
+  c <- aggregate count arr
+  where_ $ c .> sqlInt8 (fromIntegral i)
 
 -- _____
 

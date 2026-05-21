@@ -8,7 +8,7 @@ module Korrvigs.Metadata.Blog
     BlogStructure (..),
     blogMtdt,
     blogFiles,
-    blogEntries,
+    blogTags,
     loadStructure,
     renderPost,
     generateArchivePage,

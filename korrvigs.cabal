@@ -50,6 +50,7 @@ library korrvigs-lib
     Korrvigs.Cli
     Korrvigs.Cli.ADB
     Korrvigs.Cli.Autorun
+    Korrvigs.Cli.Blog
     Korrvigs.Cli.Compute
     Korrvigs.Cli.Config
     Korrvigs.Cli.ERIS

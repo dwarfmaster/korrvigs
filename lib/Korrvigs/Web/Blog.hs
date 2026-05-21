@@ -2,6 +2,7 @@ module Korrvigs.Web.Blog where
 
 import Control.Lens
 import Data.Binary.Builder
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
@@ -16,16 +17,12 @@ import Korrvigs.Metadata.Blog.Structure
 import Korrvigs.Monad
 import Korrvigs.Note
 import Korrvigs.Note.AST
-import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Compute
 import Korrvigs.Web.Download
 import Korrvigs.Web.Routes
 import Opaleye
 import System.FilePath
-import Text.Blaze.Html5 ((!))
-import qualified Text.Blaze.Html5 as H
-import qualified Text.Blaze.Html5.Attributes as A
 import Yesod
 
 renderUrlImpl :: BlogUrl -> Route WebData
@@ -53,10 +50,46 @@ lookupHost =
 
 blogConfig :: Handler BlogConfig
 blogConfig =
-  BlogConfig <$> lookupHost <*> pure (MkId "Blog")
+  BlogConfig <$> lookupHost <*> pure (MkId "Blog") <*> pure False
 
 getBlogR :: Handler TypedContent
 getBlogR = getBlogTopR "default.html"
+
+getBlogContent :: BlogContent -> Handler TypedContent
+getBlogContent (BlogFromFile i) = getEntryDownloadR $ WId i
+getBlogContent (BlogFromNote i) = do
+  cfg <- blogConfig
+  mtdt <- loadMtdt cfg
+  toTypedContent <$> renderPost renderUrl mtdt i
+getBlogContent (BlogFromCode i cd) = do
+  entry <- load i >>= maybe notFound pure
+  note <- maybe notFound pure $ entry ^? _Note
+  doc <- readNote (note ^. notePath) >>= either (const notFound) pure
+  (attr, content) <- maybe notFound pure $ doc ^? docContent . each . bkNamedCode cd
+  let classes = attr ^. attrClasses
+  let mime = case () of
+        _ | "css" `elem` classes -> typeCss
+        _ | "html" `elem` classes -> typeHtml
+        _ -> typePlain
+  pure $ toTypedContent (mime, ContentBuilder (fromByteString $ Enc.encodeUtf8 content) (Just $ T.length content))
+getBlogContent (BlogFromComp i cmp) = getEntryComputeNamedR (WId i) cmp cmp
+getBlogContent BlogFromArchive = do
+  tags <- loadTags
+  mtdt <- loadMtdt =<< blogConfig
+  page <- generateArchivePage mtdt renderUrl Nothing tags
+  pure $ toTypedContent page
+getBlogContent (BlogFromArchiveTag tag) = do
+  mtdt <- loadMtdt =<< blogConfig
+  page <- generateArchivePage mtdt renderUrl (Just tag) []
+  pure $ toTypedContent page
+getBlogContent BlogFromAtom =
+  atomContent <$> renderAtom renderUrl Nothing "Blog feed"
+getBlogContent (BlogFromAtomTag tag) =
+  atomContent <$> renderAtom renderUrl (Just tag) ("Blog feed for " <> tag)
+
+atomContent :: LBS.ByteString -> TypedContent
+atomContent lbs =
+  toTypedContent (typeAtom, ContentBuilder (fromLazyByteString lbs) Nothing)
 
 getBlogTopR :: Text -> Handler TypedContent
 getBlogTopR file = do
@@ -64,19 +97,7 @@ getBlogTopR file = do
   str <- loadStructure cfg
   case M.lookup (BlogTopLevel file) (str ^. blogFiles) of
     Nothing -> notFound
-    Just (BlogFromFile i) -> getEntryDownloadR $ WId i
-    Just (BlogFromNote i) -> toTypedContent <$> renderPost renderUrl (str ^. blogMtdt) i
-    Just (BlogFromCode i cd) -> do
-      entry <- load i >>= maybe notFound pure
-      note <- maybe notFound pure $ entry ^? _Note
-      doc <- readNote (note ^. notePath) >>= either (const notFound) pure
-      (attr, content) <- maybe notFound pure $ doc ^? docContent . each . bkNamedCode cd
-      let classes = attr ^. attrClasses
-      let mime = case () of
-            _ | "css" `elem` classes -> typeCss
-            _ | "html" `elem` classes -> typeHtml
-            _ -> typePlain
-      pure $ toTypedContent (mime, ContentBuilder (fromByteString $ Enc.encodeUtf8 content) (Just $ T.length content))
+    Just content -> getBlogContent content
 
 getBlogFileR :: Text -> Handler TypedContent
 getBlogFileR filename = do
@@ -87,7 +108,7 @@ getBlogFileR filename = do
     pure $ entry ^. sqlEntryName
   case file of
     Nothing -> notFound
-    Just fileId -> getEntryDownloadR $ WId $ MkId fileId
+    Just fileId -> getBlogContent $ BlogFromFile fileId
 
 lookupPost :: Text -> Handler Id
 lookupPost postname = do
@@ -104,9 +125,7 @@ lookupPost postname = do
 getBlogPostR :: Text -> Handler TypedContent
 getBlogPostR postname = do
   postId <- lookupPost postname
-  cfg <- blogConfig
-  mtdt <- loadMtdt cfg
-  toTypedContent <$> renderPost renderUrl mtdt postId
+  getBlogContent $ BlogFromNote postId
 
 getBlogPostCompR :: Text -> Text -> Handler TypedContent
 getBlogPostCompR postname cmpWithExt = do
@@ -115,36 +134,13 @@ getBlogPostCompR postname cmpWithExt = do
   getEntryComputeNamedR (WId postId) cmp cmpWithExt
 
 getBlogArchiveAllR :: Handler TypedContent
-getBlogArchiveAllR = do
-  tags <- rSelect $ distinct $ orderBy (asc id) $ do
-    mtdt <- selectTable entriesMetadataTable
-    where_ $ mtdt ^. sqlKey .== sqlStrictText (mtdtSqlName BlogTags)
-    sqlJsonElementsText $ toNullable $ mtdt ^. sqlValue
-  preppedTags <- mapM prepTag tags
-  cfg <- blogConfig
-  page <- generateArchivePage cfg renderUrl Nothing (alltags preppedTags) =<< loadForTag Nothing Nothing
-  pure $ toTypedContent page
-  where
-    alltags tags =
-      mconcat
-        [ H.h2 "Tags",
-          H.ul $ mconcat tags
-        ]
-    prepTag t = do
-      u <- renderUrl $ BlogArchiveTag t
-      pure $ H.li $ H.a (H.toMarkup t) ! A.href (H.toValue u)
+getBlogArchiveAllR = getBlogContent BlogFromArchive
 
 getBlogArchiveTagR :: Text -> Handler TypedContent
-getBlogArchiveTagR tag = do
-  cfg <- blogConfig
-  page <- generateArchivePage cfg renderUrl (Just tag) mempty =<< loadForTag (Just tag) Nothing
-  pure $ toTypedContent page
+getBlogArchiveTagR = getBlogContent . BlogFromArchiveTag
 
 getBlogAtomAllR :: Handler TypedContent
-getBlogAtomAllR =
-  renderAtom renderUrl Nothing "Blog feed" =<< loadForTag Nothing (Just 10)
+getBlogAtomAllR = getBlogContent BlogFromAtom
 
 getBlogAtomTagR :: Text -> Handler TypedContent
-getBlogAtomTagR tag =
-  renderAtom renderUrl (Just tag) ("Blog feed for tag " <> tag)
-    =<< loadForTag (Just tag) (Just 10)
+getBlogAtomTagR = getBlogContent . BlogFromAtomTag

@@ -2,7 +2,7 @@ module Korrvigs.Metadata.Blog.Atom where
 
 import Conduit (throwM)
 import Control.Lens
-import Data.Binary.Builder
+import qualified Data.ByteString.Lazy as LBS
 import Data.Default
 import Data.Maybe
 import Data.Text (Text)
@@ -15,10 +15,10 @@ import Korrvigs.Monad
 import qualified Text.Atom.Feed as A
 import Text.Atom.Feed.Export (xmlFeed)
 import Text.XML (fromXMLDocument, renderLBS)
-import Yesod
 
-renderAtom :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Maybe Text -> Text -> [(Text, Day, Text)] -> m TypedContent
-renderAtom renderUrl tag title entries = do
+renderAtom :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Maybe Text -> Text -> m LBS.ByteString
+renderAtom renderUrl tag title = do
+  entries <- loadForTag tag $ Just 10
   xml <- xmlFeed <$> generateAtomFor renderUrl tag title entries
   let doc =
         fromXMLDocument $
@@ -34,9 +34,7 @@ renderAtom renderUrl tag title entries = do
             }
   case doc of
     Left _ -> throwM $ KMiscError "Failed to convert from atom xml"
-    Right d -> do
-      let lbs = renderLBS def d
-      pure $ toTypedContent (typeAtom, ContentBuilder (fromLazyByteString lbs) Nothing)
+    Right d -> pure $ renderLBS def d
 
 generateAtomFor :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Maybe Text -> Text -> [(Text, Day, Text)] -> m A.Feed
 generateAtomFor renderUrl tag title entries = do

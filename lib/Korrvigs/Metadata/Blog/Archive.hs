@@ -4,6 +4,7 @@ import Control.Lens
 import Data.Foldable (fold)
 import qualified Data.Foldable1 as F1
 import qualified Data.List.NonEmpty as NE
+import Data.Map (Map)
 import Data.Text (Text)
 import Data.Time
 import Korrvigs.Metadata.Blog.Export (BlogPageContent (..), renderPageContent, renderRssIcon)
@@ -14,9 +15,10 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Yesod
 
-generateArchivePage :: (MonadKorrvigs m) => BlogConfig -> (BlogUrl -> m Text) -> (Maybe Text) -> Html -> [(Text, Day, Text)] -> m Html
-generateArchivePage cfg renderUrl tag extra entries = do
-  mtdt <- loadMtdt cfg
+generateArchivePage :: (MonadKorrvigs m) => Map Text Text -> (BlogUrl -> m Text) -> (Maybe Text) -> [Text] -> m Html
+generateArchivePage mtdt renderUrl tag tags = do
+  entries <- loadForTag tag Nothing
+  extra <- alltags <$> mapM prepTag tags
   preppedEntries <- mapM (\(u, d, t) -> (,d,t) <$> renderUrl (BlogPostNote u)) entries
   let byYear = NE.groupBy (\(_, d1, _) (_, d2, _) -> getYear d1 == getYear d2) preppedEntries
   icon <- renderRssIcon renderUrl tag
@@ -43,3 +45,12 @@ generateArchivePage cfg renderUrl tag extra entries = do
           " ",
           H.a (H.toMarkup t) ! A.href (H.toValue u)
         ]
+    alltags [] = mempty
+    alltags preppedTags =
+      mconcat
+        [ H.h2 "Tags",
+          H.ul $ mconcat preppedTags
+        ]
+    prepTag t = do
+      u <- renderUrl $ BlogArchiveTag t
+      pure $ H.li $ H.a (H.toMarkup t) ! A.href (H.toValue u)

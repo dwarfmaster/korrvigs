@@ -89,21 +89,25 @@ loadFiles cfg = do
     file <- baseSelectTextMtdt BlogFile $ entry ^. sqlEntryId
     pure (file, entry ^. sqlEntryName)
   let files = M.fromList $ (BlogFilePlain *** BlogFromFile) <$> filesSQL
+  let selectPostEntries = do
+        entry <- selectTable entriesTable
+        where_ $ entry ^. sqlEntryKind .== sqlKind Note
+        post <- baseSelectTextMtdt BlogPost $ entry ^. sqlEntryId
+        when (cfg ^. blogCfgOnlyPublished) $
+          void $
+            baseSelectMtdt PublishedDate $
+              entry ^. sqlEntryId
+        pure (post, entry)
   postsSQL <- rSelect $ do
-    entry <- selectTable entriesTable
-    where_ $ entry ^. sqlEntryKind .== sqlKind Note
-    post <- baseSelectTextMtdt BlogPost $ entry ^. sqlEntryId
-    when (cfg ^. blogCfgOnlyPublished) $
-      void $
-        baseSelectMtdt PublishedDate $
-          entry ^. sqlEntryId
-    cmps <- aggregate arrayAgg $ do
-      cmp <- selectTable computationsTable
-      where_ $ cmp ^. sqlCompEntry .== (entry ^. sqlEntryId)
-      pure $ cmp ^. sqlCompName
-    pure ((post, entry ^. sqlEntryName), cmps)
-  let posts = M.fromList $ (BlogPostNote *** BlogFromNote) . fst <$> postsSQL
-  let comps = mconcat $ (\((post, _), cmps) -> (uncurry (BlogComputation post) &&& (BlogFromComp $ MkId post) . fst) . (,undefined) <$> cmps) <$> postsSQL
+    (post, entry) <- selectPostEntries
+    pure (post, entry ^. sqlEntryName)
+  let posts = M.fromList $ (BlogPostNote *** BlogFromNote) <$> postsSQL
+  compsSQL <- rSelect $ do
+    (post, entry) <- selectPostEntries
+    cmp <- selectTable computationsTable
+    where_ $ cmp ^. sqlCompEntry .== (entry ^. sqlEntryId)
+    pure (post, cmp ^. sqlCompName, cmp ^. sqlCompType)
+  let comps = (\(post, cmp, tp) -> (BlogComputation post cmp tp, BlogFromComp (MkId post) cmp)) <$> compsSQL
   pure $ topLevels <> files <> posts <> M.fromList comps
   where
     parseTopContent :: Text -> BlogContent

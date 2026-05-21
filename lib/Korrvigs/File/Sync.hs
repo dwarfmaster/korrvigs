@@ -155,7 +155,7 @@ sync =
 
 prepComp :: FileMetadata -> Text -> Runnable -> SyncComputationData
 prepComp json code rbl =
-  (Nothing, view cmpResDate <$> result, view cmpResRuntime <$> result, deps)
+  (Nothing, view cmpResDate <$> result, view cmpResRuntime <$> result, rbl ^. runType, deps)
   where
     deps = runDeps rbl
     result = M.lookup code $ json ^. computations

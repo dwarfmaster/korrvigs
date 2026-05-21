@@ -91,7 +91,7 @@ syncDocument i path doc = do
   let nrow sqlI = NoteRow sqlI path (M.keys $ doc ^. docCollections) :: NoteRow
   let mkCmp (code, (autorun, rbl)) =
         let result = M.lookup code $ doc ^. docComputations
-         in (code, (autorun, view cmpResDate <$> result, view cmpResRuntime <$> result, runDeps rbl))
+         in (code, (autorun, view cmpResDate <$> result, view cmpResRuntime <$> result, rbl ^. runType, runDeps rbl))
   let cmps =
         doc
           ^.. docContent

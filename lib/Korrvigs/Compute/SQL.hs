@@ -6,12 +6,29 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time.Clock
 import GHC.Int (Int64)
 import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
+import Korrvigs.Utils.Opaleye (makeSqlMapper)
 import Opaleye
+import Opaleye.Experimental.Enum
+
+data SqlRunnableType
+
+sqlRunnableTypeMapper :: EnumMapper SqlRunnableType RunnableType
+sqlRunnableTypeMapper = makeSqlMapper "runnabletype" (T.unpack . runTypeName)
+
+instance DefaultFromField SqlRunnableType RunnableType where
+  defaultFromField = enumFromField sqlRunnableTypeMapper
+
+instance Default ToFields RunnableType (Field SqlRunnableType) where
+  def = enumToFields sqlRunnableTypeMapper
+
+sqlRunnableType :: RunnableType -> Field SqlRunnableType
+sqlRunnableType = toFields
 
 data ComputationResult = ComputationResult
   { _cmpResType :: RunnableType,
@@ -31,12 +48,13 @@ data Computation = Computation
   }
   deriving (Eq, Show)
 
-data CompRowImpl a b c d e = CompRow
+data CompRowImpl a b c d e f = CompRow
   { _sqlCompEntry :: a,
     _sqlCompName :: b,
-    _sqlCompAutorun :: c,
-    _sqlCompLastRun :: d,
-    _sqlCompRunTime :: e
+    _sqlCompType :: c,
+    _sqlCompAutorun :: d,
+    _sqlCompLastRun :: e,
+    _sqlCompRunTime :: f
   }
 
 data CompDepRowImpl a b c d = CompDepRow
@@ -53,12 +71,12 @@ makeLenses ''CompDepRowImpl
 $(makeAdaptorAndInstanceInferrable "pCompRow" ''CompRowImpl)
 $(makeAdaptorAndInstanceInferrable "pCompDepRow" ''CompDepRowImpl)
 
-type CompRow = CompRowImpl Int Text (Maybe Text) (Maybe UTCTime) (Maybe Int)
+type CompRow = CompRowImpl Int Text RunnableType (Maybe Text) (Maybe UTCTime) (Maybe Int)
 
-type CompRowSQL = CompRowImpl (Field SqlInt4) (Field SqlText) (FieldNullable SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlInt4)
+type CompRowSQL = CompRowImpl (Field SqlInt4) (Field SqlText) (Field SqlRunnableType) (FieldNullable SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlInt4)
 
 instance Default ToFields CompRow CompRowSQL where
-  def = pCompRow $ CompRow def def def def def
+  def = pCompRow $ CompRow def def def def def def
 
 computationsTable :: Table CompRowSQL CompRowSQL
 computationsTable =
@@ -67,6 +85,7 @@ computationsTable =
       CompRow
         (tableField "entry")
         (tableField "name")
+        (tableField "type")
         (tableField "autorun")
         (tableField "last_run")
         (tableField "run_time")

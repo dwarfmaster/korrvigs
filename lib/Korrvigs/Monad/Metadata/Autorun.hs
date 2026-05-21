@@ -35,7 +35,7 @@ import qualified Korrvigs.Calendar.DAV as Cal
 import Korrvigs.Calendar.SQL
 import qualified Korrvigs.Compute.Run as Comp
 import Korrvigs.Compute.SQL
-import Korrvigs.Compute.Type (RunnableResult (..))
+import Korrvigs.Compute.Type (RunnableResult (..), RunnableType)
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Monad
@@ -101,9 +101,11 @@ data AutoRunnable = AutoRunnable
 makePrisms ''AutoRunnableTarget
 makeLenses ''AutoRunnable
 
+type CompRowAutorun = CompRowImpl Id Text RunnableType Text (Maybe UTCTime) (Maybe Int)
+
 listComputationTargets :: (MonadKorrvigs m) => m [AutoRunnable]
 listComputationTargets = do
-  sql <- rSelect $ do
+  (sql :: [CompRowAutorun]) <- rSelect $ do
     comp <- selectTable computationsTable
     where_ $ O.not $ isNull $ comp ^. sqlCompAutorun
     let autorun = fromNullable (sqlStrictText "") $ comp ^. sqlCompAutorun

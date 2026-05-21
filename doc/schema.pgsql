@@ -39,9 +39,16 @@ CREATE TABLE IF NOT EXISTS entries_ref_to (
     UNIQUE(referer,referee)
 );
 
+DO $$ BEGIN
+  CREATE TYPE RUNNABLETYPE AS ENUM ('error', 'image', 'graphic', 'vector', 'json', 'text', 'csv', '3d', 'pdf');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
 CREATE TABLE IF NOT EXISTS computations (
   entry INTEGER NOT NULL REFERENCES entries(id),
   name TEXT NOT NULL,
+  type RUNNABLETYPE NOT NULL,
   autorun TEXT,
   last_run TIMESTAMP WITH TIME ZONE,
   run_time INTEGER,

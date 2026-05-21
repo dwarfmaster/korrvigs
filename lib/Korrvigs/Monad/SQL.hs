@@ -41,6 +41,7 @@ import qualified Database.PostgreSQL.Simple as Simple
 import GHC.Int (Int64)
 import qualified Korrvigs.Calendar.SQL as Cal
 import Korrvigs.Compute.SQL
+import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import qualified Korrvigs.Event.SQL as Event
 import Korrvigs.FTS
@@ -191,7 +192,7 @@ genRemoveDB i dels =
 removeDB :: (MonadKorrvigs m) => Entry -> m ()
 removeDB entry = dispatchRemove genRemoveDB $ entry ^. entryKindData
 
-type SyncComputationData = (Maybe Text, Maybe UTCTime, Maybe Int, [(Id, Text)])
+type SyncComputationData = (Maybe Text, Maybe UTCTime, Maybe Int, RunnableType, [(Id, Text)])
 
 data SyncData = SyncData
   { _syncEntryRow :: EntryRowW,
@@ -303,8 +304,8 @@ syncSQL updateCompDeps nameToId' dt = atomicSQL $ \conn -> do
         }
   let toAddComps = dt ^. syncCompute
   unless (M.null toAddComps) $ do
-    let mkCompRow (code, (autorun, lastRun, runTime, _)) =
-          CompRow sqlI code autorun lastRun runTime
+    let mkCompRow (code, (autorun, lastRun, runTime, tp, _)) =
+          CompRow sqlI code tp autorun lastRun runTime
     let compRows = mkCompRow <$> M.toList toAddComps
     void $
       runInsert conn $
@@ -316,7 +317,7 @@ syncSQL updateCompDeps nameToId' dt = atomicSQL $ \conn -> do
           }
   when updateCompDeps $ do
     let depRows = do
-          (cmp, (_, _, _, deps)) <- M.toList $ dt ^. syncCompute
+          (cmp, (_, _, _, _, deps)) <- M.toList $ dt ^. syncCompute
           (dstId, dstCmp) <- deps
           dstSqlI <- toList $ M.lookup dstId nameToId
           pure $ CompDepRow sqlI cmp dstSqlI dstCmp

@@ -94,7 +94,7 @@ writeBlogFile url content = do
 
 renderUrl :: Bool -> FilePath -> BlogUrl -> KorrM Text
 renderUrl isLink dir url = do
-  pure $ T.pack $ (if isLink then id else (dir </>)) $ renderPath url
+  pure $ T.pack $ (dir </>) $ renderPath url
   where
     addDefault = if isLink then id else (</> "default.html")
     renderPath (BlogTopLevel txt) = T.unpack txt
@@ -113,7 +113,7 @@ writeHtml path html =
 writeContent :: FilePath -> BlogContent -> BgWriter ()
 writeContent path (BlogFromNote i) = do
   mtdt <- view $ bgStructure . blogMtdt
-  dir <- view bgDir
+  dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   html <- lift $ renderPost (renderUrl True dir) mtdt i
   writeHtml path html
 writeContent path (BlogFromFile i) = do
@@ -131,25 +131,25 @@ writeContent path (BlogFromComp i cmp) = do
   r <- lift $ runLazy comp
   liftIO $ LBS.writeFile path $ encodeToLBS r
 writeContent path BlogFromArchive = do
-  dir <- view bgDir
+  dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
   tags <- view $ bgStructure . blogTags
   mtdt <- view $ bgStructure . blogMtdt
   html <- lift $ generateArchivePage mtdt onlyPublished (renderUrl True dir) Nothing tags
   writeHtml path html
 writeContent path (BlogFromArchiveTag tag) = do
-  dir <- view bgDir
+  dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
   mtdt <- view $ bgStructure . blogMtdt
   html <- lift $ generateArchivePage mtdt onlyPublished (renderUrl True dir) (Just tag) []
   writeHtml path html
 writeContent path BlogFromAtom = do
-  dir <- view bgDir
+  dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
   atom <- lift $ renderAtom onlyPublished (renderUrl True dir) Nothing "Blog feed"
   liftIO $ LBS.writeFile path atom
 writeContent path (BlogFromAtomTag tag) = do
-  dir <- view bgDir
+  dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
   atom <- lift $ renderAtom onlyPublished (renderUrl True dir) (Just tag) $ "Blog feed for " <> tag
   liftIO $ LBS.writeFile path atom

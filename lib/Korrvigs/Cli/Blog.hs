@@ -94,7 +94,7 @@ writeBlogFile url content = do
 
 renderUrl :: Bool -> FilePath -> BlogUrl -> KorrM Text
 renderUrl isLink dir url = do
-  pure $ T.pack $ dir </> renderPath url
+  pure $ T.pack $ (if isLink then id else (dir </>)) $ renderPath url
   where
     addDefault = if isLink then id else (</> "default.html")
     renderPath (BlogTopLevel txt) = T.unpack txt

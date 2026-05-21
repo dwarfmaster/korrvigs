@@ -68,6 +68,7 @@ type BgWriter = ReaderT BlogWriter KorrM
 
 run :: Cmd -> KorrM ()
 run (Publish dir url entry) = do
+  liftIO $ removeDirectoryRecursive dir
   liftIO $ createDirectoryIfMissing True dir
   let cfg =
         BlogConfig
@@ -131,22 +132,26 @@ writeContent path (BlogFromComp i cmp) = do
   liftIO $ LBS.writeFile path $ encodeToLBS r
 writeContent path BlogFromArchive = do
   dir <- view bgDir
+  onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
   tags <- view $ bgStructure . blogTags
   mtdt <- view $ bgStructure . blogMtdt
-  html <- lift $ generateArchivePage mtdt (renderUrl True dir) Nothing tags
+  html <- lift $ generateArchivePage mtdt onlyPublished (renderUrl True dir) Nothing tags
   writeHtml path html
 writeContent path (BlogFromArchiveTag tag) = do
   dir <- view bgDir
+  onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
   mtdt <- view $ bgStructure . blogMtdt
-  html <- lift $ generateArchivePage mtdt (renderUrl True dir) (Just tag) []
+  html <- lift $ generateArchivePage mtdt onlyPublished (renderUrl True dir) (Just tag) []
   writeHtml path html
 writeContent path BlogFromAtom = do
   dir <- view bgDir
-  atom <- lift $ renderAtom (renderUrl True dir) Nothing "Blog feed"
+  onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
+  atom <- lift $ renderAtom onlyPublished (renderUrl True dir) Nothing "Blog feed"
   liftIO $ LBS.writeFile path atom
 writeContent path (BlogFromAtomTag tag) = do
   dir <- view bgDir
-  atom <- lift $ renderAtom (renderUrl True dir) (Just tag) $ "Blog feed for " <> tag
+  onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
+  atom <- lift $ renderAtom onlyPublished (renderUrl True dir) (Just tag) $ "Blog feed for " <> tag
   liftIO $ LBS.writeFile path atom
 
 entryPath :: Entry -> KorrM FilePath

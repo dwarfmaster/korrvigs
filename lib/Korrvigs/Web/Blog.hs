@@ -75,17 +75,21 @@ getBlogContent (BlogFromCode i cd) = do
 getBlogContent (BlogFromComp i cmp) = getEntryComputeNamedR (WId i) cmp cmp
 getBlogContent BlogFromArchive = do
   tags <- loadTags
-  mtdt <- loadMtdt =<< blogConfig
-  page <- generateArchivePage mtdt renderUrl Nothing tags
+  cfg <- blogConfig
+  mtdt <- loadMtdt cfg
+  page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) renderUrl Nothing tags
   pure $ toTypedContent page
 getBlogContent (BlogFromArchiveTag tag) = do
-  mtdt <- loadMtdt =<< blogConfig
-  page <- generateArchivePage mtdt renderUrl (Just tag) []
+  cfg <- blogConfig
+  mtdt <- loadMtdt cfg
+  page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) renderUrl (Just tag) []
   pure $ toTypedContent page
-getBlogContent BlogFromAtom =
-  atomContent <$> renderAtom renderUrl Nothing "Blog feed"
-getBlogContent (BlogFromAtomTag tag) =
-  atomContent <$> renderAtom renderUrl (Just tag) ("Blog feed for " <> tag)
+getBlogContent BlogFromAtom = do
+  cfg <- blogConfig
+  atomContent <$> renderAtom (cfg ^. blogCfgOnlyPublished) renderUrl Nothing "Blog feed"
+getBlogContent (BlogFromAtomTag tag) = do
+  cfg <- blogConfig
+  atomContent <$> renderAtom (cfg ^. blogCfgOnlyPublished) renderUrl (Just tag) ("Blog feed for " <> tag)
 
 atomContent :: LBS.ByteString -> TypedContent
 atomContent lbs =

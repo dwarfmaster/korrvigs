@@ -128,8 +128,8 @@ selectBlogTitle entry = do
   title <- fromNullableSelect $ pure $ entry ^. sqlEntryTitle
   pure $ fromNullable title btitle
 
-loadForTag :: (MonadKorrvigs m) => Maybe Text -> Maybe Int -> m [(Text, Day, Text)]
-loadForTag mtag mlimit = do
+loadForTag :: (MonadKorrvigs m) => Bool -> Maybe Text -> Maybe Int -> m [(Text, Day, Text)]
+loadForTag onlyPublished mtag mlimit = do
   time <- liftIO getCurrentTime
   let day = utctDay time
   let dayStr = formatTime defaultTimeLocale "%F" day
@@ -137,8 +137,12 @@ loadForTag mtag mlimit = do
     entry <- selectTable entriesTable
     post <- baseSelectTextMtdt BlogPost $ entry ^. sqlEntryId
     title <- selectBlogTitle entry
-    mpub <- selectTextMtdt PublishedDate $ entry ^. sqlEntryId
-    let pub = fromNullable (sqlString dayStr) mpub
+    pub <-
+      if onlyPublished
+        then baseSelectTextMtdt PublishedDate $ entry ^. sqlEntryId
+        else do
+          mpub <- selectTextMtdt PublishedDate $ entry ^. sqlEntryId
+          pure $ fromNullable (sqlString dayStr) mpub
     case mtag of
       Nothing -> pure ()
       Just tag -> limit 1 $ do

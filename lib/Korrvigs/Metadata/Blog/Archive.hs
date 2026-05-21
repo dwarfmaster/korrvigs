@@ -15,9 +15,9 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Yesod
 
-generateArchivePage :: (MonadKorrvigs m) => Map Text Text -> (BlogUrl -> m Text) -> (Maybe Text) -> [Text] -> m Html
-generateArchivePage mtdt renderUrl tag tags = do
-  entries <- loadForTag tag Nothing
+generateArchivePage :: (MonadKorrvigs m) => Map Text Text -> Bool -> (BlogUrl -> m Text) -> (Maybe Text) -> [Text] -> m Html
+generateArchivePage mtdt onlyPublished renderUrl tag tags = do
+  entries <- loadForTag onlyPublished tag Nothing
   extra <- alltags <$> mapM prepTag tags
   preppedEntries <- mapM (\(u, d, t) -> (,d,t) <$> renderUrl (BlogPostNote u)) entries
   let byYear = NE.groupBy (\(_, d1, _) (_, d2, _) -> getYear d1 == getYear d2) preppedEntries

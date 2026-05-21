@@ -16,9 +16,9 @@ import qualified Text.Atom.Feed as A
 import Text.Atom.Feed.Export (xmlFeed)
 import Text.XML (fromXMLDocument, renderLBS)
 
-renderAtom :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Maybe Text -> Text -> m LBS.ByteString
-renderAtom renderUrl tag title = do
-  entries <- loadForTag tag $ Just 10
+renderAtom :: (MonadKorrvigs m) => Bool -> (BlogUrl -> m Text) -> Maybe Text -> Text -> m LBS.ByteString
+renderAtom onlyPublished renderUrl tag title = do
+  entries <- loadForTag onlyPublished tag $ Just 10
   xml <- xmlFeed <$> generateAtomFor renderUrl tag title entries
   let doc =
         fromXMLDocument $

@@ -134,7 +134,7 @@ moveFile ev ni = do
   let day = localDay . zonedTimeToLocalTime <$> ev ^. eventEntry . entryDate
   let filename = unId ni <> "_" <> unId (ev ^. eventCalendar) <> ".ics"
   path <- storeFile rt eventTreeType day filename $ FileCopy $ ev ^. eventFile
-  recursiveRemoveFile rt path
+  recursiveRemoveFile rt $ ev ^. eventFile
   void $ atomicSQL $ \conn ->
     runUpdate conn $
       Update

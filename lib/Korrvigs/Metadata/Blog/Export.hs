@@ -53,7 +53,7 @@ renderPost renderUrl mtdt noteId = do
   let t =
         fromMaybe (doc ^. docTitle) $
           M.lookup (mtdtName BlogTitle) (doc ^. docMtdt) >>= fromJSONM
-  contentHtml <- renderDocument renderUrl doc
+  contentHtml <- renderDocument renderUrl t doc
   renderPageContent $ BlogPageContent contentHtml mtdt t renderUrl
 
 renderPageContent :: (MonadKorrvigs m) => BlogPageContent m -> m Html
@@ -96,8 +96,8 @@ renderMeta mtdt = mconcat $ render <$> M.toList mtdt
   where
     render (nm, cnt) = meta ! A.name (toValue nm) ! A.content (toValue cnt)
 
-renderDocument :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Document -> m Html
-renderDocument renderUrl doc = do
+renderDocument :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Text -> Document -> m Html
+renderDocument renderUrl usedTitle doc = do
   let ctx =
         RenderContext
           { _rdrDoc = doc,
@@ -106,7 +106,7 @@ renderDocument renderUrl doc = do
             _rdrCurLevel = 1
           }
   date <- renderDate doc
-  let t = h1 $ toMarkup $ doc ^. docTitle
+  let t = h1 $ toMarkup usedTitle
   tags <- renderTags renderUrl doc
   content <- renderBlocks ctx $ doc ^. docContent
   pure $ date <> t <> tags <> content

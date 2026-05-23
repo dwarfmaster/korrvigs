@@ -66,9 +66,21 @@ makeLenses ''BlogWriter
 
 type BgWriter = ReaderT BlogWriter KorrM
 
+clearDirectoryContent :: FilePath -> IO ()
+clearDirectoryContent dir =
+  listDirectory dir
+    >>= mapM_
+      ( \file -> do
+          let path = dir </> file
+          isDir <- doesDirectoryExist path
+          if isDir
+            then removeDirectoryRecursive path
+            else removeFile path
+      )
+
 run :: Cmd -> KorrM ()
 run (Publish dir url entry) = do
-  liftIO $ removeDirectoryRecursive dir
+  liftIO $ clearDirectoryContent dir
   liftIO $ createDirectoryIfMissing True dir
   let cfg =
         BlogConfig

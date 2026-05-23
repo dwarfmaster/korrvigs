@@ -173,6 +173,7 @@ renderBlock ctx (EmbedHeader ref hdLvl) = case resolveEmbedRef (ctx ^. rdrDoc) r
     fmap (hdr <>) $ lift $ renderBlocks (ctx & rdrHdOffset .~ lvl) $ doc ^. docContent
 renderBlock _ (Collection _ _ _) = pure mempty
 renderBlock _ (Syndicate _ _ _ _) = pure mempty
+renderBlock _ (Sub hd) | "blog-ignore" `elem` (hd ^. hdAttr . attrClasses) = pure mempty
 renderBlock ctx (Sub hd) = do
   let lvl = ctx ^. rdrHdOffset + hd ^. hdLevel
   let hdr = h lvl (toMarkup $ hd ^. hdTitle)

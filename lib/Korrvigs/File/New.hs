@@ -67,6 +67,8 @@ import Text.Parsec hiding ((<|>))
 
 findMime :: FilePath -> FilePath -> IO MimeType
 findMime _ path | takeExtension path == ".gpx" = pure "application/gpx+xml"
+findMime _ path | takeExtension path == ".slvs" = pure "application/x-solvespace"
+findMime _ path | takeExtension path == ".vik" = pure "application/x-viking"
 findMime db path = do
   (exit, out) <- runStdout file
   case exit of

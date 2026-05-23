@@ -2,10 +2,11 @@ module Korrvigs.Web.Entry.File (content, embed) where
 
 import Control.Lens
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as LBS
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Enc
-import qualified Data.Text.IO as TIO
+import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Entry
 import Korrvigs.File.Computation (hasModel)
 import qualified Korrvigs.File.Mtdt.FIT as FIT
@@ -69,7 +70,7 @@ imgWidget file =
 
 textWidget :: File -> Handler Widget
 textWidget file = do
-  txt <- liftIO $ TIO.readFile $ file ^. filePath
+  txt <- liftIO $ LEnc.decodeUtf8With (\_ -> const $ Just '\xFFFD') <$> LBS.readFile (file ^. filePath)
   pure $ do
     toWidget
       [cassius|

@@ -18,6 +18,7 @@ overlay: {
   autorun = cfg.autorun;
   nginx = server.nginx;
   postgre = config.services.postgresql;
+  blog = cfg.blog;
 
   configContent =
     {
@@ -191,6 +192,32 @@ in {
         };
       };
     };
+    blog = {
+      enable = mkEnableOption "Korrvigs blog";
+      directory = mkOption {
+        type = types.path;
+        description = "The directory to publish the blog in.";
+      };
+      domain = mkOption {
+        type = types.str;
+        description = "The domain to serve the blog from.";
+      };
+      note = mkOption {
+        type = types.str;
+        description = "The note to use as the blog description.";
+        default = "Blog";
+      };
+      nginx = mkOption {
+        type = types.bool;
+        description = "Setup nginx to serve the blog.";
+        default = config.korrvigs.server.nginx.enable;
+      };
+      autopublish = mkOption {
+        type = types.nullOr types.str;
+        description = "A systemd timer OnCalendar string describing if and when to republish to blog";
+        default = null;
+      };
+    };
   };
 
   config = mkMerge [
@@ -315,6 +342,58 @@ in {
           extraConfig = ''
             add_header Access-Control-Allow-Origin https://${nginx.domain};
           '';
+        };
+      };
+    })
+
+    (mkIf (cfg.enable && blog.enable) {
+      systemd.tmpfiles.rules = [
+        "d ${blog.directory} 0770 ${config.services.nginx.user} ${config.users.users.${cfg.user}.group} - -"
+      ];
+
+      environment.systemPackages = [
+        (pkgs.writeScriptBin "korrvigs-blog-publish" ''
+          directory=${lib.strings.escapeShellArg blog.directory}
+          ${cfg.package}/bin/korr blog publish "$directory" ${lib.strings.escapeShellArg blog.domain} --entry https://${lib.strings.escapeShellArg blog.note}
+          find "$directory" -type d -exec chmod 770 {}
+          find "$directory" -type f -exec chmod 660 {}
+          chown -R ${config.services.nginx.user}:${config.users.users.${cfg.user}.group} "$directory"
+        '')
+      ];
+    })
+
+    (mkIf (cfg.enable && blog.enable && blog.nginx) {
+      services.nginx = {
+        enable = true;
+        virtualHosts.${blog.domain} = {
+          enableACME = true;
+          forceSSL = true;
+          locations."/".root = blog.directory;
+        };
+      };
+    })
+
+    (mkIf (cfg.enable && blog.enable && (blog.autopublish != null)) {
+      systemd.services.korrvigs-autopublish = {
+        description = "Autopublish korrvigs's blog";
+        script = "korrvigs-blog-publish";
+        path = dependencies;
+
+        serviceConfig = {
+          User = cfg.user;
+          Group = config.users.users.${cfg.user}.group;
+          Type = "simple";
+        };
+      };
+
+      systemd.timers.korrvigs-blog-publish-timer = {
+        enable = true;
+        wantedBy = ["multi-user.target"];
+        after = ["postgresql.service"];
+
+        timerConfig = {
+          OnCalendar = blog.autopublish;
+          Unit = "korrvigs-blog-autopublish.service";
         };
       };
     })

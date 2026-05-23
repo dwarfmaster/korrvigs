@@ -198,6 +198,7 @@ library korrvigs-lib
     Korrvigs.Web
     Korrvigs.Web.Actions
     Korrvigs.Web.Actions.Bibtex
+    Korrvigs.Web.Actions.Blog
     Korrvigs.Web.Actions.Collection
     Korrvigs.Web.Actions.Compute
     Korrvigs.Web.Actions.Defs

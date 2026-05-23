@@ -28,6 +28,7 @@ import Korrvigs.Note.AST
 import Korrvigs.Query
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Actions.Bibtex
+import Korrvigs.Web.Actions.Blog
 import Korrvigs.Web.Actions.Collection
 import Korrvigs.Web.Actions.Compute
 import Korrvigs.Web.Actions.Defs
@@ -61,6 +62,8 @@ data ActionLabel
   | LabNewSyn
   | LabCaptureLink
   | LabShare
+  | LabBlogPublish
+  | LabBlogPreview
   | LabParentAdd
   | LabParentRm
   | LabUpdate
@@ -91,6 +94,8 @@ actIcon LabNewMedia = mkIcon "media" Base0B
 actIcon LabNewSyn = mkIcon "rss" Base0B
 actIcon LabCaptureLink = mkIcon "link" Base0B
 actIcon LabShare = mkIcon "share" Base0E
+actIcon LabBlogPublish = mkIcon "blog" Base0E
+actIcon LabBlogPreview = mkIcon "blog" Base0F
 actIcon LabParentAdd = mkIcon "parent" Base0B
 actIcon LabParentRm = mkIcon "parent" Base08
 actIcon LabUpdate = mkIcon "upload" Base0F
@@ -117,6 +122,8 @@ actName LabNewMedia = "newmedia"
 actName LabNewSyn = "newsyn"
 actName LabCaptureLink = "capturelink"
 actName LabShare = "share"
+actName LabBlogPublish = "blogpublish"
+actName LabBlogPreview = "blogpreview"
 actName LabParentAdd = "addparent"
 actName LabParentRm = "rmparent"
 actName LabUpdate = "update"
@@ -195,6 +202,8 @@ actForm l@LabNewMedia = genForm newMediaForm newMediaTitle $ actUrl l
 actForm l@LabNewSyn = genForm newSynForm newSynTitle $ actUrl l
 actForm l@LabCaptureLink = genFormM (const captureLinkForm) captureLinkTitle $ actUrl l
 actForm l@LabShare = genForm shareForm shareTitle $ actUrl l
+actForm l@LabBlogPublish = genForm publishBlogForm publishBlogTitle $ actUrl l
+actForm l@LabBlogPreview = genForm previewBlogForm previewBlogTitle $ actUrl l
 actForm l@LabParentAdd = genForm parentForm parentAddTitle $ actUrl l
 actForm l@LabParentRm = genForm parentForm parentRmTitle $ actUrl l
 actForm l@LabUpdate = genForm updateForm updateTitle $ actUrl l
@@ -255,6 +264,8 @@ actPost LabNewMedia = runPost newMediaForm runNewMedia
 actPost LabNewSyn = runPost newSynForm runNewSyn
 actPost LabCaptureLink = runPostM (const captureLinkForm) runCaptureLink
 actPost LabShare = runPost shareForm runShare
+actPost LabBlogPublish = runPost publishBlogForm runPublishBlog
+actPost LabBlogPreview = runPost previewBlogForm runPreviewBlog
 actPost LabParentAdd = runPost parentForm runParentAdd
 actPost LabParentRm = runPost parentForm runParentRm
 actPost LabUpdate = runPost updateForm runUpdate
@@ -308,6 +319,8 @@ actCond LabNewMedia = runActCond newTarget
 actCond LabNewSyn = runActCond newTarget
 actCond LabCaptureLink = runActCond captureLinkTarget
 actCond LabShare = runActCond shareTarget
+actCond LabBlogPublish = runActCond publishBlogTarget
+actCond LabBlogPreview = runActCond previewBlogTarget
 actCond LabParentAdd = runActCond parentTarget
 actCond LabParentRm = runActCond parentTarget
 actCond LabUpdate = runActCond updateTarget

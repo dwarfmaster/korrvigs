@@ -177,7 +177,6 @@ library korrvigs-lib
     Korrvigs.Utils
     Korrvigs.Utils.Base16
     Korrvigs.Utils.Crypto
-    Korrvigs.Utils.Cycle
     Korrvigs.Utils.DateParser
     Korrvigs.Utils.DateTree
     Korrvigs.Utils.DAV

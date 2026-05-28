@@ -108,8 +108,6 @@ sync = do
       \(i, (sqlI, kd, path)) -> doSync lookupId kd i path sqlI
   liftIO $ putStrLn $ "Filled " <> T.pack (show $ M.size ids) <> " entries data in " <> fillT
 
--- TODO fails on rel to unknown
--- TODO fails on sub of unknown
 -- TODO check for sub cycles
 
 syncFileImpl ::

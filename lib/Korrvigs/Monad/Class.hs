@@ -26,6 +26,7 @@ data KorrvigsError
   | KCantLoad Id Text
   | KSubCycle [Id]
   | KRelToUnknown Id
+  | KSubOfUnknown Id
   | KIdNotFound Id
   | KMiscError Text
   deriving (Typeable, Show)

@@ -207,99 +207,102 @@ data SyncData = SyncData
 makeLenses ''SyncData
 
 syncSQL :: (MonadKorrvigs m) => Bool -> (Id -> Maybe Int) -> Kind -> Int -> SyncData -> m ()
-syncSQL update nameToId kd sqlI dt = atomicSQL $ \conn -> do
-  -- Suppress messages for this transaction
-  void $ Simple.execute_ conn "SET LOCAL client_min_messages TO WARNING"
-  -- Remove old entries specific tables
-  when update $
-    case kd of
-      Note -> mapM_ (runDelete conn) $ Note.sqlRemove sqlI
-      File -> mapM_ (runDelete conn) $ File.sqlRemove sqlI
-      Event -> mapM_ (runDelete conn) $ Event.sqlRemove sqlI
-      Calendar -> mapM_ (runDelete conn) $ Cal.sqlRemove sqlI
-      Syndicate -> mapM_ (runDelete conn) $ Syn.sqlRemove sqlI
-  -- Update entry
-  void $
-    runUpdate conn $
-      Update
-        { uTable = entriesTable,
-          uUpdateWith = const $ toFields $ dt ^. syncEntryRow,
-          uWhere = \row -> row ^. sqlEntryId .== sqlInt4 sqlI,
-          uReturning = rCount
-        }
-  -- Insert into kind specific table
-  forM_ (dt ^. syncDataRows) $ runInsert conn
-  -- Optionally set textContent
-  let mtdtVal = (^? _2 . _String) <$> filter (\r -> (r ^. _1) `S.member` indexedMetadata) (dt ^. syncMtdtRows)
-  let txtContent = T.intercalate " " . mconcat $ toList <$> (dt ^. syncTextContent : dt ^. syncEntryRow . sqlEntryTitle : mtdtVal)
-  unless (T.null txtContent) $ do
-    -- Find language
-    let lang = (^. _2) <$> find (\mrow -> mrow ^. _1 == mtdtName Language) (dt ^. syncMtdtRows)
-    let parser = case lang of
-          Just "fr" -> tsParseFrench
-          _ -> tsParseEnglish
-    -- Update
+syncSQL update nameToId kd sqlI dt = do
+  parents <- forM (dt ^. syncParents) $ \p -> throwMaybe (KSubOfUnknown p) (nameToId p)
+  refs <- forM (dt ^. syncRefs) $ \r -> throwMaybe (KRelToUnknown r) (nameToId r)
+  atomicSQL $ \conn -> do
+    -- Suppress messages for this transaction
+    void $ Simple.execute_ conn "SET LOCAL client_min_messages TO WARNING"
+    -- Remove old entries specific tables
+    when update $
+      case kd of
+        Note -> mapM_ (runDelete conn) $ Note.sqlRemove sqlI
+        File -> mapM_ (runDelete conn) $ File.sqlRemove sqlI
+        Event -> mapM_ (runDelete conn) $ Event.sqlRemove sqlI
+        Calendar -> mapM_ (runDelete conn) $ Cal.sqlRemove sqlI
+        Syndicate -> mapM_ (runDelete conn) $ Syn.sqlRemove sqlI
+    -- Update entry
     void $
       runUpdate conn $
         Update
           { uTable = entriesTable,
-            uUpdateWith = updateEasy $ sqlEntryText .~ toNullable (parser $ sqlStrictText txtContent),
+            uUpdateWith = const $ toFields $ dt ^. syncEntryRow,
             uWhere = \row -> row ^. sqlEntryId .== sqlInt4 sqlI,
             uReturning = rCount
           }
-  -- Update metadata
-  when update $
+    -- Insert into kind specific table
+    forM_ (dt ^. syncDataRows) $ runInsert conn
+    -- Optionally set textContent
+    let mtdtVal = (^? _2 . _String) <$> filter (\r -> (r ^. _1) `S.member` indexedMetadata) (dt ^. syncMtdtRows)
+    let txtContent = T.intercalate " " . mconcat $ toList <$> (dt ^. syncTextContent : dt ^. syncEntryRow . sqlEntryTitle : mtdtVal)
+    unless (T.null txtContent) $ do
+      -- Find language
+      let lang = (^. _2) <$> find (\mrow -> mrow ^. _1 == mtdtName Language) (dt ^. syncMtdtRows)
+      let parser = case lang of
+            Just "fr" -> tsParseFrench
+            _ -> tsParseEnglish
+      -- Update
+      void $
+        runUpdate conn $
+          Update
+            { uTable = entriesTable,
+              uUpdateWith = updateEasy $ sqlEntryText .~ toNullable (parser $ sqlStrictText txtContent),
+              uWhere = \row -> row ^. sqlEntryId .== sqlInt4 sqlI,
+              uReturning = rCount
+            }
+    -- Update metadata
+    when update $
+      void $
+        runDelete conn $
+          Delete
+            { dTable = entriesMetadataTable,
+              dWhere = \mtdt -> mtdt ^. sqlEntry .== sqlInt4 sqlI,
+              dReturning = rCount
+            }
     void $
-      runDelete conn $
-        Delete
-          { dTable = entriesMetadataTable,
-            dWhere = \mtdt -> mtdt ^. sqlEntry .== sqlInt4 sqlI,
-            dReturning = rCount
+      runInsert conn $
+        Insert
+          { iTable = entriesMetadataTable,
+            iRows = toFields . uncurry (MetadataRow sqlI) <$> dt ^. syncMtdtRows,
+            iReturning = rCount,
+            iOnConflict = Just doNothing
           }
-  void $
-    runInsert conn $
-      Insert
-        { iTable = entriesMetadataTable,
-          iRows = toFields . uncurry (MetadataRow sqlI) <$> dt ^. syncMtdtRows,
-          iReturning = rCount,
-          iOnConflict = Just doNothing
-        }
-  let lookupId = toList . nameToId
-  -- Update parents
-  when update $
+    let lookupId = toList . nameToId
+    -- Update parents
+    when update $
+      void $
+        runDelete conn $
+          Delete
+            { dTable = entriesSubTable,
+              dWhere = \sub -> sub ^. source .== sqlInt4 sqlI,
+              dReturning = rCount
+            }
     void $
-      runDelete conn $
-        Delete
-          { dTable = entriesSubTable,
-            dWhere = \sub -> sub ^. source .== sqlInt4 sqlI,
-            dReturning = rCount
-          }
-  void $
-    runInsert conn $
-      insertSubOf $
-        (sqlI,) <$> (dt ^. syncParents >>= lookupId)
-  -- Update refs
-  when update $
+      runInsert conn $
+        insertSubOf $
+          (sqlI,) <$> parents
+    -- Update refs
+    when update $
+      void $
+        runDelete conn $
+          Delete
+            { dTable = entriesRefTable,
+              dWhere = \sub -> sub ^. source .== sqlInt4 sqlI,
+              dReturning = rCount
+            }
     void $
-      runDelete conn $
-        Delete
-          { dTable = entriesRefTable,
-            dWhere = \sub -> sub ^. source .== sqlInt4 sqlI,
-            dReturning = rCount
-          }
-  void $
-    runInsert conn $
-      insertRefTo $
-        (sqlI,) <$> (dt ^. syncRefs >>= lookupId)
-  -- Update computations
-  when update $ do
-    void $
-      runDelete conn $
-        Delete
-          { dTable = computationsDepTable,
-            dWhere = \dep -> dep ^. sqlCompDepSrcEntry .== sqlInt4 sqlI,
-            dReturning = rCount
-          }
+      runInsert conn $
+        insertRefTo $
+          (sqlI,) <$> refs
+    -- Update computations
+    when update $ do
+      void $
+        runDelete conn $
+          Delete
+            { dTable = computationsDepTable,
+              dWhere = \dep -> dep ^. sqlCompDepSrcEntry .== sqlInt4 sqlI,
+              dReturning = rCount
+            }
     void $
       runDelete conn $
         Delete
@@ -310,32 +313,32 @@ syncSQL update nameToId kd sqlI dt = atomicSQL $ \conn -> do
                   .== sqlInt4 sqlI,
             dReturning = rCount
           }
-  let toAddComps = dt ^. syncCompute
-  unless (M.null toAddComps) $ do
-    let mkCompRow (code, (autorun, lastRun, runTime, tp, _)) =
-          CompRow sqlI code tp autorun lastRun runTime
-    let compRows = mkCompRow <$> M.toList toAddComps
+    let toAddComps = dt ^. syncCompute
+    unless (M.null toAddComps) $ do
+      let mkCompRow (code, (autorun, lastRun, runTime, tp, _)) =
+            CompRow sqlI code tp autorun lastRun runTime
+      let compRows = mkCompRow <$> M.toList toAddComps
+      void $
+        runInsert conn $
+          Insert
+            { iTable = computationsTable,
+              iRows = toFields <$> compRows,
+              iReturning = rCount,
+              iOnConflict = Just doNothing
+            }
+    let depRows = do
+          (cmp, (_, _, _, _, deps)) <- M.toList $ dt ^. syncCompute
+          (dstId, dstCmp) <- deps
+          dstSqlI <- lookupId dstId
+          pure $ CompDepRow sqlI cmp dstSqlI dstCmp
     void $
       runInsert conn $
         Insert
-          { iTable = computationsTable,
-            iRows = toFields <$> compRows,
+          { iTable = computationsDepTable,
+            iRows = toFields <$> depRows,
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  let depRows = do
-        (cmp, (_, _, _, _, deps)) <- M.toList $ dt ^. syncCompute
-        (dstId, dstCmp) <- deps
-        dstSqlI <- lookupId dstId
-        pure $ CompDepRow sqlI cmp dstSqlI dstCmp
-  void $
-    runInsert conn $
-      Insert
-        { iTable = computationsDepTable,
-          iRows = toFields <$> depRows,
-          iReturning = rCount,
-          iOnConflict = Just doNothing
-        }
 
 insertNew :: (MonadKorrvigs m) => Id -> Kind -> m Int
 insertNew i kd = do

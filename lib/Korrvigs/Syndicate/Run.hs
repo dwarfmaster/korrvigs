@@ -139,7 +139,7 @@ run syn = case syn ^. synUrl of
     let setTime = synjsMetadata . at (mtdtSqlName RunTime) ?~ toJSON time
     let setDate = synjsMetadata . at (mtdtSqlName RunDate) ?~ toJSON (iso8601Show date)
     updateImpl syn $ f . setTime . setDate
-    syncFileOfKind (syn ^. synPath) Syndicate
+    syncFileOfKind (syn ^. synEntry . entryName) (syn ^. synPath) (syn ^. synEntry . entryId) Syndicate
     pure r
 
 sinkFeed :: (MonadKorrvigs m) => SyndicateSettings -> ConduitT BSU8.ByteString Void m (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])

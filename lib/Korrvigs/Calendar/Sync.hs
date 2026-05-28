@@ -1,6 +1,6 @@
 module Korrvigs.Calendar.Sync where
 
-import Control.Arrow (first, (&&&))
+import Control.Arrow (first)
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
@@ -43,30 +43,29 @@ calendarPath' cal = do
 calendarPath :: (MonadKorrvigs m) => Calendar -> m FilePath
 calendarPath = calendarPath' . view (calEntry . entryName)
 
-syncCalJSON :: (MonadKorrvigs m) => Id -> CalJSON -> m SyncData
-syncCalJSON i json = do
+syncCalJSON :: (MonadKorrvigs m) => Id -> Int -> CalJSON -> m SyncData
+syncCalJSON i sqlI json = do
   let mtdt = json ^. cljsMetadata
   let tm = json ^. cljsDate
   let dur = json ^. cljsDuration
   let geom = json ^. cljsGeo
   let title = json ^. cljsTitle
-  let erow = EntryRow Nothing Calendar i tm dur geom Nothing title :: EntryRowW
+  let erow = EntryRow (Just sqlI) Calendar i tm dur geom Nothing title :: EntryRowW
   let mtdtrows = first CI.mk <$> M.toList mtdt
-  let crow sqlI = CalRow sqlI (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
-  let insert sqlI =
+  let crow = CalRow sqlI (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
+  let insert =
         Insert
           { iTable = calendarsTable,
-            iRows = [toFields $ crow sqlI],
+            iRows = [toFields crow],
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  pure $ SyncData erow (singleton . insert) mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) [] M.empty
+  pure $ SyncData erow [insert] mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) [] M.empty
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
-syncOne path = do
-  let i = calIdFromPath path
+syncOne :: (MonadKorrvigs m) => Id -> FilePath -> Int -> m SyncData
+syncOne i path sqlI = do
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
-  syncCalJSON i json
+  syncCalJSON i sqlI json
 
 allCalendars :: (MonadKorrvigs m) => m [FilePath]
 allCalendars = do
@@ -76,10 +75,6 @@ allCalendars = do
 
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allCalendars
-
-sync :: (MonadKorrvigs m) => m (Map Id SyncData)
-sync =
-  M.fromList <$> (allCalendars >>= mapM (sequence . (calIdFromPath &&& syncOne)))
 
 remove :: (MonadKorrvigs m) => Calendar -> m ()
 remove cal = do

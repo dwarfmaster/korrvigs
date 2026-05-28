@@ -1,4 +1,4 @@
-module Korrvigs.Monad.Sync (sync, syncFile, syncFileOfKind, syncOne, remove) where
+module Korrvigs.Monad.Sync (sync, syncFileOfKind, syncOne, remove) where
 
 import Conduit (throwM)
 import Control.Applicative
@@ -9,7 +9,8 @@ import Control.Monad.IO.Class
 import Data.Aeson
 import Data.CaseInsensitive (CI)
 import Data.Foldable
-import Data.List (singleton)
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -20,7 +21,6 @@ import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
 import qualified Korrvigs.Calendar.Sync as Cal
-import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
 import qualified Korrvigs.File.Sync as File
@@ -29,7 +29,6 @@ import Korrvigs.Monad.Class
 import Korrvigs.Monad.SQL
 import qualified Korrvigs.Note.Sync as Note
 import qualified Korrvigs.Syndicate.Sync as Syn
-import Korrvigs.Utils.Cycle
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Time (measureTime, measureTime_)
 import Opaleye hiding (not, null)
@@ -46,134 +45,83 @@ remove entry = do
     CalendarD cal -> Cal.remove cal
     SyndicateD syn -> Syn.remove syn
 
-loadIDsFor :: forall m. (MonadKorrvigs m) => Text -> (FilePath -> Id) -> m (Set FilePath) -> m (Map Id [FilePath])
+loadIDsFor :: forall m. (MonadKorrvigs m) => Text -> (FilePath -> Id) -> m (Set FilePath) -> m (Map Id (NonEmpty FilePath))
 loadIDsFor kdTxt extractId doList = do
   (tm, st) <- measureTime doList
   liftIO $ putStrLn $ kdTxt <> ": listed " <> T.pack (show $ S.size st) <> " in " <> tm
-  pure . M.fromListWith (<>) . S.toList $ S.map (extractId &&& singleton) st
+  pure . M.fromListWith (<>) . S.toList $ S.map (extractId &&& NE.singleton) st
 
-loadIDsOn :: (MonadKorrvigs m) => Kind -> m (Map Id [FilePath])
+loadIDsOn :: (MonadKorrvigs m) => Kind -> m (Map Id (NonEmpty FilePath))
 loadIDsOn Note = loadIDsFor (displayKind Note) Note.noteIdFromPath Note.list
 loadIDsOn File = loadIDsFor (displayKind File) File.fileIdFromPath File.list
 loadIDsOn Event = loadIDsFor (displayKind Event) (fst . Event.eventIdFromPath) Event.list
 loadIDsOn Calendar = loadIDsFor (displayKind Calendar) Cal.calIdFromPath Cal.list
 loadIDsOn Syndicate = loadIDsFor (displayKind Syndicate) Syn.synIdFromPath Syn.list
 
-loadIDs :: (MonadKorrvigs m) => m (Map Id [FilePath])
+loadIDs :: (MonadKorrvigs m) => m (Map Id (NonEmpty (Kind, FilePath)))
 loadIDs = do
-  allIDs <- mapM loadIDsOn [minBound .. maxBound]
+  allIDs <- mapM (\kd -> fmap (fmap (kd,)) <$> loadIDsOn kd) [minBound .. maxBound]
   pure $ M.unionsWith (<>) allIDs
-
-sqlIDs :: (MonadKorrvigs m) => m (Map Id [Text])
-sqlIDs = do
-  ids <- rSelect $ do
-    erow <- selectTable entriesTable
-    pure $ erow ^. sqlEntryName
-  pure $ M.fromList $ (MkId &&& const []) <$> ids
-
-flattenMap :: Map a [b] -> [(a, b)]
-flattenMap mp = [(a, b) | (a, bs) <- M.toList mp, b <- bs]
-
-runSync ::
-  (MonadKorrvigs m) =>
-  Text ->
-  m (Map Id SyncData) ->
-  m (Map Id ([Id], [Id], [(Text, (Id, Text))], m ()))
-runSync kdTxt dt = do
-  (tm, r) <- measureTime dt
-  liftIO $ putStrLn $ kdTxt <> ": synced " <> T.pack (show $ M.size r) <> " in " <> tm
-  let handleSyncData sdt = (sdt ^. syncParents, sdt ^. syncRefs, flattenMap $ view _5 <$> sdt ^. syncCompute, void $ syncSQL False M.empty sdt)
-  pure $ handleSyncData . fixSyncData <$> r
-
-runSyncOn :: (MonadKorrvigs m) => Kind -> m (Map Id ([Id], [Id], [(Text, (Id, Text))], m ()))
-runSyncOn Note = runSync (displayKind Note) Note.sync
-runSyncOn File = runSync (displayKind File) File.sync
-runSyncOn Event = runSync (displayKind Event) Event.sync
-runSyncOn Calendar = runSync (displayKind Calendar) Cal.sync
-runSyncOn Syndicate = runSync (displayKind Syndicate) Syn.sync
 
 nameToIdMap :: (MonadKorrvigs m) => m (Map Id Int)
 nameToIdMap = do
   nameIds <- rSelect $ (view sqlEntryName &&& view sqlEntryId) <$> selectTable entriesTable
   pure $ M.fromList nameIds
 
-prepare :: Map Id Int -> (Id, Id) -> Maybe (Int, Int)
-prepare mp (nm1, nm2) = (,) <$> M.lookup nm1 mp <*> M.lookup nm2 mp
+runSync :: (MonadKorrvigs m) => Kind -> Id -> FilePath -> Int -> m SyncData
+runSync Note = Note.syncOne
+runSync File = File.syncOne
+runSync Event = Event.syncOne
+runSync Calendar = Cal.syncOne
+runSync Syndicate = Syn.syncOne
+
+doSync :: (MonadKorrvigs m) => (Id -> Maybe Int) -> Kind -> Id -> FilePath -> Int -> m ()
+doSync lookupSqlI kd i path sqlI =
+  syncSQL False lookupSqlI kd sqlI . fixSyncData =<< runSync kd i path sqlI
 
 sync :: (MonadKorrvigs m) => m ()
 sync = do
   withSQL $ \conn ->
-    void $ liftIO $ Simple.execute_ conn "truncate entries_sub, entries_ref_to, computations_dep"
+    void $ liftIO $ Simple.execute_ conn "truncate entries, entries_metadata, entries_sub, entries_ref_to, computations, computations_dep, notes, notes_collections, files, events, calendars, syndicates, syndicated_items"
   ids <- loadIDs
-  let conflict = M.toList $ M.filter ((>= 2) . length) ids
+  let conflict = (_2 %~ NE.toList . fmap snd) <$> M.toList (M.filter ((>= 2) . length) ids)
   unless (null conflict) $ throwM $ KDuplicateId conflict
-  sqls <- sqlIDs
-  let toRemove = view _1 <$> M.toList (M.difference sqls ids)
-  rmT <- measureTime_ $ forM_ toRemove $ \i -> do
-    entry <- load i
-    forM_ entry remove
-  liftIO $ putStrLn $ "Removed " <> T.pack (show $ length toRemove) <> " entries in " <> rmT
-  allrels <- mapM runSyncOn [minBound .. maxBound]
-  let rels = foldl' M.union M.empty allrels
-  let checkRD = checkRelData $ \i -> isJust $ M.lookup i ids
-  case foldr ((<|>) . checkRD . (view _1 &&& view _2) . view _2) Nothing (M.toList rels) of
-    Nothing -> pure ()
-    Just i -> throwM $ KRelToUnknown i
-  case hasCycle (view _1 <$> rels) of
-    Nothing -> pure ()
-    Just cle -> throwM $ KSubCycle cle
-  let subBindings = flattenMap $ view _1 <$> rels
-  let refBindings = flattenMap $ view _2 <$> rels
-  let lkDep nmId (isrc, (csrc, (idst, cdst))) =
-        CompDepRow
-          <$> M.lookup isrc nmId
-          <*> pure csrc
-          <*> M.lookup idst nmId
-          <*> pure cdst
-  let depBindings nmId = mapMaybe (lkDep nmId) $ flattenMap $ view _3 <$> rels
-  dbT <- measureTime_ $ do
-    forM_ rels $ view _4
-    nameToId <- nameToIdMap
-    let subs = mapMaybe (prepare nameToId) subBindings
-    let refs = mapMaybe (prepare nameToId) refBindings
-    let deps = depBindings nameToId
-    atomicInsert [insertSubOf subs, insertRefTo refs, insertCompDeps deps]
-  liftIO $ putStrLn $ "Updated database in " <> dbT
-  where
-    checkRelData :: (Id -> Bool) -> ([Id], [Id]) -> Maybe Id
-    checkRelData check (subOf, refTo) =
-      find (not . check) subOf <|> find (not . check) refTo
+  (recrT, entries) <- measureTime $ withSQL $ \conn -> liftIO $ do
+    let rows :: [EntryRowW] = fmap (\(i, k) -> EntryRow Nothing k i Nothing Nothing Nothing Nothing Nothing) $ M.toList $ fmap (fst . NE.head) ids
+    void $
+      runInsert conn $
+        Insert
+          { iTable = entriesTable,
+            iRows = toFields <$> rows,
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
+    sqls <- runSelect conn $ do
+      entry <- selectTable entriesTable
+      pure (entry ^. sqlEntryName, entry ^. sqlEntryId)
+    let sqlsMap = M.fromList (sqls :: [(Id, Int)])
+    pure $ M.intersectionWith (\i paths -> (i, fst (NE.head paths), snd (NE.head paths))) sqlsMap ids
+  liftIO $ putStrLn $ "Recreated " <> T.pack (show $ M.size ids) <> " entries in " <> recrT
+  let lookupId i = view _1 <$> M.lookup i entries
+  fillT <- measureTime_ $
+    forM_ (M.toList entries) $
+      \(i, (sqlI, kd, path)) -> doSync lookupId kd i path sqlI
+  liftIO $ putStrLn $ "Filled " <> T.pack (show $ M.size ids) <> " entries data in " <> fillT
 
-identifyPath :: forall m. (MonadKorrvigs m) => FilePath -> m Kind
-identifyPath path = do
-  roots <- mapM (\kd -> (kd,) <$> kdRoot kd) [minBound .. maxBound]
-  case find (isRel . snd) roots of
-    Nothing -> throwM $ KMiscError $ "\"" <> T.pack path <> "\" is not a valid path entry"
-    Just (kd, _) -> pure kd
-  where
-    isRel :: FilePath -> Bool
-    isRel rt = isRelative $ makeRelative rt path
-    kdRoot :: Kind -> m FilePath
-    kdRoot Note = Note.noteDirectory
-    kdRoot File = File.filesDirectory
-    kdRoot Event = Event.eventsDirectory
-    kdRoot Calendar = Cal.calendarsDirectory
-    kdRoot Syndicate = Syn.syndicatesDirectory
+-- TODO fails on rel to unknown
+-- TODO fails on sub of unknown
+-- TODO check for sub cycles
 
 syncFileImpl ::
   (MonadKorrvigs m) =>
-  Id ->
+  Kind ->
+  Int ->
   SyncData ->
   m ()
-syncFileImpl i sdt' = do
+syncFileImpl kd sqlI sdt' = do
   let sdt = fixSyncData sdt'
-  nameToId' <- nameToIdMap
-  nameToId <- syncSQL True nameToId' sdt
-  forM_ (M.lookup i nameToId) $ \sqlI -> do
-    syncRelsSQL
-      sqlI
-      (mapMaybe (`M.lookup` nameToId) $ sdt ^. syncParents)
-      (mapMaybe (`M.lookup` nameToId) $ sdt ^. syncRefs)
+  nameToId <- nameToIdMap
+  syncSQL True (flip M.lookup nameToId) kd sqlI sdt
 
 fixSyncData :: SyncData -> SyncData
 fixSyncData sdt = sdt & syncRefs %~ (addRefs ++)
@@ -186,25 +134,14 @@ refsFromMetadata mtdt val
       toList $ MkId <$> fromJSONM val
 refsFromMetadata _ _ = []
 
-syncFileOfKind :: (MonadKorrvigs m) => FilePath -> Kind -> m ()
-syncFileOfKind path Note =
-  syncFileImpl (Note.noteIdFromPath path) =<< Note.syncOne path
-syncFileOfKind path File =
-  syncFileImpl (File.fileIdFromPath path) =<< File.syncOne path
-syncFileOfKind path Event =
-  syncFileImpl (fst $ Event.eventIdFromPath path) =<< Event.syncOne path
-syncFileOfKind path Calendar =
-  syncFileImpl (Cal.calIdFromPath path) =<< Cal.syncOne path
-syncFileOfKind path Syndicate =
-  syncFileImpl (Syn.synIdFromPath path) =<< Syn.syncOne path
-
-syncFile :: (MonadKorrvigs m) => FilePath -> m ()
-syncFile path = identifyPath path >>= syncFileOfKind path
+syncFileOfKind :: (MonadKorrvigs m) => Id -> FilePath -> Int -> Kind -> m ()
+syncFileOfKind i path sqlI kd =
+  syncFileImpl kd sqlI =<< runSync kd i path sqlI
 
 syncOne :: (MonadKorrvigs m) => Entry -> m ()
 syncOne entry = case entry ^. entryKindData of
-  NoteD note -> syncFileOfKind (note ^. notePath) Note
-  FileD file -> syncFileOfKind (file ^. filePath) File
-  EventD event -> syncFileOfKind (event ^. eventFile) Event
-  CalendarD cal -> Cal.calendarPath cal >>= flip syncFileOfKind Calendar
-  SyndicateD syn -> syncFileOfKind (syn ^. synPath) Syndicate
+  NoteD note -> syncFileOfKind (entry ^. entryName) (note ^. notePath) (entry ^. entryId) Note
+  FileD file -> syncFileOfKind (entry ^. entryName) (file ^. filePath) (entry ^. entryId) File
+  EventD event -> syncFileOfKind (entry ^. entryName) (event ^. eventFile) (entry ^. entryId) Event
+  CalendarD cal -> Cal.calendarPath cal >>= \path -> syncFileOfKind (entry ^. entryName) path (entry ^. entryId) Calendar
+  SyndicateD syn -> syncFileOfKind (entry ^. entryName) (syn ^. synPath) (entry ^. entryId) Syndicate

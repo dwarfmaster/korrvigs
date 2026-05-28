@@ -287,4 +287,4 @@ doCaptureLink clk syn = do
             _synitInstance = Nothing
           }
   Sync.updateImpl syn $ pure . (synjsItems %~ (++ [item]))
-  syncFileOfKind (syn ^. synPath) Syndicate
+  syncFileOfKind (syn ^. synEntry . entryName) (syn ^. synPath) (syn ^. synEntry . entryId) Syndicate

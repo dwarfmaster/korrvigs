@@ -124,7 +124,8 @@ new opts = do
   let filename = unId i <> "_" <> unId (opts ^. nevCalendar) <> ".ics"
   let day = localDay . zonedTimeToLocalTime . resolveICalTime ncal <$> ncal ^? icEvent . _Just . iceStart . _Just
   path <- storeFile rt eventTreeType day filename $ FileLazy $ renderICalFile ncal
-  syncFileOfKind path Event
+  sqlI <- insertNew i Event
+  syncFileOfKind i path sqlI Event
   applyOnNewEntry nentry i
   pure i
 

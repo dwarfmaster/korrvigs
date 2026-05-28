@@ -42,7 +42,7 @@ runSynUpdate (url, filtersTxt) (TargetEntry entry) =
     SyndicateD syn -> do
       let filters = New.parseSyndicateFilter filtersTxt
       Sync.updateImpl syn $ pure . (synjsUrl .~ url) . (synjsFilters .~ filters)
-      syncFileOfKind (syn ^. synPath) Syndicate
+      syncFileOfKind (entry ^. entryName) (syn ^. synPath) (entry ^. entryId) Syndicate
       render <- getUrlRenderParams
       pure $
         def

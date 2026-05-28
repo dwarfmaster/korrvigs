@@ -228,7 +228,8 @@ new path' options' = do
       liftIO $ BSL.writeFile metapath $ encodePretty mtdt
       rt <- root
       when alreadyAnnexed $ void $ runSilentK (proc "git" ["annex", "fix", stored]) {cwd = Just rt}
-      syncFileOfKind stored File
+      sqlI <- insertNew i File
+      syncFileOfKind i stored sqlI File
       when (options ^. nfRemove && not alreadyAnnexed) $ liftIO $ removeFile path'
       applyOnNewEntry nentry i
       pure i

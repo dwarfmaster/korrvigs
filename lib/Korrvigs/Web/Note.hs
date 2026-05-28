@@ -84,7 +84,7 @@ postNoteR (WId i) =
                 throwM $ KMiscError err
               Nothing -> pure ()
             liftIO $ hClose fd
-            syncFileOfKind path Note
+            syncFileOfKind i path (entry ^. entryId) Note
             redirect $ NoteR $ WId i
       _ -> notFound
 
@@ -155,7 +155,7 @@ postNoteSubR (WId i) (WLoc loc) =
                 throwM $ KMiscError err
               Nothing -> pure ()
             liftIO $ hClose fd
-            syncFileOfKind path Note
+            syncFileOfKind i path (entry ^. entryId) Note
             redirect $ NoteSubR (WId i) (WLoc loc)
       _ -> notFound
   where
@@ -188,7 +188,7 @@ postNoteSubActR (WId i) (WLoc loc) =
                 throwM $ KMiscError err
               Nothing -> pure ()
             liftIO $ hClose fd
-            syncFileOfKind path Note
+            syncFileOfKind i path (entry ^. entryId) Note
             render <- getUrlRenderParams
             pure $ render (EntryR (WId i)) [("open", renderLoc loc)]
       _ -> notFound

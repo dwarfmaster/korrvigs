@@ -82,7 +82,8 @@ create ns = do
   let jsonTT = synTreeType
   let content = encodePretty json
   pth <- storeFile rt jsonTT (nentry ^. neDate) (unId i <> ".json") $ FileLazy content
-  syncFileOfKind pth Syndicate
+  sqlI <- insertNew i Syndicate
+  syncFileOfKind i pth sqlI Syndicate
   applyOnNewEntry nentry i
   pure i
 

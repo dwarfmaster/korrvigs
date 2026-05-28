@@ -111,5 +111,5 @@ postNoteColEditR (WId i) col = do
     pure $ if paramV == Just "on" then Nothing else Just item
   let nmd = md & docContent . each . bkCollection col . _3 .~ nitems
   liftIO $ writeFile (note ^. notePath) $ writeNoteLazy nmd
-  syncFileOfKind (note ^. notePath) Note
+  syncFileOfKind i (note ^. notePath) (entry ^. entryId) Note
   redirect $ NoteColR (WId i) col

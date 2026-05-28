@@ -9,7 +9,6 @@ import Data.Aeson (Result (Error, Success), Value, fromJSON)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.CaseInsensitive as CI
 import Data.Default
-import Data.List hiding (insert)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -77,8 +76,8 @@ register ical =
     Nothing -> throwM $ KMiscError "ics has no event"
     Just ievent -> createIdFor ical ievent
 
-syncEvent :: (MonadKorrvigs m) => Id -> Id -> FilePath -> ICalFile -> ICalEvent -> m SyncData
-syncEvent i calendar ics ifile ical = do
+syncEvent :: (MonadKorrvigs m) => Id -> Id -> Int -> FilePath -> ICalFile -> ICalEvent -> m SyncData
+syncEvent i calendar sqlI ics ifile ical = do
   let mtdt = ical ^. iceMtdt
   let geom = ical ^. iceGeometry
   let tm = resolveICalTime ifile <$> ical ^. iceStart
@@ -88,36 +87,28 @@ syncEvent i calendar ics ifile ical = do
            in let diff = diffUTCTime (zonedTimeToUTC ndTime) (zonedTimeToUTC st)
                in Just $ calendarTimeTime diff
         _ -> calendarTimeTime <$> ical ^. iceDuration
-  let erow = EntryRow Nothing Event i tm dur geom Nothing (ical ^. iceSummary) :: EntryRowW
+  let erow = EntryRow (Just sqlI) Event i tm dur geom Nothing (ical ^. iceSummary) :: EntryRowW
   let mrows = M.toList mtdt
-  let evrow sqlI = EventRow sqlI calendar ics (ical ^. iceUid)
-  let insert sqlI =
+  let evrow = EventRow sqlI calendar ics (ical ^. iceUid)
+  let insert =
         Insert
           { iTable = eventsTable,
-            iRows = [toFields $ evrow sqlI],
+            iRows = [toFields evrow],
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
   let txt = T.intercalate " " $ catMaybes [ical ^. iceComment, ical ^. iceSummary, ical ^. iceDescription]
   let txt' = if T.null txt then Nothing else Just txt
-  pure $ SyncData erow (singleton . insert) mrows txt' (calendar : ical ^. iceParents) [] M.empty
+  pure $ SyncData erow [insert] mrows txt' (calendar : ical ^. iceParents) [] M.empty
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
-syncOne path = do
-  let (i, calendar) = eventIdFromPath path
+syncOne :: (MonadKorrvigs m) => Id -> FilePath -> Int -> m SyncData
+syncOne i path sqlI = do
+  let (_, calendar) = eventIdFromPath path
   liftIO (parseICalFile path) >>= \case
     Left err -> throwM $ KMiscError $ "Failed to parse \"" <> T.pack path <> "\": " <> err
     Right ifile -> case ifile ^. icEvent of
       Nothing -> throwM $ KMiscError $ "Ics file \"" <> T.pack path <> "\" has no VEVENT"
-      Just ievent -> syncEvent i calendar path ifile ievent
-
-sync :: (MonadKorrvigs m) => m (Map Id SyncData)
-sync = do
-  files <- allEvents
-  rdata <- forM files $ \path -> do
-    let i = eventIdFromPath path ^. _1
-    (i,) <$> syncOne path
-  pure $ M.fromList rdata
+      Just ievent -> syncEvent i calendar sqlI path ifile ievent
 
 updateImpl :: (MonadKorrvigs m) => Event -> (ICalFile -> m ICalFile) -> m ()
 updateImpl event f = do

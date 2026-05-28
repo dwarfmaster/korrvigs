@@ -59,7 +59,8 @@ new nc = do
   path <- calendarPath' i
   writePrettyJsonToFile path json
   -- Sync
-  syncFileOfKind path Calendar
+  sqlI <- insertNew i Calendar
+  syncFileOfKind i path sqlI Calendar
   applyOnNewEntry nentry i
   pure i
 

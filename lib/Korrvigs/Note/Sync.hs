@@ -66,18 +66,13 @@ allNotes = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allNotes
 
-sync :: (MonadKorrvigs m) => m (Map Id SyncData)
-sync =
-  M.fromList <$> (allNotes >>= mapM (sequence . (noteIdFromPath &&& syncOne)))
-
-syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
-syncOne path = do
-  let i = noteIdFromPath path
+syncOne :: (MonadKorrvigs m) => Id -> FilePath -> Int -> m SyncData
+syncOne i path sqlI = do
   doc <- readNote path >>= throwEither (KCantLoad i)
-  syncDocument i path doc
+  syncDocument i path sqlI doc
 
-syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Document -> m SyncData
-syncDocument i path doc = do
+syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Int -> Document -> m SyncData
+syncDocument i path sqlI doc = do
   let mtdt = doc ^. docMtdt
   let geom = fromJSONM =<< mtdt ^. at "geometry"
   let day = dayToZonedTime utc <$> (fromJSONM =<< mtdt ^. at "date")
@@ -85,10 +80,10 @@ syncDocument i path doc = do
   let tm = zt <|> day
   let dur = fromJSONM =<< mtdt ^. at "duration"
   let title = Just $ doc ^. docTitle
-  let erow = EntryRow Nothing Note i tm dur geom Nothing title :: EntryRowW
+  let erow = EntryRow (Just sqlI) Note i tm dur geom Nothing title :: EntryRowW
   let mtdt' = foldr M.delete mtdt ["geometry", "date", "duration"]
   let mrows = M.toList mtdt'
-  let nrow sqlI = NoteRow sqlI path (M.keys $ doc ^. docCollections) :: NoteRow
+  let nrow = NoteRow sqlI path (M.keys $ doc ^. docCollections) :: NoteRow
   let mkCmp (code, (autorun, rbl)) =
         let result = M.lookup code $ doc ^. docComputations
          in (code, (autorun, view cmpResDate <$> result, view cmpResRuntime <$> result, rbl ^. runType, runDeps rbl))
@@ -103,23 +98,23 @@ syncDocument i path doc = do
             . _Just
             . filtered (not . T.null . view _1)
             . to mkCmp
-  let insertNoteRow sqlI =
+  let insertNoteRow =
         Insert
           { iTable = notesTable,
-            iRows = [toFields $ nrow sqlI],
+            iRows = [toFields nrow],
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  let crows sqlI = (\(col, items) -> NoteColRow sqlI col <$> items) =<< M.toList (doc ^. docCollections) :: [NoteColRow]
-  let insertColRows sqlI =
+  let crows = (\(col, items) -> NoteColRow sqlI col <$> items) =<< M.toList (doc ^. docCollections) :: [NoteColRow]
+  let insertColRows =
         Insert
           { iTable = notesCollectionsTable,
-            iRows = toFields <$> crows sqlI,
+            iRows = toFields <$> crows,
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
   let txt = renderDocument doc
-  pure $ SyncData erow (\sqlI -> [insertNoteRow sqlI, insertColRows sqlI]) mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) (M.fromList cmps)
+  pure $ SyncData erow [insertNoteRow, insertColRows] mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) (M.fromList cmps)
   where
     raiseMaybe (_, (_, Nothing)) = Nothing
     raiseMaybe (a, (b, Just c)) = Just (a, (b, c))

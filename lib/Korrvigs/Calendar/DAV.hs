@@ -169,7 +169,8 @@ pullAndMerge report cal cdd = do
         let day = localDay . zonedTimeToLocalTime <$> start
         rt <- lift eventsDirectory
         stored <- storeFile rt Ev.eventTreeType day basename $ FileLazy $ renderICalFile ical
-        lift $ syncFileOfKind stored Event
+        sqlI <- lift $ insertNew i Event
+        lift $ syncFileOfKind i stored sqlI Event
 
   -- Updates events present on both
   lift $ report $ ">> Updating " <> T.pack (show $ M.size changed) <> " events"
@@ -201,7 +202,7 @@ mergeInto report i nical netag davref = do
           & icEvent . _Just . iceMtdt . at (mtdtName DAVPath) ?~ toJSON davref
           & icEvent . _Just . iceMtdt . at (mtdtName DAVETag) ?~ toJSON netag
   liftIO $ BSL.writeFile path $ renderICalFile newIcal
-  lift $ syncFileOfKind path Event
+  lift $ syncFileOfKind (entry ^. entryName) path (entry ^. entryId) Event
 
 mergeICal :: ICalFile -> ICalFile -> ICalFile
 mergeICal ic nic =
@@ -233,9 +234,9 @@ pushNew report cal cdd = do
     davref <- selectMtdt DAVPath i
     where_ $ isNull davref
     nm <- nameFor i
-    pure (nm, ev ^. sqlEventFile)
+    pure (nm, ev ^. sqlEventFile, i)
   lift $ report $ ">> Uploading " <> T.pack (show $ length newEvents) <> " new events"
-  forM_ newEvents $ \(i, file) -> do
+  forM_ newEvents $ \(i, file, sqlI) -> do
     lift $ report $ ">>> Uploading " <> unId i
     content <- liftIO $ BSL.readFile file
     uriPth <- case parseURI (T.unpack $ cal ^. calServer) of
@@ -255,4 +256,4 @@ pushNew report cal cdd = do
                 & icEvent . _Just . iceMtdt . at (mtdtName DAVPath) ?~ toJSON evRc
                 & icEvent . _Just . iceMtdt . at (mtdtName DAVETag) ?~ toJSON netag
         liftIO $ BSL.writeFile file $ renderICalFile ical
-        lift $ syncFileOfKind file Event
+        lift $ syncFileOfKind i file sqlI Event

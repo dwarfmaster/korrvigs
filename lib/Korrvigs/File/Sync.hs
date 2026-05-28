@@ -1,6 +1,6 @@
 module Korrvigs.File.Sync where
 
-import Control.Arrow (first, (&&&))
+import Control.Arrow (first)
 import Control.Lens hiding ((.=))
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
@@ -149,10 +149,6 @@ computeStatus path = do
       pure $ if ex then FilePresent else FileAbsent
     else pure FilePlain
 
-sync :: (MonadKorrvigs m) => m (Map Id SyncData)
-sync =
-  M.fromList <$> (allFiles >>= mapM (sequence . (fileIdFromPath &&& syncOne)))
-
 prepComp :: FileMetadata -> Text -> Runnable -> SyncComputationData
 prepComp json code rbl =
   (Nothing, view cmpResDate <$> result, view cmpResRuntime <$> result, rbl ^. runType, deps)
@@ -160,9 +156,8 @@ prepComp json code rbl =
     deps = runDeps rbl
     result = M.lookup code $ json ^. computations
 
-syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
-syncOne path = do
-  let i = fileIdFromPath path
+syncOne :: (MonadKorrvigs m) => Id -> FilePath -> Int -> m SyncData
+syncOne i path sqlI = do
   let meta = metaPath path
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
   let mtdt = json ^. annoted
@@ -173,18 +168,18 @@ syncOne path = do
   let tm = json ^. exDate
   let dur = json ^. exDuration
   let title = json ^. exTitle
-  let erow = EntryRow Nothing File i tm dur geom Nothing title
+  let erow = EntryRow (Just sqlI) File i tm dur geom Nothing title
   let mtdtrows = first CI.mk <$> M.toList mtdt
-  let frow sqlI = FileRow sqlI path (metaPath path) status mime :: FileRow
-  let insert sqlI =
+  let frow = FileRow sqlI path (metaPath path) status mime :: FileRow
+  let insert =
         Insert
           { iTable = filesTable,
-            iRows = [toFields $ frow sqlI],
+            iRows = [toFields frow],
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
   let txt = json ^. exText
-  let sdt = SyncData erow (singleton . insert) mtdtrows txt (json ^. exParents) [] cmps
+  let sdt = SyncData erow [insert] mtdtrows txt (json ^. exParents) [] cmps
   pure sdt
 
 updateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()

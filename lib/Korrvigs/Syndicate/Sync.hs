@@ -1,6 +1,6 @@
 module Korrvigs.Syndicate.Sync where
 
-import Control.Arrow (first, (&&&))
+import Control.Arrow (first)
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
@@ -61,44 +61,39 @@ allSyndicates = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allSyndicates
 
-sync :: (MonadKorrvigs m) => m (Map Id SyncData)
-sync =
-  M.fromList <$> (allSyndicates >>= mapM (sequence . (synIdFromPath &&& syncOne)))
-
-syncOne :: (MonadKorrvigs m) => FilePath -> m SyncData
-syncOne path = do
-  let i = synIdFromPath path
+syncOne :: (MonadKorrvigs m) => Id -> FilePath -> Int -> m SyncData
+syncOne i path sqlI = do
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
-  syncSynJSON i path json
+  syncSynJSON i path sqlI json
 
-syncSynJSON :: (MonadKorrvigs m) => Id -> FilePath -> SyndicateJSON -> m SyncData
-syncSynJSON i path json = do
+syncSynJSON :: (MonadKorrvigs m) => Id -> FilePath -> Int -> SyndicateJSON -> m SyncData
+syncSynJSON i path sqlI json = do
   let mtdt = json ^. synjsMetadata
   let tm = json ^. synjsDate
   let dur = json ^. synjsDuration
   let geom = json ^. synjsGeo
   let title = json ^. synjsTitle
-  let erow = EntryRow Nothing Syndicate i tm dur geom Nothing title :: EntryRowW
+  let erow = EntryRow (Just sqlI) Syndicate i tm dur geom Nothing title :: EntryRowW
   let mtdtrows = first CI.mk <$> M.toList mtdt
   let renderFilter (MkId fId, fCode) = fId <> "#" <> fCode
-  let srow sqlI = SyndicateRow sqlI (json ^. synjsUrl) path (json ^. synjsETag) (renderFilter <$> json ^. synjsFilters) (json ^. synjsExpiration) :: SyndicateRow
-  let insert sqlI =
+  let srow = SyndicateRow sqlI (json ^. synjsUrl) path (json ^. synjsETag) (renderFilter <$> json ^. synjsFilters) (json ^. synjsExpiration) :: SyndicateRow
+  let insert =
         Insert
           { iTable = syndicatesTable,
-            iRows = [toFields $ srow sqlI],
+            iRows = [toFields srow],
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  let irows sqlI = flip fmap (zip [1 ..] $ json ^. synjsItems) $ \(sq, item) -> SyndicateItemRow sqlI sq (item ^. synitTitle) (item ^. synitUrl) (item ^. synitRead) (item ^. synitGUID) (item ^. synitDate) (unId <$> item ^. synitInstance) :: SyndicateItemRow
-  let insertItemRows sqlI =
+  let irows = flip fmap (zip [1 ..] $ json ^. synjsItems) $ \(sq, item) -> SyndicateItemRow sqlI sq (item ^. synitTitle) (item ^. synitUrl) (item ^. synitRead) (item ^. synitGUID) (item ^. synitDate) (unId <$> item ^. synitInstance) :: SyndicateItemRow
+  let insertItemRows =
         Insert
           { iTable = syndicatedItemsTable,
-            iRows = toFields <$> irows sqlI,
+            iRows = toFields <$> irows,
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
   let refs = (json ^.. synjsFilters . each . _1) ++ mapMaybe (view synitInstance) (json ^. synjsItems)
-  pure $ SyncData erow (\sqlI -> [insert sqlI, insertItemRows sqlI]) mtdtrows (json ^. synjsText) (MkId <$> json ^. synjsParents) refs M.empty
+  pure $ SyncData erow [insert, insertItemRows] mtdtrows (json ^. synjsText) (MkId <$> json ^. synjsParents) refs M.empty
 
 updateFile :: (MonadKorrvigs m) => Id -> FilePath -> (SyndicateJSON -> m SyndicateJSON) -> m ()
 updateFile i path f = do

@@ -393,7 +393,7 @@ in {
 
         timerConfig = {
           OnCalendar = blog.autopublish;
-          Unit = "korrvigs-blog-autopublish.service";
+          Unit = "korrvigs-autopublish.service";
         };
       };
     })

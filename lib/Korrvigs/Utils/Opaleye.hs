@@ -68,6 +68,21 @@ connectedComponentGraph sel pi1 pi2 check st =
     check a $ pi2 a .== pi1 r .|| pi2 a .== pi2 r
     pure a
 
+detectCycles :: (IsSqlType b) => Select a -> (a -> Field b) -> (a -> Field b) -> Select (Field b, Field (SqlArray b))
+detectCycles sel pi1 pi2 = do
+  (parent, _, already_visited, cycle_detected) <- rec
+  where_ cycle_detected
+  pure (parent, already_visited)
+  where
+    initRec = do
+      rel <- sel
+      pure (pi1 rel, pi2 rel, sqlArray id [pi1 rel], sqlBool False)
+    rec = withRecursiveDistinct initRec $ \r -> do
+      rel <- sel
+      let (_, last_visited, already_visited, _) = r
+      where_ $ last_visited .== pi1 rel
+      pure (pi1 rel, pi2 rel, arrayPrepend (pi1 rel) already_visited, sqlElem (pi1 rel) already_visited)
+
 makeSqlMapper :: forall a b. (Bounded a, Enum a, Eq a) => Text -> (a -> String) -> EnumMapper b a
 makeSqlMapper sqlType toSql = enumMapper (T.unpack sqlType) fromSql toSql
   where

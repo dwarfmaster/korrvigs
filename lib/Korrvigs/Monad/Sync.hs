@@ -30,6 +30,7 @@ import Korrvigs.Monad.SQL
 import qualified Korrvigs.Note.Sync as Note
 import qualified Korrvigs.Syndicate.Sync as Syn
 import Korrvigs.Utils.JSON
+import Korrvigs.Utils.Opaleye (detectCycles, sqlUnnest)
 import Korrvigs.Utils.Time (measureTime, measureTime_)
 import Opaleye hiding (not, null)
 import System.FilePath
@@ -107,8 +108,12 @@ sync = do
     forM_ (M.toList entries) $
       \(i, (sqlI, kd, path)) -> doSync lookupId kd i path sqlI
   liftIO $ putStrLn $ "Filled " <> T.pack (show $ M.size ids) <> " entries data in " <> fillT
-
--- TODO check for sub cycles
+  (cycT, cycles :: [Id]) <- measureTime $ rSelect $ do
+    (_, cyc) <- limit 1 $ detectCycles (selectTable entriesSubTable) (view source) (view target)
+    e <- sqlUnnest cyc
+    nameFor e
+  liftIO $ putStrLn $ "Checked for cycles in " <> cycT
+  unless (null cycles) $ throwM $ KSubCycle cycles
 
 syncFileImpl ::
   (MonadKorrvigs m) =>

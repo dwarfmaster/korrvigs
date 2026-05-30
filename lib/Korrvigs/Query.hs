@@ -60,6 +60,7 @@ data JsonArrayQuery
   = JSArrLenEq Int
   | JSArrLenLessThan Int
   | JSArrLenMoreThan Int
+  | JSArrAnyIn JsonQuery
   deriving (Eq, Show)
 
 data JsonBoolQuery
@@ -454,7 +455,7 @@ compileQuery query = do
     KindQueryEvent eq -> compileEventQuery entry eq
     KindQueryCalendar cq -> compileCalendarQuery entry cq
     KindQuerySyndicate sq -> compileSyndicateQuery entry sq
-  -- Checks againts metadata
+  -- Checks against metadata
   forM_ (query ^. queryMtdt) $ \q -> do
     mtdt <- selectTable entriesMetadataTable
     where_ $ (mtdt ^. sqlEntry) .== (entry ^. sqlEntryId)
@@ -542,7 +543,8 @@ compileJsonQuery (BoolQuery q) value = do
 compileJsonQuery (ObjectQuery q) value = do
   v <- fromNullableSelect $ pure value
   compileJsonObjectQuery q v
-compileJsonQuery (ArrayQuery q) value =
+compileJsonQuery (ArrayQuery q) value = do
+  where_ $ matchNullable (sqlBool False) (\v -> sqlJsonTypeof v .== sqlStrictText "array") value
   compileJsonArrayQuery q $ sqlJsonElements value
 
 compileJsonTextQuery :: JsonTextQuery -> Field SqlText -> Field SqlBool
@@ -566,15 +568,17 @@ compileJsonObjectQuery (JSObjSubQuery sub q) v =
   compileJsonQuery q $ toNullable v .-> sqlStrictText sub
 
 compileJsonArrayQuery :: JsonArrayQuery -> Select (Field SqlJsonb) -> Select ()
-compileJsonArrayQuery (JSArrLenEq i) arr = do
-  c <- aggregate count arr
+compileJsonArrayQuery (JSArrLenEq i) sel = do
+  c <- aggregate count sel
   where_ $ c .== sqlInt8 (fromIntegral i)
-compileJsonArrayQuery (JSArrLenLessThan i) arr = do
-  c <- aggregate count arr
+compileJsonArrayQuery (JSArrLenLessThan i) sel = do
+  c <- aggregate count sel
   where_ $ c .< sqlInt8 (fromIntegral i)
-compileJsonArrayQuery (JSArrLenMoreThan i) arr = do
-  c <- aggregate count arr
+compileJsonArrayQuery (JSArrLenMoreThan i) sel = do
+  c <- aggregate count sel
   where_ $ c .> sqlInt8 (fromIntegral i)
+compileJsonArrayQuery (JSArrAnyIn q) sel =
+  compileJsonQuery q . toNullable =<< sel
 
 -- _____
 
@@ -606,12 +610,12 @@ mtdtQueryP :: (Stream s Identity Char) => Parsec s u (Text, JsonQuery)
 mtdtQueryP =
   (,) . T.pack
     <$> many1 (noneOf "|?")
-    <*> queryP
+    <*> (queryP <* eof)
 
 queryP :: (Stream s Identity Char) => Parsec s u JsonQuery
 queryP =
   char '|' *> (ObjectQuery <$> subQueryP)
-    <|> char '?' *> leafQueryP <* eof
+    <|> char '?' *> leafQueryP
 
 subQueryP :: (Stream s Identity Char) => Parsec s u JsonObjectQuery
 subQueryP = do
@@ -672,6 +676,7 @@ arrayQueryP = do
     char '=' *> (JSArrLenEq <$> decimal)
       <|> char '<' *> (JSArrLenLessThan <$> decimal)
       <|> char '>' *> (JSArrLenMoreThan <$> decimal)
+      <|> char ':' *> (JSArrAnyIn <$> queryP)
   void $ char ']'
   pure a
 
@@ -727,3 +732,4 @@ renderJSArrayQuery :: JsonArrayQuery -> Builder
 renderJSArrayQuery (JSArrLenEq i) = "=" <> fromString (show i)
 renderJSArrayQuery (JSArrLenLessThan i) = "<" <> fromString (show i)
 renderJSArrayQuery (JSArrLenMoreThan i) = ">" <> fromString (show i)
+renderJSArrayQuery (JSArrAnyIn q) = ":" <> renderJsonQuery q

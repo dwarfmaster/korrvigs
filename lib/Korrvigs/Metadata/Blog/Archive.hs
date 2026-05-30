@@ -19,7 +19,7 @@ generateArchivePage :: (MonadKorrvigs m) => Map Text Text -> Bool -> (BlogUrl ->
 generateArchivePage mtdt onlyPublished renderUrl tag tags = do
   entries <- loadForTag onlyPublished tag Nothing
   extra <- alltags <$> mapM prepTag tags
-  preppedEntries <- mapM (\(u, d, t) -> (,d,t) <$> renderUrl (BlogPostNote u)) entries
+  preppedEntries <- mapM (\(u, d, t, _) -> (,d,t) <$> renderUrl (BlogPostNote u)) entries
   let byYear = NE.groupBy (\(_, d1, _) (_, d2, _) -> getYear d1 == getYear d2) preppedEntries
   icon <- renderRssIcon renderUrl tag
   let content =

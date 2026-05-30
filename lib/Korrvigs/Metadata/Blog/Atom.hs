@@ -10,6 +10,7 @@ import qualified Data.Text as T
 import Data.Time
 import Data.Time.Format.ISO8601
 import qualified Data.XML.Types as XML
+import Korrvigs.Metadata.Blog.Content
 import Korrvigs.Metadata.Blog.Structure
 import Korrvigs.Monad
 import qualified Text.Atom.Feed as A
@@ -36,7 +37,7 @@ renderAtom onlyPublished renderUrl tag title = do
     Left _ -> throwM $ KMiscError "Failed to convert from atom xml"
     Right d -> pure $ renderLBS def d
 
-generateAtomFor :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Maybe Text -> Text -> [(Text, Day, Text)] -> m A.Feed
+generateAtomFor :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Maybe Text -> Text -> [(Text, Day, Text, FilePath)] -> m A.Feed
 generateAtomFor renderUrl tag title entries = do
   uri <- renderUrl $ maybe BlogAtom BlogAtomTag tag
   atomEntries <- mapM (generateAtomEntryFor renderUrl) entries
@@ -54,11 +55,14 @@ generateAtomFor renderUrl tag title entries = do
         A.feedEntries = atomEntries
       }
 
-generateAtomEntryFor :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> (Text, Day, Text) -> m A.Entry
-generateAtomEntryFor renderUrl (nm, day, title) = do
+generateAtomEntryFor :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> (Text, Day, Text, FilePath) -> m A.Entry
+generateAtomEntryFor renderUrl (nm, day, title, path) = do
   uri <- renderUrl $ BlogPostNote nm
   let date = T.pack $ iso8601Show $ UTCTime day 0
+  (summary, content) <- postTextRender renderUrl path
   pure $
     (A.nullEntry uri (A.TextString title) date)
-      { A.entryPublished = Just date
+      { A.entryPublished = Just date,
+        A.entrySummary = Just (A.HTMLString summary),
+        A.entryContent = Just (A.HTMLContent content)
       }

@@ -16,6 +16,7 @@ import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Blog.Mtdt
 import Korrvigs.Monad
+import Korrvigs.Note.SQL
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Opaleye
@@ -132,13 +133,15 @@ selectBlogTitle entry = do
   title <- fromNullableSelect $ pure $ entry ^. sqlEntryTitle
   pure $ fromNullable title btitle
 
-loadForTag :: (MonadKorrvigs m) => Bool -> Maybe Text -> Maybe Int -> m [(Text, Day, Text)]
+loadForTag :: (MonadKorrvigs m) => Bool -> Maybe Text -> Maybe Int -> m [(Text, Day, Text, FilePath)]
 loadForTag onlyPublished mtag mlimit = do
   time <- liftIO getCurrentTime
   let day = utctDay time
   let dayStr = formatTime defaultTimeLocale "%F" day
   tags <- rSelect $ applyLimit $ orderBy (desc (view _2) <> asc (view _1)) $ do
     entry <- selectTable entriesTable
+    note <- selectTable notesTable
+    where_ $ note ^. sqlNoteId .== entry ^. sqlEntryId
     post <- baseSelectTextMtdt BlogPost $ entry ^. sqlEntryId
     title <- selectBlogTitle entry
     pub <-
@@ -153,10 +156,10 @@ loadForTag onlyPublished mtag mlimit = do
         tags <- baseSelectMtdt BlogTags $ entry ^. sqlEntryId
         sqlTag <- sqlJsonElementsText $ toNullable tags
         where_ $ sqlStrictText tag .== sqlTag
-    pure (post, pub, title)
+    pure (post, pub, title, note ^. sqlNotePath)
   pure $ prepTag day <$> tags
   where
-    prepTag :: Day -> (Text, Text, Text) -> (Text, Day, Text)
+    prepTag :: Day -> (Text, Text, Text, FilePath) -> (Text, Day, Text, FilePath)
     prepTag day = _2 %~ (fromMaybe day . parsePub)
     applyLimit :: Select a -> Select a
     applyLimit = case mlimit of

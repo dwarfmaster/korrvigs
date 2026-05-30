@@ -8,9 +8,11 @@ import Control.Monad.Trans.Maybe
 import Data.Aeson.Lens
 import qualified Data.CaseInsensitive as CI
 import qualified Data.Default as D
+import Data.Either.Extra (eitherToMaybe)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
@@ -24,6 +26,7 @@ import Korrvigs.Note hiding (code, sub)
 import Korrvigs.Utils
 import Korrvigs.Utils.JSON
 import Opaleye
+import Skylighting hiding (lookupSyntax)
 import Text.Blaze
 import Text.Blaze.Html5
 import qualified Text.Blaze.Html5.Attributes as A
@@ -89,7 +92,8 @@ renderHead mtdt t stl feed =
       title (toMarkup t),
       link ! A.rel "stylesheet" ! A.href (toValue stl),
       link ! A.rel "alternate" ! A.type_ "application/atom+xml" ! A.href (toValue feed),
-      renderMeta mtdt
+      renderMeta mtdt,
+      style $ toMarkup $ styleToCss zenburn
     ]
 
 renderRssIcon :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Maybe Text -> m Html
@@ -173,7 +177,7 @@ renderBlock (Para inls) = p <$> renderInlines inls
 renderBlock (LineBlock inls) = do
   lns <- mapM renderInlines inls
   pure $ p $ mconcat $ (<> hr) <$> lns
-renderBlock (CodeBlock _ txt) = pure $ pre $ toMarkup txt
+renderBlock (CodeBlock attr txt) = pure $ renderCode attr txt
 renderBlock (BlockQuote bks) = blockquote <$> renderBlocks bks
 renderBlock (OrderedList items) = ol . foldMap li <$> mapM renderBlocks items
 renderBlock (BulletList items) = ul . foldMap li <$> mapM renderBlocks items
@@ -298,3 +302,76 @@ renderInline (Sidenote note) = do
   let lnk = a (toMarkup $ show idx) ! A.href (toValue $ "#" <> ftContentId)
   pure $ span lnk ! A.class_ "footnote" ! A.id (toValue ftId)
 renderInline (Check _) = pure mempty
+
+renderCode :: Attr -> Text -> Html
+renderCode attr codeSource = case tryParsing attr codeSource of
+  Nothing -> pre $ toMarkup codeSource
+  Just tokens -> formatHtmlBlock cfg tokens
+  where
+    cfg =
+      FormatOptions
+        { numberLines = True,
+          startNumber = 1,
+          lineAnchors = False,
+          titleAttributes = False,
+          codeClasses = [],
+          containerClasses = [],
+          lineIdPrefix = "skylight",
+          ansiColorLevel = ANSITrueColor
+        }
+
+tryParsing :: Attr -> Text -> Maybe [SourceLine]
+tryParsing attr codeSource = do
+  syntax <- getAlt $ mconcat $ Alt . lookupSyntax <$> attr ^. attrClasses
+  let cfg =
+        TokenizerConfig
+          { syntaxMap = defaultSyntaxMap,
+            traceOutput = False
+          }
+  eitherToMaybe $ tokenize cfg syntax codeSource
+
+lookupSyntax :: Text -> Maybe Syntax
+lookupSyntax = flip M.lookup skySyntaxes >=> flip M.lookup defaultSyntaxMap
+
+skySyntaxes :: Map Text Text
+skySyntaxes =
+  M.fromList
+    [ ("markdown", "Markdown"),
+      ("pandoc", "Markdown"),
+      ("html", "HTML"),
+      ("css", "CSS"),
+      ("dot", "dot"),
+      ("latex", "LaTeX"),
+      ("context", "LaTeX"),
+      ("bibtex", "BibTeX"),
+      ("tikz", "LaTeX"),
+      ("c", "C"),
+      ("cpp", "C++"),
+      ("haskell", "Haskell"),
+      ("haskell-diagrams", "Haskell"),
+      ("rust", "Rust"),
+      ("zig", "Zig"),
+      ("ada", "Ada"),
+      ("javascript", "JavaScript"),
+      ("ocaml", "Objective Caml"),
+      ("prolog", "Prolog"),
+      ("python", "Python"),
+      ("raku", "Raku"),
+      ("perl", "Perl"),
+      ("r", "R Script"),
+      ("ruby", "Ruby"),
+      ("lua", "Lua"),
+      ("julia", "Julia"),
+      ("sh", "Bash"),
+      ("bash", "Bash"),
+      ("zsh", "Zsh"),
+      ("makefile", "Makefile"),
+      ("yaml", "YAML"),
+      ("json", "JSON"),
+      ("toml", "TOML"),
+      ("xml", "XML"),
+      ("asymptote", "C++"),
+      ("nix", "Nix"),
+      ("mysql", "SQL (MySQL)"),
+      ("pgsql", "SQL (PostgreSQL)")
+    ]

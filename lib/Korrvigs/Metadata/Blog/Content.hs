@@ -32,7 +32,7 @@ postTextRender renderUrl path = do
     rdr = LT.toStrict . renderMarkup
 
 postContent :: (MonadKorrvigs m) => RenderContext m -> [Block] -> m Html
-postContent ctx bks = fst <$> evalRWST (renderBlocks bks) ctx def
+postContent ctx bks = fst <$> evalRWST (renderBlocksWithFootnotes bks) ctx def
 
 postSummary :: (MonadKorrvigs m) => RenderContext m -> [Block] -> m Html
 postSummary _ [] = pure mempty

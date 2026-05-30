@@ -12,6 +12,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time
 import Korrvigs.Entry
 import Korrvigs.Metadata
@@ -26,7 +27,7 @@ import Opaleye
 import Text.Blaze
 import Text.Blaze.Html5
 import qualified Text.Blaze.Html5.Attributes as A
-import Prelude hiding (div)
+import Prelude hiding (div, span)
 
 data RenderContext m = RenderContext
   { _rdrDoc :: Document,
@@ -41,7 +42,7 @@ data RenderState = RenderState
   }
 
 instance D.Default RenderState where
-  def = RenderState 0 M.empty
+  def = RenderState 1 M.empty
 
 data BlogPageContent m = BlogPageContent
   { _blogPageContent :: Html,
@@ -122,7 +123,7 @@ renderDocument renderUrl usedTitle doc = do
   let date = renderDate doc
   let t = h1 $ toMarkup usedTitle
   tags <- renderTags renderUrl doc
-  (content, ()) <- evalRWST (renderBlocks $ doc ^. docContent) ctx D.def
+  (content, ()) <- evalRWST (renderBlocksWithFootnotes $ doc ^. docContent) ctx D.def
   pure $ date <> t <> tags <> content
 
 renderDate :: Document -> Html
@@ -145,6 +146,24 @@ renderTags renderUrl doc = do
     renderTag tag = do
       url <- renderUrl $ BlogArchiveTag tag
       pure $ div (a (toMarkup tag) ! A.href (toValue url)) ! A.class_ "tag"
+
+renderBlocksWithFootnotes :: forall m. (MonadKorrvigs m) => [Block] -> RenderMonad m Html
+renderBlocksWithFootnotes bks = do
+  content <- renderBlocks bks
+  footnotes <- use rdrstFootNotes
+  rdrstFootNotes .= M.empty
+  ftHtml <- mapM renderFootNote $ M.toList footnotes
+  off <- view rdrHdOffset
+  let footnotesHtml = if M.null footnotes then mempty else dl (h (off + 1) "Footnotes" <> mconcat ftHtml) ! A.class_ "footnotes"
+  pure $ content <> footnotesHtml
+  where
+    renderFootNote :: (Int, [Block]) -> RenderMonad m Html
+    renderFootNote (ftIdC, ftBks) = do
+      content <- renderBlocks ftBks
+      let ftId = "ft-" <> T.pack (show ftIdC)
+      let ftContentId = "ftc-" <> T.pack (show ftIdC)
+      let ftIdHtml = dt (a (toMarkup $ show ftIdC) ! A.href (toValue $ "#" <> ftId)) ! A.id (toValue ftContentId)
+      pure $ ftIdHtml <> dd content
 
 renderBlocks :: (MonadKorrvigs m) => [Block] -> RenderMonad m Html
 renderBlocks bks = fmap mconcat $ mapM renderBlock bks
@@ -270,5 +289,12 @@ renderInline Space = pure $ toMarkup (" " :: Text)
 renderInline Break = pure br
 renderInline (DisplayMath mth) = pure $ code $ toMarkup mth
 renderInline (InlineMath mth) = pure $ code $ toMarkup mth
-renderInline (Sidenote _) = pure mempty
+renderInline (Sidenote note) = do
+  idx <- use rdrstCount
+  rdrstCount %= (+ 1)
+  rdrstFootNotes %= M.insert idx note
+  let ftId = "ft-" <> T.pack (show idx)
+  let ftContentId = "ftc-" <> T.pack (show idx)
+  let lnk = a (toMarkup $ show idx) ! A.href (toValue $ "#" <> ftContentId)
+  pure $ span lnk ! A.class_ "footnote" ! A.id (toValue ftId)
 renderInline (Check _) = pure mempty

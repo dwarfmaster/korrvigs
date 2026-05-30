@@ -2,7 +2,6 @@ module Korrvigs.Metadata.Blog.Export where
 
 import Control.Lens hiding (pre)
 import Control.Monad
-import Control.Monad.IO.Class
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
@@ -105,21 +104,21 @@ renderDocument renderUrl usedTitle doc = do
             _rdrHdOffset = 1,
             _rdrCurLevel = 1
           }
-  date <- renderDate doc
+  let date = renderDate doc
   let t = h1 $ toMarkup usedTitle
   tags <- renderTags renderUrl doc
   content <- renderBlocks ctx $ doc ^. docContent
   pure $ date <> t <> tags <> content
 
-renderDate :: (MonadKorrvigs m) => Document -> m Html
-renderDate doc = do
-  defaultDay <- utctDay <$> liftIO getCurrentTime
-  let docDay =
+renderDate :: Document -> Html
+renderDate doc =
+  let docDay :: Maybe Day =
         M.lookup (mtdtName PublishedDate) (doc ^. docMtdt)
           >>= fromJSONM
           >>= parseTimeM True defaultTimeLocale "%F"
-  let day = fromMaybe defaultDay docDay
-  pure $ p (toMarkup $ formatTime defaultTimeLocale "%F" day) ! A.class_ "pubdate"
+   in case docDay of
+        Nothing -> mempty
+        Just day -> p (toMarkup $ formatTime defaultTimeLocale "%F" day) ! A.class_ "pubdate"
 
 renderTags :: forall m. (MonadKorrvigs m) => (BlogUrl -> m Text) -> Document -> m Html
 renderTags renderUrl doc = do

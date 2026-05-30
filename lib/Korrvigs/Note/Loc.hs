@@ -15,6 +15,7 @@ module Korrvigs.Note.Loc
     subs,
     getSub,
     setSub,
+    codeFull,
     code,
     getCode,
     setCode,
@@ -126,8 +127,11 @@ getSub loc doc = doc ^? sub loc
 setSub :: SubLoc -> Document -> Header -> Document
 setSub loc doc hd = doc & sub loc .~ hd
 
+codeFull :: (Applicative f) => CodeLoc -> ((Attr, Text) -> f (Attr, Text)) -> Document -> f Document
+codeFull (CodeLoc sb off) = subContents sb . elementOf (each . bkBlocks . _CodeBlock) off
+
 code :: (Applicative f) => CodeLoc -> (Text -> f Text) -> Document -> f Document
-code (CodeLoc sb off) = subContents sb . elementOf (each . bkBlocks . _CodeBlock . _2) off
+code loc = codeFull loc . _2
 
 getCode :: CodeLoc -> Document -> Maybe Text
 getCode loc doc = doc ^? code loc

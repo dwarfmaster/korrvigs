@@ -7,6 +7,7 @@ module Korrvigs.Web.Note
     postNoteSubActR,
     getNoteColR,
     postNoteColR,
+    getNoteCodeR,
     getNoteNamedSubR,
     getNoteNamedCodeR,
     getNoteColEditR,
@@ -22,7 +23,10 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.Conduit.Combinators (fold)
 import Data.Default
+import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
+import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -245,6 +249,69 @@ postNoteColR (WId i) col = do
   r <- addToCollection i col item
   unless r $ throwM $ KMiscError "Failed to insert into collection"
   pure $ toJSON ()
+
+getNoteCodeR :: WebId -> WebAnyLoc -> Handler Text
+getNoteCodeR (WId i) (WLoc (LocCode cd)) = do
+  entry <- load i >>= maybe notFound pure
+  note <- maybe notFound pure $ entry ^? entryKindData . _NoteD
+  md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
+  case md ^? codeFull cd of
+    Nothing -> notFound
+    Just (attr, txt) -> do
+      let codeName = if T.null (attr ^. attrId) then renderCodeLoc cd else attr ^. attrId
+      let ext = findExtension $ attr ^. attrClasses
+      let filename = T.replace ":" "_" $ unId i <> "_" <> codeName <> "." <> ext
+      addHeader "Content-Disposition" $ "inline, filename=\"" <> filename <> "\""
+      pure txt
+  where
+    findExtension :: [Text] -> Text
+    findExtension classes =
+      fromMaybe "txt" $ getAlt $ mconcat $ Alt . flip M.lookup codeExtensions <$> classes
+getNoteCodeR _ _ = notFound
+
+codeExtensions :: Map Text Text
+codeExtensions =
+  M.fromList
+    [ ("markdown", "md"),
+      ("pandoc", "pd"),
+      ("html", "html"),
+      ("css", "css"),
+      ("dot", "dot"),
+      ("latex", "tex"),
+      ("context", "tex"),
+      ("bibtex", "bib"),
+      ("tikz", "tex"),
+      ("c", "c"),
+      ("cpp", "cpp"),
+      ("haskell", "hs"),
+      ("haskell-diagrams", "hs"),
+      ("rust", "rs"),
+      ("zig", "zig"),
+      ("ada", "ada"),
+      ("javascript", "js"),
+      ("ocaml", "ml"),
+      ("prolog", "pl"),
+      ("python", "py"),
+      ("raku", "raku"),
+      ("perl", "pl"),
+      ("r", "r"),
+      ("ruby", "rb"),
+      ("lua", "lua"),
+      ("julia", "jl"),
+      ("sh", "sh"),
+      ("bash", "sh"),
+      ("zsh", "sh"),
+      ("makefile", "make"),
+      ("cabal", "cabal"),
+      ("yaml", "yaml"),
+      ("json", "json"),
+      ("toml", "toml"),
+      ("xml", "xml"),
+      ("asymptote", "asy"),
+      ("nix", "nix"),
+      ("mysql", "sql"),
+      ("pgsql", "pgsql")
+    ]
 
 getNoteNamedSubR :: WebId -> Text -> Handler Html
 getNoteNamedSubR (WId i) sb = do

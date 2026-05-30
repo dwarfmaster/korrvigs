@@ -274,7 +274,7 @@ compileBlock' (CodeBlock attr code) = do
             if isComp cdId
               then quote $ render $ EntryComputeR (WId entry) cdId
               else "null"
-      toWidget [julius|setupCodeMenu(#{buttonId}, #{rawJS editFn}, #{rawJS codeJsUrl}, #{rawJS compJsUrl});|]
+      toWidget [julius|setupCodeMenu(#{buttonId}, #{rawJS editFn}, #{rawJS codeJsUrl}, #{rawJS compJsUrl}, "@{NoteCodeR (WId entry) (WLoc loc)}");|]
 
     [whamlet|
     $forall (edit,(cls,widget)) <- widgets

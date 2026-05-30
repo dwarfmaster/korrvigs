@@ -2,6 +2,8 @@ module Korrvigs.Metadata.Blog.Content (postTextRender) where
 
 import Control.Lens hiding (pre)
 import Control.Monad
+import Control.Monad.RWS.Strict
+import Data.Default
 import Data.Text (Text)
 import qualified Data.Text.Lazy as LT
 import Korrvigs.Metadata.Blog.Export
@@ -30,8 +32,8 @@ postTextRender renderUrl path = do
     rdr = LT.toStrict . renderMarkup
 
 postContent :: (MonadKorrvigs m) => RenderContext m -> [Block] -> m Html
-postContent = renderBlocks
+postContent ctx bks = fst <$> evalRWST (renderBlocks bks) ctx def
 
 postSummary :: (MonadKorrvigs m) => RenderContext m -> [Block] -> m Html
 postSummary _ [] = pure mempty
-postSummary ctx (bk : _) = renderBlock ctx bk
+postSummary ctx (bk : _) = fst <$> evalRWST (renderBlock bk) ctx def

@@ -2,11 +2,12 @@ module Korrvigs.Metadata.Blog.Export where
 
 import Control.Lens hiding (pre)
 import Control.Monad
-import Control.Monad.Trans (lift)
+import Control.Monad.RWS.Strict
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
 import Data.Aeson.Lens
 import qualified Data.CaseInsensitive as CI
+import qualified Data.Default as D
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -34,6 +35,14 @@ data RenderContext m = RenderContext
     _rdrCurLevel :: Int
   }
 
+data RenderState = RenderState
+  { _rdrstCount :: Int,
+    _rdrstFootNotes :: Map Int [Block]
+  }
+
+instance D.Default RenderState where
+  def = RenderState 0 M.empty
+
 data BlogPageContent m = BlogPageContent
   { _blogPageContent :: Html,
     _blogPageMetadata :: Map Text Text,
@@ -41,8 +50,14 @@ data BlogPageContent m = BlogPageContent
     _blogPageRenderUrl :: BlogUrl -> m Text
   }
 
+type RenderMonad m = RWST (RenderContext m) () RenderState m
+
 makeLenses ''RenderContext
+makeLenses ''RenderState
 makeLenses ''BlogPageContent
+
+shiftOffset :: Int -> RenderMonad m a -> RenderMonad m a
+shiftOffset noffset = withRWST $ \r st -> (r & rdrHdOffset .~ noffset, st)
 
 renderPost :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Map Text Text -> Id -> m Html
 renderPost renderUrl mtdt noteId = do
@@ -107,7 +122,7 @@ renderDocument renderUrl usedTitle doc = do
   let date = renderDate doc
   let t = h1 $ toMarkup usedTitle
   tags <- renderTags renderUrl doc
-  content <- renderBlocks ctx $ doc ^. docContent
+  (content, ()) <- evalRWST (renderBlocks $ doc ^. docContent) ctx D.def
   pure $ date <> t <> tags <> content
 
 renderDate :: Document -> Html
@@ -131,54 +146,60 @@ renderTags renderUrl doc = do
       url <- renderUrl $ BlogArchiveTag tag
       pure $ div (a (toMarkup tag) ! A.href (toValue url)) ! A.class_ "tag"
 
-renderBlocks :: (MonadKorrvigs m) => RenderContext m -> [Block] -> m Html
-renderBlocks ctx bks = fmap mconcat $ mapM (renderBlock ctx) bks
+renderBlocks :: (MonadKorrvigs m) => [Block] -> RenderMonad m Html
+renderBlocks bks = fmap mconcat $ mapM renderBlock bks
 
-renderBlock :: (MonadKorrvigs m) => RenderContext m -> Block -> m Html
-renderBlock ctx (Para inls) = p <$> renderInlines ctx inls
-renderBlock ctx (LineBlock inls) = do
-  lns <- mapM (renderInlines ctx) inls
+renderBlock :: (MonadKorrvigs m) => Block -> RenderMonad m Html
+renderBlock (Para inls) = p <$> renderInlines inls
+renderBlock (LineBlock inls) = do
+  lns <- mapM renderInlines inls
   pure $ p $ mconcat $ (<> hr) <$> lns
-renderBlock _ (CodeBlock _ txt) = pure $ pre $ toMarkup txt
-renderBlock ctx (BlockQuote bks) = blockquote <$> renderBlocks ctx bks
-renderBlock ctx (OrderedList items) = ol . foldMap li <$> mapM (renderBlocks ctx) items
-renderBlock ctx (BulletList items) = ul . foldMap li <$> mapM (renderBlocks ctx) items
-renderBlock ctx (DefinitionList items) = dl . mconcat <$> mapM renderItem items
+renderBlock (CodeBlock _ txt) = pure $ pre $ toMarkup txt
+renderBlock (BlockQuote bks) = blockquote <$> renderBlocks bks
+renderBlock (OrderedList items) = ol . foldMap li <$> mapM renderBlocks items
+renderBlock (BulletList items) = ul . foldMap li <$> mapM renderBlocks items
+renderBlock (DefinitionList items) = dl . mconcat <$> mapM renderItem items
   where
     renderItem (def, bks) = do
-      defH <- dt <$> renderInlines ctx def
-      bksH <- foldMap dd <$> mapM (renderBlocks ctx) bks
+      defH <- dt <$> renderInlines def
+      bksH <- foldMap dd <$> mapM renderBlocks bks
       pure $ defH <> bksH
-renderBlock ctx (Figure _ cpt fig) = do
-  cptH <- renderBlocks ctx cpt
-  figH <- renderBlocks ctx fig
+renderBlock (Figure _ cpt fig) = do
+  cptH <- renderBlocks cpt
+  figH <- renderBlocks fig
   pure $ figure $ figH <> figcaption cptH
-renderBlock ctx (Embed ref) = case resolveEmbedRef (ctx ^. rdrDoc) ref of
-  Nothing -> pure mempty
-  Just ident -> fromMaybeT mempty $ do
-    entry <- hoistLift $ load ident
-    note <- hoistMaybe $ entry ^? _Note
-    doc <- hoistEither =<< readNote (note ^. notePath)
-    let lvl = ctx ^. rdrCurLevel
-    lift $ renderBlocks (ctx & rdrHdOffset .~ lvl) $ doc ^. docContent
-renderBlock ctx (EmbedHeader ref hdLvl) = case resolveEmbedRef (ctx ^. rdrDoc) ref of
-  Nothing -> pure mempty
-  Just ident -> fromMaybeT mempty $ do
-    entry <- hoistLift $ load ident
-    note <- hoistMaybe $ entry ^? _Note
-    doc <- hoistEither =<< readNote (note ^. notePath)
-    let lvl = hdLvl + ctx ^. rdrHdOffset
-    let hdr = h lvl $ toMarkup $ doc ^. docTitle
-    fmap (hdr <>) $ lift $ renderBlocks (ctx & rdrHdOffset .~ lvl) $ doc ^. docContent
-renderBlock _ (Collection _ _ _) = pure mempty
-renderBlock _ (Syndicate _ _ _ _) = pure mempty
-renderBlock _ (Sub hd) | "blog-ignore" `elem` (hd ^. hdAttr . attrClasses) = pure mempty
-renderBlock ctx (Sub hd) = do
-  let lvl = ctx ^. rdrHdOffset + hd ^. hdLevel
+renderBlock (Embed ref) = do
+  doc <- view rdrDoc
+  case resolveEmbedRef doc ref of
+    Nothing -> pure mempty
+    Just ident -> fromMaybeT mempty $ do
+      entry <- hoistLift $ lift $ load ident
+      note <- hoistMaybe $ entry ^? _Note
+      embedded <- hoistEither =<< readNote (note ^. notePath)
+      lvl <- view rdrCurLevel
+      lift $ shiftOffset lvl $ renderBlocks $ embedded ^. docContent
+renderBlock (EmbedHeader ref hdLvl) = do
+  doc <- view rdrDoc
+  case resolveEmbedRef doc ref of
+    Nothing -> pure mempty
+    Just ident -> fromMaybeT mempty $ do
+      entry <- hoistLift $ lift $ load ident
+      note <- hoistMaybe $ entry ^? _Note
+      embedded <- hoistEither =<< readNote (note ^. notePath)
+      off <- view rdrHdOffset
+      let lvl = hdLvl + off
+      let hdr = h lvl $ toMarkup $ doc ^. docTitle
+      fmap (hdr <>) $ lift $ shiftOffset lvl $ renderBlocks $ embedded ^. docContent
+renderBlock (Collection _ _ _) = pure mempty
+renderBlock (Syndicate _ _ _ _) = pure mempty
+renderBlock (Sub hd) | "blog-ignore" `elem` (hd ^. hdAttr . attrClasses) = pure mempty
+renderBlock (Sub hd) = do
+  off <- view rdrHdOffset
+  let lvl = off + hd ^. hdLevel
   let hdr = h lvl (toMarkup $ hd ^. hdTitle)
-  content <- renderBlocks (ctx & rdrCurLevel .~ lvl) $ hd ^. hdContent
+  content <- shiftOffset lvl $ renderBlocks $ hd ^. hdContent
   pure $ hdr <> content
-renderBlock _ (Table _) = pure mempty
+renderBlock (Table _) = pure mempty
 
 h :: Int -> Html -> Html
 h 1 = h1
@@ -192,18 +213,18 @@ resolveEmbedRef :: Document -> Either Text Id -> Maybe Id
 resolveEmbedRef _ (Right ident) = Just ident
 resolveEmbedRef doc (Left mtdt) = doc ^? docMtdt . ix (CI.mk mtdt) . _JSON . to MkId
 
-renderInlines :: (MonadKorrvigs m) => RenderContext m -> [Inline] -> m Html
-renderInlines ctx inls = fmap mconcat $ mapM (renderInline ctx) inls
+renderInlines :: (MonadKorrvigs m) => [Inline] -> RenderMonad m Html
+renderInlines inls = fmap mconcat $ mapM renderInline inls
 
-renderInline :: (MonadKorrvigs m) => RenderContext m -> Inline -> m Html
-renderInline _ (Plain txt) = pure $ toMarkup txt
-renderInline ctx (Styled Emph inls) = i <$> renderInlines ctx inls
-renderInline ctx (Styled Quote inls) = q <$> renderInlines ctx inls
-renderInline ctx (Styled SubScript inls) = sub <$> renderInlines ctx inls
-renderInline ctx (Styled SuperScript inls) = sup <$> renderInlines ctx inls
-renderInline _ (Code _ txt) = pure $ code $ toMarkup txt
-renderInline ctx (Link _ inls tgt) = do
-  r :: Maybe (Maybe Text, Maybe Text, Bool, Maybe Text) <- rSelectOne $ do
+renderInline :: (MonadKorrvigs m) => Inline -> RenderMonad m Html
+renderInline (Plain txt) = pure $ toMarkup txt
+renderInline (Styled Emph inls) = i <$> renderInlines inls
+renderInline (Styled Quote inls) = q <$> renderInlines inls
+renderInline (Styled SubScript inls) = sub <$> renderInlines inls
+renderInline (Styled SuperScript inls) = sup <$> renderInlines inls
+renderInline (Code _ txt) = pure $ code $ toMarkup txt
+renderInline (Link _ inls tgt) = do
+  r :: Maybe (Maybe Text, Maybe Text, Bool, Maybe Text) <- lift $ rSelectOne $ do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryName .== sqlId tgt
     let sqlI = entry ^. sqlEntryId
@@ -212,15 +233,16 @@ renderInline ctx (Link _ inls tgt) = do
     hidden <- selectTextMtdt Hidden sqlI
     url <- selectTextMtdt Url sqlI
     pure (blogpost, blogfile, isNull hidden, url)
-  capt <- renderInlines ctx inls
+  capt <- renderInlines inls
   case r of
     Nothing -> pure capt
     Just (blogpost, blogfile, isHidden, url) -> exitExceptT $ do
+      renderUrl <- lift $ view rdrRenderUrl
       forM_ blogpost $ \post -> do
-        urlT <- lift $ ctx ^. rdrRenderUrl $ BlogPostNote post
+        urlT <- lift $ lift $ renderUrl $ BlogPostNote post
         throwE $ a capt ! A.href (toValue urlT)
       forM_ blogfile $ \file -> do
-        urlT <- lift $ ctx ^. rdrRenderUrl $ BlogFilePlain file
+        urlT <- lift $ lift $ renderUrl $ BlogFilePlain file
         throwE $ a capt ! A.href (toValue urlT)
       when isHidden $ throwE capt
       forM_ url $ \urlT -> throwE $ a capt ! A.href (toValue urlT)
@@ -230,22 +252,23 @@ renderInline ctx (Link _ inls tgt) = do
       runExceptT act >>= \case
         Left e -> pure e
         Right v -> pure v
-renderInline _ (Cite _) = pure mempty
-renderInline ctx (MtdtLink txt tgt) =
-  case M.lookup (CI.mk tgt) (ctx ^. rdrDoc . docMtdt) >>= fromJSONM of
+renderInline (Cite _) = pure mempty
+renderInline (MtdtLink txt tgt) = do
+  mtdt <- view $ rdrDoc . docMtdt
+  case M.lookup (CI.mk tgt) mtdt >>= fromJSONM of
     Just (url :: Text) -> do
       c <- cpt $ toMarkup url
       pure $ a c ! A.href (toValue url)
     Nothing -> cpt mempty
   where
-    cpt d = maybe (pure d) (renderInlines ctx) txt
-renderInline ctx (PlainLink txt tgt) = do
+    cpt d = maybe (pure d) renderInlines txt
+renderInline (PlainLink txt tgt) = do
   let url = show tgt
-  cpt <- maybe (pure $ toMarkup url) (renderInlines ctx) txt
+  cpt <- maybe (pure $ toMarkup url) renderInlines txt
   pure $ a cpt ! A.href (toValue url)
-renderInline _ Space = pure $ toMarkup (" " :: Text)
-renderInline _ Break = pure br
-renderInline _ (DisplayMath mth) = pure $ code $ toMarkup mth
-renderInline _ (InlineMath mth) = pure $ code $ toMarkup mth
-renderInline _ (Sidenote _) = pure mempty
-renderInline _ (Check _) = pure mempty
+renderInline Space = pure $ toMarkup (" " :: Text)
+renderInline Break = pure br
+renderInline (DisplayMath mth) = pure $ code $ toMarkup mth
+renderInline (InlineMath mth) = pure $ code $ toMarkup mth
+renderInline (Sidenote _) = pure mempty
+renderInline (Check _) = pure mempty

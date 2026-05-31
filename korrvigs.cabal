@@ -128,6 +128,7 @@ library korrvigs-lib
     Korrvigs.Metadata.Media.Export
     Korrvigs.Metadata.Media.GitHub
     Korrvigs.Metadata.Media.Hackernews
+    Korrvigs.Metadata.Media.IETF
     Korrvigs.Metadata.Media.IGDB
     Korrvigs.Metadata.Media.MangaUpdates
     Korrvigs.Metadata.Media.MusicBrainz

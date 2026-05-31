@@ -22,6 +22,7 @@ data MediaType
   | Manual
   | MastersThesis
   | PhdThesis
+  | TechReport
   | Unpublished
   | Software
   | Webcollection
@@ -74,6 +75,7 @@ displayMediaType Inproceedings = "inproceedings"
 displayMediaType Manual = "manual"
 displayMediaType MastersThesis = "mastersthesis"
 displayMediaType PhdThesis = "phdthesis"
+displayMediaType TechReport = "techreport"
 displayMediaType Unpublished = "unpublished"
 displayMediaType Software = "software"
 displayMediaType Webcollection = "webcollection"

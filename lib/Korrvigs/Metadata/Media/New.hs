@@ -26,6 +26,7 @@ import Korrvigs.Metadata.Media
 import qualified Korrvigs.Metadata.Media.Arxiv as AR
 import qualified Korrvigs.Metadata.Media.GitHub as GH
 import qualified Korrvigs.Metadata.Media.Hackernews as HN
+import qualified Korrvigs.Metadata.Media.IETF as IETF
 import qualified Korrvigs.Metadata.Media.IGDB as IGDB
 import qualified Korrvigs.Metadata.Media.MangaUpdates as MU
 import qualified Korrvigs.Metadata.Media.MusicBrainz as MB
@@ -99,6 +100,7 @@ dispatchMedia nm = do
               mkDispatcher "IGDB" (pure . IGDB.parseQuery) IGDB.queryIGDB,
               mkDispatcher "MusicBrainz" (pure . MB.parseQuery) MB.queryMB,
               mkDispatcher "Youtube" (pure . Yt.parseQuery) Yt.queryYoutube,
+              mkDispatcher "IETF" (pure . IETF.parseQuery) IETF.queryIETF,
               mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 
@@ -126,6 +128,7 @@ prepareNewMedia nm = do
     medTxt Manual = "Manuel"
     medTxt MastersThesis = "Thèse de master"
     medTxt PhdThesis = "Manuscript"
+    medTxt TechReport = "Rapport tech"
     medTxt Unpublished = "Article"
     medTxt Software = "Logiciel"
     medTxt Webcollection = "Collection"

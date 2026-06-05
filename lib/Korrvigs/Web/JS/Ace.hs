@@ -1,70 +1,23 @@
 module Korrvigs.Web.JS.Ace (setup, preview, isLanguage, editOnClick, editFn) where
 
-import Data.Map (Map)
-import qualified Data.Map as M
+import Control.Lens hiding (preview)
 import Data.Maybe
 import Data.Text (Text)
+import Korrvigs.Note.Languages
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Text.Julius
 import Yesod
 import Yesod.Static
 
-modeMap :: Map Text Text
-modeMap =
-  M.fromList
-    [ -- Markup
-      ("markdown", "markdown"),
-      ("pandoc", "markdown"),
-      ("html", "html"),
-      ("css", "css"),
-      ("dot", "dot"),
-      ("latex", "latex"),
-      ("context", "latex"),
-      ("bibtex", "bibtex"),
-      ("tikz", "latex"),
-      -- Languages
-      ("c", "c_cpp"),
-      ("cpp", "c_cpp"),
-      ("haskell", "haskell"),
-      ("haskell-diagrams", "haskell"),
-      ("rust", "rust"),
-      ("zig", "zig"),
-      ("ada", "ada"),
-      ("javascript", "javascript"),
-      ("ocaml", "ocaml"),
-      ("prolog", "prolog"),
-      ("python", "python"),
-      ("raku", "raku"),
-      ("perl", "perl"),
-      ("r", "r"),
-      ("ruby", "ruby"),
-      -- Script
-      ("lua", "lua"),
-      ("julia", "julia"),
-      ("sh", "sh"),
-      ("bash", "sh"),
-      ("zsh", "sh"),
-      -- Build
-      ("makefile", "makefile"),
-      ("cabal", "haskell_cabal"),
-      -- Data
-      ("yaml", "yaml"),
-      ("json", "json"),
-      ("toml", "toml"),
-      ("xml", "xml"),
-      ("asymptote", "c_cpp"),
-      -- Misc
-      ("nix", "nix"),
-      ("mysql", "mysql"),
-      ("pgsql", "pgsql")
-    ]
+queryLanguage :: Text -> Maybe Text
+queryLanguage l = languagesMap ^? at l . _Just . langAce . _Just
 
 languageMode :: Text -> Text
-languageMode language = fromMaybe "text" $ M.lookup language modeMap
+languageMode = fromMaybe "text" . queryLanguage
 
 isLanguage :: Text -> Bool
-isLanguage = flip M.member modeMap
+isLanguage = isJust . queryLanguage
 
 saveIcon :: Route WebData
 saveIcon = StaticR $ StaticRoute ["icons", "edit-save.svg"] []

@@ -160,6 +160,7 @@ library korrvigs-lib
     Korrvigs.Note.Download.Video
     Korrvigs.Note.Edit
     Korrvigs.Note.Helpers
+    Korrvigs.Note.Languages
     Korrvigs.Note.Loc
     Korrvigs.Note.New
     Korrvigs.Note.Pandoc

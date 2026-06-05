@@ -23,6 +23,7 @@ import Korrvigs.Metadata.Blog.Structure
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Note hiding (code, sub)
+import Korrvigs.Note.Languages
 import Korrvigs.Utils
 import Korrvigs.Utils.JSON
 import Opaleye
@@ -331,47 +332,7 @@ tryParsing attr codeSource = do
   eitherToMaybe $ tokenize cfg syntax codeSource
 
 lookupSyntax :: Text -> Maybe Syntax
-lookupSyntax = flip M.lookup skySyntaxes >=> flip M.lookup defaultSyntaxMap
+lookupSyntax = lookupSky >=> flip M.lookup defaultSyntaxMap
 
-skySyntaxes :: Map Text Text
-skySyntaxes =
-  M.fromList
-    [ ("markdown", "Markdown"),
-      ("pandoc", "Markdown"),
-      ("html", "HTML"),
-      ("css", "CSS"),
-      ("dot", "dot"),
-      ("latex", "LaTeX"),
-      ("context", "LaTeX"),
-      ("bibtex", "BibTeX"),
-      ("tikz", "LaTeX"),
-      ("c", "C"),
-      ("cpp", "C++"),
-      ("haskell", "Haskell"),
-      ("haskell-diagrams", "Haskell"),
-      ("rust", "Rust"),
-      ("zig", "Zig"),
-      ("ada", "Ada"),
-      ("javascript", "JavaScript"),
-      ("ocaml", "Objective Caml"),
-      ("prolog", "Prolog"),
-      ("python", "Python"),
-      ("raku", "Raku"),
-      ("perl", "Perl"),
-      ("r", "R Script"),
-      ("ruby", "Ruby"),
-      ("lua", "Lua"),
-      ("julia", "Julia"),
-      ("sh", "Bash"),
-      ("bash", "Bash"),
-      ("zsh", "Zsh"),
-      ("makefile", "Makefile"),
-      ("yaml", "YAML"),
-      ("json", "JSON"),
-      ("toml", "TOML"),
-      ("xml", "XML"),
-      ("asymptote", "C++"),
-      ("nix", "Nix"),
-      ("mysql", "SQL (MySQL)"),
-      ("pgsql", "SQL (PostgreSQL)")
-    ]
+lookupSky :: Text -> Maybe Text
+lookupSky l = languagesMap ^? at l . _Just . langSkylight . _Just

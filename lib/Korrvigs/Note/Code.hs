@@ -14,42 +14,15 @@ import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.Note.AST
+import Korrvigs.Note.Languages
 import Text.Parsec hiding ((<|>))
 import Text.Parsec.Number
 
 fromId :: (Applicative f) => Text -> ((Attr, Text) -> f (Attr, Text)) -> Document -> f Document
 fromId nm = docContent . each . bkSubBlocks . _CodeBlock . filtered ((== nm) . view (_1 . attrId))
 
-knownLanguages :: Map Text Executable
-knownLanguages =
-  M.fromList
-    [ ("bash", Bash),
-      ("prolog", SwiProlog),
-      ("json", PlainJson),
-      ("csv", PlainCsv),
-      ("text", PlainText),
-      ("dot", Graphviz),
-      ("c", CLang),
-      ("cpp", CPPLang),
-      ("nix", NixData),
-      ("python", Python),
-      ("lua", Lua),
-      ("julia", Julia),
-      ("dhall", Dhall),
-      ("perl", Perl),
-      ("raku", Raku),
-      ("haskell", Haskell),
-      ("haskell-diagrams", HaskellDiagrams),
-      ("rust", Rust),
-      ("ocaml", OCaml),
-      ("openscad", OpenScad),
-      ("povray", Povray),
-      ("latex", LaTeX),
-      ("context", ConTeXt),
-      ("gnuplot", GnuPlot),
-      ("asymptote", Asymptote),
-      ("tikz", TiKZ)
-    ]
+lookupLanguage :: Text -> Maybe Executable
+lookupLanguage l = languagesMap ^? at l . _Just . langExe . _Just
 
 data AttrData = AttrData
   { _attrArg :: Map Int RunArg,
@@ -196,7 +169,7 @@ toRunnable :: Attr -> Text -> Maybe Runnable
 toRunnable attr code = do
   let classes = attr ^. attrClasses
   let attrDat = foldMap (uncurry parseAttrMtdt) $ M.toList $ attr ^. attrMtdt
-  language <- foldr ((<|>) . flip M.lookup knownLanguages) Nothing classes
+  language <- foldr ((<|>) . lookupLanguage) Nothing classes
   tp <- attrDat ^. attrType <|> languageToType language
   pure $
     Runnable

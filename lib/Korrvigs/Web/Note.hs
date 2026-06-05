@@ -23,7 +23,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.Conduit.Combinators (fold)
 import Data.Default
-import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import Data.Monoid
@@ -44,6 +43,7 @@ import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Note
 import Korrvigs.Note.AST
 import Korrvigs.Note.Edit
+import Korrvigs.Note.Languages
 import Korrvigs.Note.Pandoc
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
@@ -266,52 +266,11 @@ getNoteCodeR (WId i) (WLoc (LocCode cd)) = do
   where
     findExtension :: [Text] -> Text
     findExtension classes =
-      fromMaybe "txt" $ getAlt $ mconcat $ Alt . flip M.lookup codeExtensions <$> classes
+      fromMaybe "txt" $ getAlt $ mconcat $ Alt . lookupExt <$> classes
 getNoteCodeR _ _ = notFound
 
-codeExtensions :: Map Text Text
-codeExtensions =
-  M.fromList
-    [ ("markdown", "md"),
-      ("pandoc", "pd"),
-      ("html", "html"),
-      ("css", "css"),
-      ("dot", "dot"),
-      ("latex", "tex"),
-      ("context", "tex"),
-      ("bibtex", "bib"),
-      ("tikz", "tex"),
-      ("c", "c"),
-      ("cpp", "cpp"),
-      ("haskell", "hs"),
-      ("haskell-diagrams", "hs"),
-      ("rust", "rs"),
-      ("zig", "zig"),
-      ("ada", "ada"),
-      ("javascript", "js"),
-      ("ocaml", "ml"),
-      ("prolog", "pl"),
-      ("python", "py"),
-      ("raku", "raku"),
-      ("perl", "pl"),
-      ("r", "r"),
-      ("ruby", "rb"),
-      ("lua", "lua"),
-      ("julia", "jl"),
-      ("sh", "sh"),
-      ("bash", "sh"),
-      ("zsh", "sh"),
-      ("makefile", "make"),
-      ("cabal", "cabal"),
-      ("yaml", "yaml"),
-      ("json", "json"),
-      ("toml", "toml"),
-      ("xml", "xml"),
-      ("asymptote", "asy"),
-      ("nix", "nix"),
-      ("mysql", "sql"),
-      ("pgsql", "pgsql")
-    ]
+lookupExt :: Text -> Maybe Text
+lookupExt l = languagesMap ^? at l . _Just . langExt
 
 getNoteNamedSubR :: WebId -> Text -> Handler Html
 getNoteNamedSubR (WId i) sb = do

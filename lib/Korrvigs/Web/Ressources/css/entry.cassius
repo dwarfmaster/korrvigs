@@ -160,18 +160,19 @@ p
   text-align: justify
 li p
   margin: 0
-div.sourceCode
+div.sourceWrapper
   background-color: var(--base00)
-  padding: 0.5em
-  padding-bottom: 1em
+  padding: 0
   margin: 0.5em
   border: 2px solid var(--base06)
   border-radius: 0.25em
   overflow-x: scroll
   position: relative
-pre.sourceCode
-  width: 0
-  overflow: visible
+div.sourceCode
+  margin: 0
+  padding-bottom: 1em
+code.sourceCode
+  background-color: inherit
 table
   width: 100%
   background-color: var(--base02)

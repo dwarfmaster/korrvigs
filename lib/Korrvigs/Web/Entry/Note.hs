@@ -49,7 +49,7 @@ import Korrvigs.Web.Public.Crypto (mkPublic)
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search.Results
-import Korrvigs.Web.Widgets (applyAttr, embedPdf, openIcon)
+import Korrvigs.Web.Widgets (applyAttr, embedPdf, openIcon, skyContent, skyStyle)
 import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye hiding (min, not, null)
 import Text.Blaze hiding ((!))
@@ -167,6 +167,7 @@ embedContent enableEdit repComps lvl subL i doc cnt checks = do
        |]
         markdown
         unless isEmbedded $ do
+          toWidgetHead skyStyle
           Wdgs.sectionLogic
           toWidget [julius|checkboxCleanSpans()|]
   pure (w, checks)
@@ -222,17 +223,17 @@ compileBlock' (CodeBlock attr code) = do
         i <- use currentEntry
         widget <- lift $ resultWidget i (attr ^. attrId) tp res
         pure ("computation-result" :: Text, widget)
-  let aceWidget = lift $ ("sourceCode",) <$> Ace.preview code language
+  let skylight = lift $ pure $ ("sourceWrapper",) $ toWidget $ skyContent attr code
   widgets <-
     use currentDoc >>= \doc -> case if repComp then M.lookup (attr ^. attrId) (doc ^. docComputations) else Nothing of
       Just res -> case displayKind of
-        Just ["code"] -> singleton . (True,) <$> aceWidget
+        Just ["code"] -> singleton . (True,) <$> skylight
         Just ["both"] -> do
-          aceW <- aceWidget
+          aceW <- skylight
           resW <- resWidget (res ^. cmpResType) (res ^. cmpResData)
           pure [(True, aceW), (False, resW)]
         _ -> singleton . (True,) <$> resWidget (res ^. cmpResType) (res ^. cmpResData)
-      Nothing -> singleton . (True,) <$> aceWidget
+      Nothing -> singleton . (True,) <$> skylight
   entry <- use currentEntry
   subL <- use subLoc
   codeO <- use codeCount

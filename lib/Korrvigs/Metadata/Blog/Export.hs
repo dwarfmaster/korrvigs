@@ -8,7 +8,6 @@ import Control.Monad.Trans.Maybe
 import Data.Aeson.Lens
 import qualified Data.CaseInsensitive as CI
 import qualified Data.Default as D
-import Data.Either.Extra (eitherToMaybe)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -23,11 +22,10 @@ import Korrvigs.Metadata.Blog.Structure
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import Korrvigs.Note hiding (code, sub)
-import Korrvigs.Note.Languages
 import Korrvigs.Utils
 import Korrvigs.Utils.JSON
+import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye
-import Skylighting hiding (lookupSyntax)
 import Text.Blaze
 import Text.Blaze.Html5
 import qualified Text.Blaze.Html5.Attributes as A
@@ -94,7 +92,7 @@ renderHead mtdt t stl feed =
       link ! A.rel "stylesheet" ! A.href (toValue stl),
       link ! A.rel "alternate" ! A.type_ "application/atom+xml" ! A.href (toValue feed),
       renderMeta mtdt,
-      style $ toMarkup $ styleToCss zenburn
+      Wdgs.skyStyle
     ]
 
 renderRssIcon :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Maybe Text -> m Html
@@ -178,7 +176,7 @@ renderBlock (Para inls) = p <$> renderInlines inls
 renderBlock (LineBlock inls) = do
   lns <- mapM renderInlines inls
   pure $ p $ mconcat $ (<> hr) <$> lns
-renderBlock (CodeBlock attr txt) = pure $ renderCode attr txt
+renderBlock (CodeBlock attr txt) = pure $ Wdgs.skyContent attr txt
 renderBlock (BlockQuote bks) = blockquote <$> renderBlocks bks
 renderBlock (OrderedList items) = ol . foldMap li <$> mapM renderBlocks items
 renderBlock (BulletList items) = ul . foldMap li <$> mapM renderBlocks items
@@ -303,36 +301,3 @@ renderInline (Sidenote note) = do
   let lnk = a (toMarkup $ show idx) ! A.href (toValue $ "#" <> ftContentId)
   pure $ span lnk ! A.class_ "footnote" ! A.id (toValue ftId)
 renderInline (Check _) = pure mempty
-
-renderCode :: Attr -> Text -> Html
-renderCode attr codeSource = case tryParsing attr codeSource of
-  Nothing -> pre $ toMarkup codeSource
-  Just tokens -> formatHtmlBlock cfg tokens
-  where
-    cfg =
-      FormatOptions
-        { numberLines = True,
-          startNumber = 1,
-          lineAnchors = False,
-          titleAttributes = False,
-          codeClasses = [],
-          containerClasses = [],
-          lineIdPrefix = "skylight",
-          ansiColorLevel = ANSITrueColor
-        }
-
-tryParsing :: Attr -> Text -> Maybe [SourceLine]
-tryParsing attr codeSource = do
-  syntax <- getAlt $ mconcat $ Alt . lookupSyntax <$> attr ^. attrClasses
-  let cfg =
-        TokenizerConfig
-          { syntaxMap = defaultSyntaxMap,
-            traceOutput = False
-          }
-  eitherToMaybe $ tokenize cfg syntax codeSource
-
-lookupSyntax :: Text -> Maybe Syntax
-lookupSyntax = lookupSky >=> flip M.lookup defaultSyntaxMap
-
-lookupSky :: Text -> Maybe Text
-lookupSky l = languagesMap ^? at l . _Just . langSkylight . _Just

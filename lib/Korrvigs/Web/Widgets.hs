@@ -2,20 +2,25 @@ module Korrvigs.Web.Widgets where
 
 import Control.Lens
 import Control.Monad
+import Data.Either.Extra (eitherToMaybe)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Metadata.Task
-import Korrvigs.Note.Loc
+import Korrvigs.Note
+import Korrvigs.Note.Languages
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
+import Skylighting hiding (lookupSyntax)
 import Text.Blaze hiding ((!))
 import qualified Text.Blaze as Blz
+import Text.Blaze.Html5 ((!))
 import qualified Text.Blaze.Html5 as Html
 import qualified Text.Blaze.Html5.Attributes as Attr
-import Yesod
+import Yesod hiding (Attr)
 import Yesod.Static
 
 headerSymbol :: Text -> Widget
@@ -138,3 +143,36 @@ openIcon =
 embedPdf :: Route WebData -> Widget
 embedPdf url =
   [whamlet|<embed src=@{url} width=100% height=700 type="application/pdf">|]
+
+skyStyle :: Html
+skyStyle = Html.style (toMarkup $ styleToCss zenburn) ! Attr.type_ "text/css"
+
+skyContent :: Attr -> Text -> Html
+skyContent attr codeSource = case parseResult of
+  Nothing -> Html.pre $ toMarkup codeSource
+  Just tokens -> formatHtmlBlock cfg tokens
+  where
+    cfg =
+      FormatOptions
+        { numberLines = not $ T.null $ attr ^. attrId,
+          startNumber = 1,
+          lineAnchors = False,
+          titleAttributes = False,
+          codeClasses = [],
+          containerClasses = [],
+          lineIdPrefix = (attr ^. attrId) <> "--",
+          ansiColorLevel = ANSITrueColor
+        }
+    tokenizerCfg =
+      TokenizerConfig
+        { syntaxMap = defaultSyntaxMap,
+          traceOutput = False
+        }
+    parseResult :: Maybe [SourceLine]
+    parseResult = do
+      syntax <- getAlt $ mconcat $ Alt . lookupSyntax <$> attr ^. attrClasses
+      eitherToMaybe $ tokenize tokenizerCfg syntax codeSource
+    lookupSyntax :: Text -> Maybe Syntax
+    lookupSyntax = lookupSky >=> flip M.lookup defaultSyntaxMap
+    lookupSky :: Text -> Maybe Text
+    lookupSky l = languagesMap ^? at l . _Just . langSkylight . _Just

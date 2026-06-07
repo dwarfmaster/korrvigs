@@ -7,17 +7,20 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy.Encoding as LEnc
+import Data.Viking
 import Korrvigs.Entry
 import Korrvigs.File.Computation (hasModel)
 import qualified Korrvigs.File.Mtdt.FIT as FIT
 import qualified Korrvigs.File.Mtdt.GPX as GPX
 import Korrvigs.Geometry
+import Korrvigs.Utils
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.JS.Foliate as Foliate
 import Korrvigs.Web.JS.Leaflet
 import qualified Korrvigs.Web.JS.ThreePipe as ThreePipe
 import Korrvigs.Web.Routes (WebId (WId))
 import qualified Korrvigs.Web.Widgets as Widgets
+import Linear.V2
 import Network.Mime
 import Yesod
 
@@ -117,6 +120,30 @@ threeWidget True file =
 threeWidget False file =
   ThreePipe.viewer $ EntryComputeNamedR (WId $ file ^. fileEntry . entryName) "model" "model.glb"
 
+vikingWidget :: File -> Handler Widget
+vikingWidget file = fromMaybeT mempty $ do
+  vik <- hoistEitherLift $ liftIO $ parseVikingFile $ file ^. filePath
+  let waypoints = vik ^.. vikTopLayers . each . vikLayers . each . vikLayerWaypoints . each
+  let tracks = vik ^.. vikTopLayers . each . vikLayers . each . vikLayerTracks . each
+  let mkSegments trk = trackItem (trk ^. vikTrackName) <$> (trk ^. vikSegments)
+  i <- newIdent
+  pure $ leafletWidget i $ (waypointItem <$> waypoints) ++ concatMap mkSegments tracks
+  where
+    waypointItem :: VikingWayPoint -> MapItem
+    waypointItem wp =
+      MapItem
+        { _mitGeo = GeoPoint $ V2 (wp ^. vikWPLon) (wp ^. vikWPLat),
+          _mitContent = Just [shamlet|<p>#{view vikWPName wp}|],
+          _mitVar = Nothing
+        }
+    trackItem :: Text -> [VikingTrackPoint] -> MapItem
+    trackItem name segment =
+      MapItem
+        { _mitGeo = GeoPath $ segment <&> \tp -> V2 (tp ^. vikTPLon) (tp ^. vikTPLat),
+          _mitContent = Just [shamlet|<p>#{name}|],
+          _mitVar = Nothing
+        }
+
 embed :: Int -> File -> Handler Widget
 embed _ file
   | file ^. fileStatus == FileAbsent = pure $ do
@@ -145,6 +172,7 @@ embed _ file = do
         (BS.isPrefixOf "application/epub" mime, bookWidget file),
         (mime == "application/vnd.comicbook+zip", bookWidget file),
         ("model/gltf-binary" == mime, threeWidget True file),
+        (mime == "application/x-viking", vikingWidget file),
         (hasModel mime, threeWidget False file)
       ]
 

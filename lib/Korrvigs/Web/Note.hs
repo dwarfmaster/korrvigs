@@ -205,7 +205,7 @@ postNoteSubActR (WId i) (WLoc (LocSub loc)) =
                   "header-after" -> loc & subOffsets . _head %~ (+ 1)
                   _ -> loc
             let locParam = URI.escapeURIString URI.isUnescapedInURIComponent $ T.unpack $ renderEmbeddedLoc (redirEmbed, nloc)
-            pure $ redirUrl <> "?open=" <> T.pack locParam
+            pure $ redirUrl <> "?edit=" <> T.pack locParam
       _ -> notFound
 postNoteSubActR _ _ = notFound
 

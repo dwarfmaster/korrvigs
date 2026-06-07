@@ -11,6 +11,7 @@ module Korrvigs.Web.Entry.Note
   )
 where
 
+import Control.Applicative ((<|>))
 import Control.Lens
 import Control.Monad
 import Control.Monad.Extra (whenMaybe)
@@ -77,6 +78,7 @@ data CompileState = CState
     _embedCount :: Int,
     _openedSub :: SubLoc,
     _deepOpenedSub :: (DeepEmbedLoc, SubLoc),
+    _editOpen :: Bool,
     _currentHeaderId :: Maybe Text,
     _editEnabled :: Bool,
     _replaceComputations :: Bool,
@@ -104,6 +106,7 @@ initCState doc i =
       _embedCount = 0,
       _openedSub = SubLoc [],
       _deepOpenedSub = (DeepEmbedLoc [], SubLoc []),
+      _editOpen = False,
       _currentHeaderId = Nothing,
       _editEnabled = False,
       _replaceComputations = True,
@@ -147,18 +150,21 @@ withLevel lvl act = do
 embedLoc :: CompileM EmbedLoc
 embedLoc = EmbedLoc <$> use subLoc <*> use embedCount
 
-getOpenParam :: Handler (Maybe (DeepEmbedLoc, SubLoc))
+getOpenParam :: Handler (Maybe (Bool, DeepEmbedLoc, SubLoc))
 getOpenParam = do
-  subL <- fmap parseEmbeddedLoc <$> lookupGetParam "open"
-  let msubL = either (const Nothing) Just =<< subL
-  pure $ msubL & _Just . _2 %~ extractSubLoc
+  let norm = (_Just . _2 %~ extractSubLoc) . (>>= either (const Nothing) Just)
+  subLOpen <- norm <$> (fmap parseEmbeddedLoc <$> lookupGetParam "open")
+  subLEdit <- norm <$> (fmap parseEmbeddedLoc <$> lookupGetParam "edit")
+  pure $ case subLEdit <|> subLOpen of
+    Nothing -> Nothing
+    Just (embedL, subL) -> Just (isJust subLEdit, embedL, subL)
 
 embed :: Int -> Note -> Handler (Widget, Checks)
 embed lvl note = do
   msubL <- getOpenParam
   embedOpen lvl note (note ^. noteEntry . entryName, DeepEmbedLoc []) msubL
 
-embedOpen :: Int -> Note -> (Id, DeepEmbedLoc) -> Maybe (DeepEmbedLoc, SubLoc) -> Handler (Widget, Checks)
+embedOpen :: Int -> Note -> (Id, DeepEmbedLoc) -> Maybe (Bool, DeepEmbedLoc, SubLoc) -> Handler (Widget, Checks)
 embedOpen lvl note embedAt opened = do
   let path = note ^. notePath
   mmd <- readNote path
@@ -178,7 +184,7 @@ embedOpen lvl note embedAt opened = do
     Right md -> do
       embedContent True True lvl opened embedAt (note ^. noteEntry . entryName) md (md ^. docContent) (md ^. docChecks)
 
-embedContent :: Bool -> Bool -> Int -> Maybe (DeepEmbedLoc, SubLoc) -> (Id, DeepEmbedLoc) -> Id -> Document -> [Block] -> Checks -> Handler (Widget, Checks)
+embedContent :: Bool -> Bool -> Int -> Maybe (Bool, DeepEmbedLoc, SubLoc) -> (Id, DeepEmbedLoc) -> Id -> Document -> [Block] -> Checks -> Handler (Widget, Checks)
 embedContent enableEdit repComps lvl subL embedAt i doc cnt checks = do
   let isEmbedded = lvl > 0
   let st' =
@@ -190,14 +196,11 @@ embedContent enableEdit repComps lvl subL embedAt i doc cnt checks = do
           & editEnabled .~ enableEdit
           & replaceComputations .~ repComps
   let st = case subL of
-        Just (d@(DeepEmbedLoc (lc : _)), loc) ->
+        Just (edit, d, loc) ->
           st'
-            & openedSub .~ (lc ^. embedSub)
+            & openedSub .~ maybe loc (view embedSub) (d ^? deepEmbed . _head)
             & deepOpenedSub .~ (d, loc)
-        Just (d, loc) ->
-          st'
-            & openedSub .~ loc
-            & deepOpenedSub .~ (d, loc)
+            & editOpen .~ edit
         Nothing -> st'
   markdown <- runCompile st $ compileBlocks cnt
   let w = do
@@ -217,13 +220,14 @@ embedContent enableEdit repComps lvl subL embedAt i doc cnt checks = do
           toWidget [julius|checkboxCleanSpans()|]
   pure (w, checks)
 
-isEmbedOpen :: CompileM (Maybe (DeepEmbedLoc, SubLoc))
+isEmbedOpen :: CompileM (Maybe (Bool, DeepEmbedLoc, SubLoc))
 isEmbedOpen = do
   embedL <- embedLoc
-  deepOpenedL <- use deepOpenedSub
+  (openedL, subL) <- use deepOpenedSub
+  edit <- use editOpen
   pure $
-    if Just embedL == (deepOpenedL ^? _1 . deepEmbed . _head)
-      then Just $ _1 . deepEmbed %~ drop 1 $ deepOpenedL
+    if Just embedL == (openedL ^? deepEmbed . _head)
+      then Just (edit, openedL & deepEmbed %~ drop 1, subL)
       else Nothing
 
 content :: Note -> Handler Widget
@@ -500,8 +504,11 @@ compileBlock' (Sub hd) = do
   entry <- use currentEntry
   enableEdit <- use editEnabled
   embedAt <- use embeddedAt
-  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent (hd ^. hdTask) (hd ^. hdChecks) subL enableEdit embedAt
   openedLoc <- use openedSub
+  deepOpened <- use $ deepOpenedSub . _1 . deepEmbed
+  shouldEdit <- use editOpen
+  let openEdit = shouldEdit && subL == openedLoc && deepOpened == []
+  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent openEdit (hd ^. hdTask) (hd ^. hdChecks) subL enableEdit embedAt
   let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
   let taskClass :: [Text] = ["task-section" | isJust (hd ^. hdTask)]
   classes <- compileAttrWithClasses (collapsedClass ++ taskClass) $ hd ^. hdAttr
@@ -563,7 +570,7 @@ embedLnk i = do
       @#{unId i}
 |]
 
-embedBody :: Id -> Int -> Maybe (DeepEmbedLoc, SubLoc) -> (Id, DeepEmbedLoc) -> Handler (Widget, Checks, Maybe Text)
+embedBody :: Id -> Int -> Maybe (Bool, DeepEmbedLoc, SubLoc) -> (Id, DeepEmbedLoc) -> Handler (Widget, Checks, Maybe Text)
 embedBody i lvl opened embedAt =
   load i >>= \case
     Nothing -> pure (mempty, def, Nothing)
@@ -595,12 +602,12 @@ compileAttr' (MkAttr i clss _) html = do
     applyId usedId = if T.null usedId then id else applyAttr $ Attr.id $ textValue usedId
     applyClasses = if null clss then id else applyAttr $ Attr.class_ $ textValue $ T.intercalate " " clss
 
-compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Maybe Task -> Checks -> SubLoc -> Bool -> (Id, DeepEmbedLoc) -> Handler Widget
-compileHead entry n hdId t edit task checks subL enableEdit (sourceEntry, embedL) = do
+compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Bool -> Maybe Task -> Checks -> SubLoc -> Bool -> (Id, DeepEmbedLoc) -> Handler Widget
+compileHead entry n hdId t edit openEdit task checks subL enableEdit (sourceEntry, embedL) = do
   public <- isPublic
+  editFn <- if enableEdit then newIdent else pure "null"
   menuW <- whenMaybe (not public) $ do
     -- Edit
-    editFn <- if enableEdit then newIdent else pure "null"
     editFnJs <-
       if enableEdit
         then do
@@ -620,7 +627,10 @@ compileHead entry n hdId t edit task checks subL enableEdit (sourceEntry, embedL
       toWidget [julius|setupHeaderMenu(#{buttonId}, #{rawJS editFn}, #{rawJS openUrl}, "@{NoteSubActR (WId entry) (WLoc (LocSub subL))}", "@{route}", #{renderDeepEmbedLoc embedL});|]
       [whamlet|<span ##{buttonId} .hd-menu>⋯</span>|]
   tsk <- Wdgs.taskWidget entry subL task
-  compileHeader n [whamlet|^{tsk} #{t} ^{checksDisplay checks} ^{fromMaybe mempty menuW}|]
+  hd <- compileHeader n [whamlet|^{tsk} #{t} ^{checksDisplay checks} ^{fromMaybe mempty menuW}|]
+  pure $ do
+    hd
+    when (enableEdit && openEdit) $ toWidget [julius|#{rawJS editFn}();|]
   where
     quote :: Text -> Text
     quote = ("\"" <>) . (<> "\"")

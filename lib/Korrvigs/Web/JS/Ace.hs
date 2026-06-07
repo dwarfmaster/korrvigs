@@ -164,9 +164,7 @@ editFn fnName divId language url redirUrl =
     toWidget
       [julius|
       function #{rawJS fnName}(elem) {
-        elem.addEventListener("click", (event) => {
-          aceEdit(#{divId}, #{languageMode language}, "@{url}", #{redirUrl})
-        })
+        aceEdit(#{divId}, #{languageMode language}, "@{url}", #{redirUrl})
       }
     |]
 

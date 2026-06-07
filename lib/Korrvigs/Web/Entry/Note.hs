@@ -1,6 +1,8 @@
 module Korrvigs.Web.Entry.Note
   ( content,
     embed,
+    getOpenParam,
+    embedOpen,
     embedContent,
     aceRedirect,
     embedBody,
@@ -65,13 +67,16 @@ data CompileState = CState
     _hdRootLevel :: Int,
     _currentLevel :: Int,
     _embedded :: Bool,
+    _embeddedAt :: (Id, DeepEmbedLoc),
     _currentEntry :: Id,
     _currentDoc :: Document,
     _subLoc :: SubLoc,
     _subCount :: Int,
     _codeCount :: Int,
     _checkboxCount :: Int,
+    _embedCount :: Int,
     _openedSub :: SubLoc,
+    _deepOpenedSub :: (DeepEmbedLoc, SubLoc),
     _currentHeaderId :: Maybe Text,
     _editEnabled :: Bool,
     _replaceComputations :: Bool,
@@ -82,7 +87,28 @@ makeLenses ''CompileState
 
 initCState :: Document -> Id -> CompileState
 initCState doc i =
-  CState 1 [] True 0 0 False i doc (SubLoc []) 0 0 0 (SubLoc []) Nothing False True (flip M.member $ doc ^. docComputations)
+  CState
+    { _noteCounter = 1,
+      _notes = [],
+      _topLevel = True,
+      _hdRootLevel = 0,
+      _currentLevel = 0,
+      _embedded = False,
+      _embeddedAt = (i, DeepEmbedLoc []),
+      _currentEntry = i,
+      _currentDoc = doc,
+      _subLoc = SubLoc [],
+      _subCount = 0,
+      _codeCount = 0,
+      _checkboxCount = 0,
+      _embedCount = 0,
+      _openedSub = SubLoc [],
+      _deepOpenedSub = (DeepEmbedLoc [], SubLoc []),
+      _currentHeaderId = Nothing,
+      _editEnabled = False,
+      _replaceComputations = True,
+      _isComputation = flip M.member $ doc ^. docComputations
+    }
 
 type CompileM = StateT CompileState Handler
 
@@ -118,8 +144,28 @@ withLevel lvl act = do
   currentLevel .= prev
   pure r
 
+embedLoc :: CompileM EmbedLoc
+embedLoc = EmbedLoc <$> use subLoc <*> use embedCount
+
+extractSubLoc :: AnyLoc -> SubLoc
+extractSubLoc (LocSub loc) = loc
+extractSubLoc (LocCode loc) = loc ^. codeSub
+extractSubLoc (LocCheck loc) = loc ^. checkSub
+extractSubLoc (LocTask loc) = loc ^. taskSub
+
+getOpenParam :: Handler (Maybe (DeepEmbedLoc, SubLoc))
+getOpenParam = do
+  subL <- fmap parseEmbeddedLoc <$> lookupGetParam "open"
+  let msubL = either (const Nothing) Just =<< subL
+  pure $ msubL & _Just . _2 %~ extractSubLoc
+
 embed :: Int -> Note -> Handler (Widget, Checks)
 embed lvl note = do
+  msubL <- getOpenParam
+  embedOpen lvl note (note ^. noteEntry . entryName, DeepEmbedLoc []) msubL
+
+embedOpen :: Int -> Note -> (Id, DeepEmbedLoc) -> Maybe (DeepEmbedLoc, SubLoc) -> Handler (Widget, Checks)
+embedOpen lvl note embedAt opened = do
   let path = note ^. notePath
   mmd <- readNote path
   case mmd of
@@ -136,24 +182,29 @@ embed lvl note = do
           def
         )
     Right md -> do
-      subL <- fmap parseLoc <$> lookupGetParam "open"
-      let msubL = either (const Nothing) Just =<< subL
-      embedContent True True lvl msubL (note ^. noteEntry . entryName) md (md ^. docContent) (md ^. docChecks)
+      embedContent True True lvl opened embedAt (note ^. noteEntry . entryName) md (md ^. docContent) (md ^. docChecks)
 
-embedContent :: Bool -> Bool -> Int -> Maybe AnyLoc -> Id -> Document -> [Block] -> Checks -> Handler (Widget, Checks)
-embedContent enableEdit repComps lvl subL i doc cnt checks = do
+embedContent :: Bool -> Bool -> Int -> Maybe (DeepEmbedLoc, SubLoc) -> (Id, DeepEmbedLoc) -> Id -> Document -> [Block] -> Checks -> Handler (Widget, Checks)
+embedContent enableEdit repComps lvl subL embedAt i doc cnt checks = do
   let isEmbedded = lvl > 0
   let st' =
         initCState doc i
           & hdRootLevel .~ lvl
           & currentLevel .~ lvl
           & embedded .~ isEmbedded
+          & embeddedAt .~ embedAt
           & editEnabled .~ enableEdit
           & replaceComputations .~ repComps
   let st = case subL of
-        Just (LocSub loc) -> st' & openedSub .~ loc
-        Just (LocCode loc) -> st' & openedSub .~ (loc ^. codeSub)
-        _ -> st'
+        Just (d@(DeepEmbedLoc (lc : _)), loc) ->
+          st'
+            & openedSub .~ (lc ^. embedSub)
+            & deepOpenedSub .~ (d, loc)
+        Just (d, loc) ->
+          st'
+            & openedSub .~ loc
+            & deepOpenedSub .~ (d, loc)
+        Nothing -> st'
   markdown <- runCompile st $ compileBlocks cnt
   let w = do
         Ace.setup
@@ -171,6 +222,15 @@ embedContent enableEdit repComps lvl subL i doc cnt checks = do
           Wdgs.sectionLogic
           toWidget [julius|checkboxCleanSpans()|]
   pure (w, checks)
+
+isEmbedOpen :: CompileM (Maybe (DeepEmbedLoc, SubLoc))
+isEmbedOpen = do
+  embedL <- embedLoc
+  deepOpenedL <- use deepOpenedSub
+  pure $
+    if Just embedL == (deepOpenedL ^? _1 . deepEmbed . _head)
+      then Just $ _1 . deepEmbed %~ drop 1 $ deepOpenedL
+      else Nothing
 
 content :: Note -> Handler Widget
 content = fmap fst . embed 0
@@ -239,7 +299,8 @@ compileBlock' (CodeBlock attr code) = do
   codeO <- use codeCount
   let loc = LocCode $ CodeLoc subL codeO
   hdId <- use currentHeaderId
-  redirUrl <- lift $ aceRedirect entry hdId subL
+  (sourceEntry, embedL) <- use embeddedAt
+  redirUrl <- lift $ aceRedirect sourceEntry hdId (embedL, subL)
   buttonId <- newIdent
   editFn <- newIdent
   editFnJs <-
@@ -323,14 +384,19 @@ compileBlock' (Figure attr caption fig) = do
     ^{figW}
     <figcaption>^{captionW}
   |]
-compileBlock' (Embed ref) =
+compileBlock' (Embed ref) = do
+  recOpened <- isEmbedOpen
+  embedL <- embedLoc
+  (sourceEntry, embedAt') <- use embeddedAt
+  embedCount %= (+ 1)
   resolveEmbedRef ref >>= \case
     Nothing -> pure mempty
     Just i -> do
       lnk <- lift $ embedLnk i
       lvl <- use currentLevel
       embedId <- newIdent
-      (widget, checks, _) <- lift $ embedBody i lvl
+      let embedAt = embedAt' & deepEmbed %~ (<> [embedL])
+      (widget, checks, _) <- lift $ embedBody i lvl recOpened (sourceEntry, embedAt)
       pure $ do
         propagateChecks embedId checks
         [whamlet|
@@ -338,20 +404,26 @@ compileBlock' (Embed ref) =
       ^{lnk}
       ^{widget}
   |]
-compileBlock' (EmbedHeader ref hdLvl) =
+compileBlock' (EmbedHeader ref hdLvl) = do
+  recOpened <- isEmbedOpen
+  embedL <- embedLoc
+  (sourceEntry, embedAt') <- use embeddedAt
+  embedCount %= (+ 1)
   resolveEmbedRef ref >>= \case
     Nothing -> pure mempty
     Just i -> do
       rtLvl <- use hdRootLevel
       let lvl = hdLvl + rtLvl
       lnk <- lift $ embedLnk i
-      (widget, checks, title) <- lift $ embedBody i lvl
+      let embedAt = embedAt' & deepEmbed %~ (<> [embedL])
+      (widget, checks, title) <- lift $ embedBody i lvl recOpened (sourceEntry, embedAt)
       sqlI <- lift $ rSelectOne (fromName pure $ sqlId i) >>= throwMaybe (KMiscError $ "Couldn't load " <> unId i)
       task <- lift $ loadTask i sqlI title
       taskW <- lift $ Wdgs.taskWidget i (SubLoc []) task
       titleW <- lift $ compileHeader lvl [whamlet|^{taskW} #{fromMaybe "" title} ^{checksDisplay checks} ^{lnk}|]
       pure $ do
-        embedId <- Wdgs.mkSection lvl [("class", "collapsed")] [] titleW widget
+        let collapsedClass = [("class", "collapsed") | isNothing recOpened]
+        embedId <- Wdgs.mkSection lvl collapsedClass [] titleW widget
         case task of
           Nothing -> propagateChecks embedId checks
           Just tk -> do
@@ -421,16 +493,20 @@ compileBlock' (Sub hd) = do
   codeCount .= 0
   oldCheckCount <- use checkboxCount
   checkboxCount .= 0
+  oldEmbedCount <- use embedCount
+  embedCount .= 0
   contentW <- withLevel lvl $ compileBlocks $ hd ^. hdContent
   subLoc . subOffsets %= drop 1
   subCount .= subC + 1
   codeCount .= oldCodeCount
   checkboxCount .= oldCheckCount
+  embedCount .= oldEmbedCount
   -- Render header
   editIdent <- newIdent
   entry <- use currentEntry
   enableEdit <- use editEnabled
-  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent (hd ^. hdTask) (hd ^. hdChecks) subL enableEdit
+  embedAt <- use embeddedAt
+  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent (hd ^. hdTask) (hd ^. hdChecks) subL enableEdit embedAt
   openedLoc <- use openedSub
   let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
   let taskClass :: [Text] = ["task-section" | isJust (hd ^. hdTask)]
@@ -493,8 +569,8 @@ embedLnk i = do
       @#{unId i}
 |]
 
-embedBody :: Id -> Int -> Handler (Widget, Checks, Maybe Text)
-embedBody i lvl =
+embedBody :: Id -> Int -> Maybe (DeepEmbedLoc, SubLoc) -> (Id, DeepEmbedLoc) -> Handler (Widget, Checks, Maybe Text)
+embedBody i lvl opened embedAt =
   load i >>= \case
     Nothing -> pure (mempty, def, Nothing)
     Just entry -> do
@@ -503,7 +579,7 @@ embedBody i lvl =
         FileD file -> (,def,title) <$> File.embed lvl file
         EventD event -> (,def,title) <$> Event.embed lvl event
         CalendarD cal -> (,def,title) <$> Cal.embed lvl cal
-        NoteD note -> (\(w, c) -> (w, c, title)) <$> embed lvl note
+        NoteD note -> (\(w, c) -> (w, c, title)) <$> embedOpen lvl note embedAt opened
         SyndicateD syn -> (,def,title) <$> Syn.embed lvl syn
 
 compileAttrWithClasses :: [Text] -> Attr -> CompileM [(Text, Text)]
@@ -525,8 +601,8 @@ compileAttr' (MkAttr i clss _) html = do
     applyId usedId = if T.null usedId then id else applyAttr $ Attr.id $ textValue usedId
     applyClasses = if null clss then id else applyAttr $ Attr.class_ $ textValue $ T.intercalate " " clss
 
-compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Maybe Task -> Checks -> SubLoc -> Bool -> Handler Widget
-compileHead entry n hdId t edit task checks subL enableEdit = do
+compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Maybe Task -> Checks -> SubLoc -> Bool -> (Id, DeepEmbedLoc) -> Handler Widget
+compileHead entry n hdId t edit task checks subL enableEdit (sourceEntry, embedL) = do
   public <- isPublic
   menuW <- whenMaybe (not public) $ do
     -- Edit
@@ -534,7 +610,7 @@ compileHead entry n hdId t edit task checks subL enableEdit = do
     editFnJs <-
       if enableEdit
         then do
-          redirUrl <- aceRedirect entry hdId subL
+          redirUrl <- aceRedirect sourceEntry hdId (embedL, subL)
           Ace.editFn editFn edit "pandoc" link redirUrl
         else pure mempty
     -- Open
@@ -575,10 +651,11 @@ compileHeader 5 tit =
 compileHeader _ tit =
   pure [whamlet|<h6> ^{Wdgs.headerSymbol "◇"} ^{tit}|]
 
-aceRedirect :: Id -> Maybe Text -> SubLoc -> Handler Text
-aceRedirect i mhdId loc = do
+aceRedirect :: Id -> Maybe Text -> (DeepEmbedLoc, SubLoc) -> Handler Text
+aceRedirect i mhdId (dp, loc) = do
   render <- getUrlRenderParams
-  let url = render (EntryR $ WId i) [("open", renderLoc $ LocSub loc)]
+  let route = if T.null (unId i) then HomeR else EntryR (WId i)
+  let url = render route [("open", renderEmbeddedLoc (dp, loc))]
   pure $ case mhdId of
     Nothing -> url
     Just hdId -> url <> "#" <> hdId

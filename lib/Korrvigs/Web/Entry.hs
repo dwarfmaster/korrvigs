@@ -78,14 +78,14 @@ titleWidget entry contentId = do
       EventD _ -> pure Nothing
       CalendarD _ -> pure Nothing
       SyndicateD _ -> pure Nothing
-      NoteD _ -> Just <$> editButton (entry ^. entryName) contentId (SubLoc [])
+      NoteD _ -> Just <$> editButton (entry ^. entryName) contentId
 
-editButton :: Id -> Text -> SubLoc -> Handler Widget
-editButton entry edit subL = do
+editButton :: Id -> Text -> Handler Widget
+editButton entry edit = do
   public <- isPublic
   buttonId <- newIdent
-  redirUrl <- Note.aceRedirect entry Nothing subL
-  js <- Ace.editOnClick buttonId edit "pandoc" link redirUrl
+  redirUrl <- Note.aceRedirect entry Nothing (DeepEmbedLoc [], SubLoc [])
+  js <- Ace.editOnClick buttonId edit "pandoc" (NoteR $ WId entry) redirUrl
   pure $
     if public
       then mempty
@@ -95,12 +95,6 @@ editButton entry edit subL = do
         <span ##{buttonId} .edit-header>
           ✎
       |]
-  where
-    link :: Route WebData
-    link =
-      if null (subL ^. subOffsets)
-        then NoteR (WId entry)
-        else NoteSubR (WId entry) $ WLoc $ LocSub subL
 
 -- TODO make link to day viewer
 dateWidget :: Entry -> Handler Widget

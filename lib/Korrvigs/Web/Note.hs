@@ -279,7 +279,7 @@ getNoteNamedSubR (WId i) sb = do
   actions <- actionsWidget $ TargetNoteSub note sb
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   hd <- maybe notFound pure $ md ^? docContent . each . bkNamedSub sb
-  (widget, _) <- embedContent False False 0 Nothing i md [Sub hd] (hd ^. hdChecks)
+  (widget, _) <- embedContent False False 0 Nothing (i, DeepEmbedLoc []) i md [Sub hd] (hd ^. hdChecks)
   public <- isPublic
   defaultLayout $ do
     Rcs.entryStyle
@@ -296,7 +296,7 @@ getNoteNamedCodeR (WId i) cd = do
   actions <- actionsWidget $ TargetNoteCode note cd
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   (attrs, txt) <- maybe notFound pure $ md ^? docContent . each . bkNamedCode cd
-  (widget, _) <- embedContent False False 0 Nothing i md [CodeBlock attrs txt] def
+  (widget, _) <- embedContent False False 0 Nothing (i, DeepEmbedLoc []) i md [CodeBlock attrs txt] def
   let result = M.lookup cd $ md ^. docComputations
   rwidget <- case result of
     Nothing -> pure mempty

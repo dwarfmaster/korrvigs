@@ -11,6 +11,7 @@ import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad
+import Korrvigs.Note.Loc
 import Korrvigs.Query
 import Korrvigs.Utils
 import Korrvigs.Utils.Time
@@ -53,7 +54,8 @@ favouritesWidget = fromMaybeT notFoundWidget $ do
   let i = MkId "Favourites"
   entry <- hoistLift $ load i
   note <- hoistMaybe $ entry ^? entryKindData . _NoteD
-  (widget, _) <- lift $ Note.embed 1 note
+  msubL <- lift Note.getOpenParam
+  (widget, _) <- lift $ Note.embedOpen 1 note (MkId "", DeepEmbedLoc []) msubL
   pure widget
   where
     notFoundWidget :: Widget

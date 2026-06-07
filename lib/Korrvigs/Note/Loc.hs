@@ -4,6 +4,11 @@ module Korrvigs.Note.Loc
     CodeLoc (..),
     codeSub,
     codeOffset,
+    EmbedLoc (..),
+    embedSub,
+    embedOffset,
+    DeepEmbedLoc (..),
+    deepEmbed,
     CheckLoc (..),
     checkSub,
     checkOffset,
@@ -19,6 +24,7 @@ module Korrvigs.Note.Loc
     code,
     getCode,
     setCode,
+    _embed,
     check,
     getCheck,
     setCheck,
@@ -30,6 +36,10 @@ module Korrvigs.Note.Loc
     renderLoc,
     parseLoc,
     subPrefix,
+    renderDeepEmbedLoc,
+    parseDeepEmbedLoc,
+    renderEmbeddedLoc,
+    parseEmbeddedLoc,
   )
 where
 
@@ -42,6 +52,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
+import Korrvigs.Entry.Ident
 import Korrvigs.Metadata.Task
 import Korrvigs.Note.AST
 import Korrvigs.Utils.Lens
@@ -54,15 +65,22 @@ newtype SubLoc = SubLoc
   }
   deriving (Eq, Ord, Show, Read)
 
-makeLenses ''SubLoc
-
 data CodeLoc = CodeLoc
   { _codeSub :: SubLoc,
     _codeOffset :: Int
   }
   deriving (Eq, Ord, Show, Read)
 
-makeLenses ''CodeLoc
+data EmbedLoc = EmbedLoc
+  { _embedSub :: SubLoc,
+    _embedOffset :: Int
+  }
+  deriving (Eq, Ord, Show, Read)
+
+newtype DeepEmbedLoc = DeepEmbedLoc
+  { _deepEmbed :: [EmbedLoc]
+  }
+  deriving (Eq, Ord, Show, Read)
 
 data CheckLoc = CheckLoc
   { _checkSub :: SubLoc,
@@ -70,13 +88,16 @@ data CheckLoc = CheckLoc
   }
   deriving (Eq, Ord, Show, Read)
 
-makeLenses ''CheckLoc
-
 newtype TaskLoc = TaskLoc
   { _taskSub :: SubLoc
   }
   deriving (Eq, Ord, Show, Read)
 
+makeLenses ''SubLoc
+makeLenses ''CodeLoc
+makeLenses ''EmbedLoc
+makeLenses ''DeepEmbedLoc
+makeLenses ''CheckLoc
 makeLenses ''TaskLoc
 
 data AnyLoc
@@ -139,6 +160,9 @@ getCode loc doc = doc ^? code loc
 setCode :: CodeLoc -> Document -> Text -> Document
 setCode loc doc cd = doc & code loc .~ cd
 
+_embed :: (Semigroup (f Block), Applicative f) => EmbedLoc -> (Either Text Id -> f (Either Text Id)) -> Document -> f Document
+_embed loc = subContents (loc ^. embedSub) . elementOf (each . bkBlocks . (_Embed <> (_EmbedHeader . _1))) (loc ^. embedOffset)
+
 check :: (Applicative f) => CheckLoc -> (TaskStatus -> f TaskStatus) -> Document -> f Document
 check (CheckLoc sb off) = subContents sb . elementOf (each . bkInlines . inlInlines . _Check) off
 
@@ -199,6 +223,24 @@ renderLoc (LocCode loc) = renderCodeLoc loc
 renderLoc (LocCheck loc) = renderCheckLoc loc
 renderLoc (LocTask loc) = renderTaskLoc loc
 
+buildDeepEmbedLoc :: [EmbedLoc] -> Builder
+buildDeepEmbedLoc [] = mempty
+buildDeepEmbedLoc [l] =
+  buildSubLoc (l ^. embedSub . subOffsets) <> ":" <> intDec (l ^. embedOffset)
+buildDeepEmbedLoc (l : ls) =
+  buildSubLoc (l ^. embedSub . subOffsets)
+    <> ":"
+    <> intDec (l ^. embedOffset)
+    <> "|"
+    <> buildDeepEmbedLoc ls
+
+renderDeepEmbedLoc :: DeepEmbedLoc -> Text
+renderDeepEmbedLoc = doRender . buildDeepEmbedLoc . view deepEmbed
+
+renderEmbeddedLoc :: (DeepEmbedLoc, SubLoc) -> Text
+renderEmbeddedLoc (dp, loc) =
+  doRender $ buildDeepEmbedLoc (dp ^. deepEmbed) <> "," <> buildSubLoc (loc ^. subOffsets)
+
 -- Parse AST location
 subLocP :: (Stream s Identity Char) => Parsec s u SubLoc
 subLocP = SubLoc . reverse <$> sepBy decimal (char '.')
@@ -219,5 +261,32 @@ locP = do
 
 parseLoc :: Text -> Either Text AnyLoc
 parseLoc loc = case parse locP "<loc>" loc of
+  Left err -> Left . T.pack $ show err
+  Right l -> Right l
+
+embedLocP :: (Stream s Identity Char) => Parsec s u EmbedLoc
+embedLocP = do
+  sb <- subLocP
+  void $ char ':'
+  off <- decimal
+  pure $ EmbedLoc sb off
+
+deepEmbedLocP :: (Stream s Identity Char) => Parsec s u DeepEmbedLoc
+deepEmbedLocP = DeepEmbedLoc <$> sepBy embedLocP (char '|')
+
+parseDeepEmbedLoc :: Text -> Either Text DeepEmbedLoc
+parseDeepEmbedLoc loc = case parse deepEmbedLocP "<embedloc>" loc of
+  Left err -> Left . T.pack $ show err
+  Right l -> Right l
+
+embeddedLocP :: (Stream s Identity Char) => Parsec s u (DeepEmbedLoc, AnyLoc)
+embeddedLocP = do
+  d <- deepEmbedLocP
+  void $ char ','
+  l <- locP
+  pure (d, l)
+
+parseEmbeddedLoc :: Text -> Either Text (DeepEmbedLoc, AnyLoc)
+parseEmbeddedLoc loc = case parse embeddedLocP "<embedloc>" loc of
   Left err -> Left . T.pack $ show err
   Right l -> Right l

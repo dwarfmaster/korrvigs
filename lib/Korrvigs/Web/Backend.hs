@@ -47,6 +47,12 @@ mkYesodData "WebData" korrvigsRoutes
 getBase :: Handler (Base16Index -> Text)
 getBase = web_theme <$> getYesod
 
+hdIsHome :: Route WebData -> Bool
+hdIsHome HomeR = True
+hdIsHome (DateByDayR _) = True
+hdIsHome (DateByWeekR _ _) = True
+hdIsHome _ = False
+
 hdIsEntry :: Route WebData -> Bool
 hdIsEntry SearchR = True
 hdIsEntry (EntryR _) = True
@@ -64,7 +70,7 @@ hdIsNote _ = False
 
 headerContent :: [(Text, Route WebData, Route WebData -> Bool)]
 headerContent =
-  [ ("Home", HomeR, (== HomeR)),
+  [ ("Home", HomeR, hdIsHome),
     ("Entry", SearchR, hdIsEntry),
     ("Note", NoteFuzzyR, hdIsNote),
     ("Git", GitR, (== GitR))

@@ -21,8 +21,17 @@ import qualified Korrvigs.Web.Widgets as Widgets
 import Text.Blaze
 import Yesod
 
-periodPage :: Text -> FC.CalendarEvent -> ZonedTime -> ZonedTime -> Handler Html
-periodPage title marker startTime endTime = do
+periodPage :: Text -> FC.CalendarEvent -> [(Text, Route WebData)] -> ZonedTime -> ZonedTime -> Handler Html
+periodPage title marker linkedDays startTime endTime = do
+  -- Linked days
+  let linked =
+        [whamlet|
+    <p>
+      $forall (txt,rt) <- linkedDays
+        <a href=@{rt}>
+          #{txt}
+          &nbsp
+  |]
   -- Calendar
   evs <- Home.getEvents startTime
   evsEntries <- mapM FC.entryToEvent evs
@@ -47,6 +56,7 @@ periodPage title marker startTime endTime = do
     setTitle $ "Period " <> toMarkup title
     [whamlet|<h1>#{title}|]
     FC.header
+    linked
     void $ Widgets.mkSection 1 [] [] eventsHd calendar
     let cls = [("class", "collapsed")]
     unless (null entries) $ void $ Widgets.mkSection 1 cls [] entriesHd entriesW
@@ -64,23 +74,44 @@ getDateByDayR :: Day -> Handler Html
 getDateByDayR day = do
   tz <- liftIO getCurrentTimeZone
   let startTime = ZonedTime (LocalTime day time) tz
-  let nextDay = addGregorianDurationClip calendarDay day
   let endTime = ZonedTime (LocalTime nextDay time) tz
   let title = formatTime defaultTimeLocale "%A %e, %B %Y" day
   let today = FC.CalendarEvent "Day" startTime Nothing Nothing (Just True) (Just "var(--base0E)")
-  periodPage (T.pack title) today startTime endTime
+  periodPage (T.pack title) today linked startTime endTime
   where
     time = TimeOfDay 0 0 0
+    inv = scaleCalendarDiffDays (-1)
+    nextDay = addGregorianDurationClip calendarDay day
+    nextYear = addGregorianDurationClip calendarYear day
+    lastYear = addGregorianDurationClip (inv calendarYear) day
+    prevDay = addGregorianDurationClip (inv calendarDay) day
+    (wk, _) = mondayStartWeek day
+    linked =
+      [ ("prev day", DateByDayR prevDay),
+        ("last year", DateByDayR lastYear),
+        ("this week", DateByWeekR (dayPeriod day) wk),
+        ("next year", DateByDayR nextYear),
+        ("next day", DateByDayR nextDay)
+      ]
 
 getDateByWeekR :: Year -> WeekOfYear -> Handler Html
 getDateByWeekR yr wk = do
   tz <- liftIO getCurrentTimeZone
-  let startDay = fromMondayStartWeek yr wk 1
-  let endDay = addGregorianDurationClip calendarDay $ fromMondayStartWeek yr wk 7
   let startTime = ZonedTime (LocalTime startDay time) tz
   let endTime = ZonedTime (LocalTime endDay time) tz
   let title = formatTime defaultTimeLocale "Week %W, %Y" startDay
   let marker = FC.CalendarEvent "Week" startTime (Just endTime) Nothing (Just True) (Just "var(--base0E)")
-  periodPage (T.pack title) marker startTime endTime
+  periodPage (T.pack title) marker linked startTime endTime
   where
     time = TimeOfDay 0 0 0
+    prevWeek = if wk <= 1 then (yr - 1, 53 + wk - 1) else (yr, wk - 1)
+    nextWeek = if wk >= 53 then (yr + 1, wk - 53 + 1) else (yr, wk + 1)
+    startDay = fromMondayStartWeek yr wk 1
+    endDay = addGregorianDurationClip calendarDay $ fromMondayStartWeek yr wk 7
+    linked =
+      [ ("prev week", DateByWeekR (fst prevWeek) (snd prevWeek)),
+        ("last year", DateByWeekR (yr - 1) wk),
+        ("first day", DateByDayR startDay),
+        ("next year", DateByWeekR (yr + 1) wk),
+        ("next week", DateByWeekR (fst nextWeek) (snd nextWeek))
+      ]

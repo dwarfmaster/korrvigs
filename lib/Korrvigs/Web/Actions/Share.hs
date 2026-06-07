@@ -1,14 +1,20 @@
 module Korrvigs.Web.Actions.Share where
 
 import Control.Lens
+import Control.Monad.Extra (whenMaybe)
 import Data.Default
+import Data.Maybe
 import Data.Text (Text)
+import Korrvigs.Compute
 import Korrvigs.Entry
+import Korrvigs.Monad
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Public.Crypto as Public
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Search.Form as Search
+import Opaleye
+import qualified Opaleye as O
 import Yesod
 
 shareTarget :: ActionTarget -> ActionCond
@@ -87,15 +93,24 @@ runShare () (TargetNoteSub note sb) = do
       |]
 runShare () (TargetNoteCode note cd) = do
   public <- Public.signRoute (NoteNamedCodeR (WId i) cd) []
+  isCached <- fmap isJust $ rSelectOne $ do
+    cmp <- selComp (sqlInt4 $ note ^. noteEntry . entryId) cd
+    where_ $ O.not $ isNull $ cmp ^. sqlCompLastRun
+    pure ()
+  publicCache <- whenMaybe isCached $ Public.signRoute (EntryComputeR (WId i) cd) []
   render <- getUrlRenderParams
-  let html = htmlUrl public render
+  let html = htmlUrl public publicCache render
   pure $ def & reactMsg ?~ html
   where
     i = note ^. noteEntry . entryName
-    htmlUrl public =
+    htmlUrl public publicCache =
       [hamlet|
         <ul>
           <li>
             <a href=@{PublicNoteNamedCodeR public (WId i) cd}>
               Share this code block
+            $maybe cache <- publicCache
+              <li>
+                <a href=@{PublicEntryComputeR cache (WId i) cd}>
+                  Share the computation result
       |]

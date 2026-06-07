@@ -1,4 +1,4 @@
-module Korrvigs.Web.Home (getHomeR) where
+module Korrvigs.Web.Home (getHomeR, getEvents) where
 
 import Control.Lens
 import Control.Monad
@@ -24,9 +24,8 @@ import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widgets
 import Yesod hiding (joinPath)
 
-getEvents :: Handler [EntryRowR]
-getEvents = do
-  today <- liftIO getCurrentZonedTime
+getEvents :: ZonedTime -> Handler [EntryRowR]
+getEvents today = do
   let month = CalendarDiffTime 1 $ secondsToNominalDiffTime 0
   let start = addCalendar (scaleCalendarDiffTime (-1) month) today
   let end = addCalendar month today
@@ -40,7 +39,8 @@ getEvents = do
 
 eventsWidget :: Handler Widget
 eventsWidget = do
-  evs <- getEvents
+  time <- liftIO getCurrentZonedTime
+  evs <- getEvents time
   entries <- mapM FC.entryToEvent evs
   dt <- liftIO getCurrentZonedTime
   let today = FC.CalendarEvent "Today" dt Nothing Nothing (Just True) (Just "var(--base0E)")

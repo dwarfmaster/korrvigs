@@ -7,6 +7,7 @@ import Korrvigs.Web.Backend
 import Korrvigs.Web.Bibtex
 import Korrvigs.Web.Blog
 import Korrvigs.Web.Compute
+import Korrvigs.Web.Date
 import Korrvigs.Web.Download
 import Korrvigs.Web.Entry
 import Korrvigs.Web.Git

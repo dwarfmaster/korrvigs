@@ -96,7 +96,6 @@ editButton entry edit = do
           ✎
       |]
 
--- TODO make link to day viewer
 dateWidget :: Entry -> Handler Widget
 dateWidget entry = case entry ^. entryDate of
   Just time -> do
@@ -104,7 +103,7 @@ dateWidget entry = case entry ^. entryDate of
     let localTime = utcToZonedTime tz $ zonedTimeToUTC time
     pure
       [whamlet|
-      <a href="">
+      <a href=@{DateByDayR (localDay (zonedTimeToLocalTime localTime))}>
         #{iso8601Show localTime}
     |]
   Nothing -> pure mempty

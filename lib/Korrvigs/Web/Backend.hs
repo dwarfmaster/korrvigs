@@ -11,6 +11,7 @@ import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
+import Data.Time
 import Database.PostgreSQL.Simple (Connection)
 import Korrvigs.Monad
 import Korrvigs.Utils (lazyCreateManager)

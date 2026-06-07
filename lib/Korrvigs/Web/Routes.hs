@@ -26,6 +26,8 @@ korrvigsRoutes =
 -- Home and login
 / HomeR GET
 /bibtex SearchBibtexR GET
+/date/by-day/#Day DateByDayR GET
+/date/by-week/#Year/#Int DateByWeekR GET
 
 -- Entry search and visualisation
 /entry SearchR GET
@@ -89,9 +91,4 @@ korrvigsRoutes =
 /public/#Text/note/#WebId/col/#Text PublicNoteColR GET
 /public/#Text/note/#WebId/named/sub/#Text PublicNoteNamedSubR GET
 /public/#Text/note/#WebId/named/code/#Text PublicNoteNamedCodeR GET
-
--- Specific visualisations
--- TODO Date
--- TODO Place
--- TODO Graph
 |]

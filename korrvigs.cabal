@@ -224,6 +224,7 @@ library korrvigs-lib
     Korrvigs.Web.Bibtex
     Korrvigs.Web.Blog
     Korrvigs.Web.Compute
+    Korrvigs.Web.Date
     Korrvigs.Web.Download
     Korrvigs.Web.Entry
     Korrvigs.Web.Entry.Calendar

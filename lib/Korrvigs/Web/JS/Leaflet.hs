@@ -1,7 +1,17 @@
-module Korrvigs.Web.JS.Leaflet (MapItem (..), mitGeo, mitContent, mitVar, leafletWidget, jsPoint) where
+module Korrvigs.Web.JS.Leaflet
+  ( MapItem (..),
+    mitGeo,
+    mitContent,
+    mitVar,
+    mitColor,
+    leafletWidget,
+    jsPoint,
+  )
+where
 
 import Control.Lens
 import Control.Monad
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text.Lazy.Builder as Bld
 import Korrvigs.Geometry
@@ -15,7 +25,8 @@ import Yesod
 data MapItem = MapItem
   { _mitGeo :: Geometry,
     _mitContent :: Maybe Html,
-    _mitVar :: Maybe Text
+    _mitVar :: Maybe Text,
+    _mitColor :: Maybe Text
   }
 
 makeLenses ''MapItem
@@ -108,16 +119,17 @@ leafletWidget i items = do
     |]
   forM_ items $ \item -> do
     markerVar <- maybe newIdent pure $ item ^. mitVar
+    let color = fromMaybe "#00EE00" $ item ^. mitColor
     case item ^. mitGeo of
       GeoPoint pt ->
         toWidget
           [julius|var #{rawJS markerVar} = L.marker(#{rawJS $ jsPoint pt}).addTo(#{mp})|]
       GeoPath path ->
         toWidget
-          [julius|var #{rawJS markerVar} = L.polyline(#{jsPath path}).addTo(#{mp})|]
+          [julius|var #{rawJS markerVar} = L.polyline(#{jsPath path}, {color: #{color}}).addTo(#{mp})|]
       GeoPolygon poly ->
         toWidget
-          [julius|var #{rawJS markerVar} = L.polygon(#{jsPolygon poly}).addTo(#{mp})|]
+          [julius|var #{rawJS markerVar} = L.polygon(#{jsPolygon poly}, {color: #{color}}).addTo(#{mp})|]
     case item ^. mitContent of
       Nothing -> pure ()
       Just content ->

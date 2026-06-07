@@ -98,7 +98,8 @@ displayMap _ entries = do
             MapItem
               { _mitGeo = geom,
                 _mitContent = Just html,
-                _mitVar = Nothing
+                _mitVar = Nothing,
+                _mitColor = Nothing
               }
       Nothing -> pure Nothing
 

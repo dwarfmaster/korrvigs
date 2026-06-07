@@ -102,13 +102,13 @@ gpxWidget :: File -> Handler Widget
 gpxWidget file = do
   pts <- liftIO $ GPX.extractPoints $ file ^. filePath
   i <- newIdent
-  pure $ leafletWidget i [MapItem (GeoPath pts) Nothing Nothing]
+  pure $ leafletWidget i [MapItem (GeoPath pts) Nothing Nothing Nothing]
 
 fitWidget :: File -> Handler Widget
 fitWidget file = do
   pts <- liftIO $ FIT.extractPoints $ file ^. filePath
   i <- newIdent
-  pure $ leafletWidget i [MapItem (GeoPath pts) Nothing Nothing]
+  pure $ leafletWidget i [MapItem (GeoPath pts) Nothing Nothing Nothing]
 
 bookWidget :: File -> Handler Widget
 bookWidget file =
@@ -125,7 +125,7 @@ vikingWidget file = fromMaybeT mempty $ do
   vik <- hoistEitherLift $ liftIO $ parseVikingFile $ file ^. filePath
   let waypoints = vik ^.. vikTopLayers . each . vikLayers . each . vikLayerWaypoints . each
   let tracks = vik ^.. vikTopLayers . each . vikLayers . each . vikLayerTracks . each
-  let mkSegments trk = trackItem (trk ^. vikTrackName) <$> (trk ^. vikSegments)
+  let mkSegments trk = trackItem (trk ^. vikTrackName) (trk ^. vikTrackColor) <$> (trk ^. vikSegments)
   i <- newIdent
   pure $ leafletWidget i $ (waypointItem <$> waypoints) ++ concatMap mkSegments tracks
   where
@@ -134,14 +134,16 @@ vikingWidget file = fromMaybeT mempty $ do
       MapItem
         { _mitGeo = GeoPoint $ V2 (wp ^. vikWPLon) (wp ^. vikWPLat),
           _mitContent = Just [shamlet|<p>#{view vikWPName wp}|],
-          _mitVar = Nothing
+          _mitVar = Nothing,
+          _mitColor = Nothing
         }
-    trackItem :: Text -> [VikingTrackPoint] -> MapItem
-    trackItem name segment =
+    trackItem :: Text -> Text -> [VikingTrackPoint] -> MapItem
+    trackItem name color segment =
       MapItem
         { _mitGeo = GeoPath $ segment <&> \tp -> V2 (tp ^. vikTPLon) (tp ^. vikTPLat),
           _mitContent = Just [shamlet|<p>#{name}|],
-          _mitVar = Nothing
+          _mitVar = Nothing,
+          _mitColor = Just $ "#" <> color
         }
 
 embed :: Int -> File -> Handler Widget

@@ -3,6 +3,7 @@ module Korrvigs.Note.Edit
     addSubHeaderFirst,
     addHeaderAfter,
     addHeaderBefore,
+    finishTask,
     reRoot,
   )
 where
@@ -11,6 +12,7 @@ import Control.Arrow ((***))
 import Control.Lens
 import qualified Data.Map as M
 import qualified Data.Set as S
+import Korrvigs.Metadata.Task
 import Korrvigs.Note.AST
 import Korrvigs.Note.Loc
 
@@ -62,6 +64,33 @@ addHeaderBefore :: SubLoc -> Document -> Document
 addHeaderBefore loc = subs loc %~ (Sub sb :)
   where
     sb = newHeader $ subLvl loc
+
+finishTask :: SubLoc -> Document -> Document
+finishTask loc doc = doc & sub loc %~ finishTaskHeader
+  where
+    finishTaskHeaderRec :: Header -> Header
+    finishTaskHeaderRec hd = case hd ^. hdTask of
+      Just tsk | not (shouldUpdate $ tsk ^. tskStatus) -> hd
+      _ ->
+        hd
+          & hdTask . _Just %~ updateTask
+          & finishTaskHeader
+    finishTaskHeader :: Header -> Header
+    finishTaskHeader hd =
+      hd
+        & hdContent . each . bkInlines . _Check %~ updateStatus
+        & hdContent . each . _Sub %~ finishTaskHeaderRec
+    shouldUpdate :: TaskStatus -> Bool
+    shouldUpdate TaskTodo = True
+    shouldUpdate TaskImportant = True
+    shouldUpdate _ = False
+    updateStatus :: TaskStatus -> TaskStatus
+    updateStatus t | shouldUpdate t = TaskDont
+    updateStatus t = t
+    updateTask :: Task -> Task
+    updateTask tsk =
+      let st = updateStatus $ tsk ^. tskStatus
+       in tsk & tskStatus .~ st & tskStatusName .~ renderTaskStatus st
 
 reRoot :: Int -> Block -> Block
 reRoot delta (Para inls) = Para $ reRootInline delta <$> inls

@@ -1,8 +1,10 @@
 module Korrvigs.Metadata.Task where
 
+import Control.Arrow ((&&&))
 import Control.Lens
 import Data.Aeson
 import Data.CaseInsensitive (CI)
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import Data.Time.LocalTime
@@ -37,14 +39,18 @@ data Task = Task
 
 makeLenses ''Task
 
+renderTaskStatus :: TaskStatus -> Text
+renderTaskStatus TaskTodo = "todo"
+renderTaskStatus TaskImportant = "important"
+renderTaskStatus TaskOngoing = "started"
+renderTaskStatus TaskBlocked = "blocked"
+renderTaskStatus TaskDone = "done"
+renderTaskStatus TaskDont = "dont"
+
 parseStatusName :: Text -> Maybe TaskStatus
-parseStatusName "todo" = Just TaskTodo
-parseStatusName "important" = Just TaskImportant
-parseStatusName "started" = Just TaskOngoing
-parseStatusName "blocked" = Just TaskBlocked
-parseStatusName "done" = Just TaskDone
-parseStatusName "dont" = Just TaskDont
-parseStatusName _ = Nothing
+parseStatusName = flip M.lookup statusMap
+  where
+    statusMap = M.fromList $ (renderTaskStatus &&& id) <$> [minBound .. maxBound]
 
 mkMtdt "TaskMtdt" "task" [t|Text|]
 mkMtdt "TaskDeadline" "deadline" [t|ZonedTime|]

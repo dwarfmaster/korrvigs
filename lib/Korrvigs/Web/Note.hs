@@ -110,19 +110,11 @@ getNoteSubR (WId i) (WLoc loc) =
               Just hd -> pure $ LEnc.decodeUtf8 $ writeHeaderLazy hd (doc ^. docComputations)
             LocCheck lc -> case doc ^? check lc of
               Nothing -> notFound
-              Just cb -> pure $ renderTaskStatus cb
+              Just cb -> pure $ LT.fromStrict $ renderTaskStatus cb
             LocTask lc -> case doc ^? task lc . tskStatus of
               Nothing -> notFound
-              Just tk -> pure $ renderTaskStatus tk
+              Just tk -> pure $ LT.fromStrict $ renderTaskStatus tk
       _ -> notFound
-  where
-    renderTaskStatus :: TaskStatus -> LT.Text
-    renderTaskStatus TaskTodo = "todo"
-    renderTaskStatus TaskImportant = "important"
-    renderTaskStatus TaskOngoing = "started"
-    renderTaskStatus TaskBlocked = "blocked"
-    renderTaskStatus TaskDone = "done"
-    renderTaskStatus TaskDont = "dont"
 
 postNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text
 postNoteSubR (WId i) (WLoc loc) =
@@ -187,6 +179,7 @@ postNoteSubActR (WId i) (WLoc (LocSub loc)) =
               "sub-last" -> pure $ addSubHeaderLast loc doc
               "header-after" -> pure $ addHeaderAfter loc doc
               "header-before" -> pure $ addHeaderBefore loc doc
+              "finish-task" -> pure $ finishTask loc doc
               _ -> notFound
             let path = note ^. notePath
             fd <- liftIO $ openFile path WriteMode
@@ -205,7 +198,10 @@ postNoteSubActR (WId i) (WLoc (LocSub loc)) =
                   "header-after" -> loc & subOffsets . _head %~ (+ 1)
                   _ -> loc
             let locParam = URI.escapeURIString URI.isUnescapedInURIComponent $ T.unpack $ renderEmbeddedLoc (redirEmbed, nloc)
-            pure $ redirUrl <> "?edit=" <> T.pack locParam
+            let param = case act of
+                  "finish-task" -> "open"
+                  _ -> "edit"
+            pure $ redirUrl <> "?" <> param <> "=" <> T.pack locParam
       _ -> notFound
 postNoteSubActR _ _ = notFound
 

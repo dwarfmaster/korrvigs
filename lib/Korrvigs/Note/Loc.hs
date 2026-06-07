@@ -15,6 +15,7 @@ module Korrvigs.Note.Loc
     TaskLoc (..),
     taskSub,
     AnyLoc (..),
+    extractSubLoc,
     subLvl,
     sub,
     subs,
@@ -106,6 +107,12 @@ data AnyLoc
   | LocCheck CheckLoc
   | LocTask TaskLoc
   deriving (Eq, Ord, Show, Read)
+
+extractSubLoc :: AnyLoc -> SubLoc
+extractSubLoc (LocSub loc) = loc
+extractSubLoc (LocCode loc) = loc ^. codeSub
+extractSubLoc (LocCheck loc) = loc ^. checkSub
+extractSubLoc (LocTask loc) = loc ^. taskSub
 
 subOff :: (Applicative f) => Int -> (Header -> f Header) -> [Block] -> f [Block]
 subOff = elementOf (each . _Sub)

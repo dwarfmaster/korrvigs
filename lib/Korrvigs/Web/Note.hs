@@ -56,6 +56,7 @@ import Korrvigs.Web.Routes
 import Korrvigs.Web.Search
 import Korrvigs.Web.Search.Form
 import Korrvigs.Web.Search.Results
+import qualified Network.URI as URI
 import Opaleye
 import System.IO
 import Yesod hiding (check)
@@ -166,7 +167,7 @@ postNoteSubR (WId i) (WLoc loc) =
     parseTaskStatus txt = maybe (throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid task state") pure $ parseStatusName txt
 
 postNoteSubActR :: WebId -> WebAnyLoc -> Handler Text
-postNoteSubActR (WId i) (WLoc loc) =
+postNoteSubActR (WId i) (WLoc (LocSub loc)) =
   load i >>= \case
     Nothing -> notFound
     Just entry -> case entry ^. entryKindData of
@@ -175,14 +176,17 @@ postNoteSubActR (WId i) (WLoc loc) =
           Left err -> throwM $ KMiscError err
           Right doc -> do
             body <- runConduit $ rawRequestBody .| fold
-            let act = T.strip $ Enc.decodeUtf8 body
-            ndoc <- case loc of
-              LocSub lc -> case act of
-                "sub-first" -> pure $ addSubHeaderFirst lc doc
-                "sub-last" -> pure $ addSubHeaderLast lc doc
-                "header-after" -> pure $ addHeaderAfter lc doc
-                "header-before" -> pure $ addHeaderBefore lc doc
-                _ -> notFound
+            let dat = T.strip <$> T.lines (Enc.decodeUtf8 body)
+            (redirUrl, redirEmbed, act) <- case dat of
+              [redirUrl, redirEmbed, act] -> case parseDeepEmbedLoc redirEmbed of
+                Right l -> pure (redirUrl, l, act)
+                Left err -> invalidArgs [err]
+              _ -> invalidArgs []
+            ndoc <- case act of
+              "sub-first" -> pure $ addSubHeaderFirst loc doc
+              "sub-last" -> pure $ addSubHeaderLast loc doc
+              "header-after" -> pure $ addHeaderAfter loc doc
+              "header-before" -> pure $ addHeaderBefore loc doc
               _ -> notFound
             let path = note ^. notePath
             fd <- liftIO $ openFile path WriteMode
@@ -193,9 +197,17 @@ postNoteSubActR (WId i) (WLoc loc) =
               Nothing -> pure ()
             liftIO $ hClose fd
             syncFileOfKind i path (entry ^. entryId) Note
-            render <- getUrlRenderParams
-            pure $ render (EntryR (WId i)) [("open", renderLoc loc)]
+            let nloc = case act of
+                  "sub-first" -> loc & subOffsets %~ (0 :)
+                  "sub-last" ->
+                    let nsubs = length $ doc ^.. sub loc . hdContent . each . _Sub
+                     in loc & subOffsets %~ (nsubs :)
+                  "header-after" -> loc & subOffsets . _head %~ (+ 1)
+                  _ -> loc
+            let locParam = URI.escapeURIString URI.isUnescapedInURIComponent $ T.unpack $ renderEmbeddedLoc (redirEmbed, nloc)
+            pure $ redirUrl <> "?open=" <> T.pack locParam
       _ -> notFound
+postNoteSubActR _ _ = notFound
 
 getNoteColR :: WebId -> Text -> Handler TypedContent
 getNoteColR (WId i) col = do

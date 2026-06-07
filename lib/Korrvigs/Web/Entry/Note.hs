@@ -147,12 +147,6 @@ withLevel lvl act = do
 embedLoc :: CompileM EmbedLoc
 embedLoc = EmbedLoc <$> use subLoc <*> use embedCount
 
-extractSubLoc :: AnyLoc -> SubLoc
-extractSubLoc (LocSub loc) = loc
-extractSubLoc (LocCode loc) = loc ^. codeSub
-extractSubLoc (LocCheck loc) = loc ^. checkSub
-extractSubLoc (LocTask loc) = loc ^. taskSub
-
 getOpenParam :: Handler (Maybe (DeepEmbedLoc, SubLoc))
 getOpenParam = do
   subL <- fmap parseEmbeddedLoc <$> lookupGetParam "open"
@@ -622,7 +616,8 @@ compileHead entry n hdId t edit task checks subL enableEdit (sourceEntry, embedL
     buttonId <- newIdent
     pure $ do
       editFnJs
-      toWidget [julius|setupHeaderMenu(#{buttonId}, #{rawJS editFn}, #{rawJS openUrl}, "@{NoteSubActR (WId entry) (WLoc (LocSub subL))}");|]
+      let route = if T.null (unId sourceEntry) then HomeR else EntryR (WId sourceEntry)
+      toWidget [julius|setupHeaderMenu(#{buttonId}, #{rawJS editFn}, #{rawJS openUrl}, "@{NoteSubActR (WId entry) (WLoc (LocSub subL))}", "@{route}", #{renderDeepEmbedLoc embedL});|]
       [whamlet|<span ##{buttonId} .hd-menu>⋯</span>|]
   tsk <- Wdgs.taskWidget entry subL task
   compileHeader n [whamlet|^{tsk} #{t} ^{checksDisplay checks} ^{fromMaybe mempty menuW}|]

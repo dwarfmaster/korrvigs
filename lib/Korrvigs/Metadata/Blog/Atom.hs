@@ -37,10 +37,14 @@ renderAtom onlyPublished renderUrl tag title = do
     Left _ -> throwM $ KMiscError "Failed to convert from atom xml"
     Right d -> pure $ renderLBS def d
 
+atomLinkTo :: Text -> A.Link
+atomLinkTo uri =
+  A.Link uri (Just $ Left "self") (Just "application/rss+xml") Nothing Nothing Nothing [] []
+
 generateAtomFor :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Maybe Text -> Text -> [(Text, Day, Text, FilePath)] -> m A.Feed
 generateAtomFor renderUrl tag title entries = do
   uri <- renderUrl $ maybe BlogAtom BlogAtomTag tag
-  atomEntries <- mapM (generateAtomEntryFor renderUrl) entries
+  atomEntries <- mapM (generateAtomEntryFor uri renderUrl) entries
   let lastDay = fromMaybe (fromGregorian 1970 01 01) $ view _2 <$> listToMaybe entries
   let date = T.pack $ iso8601Show $ UTCTime lastDay 0
   pure $
@@ -52,17 +56,21 @@ generateAtomFor renderUrl tag title entries = do
                 A.genVersion = Nothing,
                 A.genText = "korrvigs"
               },
-        A.feedEntries = atomEntries
+        A.feedEntries = atomEntries,
+        A.feedLinks = [atomLinkTo uri]
       }
 
-generateAtomEntryFor :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> (Text, Day, Text, FilePath) -> m A.Entry
-generateAtomEntryFor renderUrl (nm, day, title, path) = do
+generateAtomEntryFor :: (MonadKorrvigs m) => Text -> (BlogUrl -> m Text) -> (Text, Day, Text, FilePath) -> m A.Entry
+generateAtomEntryFor feedURI renderUrl (nm, day, title, path) = do
   uri <- renderUrl $ BlogPostNote nm
+  blogURI <- renderUrl $ BlogTopLevel "default.html"
   let date = T.pack $ iso8601Show $ UTCTime day 0
   (summary, content) <- postTextRender renderUrl path
   pure $
     (A.nullEntry uri (A.TextString title) date)
       { A.entryPublished = Just date,
         A.entrySummary = Just (A.HTMLString summary),
-        A.entryContent = Just (A.HTMLContent content)
+        A.entryContent = Just (A.HTMLContent content),
+        A.entryAuthors = [A.Person "DwarfMaster" (Just blogURI) Nothing []],
+        A.entryLinks = [atomLinkTo feedURI]
       }

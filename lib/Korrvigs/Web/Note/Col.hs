@@ -89,7 +89,7 @@ getNoteColEditR (WId i) col = do
       |]
     ColItemComment _ -> pure mempty
   defaultLayout $ do
-    Rcs.formsStyle
+    Rcs.formsStyle CssR
     [whamlet|
       <form action=@{NoteColEditR (WId i) col} method=POST>
         <ul>

@@ -17,10 +17,12 @@ import Korrvigs.Monad
 import Korrvigs.Utils (lazyCreateManager)
 import Korrvigs.Utils.Base16
 import Korrvigs.Utils.JSON
+import Korrvigs.Web.Ressources (CssFile)
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Network.HTTP.Client hiding (path)
 import Network.HTTP.Types
+import Text.Cassius (Css)
 import Yesod
 import Yesod.Static
 
@@ -82,7 +84,7 @@ mkHeader =
     True -> pure mempty
     False ->
       getCurrentRoute
-        <&> Rcs.header . \case
+        <&> Rcs.header CssR . \case
           Just route -> [(current route, txt, rt) | (txt, rt, current) <- headerContent]
           Nothing -> [(False, txt, rt) | (txt, rt, _) <- headerContent]
 
@@ -109,9 +111,8 @@ instance Yesod WebData where
   makeSessionBackend _ = pure Nothing
   maximumContentLength _ _ = Nothing
   defaultLayout w = do
-    base <- getBase
     hd <- mkHeader
-    let widget = sequence_ [Rcs.defaultCss base StaticR, hd, w]
+    let widget = sequence_ [Rcs.defaultCss CssR, hd, w]
     p <- widgetToPageContent widget
     msgs <- getMessages
     withUrlRenderer
@@ -169,3 +170,9 @@ instance MonadKorrvigs Handler where
 
 getFaviconR :: Handler TypedContent
 getFaviconR = redirect $ StaticR $ StaticRoute ["favicon.ico"] []
+
+getCssR :: CssFile -> Handler Css
+getCssR css = do
+  base <- getBase
+  render <- getUrlRenderParams
+  pure $ Rcs.resolveCSS base StaticR css render

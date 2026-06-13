@@ -211,7 +211,7 @@ displayLibrary _ entries = do
         & PhotoSwipe.swpRedirect .~ (if public then Nothing else Just (EntryR $ WId $ e ^. _1 . sqlEntryName))
   library <- PhotoSwipe.photoswipe (def & PhotoSwipe.swpLibrary .~ True) $ catMaybes items
   pure $ do
-    Rcs.entryStyle
+    Rcs.entryStyle CssR
     PhotoSwipe.photoswipeHeader
     Rcs.checkboxCode StaticR
     library
@@ -237,7 +237,7 @@ displayTaskList _ entries = do
   public <- isPublic
   items <- mapM (uncurry $ mkTaskItem public) entries
   pure $ do
-    Rcs.entryStyle
+    Rcs.entryStyle CssR
     Rcs.checkboxCode StaticR
     [whamlet|
       <ul>

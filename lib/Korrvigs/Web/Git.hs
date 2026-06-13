@@ -265,7 +265,7 @@ getGitR = do
     toWidget $ fileTreeCss base
     toWidget fileTreeJs
     toWidget $ commitJs aggregateId
-    Rcs.formsStyle
+    Rcs.formsStyle CssR
     [whamlet|
     <h1>Status
     ^{renderFileTree Nothing ft}

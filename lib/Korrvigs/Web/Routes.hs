@@ -28,6 +28,7 @@ korrvigsRoutes =
 /bibtex SearchBibtexR GET
 /date/by-day/#Day DateByDayR GET
 /date/by-week/#Year/#Int DateByWeekR GET
+/style/#CssFile CssR GET
 
 -- Entry search and visualisation
 /entry SearchR GET

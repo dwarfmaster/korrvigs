@@ -374,7 +374,7 @@ searchForm query display = do
   mx <- maxResultsForm $ query ^. queryMaxResults
   disp <- displayResultForm display
   pure $ do
-    Rcs.formsStyle
+    Rcs.formsStyle CssR
     [whamlet|
       <form #query-form action=@{SearchR}>
         ^{qform}

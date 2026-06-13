@@ -51,7 +51,7 @@ periodPage title marker linkedDays startTime endTime = do
   let geoHd = [whamlet|<h2> ^{Widgets.headerSymbol "○"} Map|]
   -- Building the page
   defaultLayout $ do
-    Rcs.entryStyle
+    Rcs.entryStyle CssR
     Widgets.sectionLogic
     setTitle $ "Period " <> toMarkup title
     [whamlet|<h1>#{title}|]

@@ -88,8 +88,8 @@ displayHome = do
   defaultLayout $ do
     setTitle "Korrvigs's Home"
     setDescriptionIdemp "Korrvigs home page"
-    Rcs.entryStyle
-    Rcs.formsStyle
+    Rcs.entryStyle CssR
+    Rcs.formsStyle CssR
     Widgets.sectionLogic
     Rcs.checkboxCode StaticR
     toWidget [julius|checkboxCleanSpans();|]

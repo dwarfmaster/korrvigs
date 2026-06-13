@@ -234,7 +234,7 @@ getNoteWidget i col = do
   pure $ do
     unless public $ do
       actions
-      Rcs.formsStyle
+      Rcs.formsStyle CssR
       [whamlet|
         <form action=@{NoteColR (WId i) col} method=get>
           ^{displayW}
@@ -290,8 +290,8 @@ getNoteNamedSubR (WId i) sb = do
   (widget, _) <- embedContent False False 0 Nothing (i, DeepEmbedLoc []) i md [Sub hd] (hd ^. hdChecks)
   public <- isPublic
   defaultLayout $ do
-    Rcs.entryStyle
-    Rcs.formsStyle
+    Rcs.entryStyle CssR
+    Rcs.formsStyle CssR
     Rcs.checkboxCode StaticR
     PhotoSwipe.photoswipeHeader
     unless public actions
@@ -311,8 +311,8 @@ getNoteNamedCodeR (WId i) cd = do
     Just res -> resultWidget i cd (res ^. cmpResType) (res ^. cmpResData)
   public <- isPublic
   defaultLayout $ do
-    Rcs.entryStyle
-    Rcs.formsStyle
+    Rcs.entryStyle CssR
+    Rcs.formsStyle CssR
     Rcs.checkboxCode StaticR
     PhotoSwipe.photoswipeHeader
     unless public actions

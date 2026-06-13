@@ -355,8 +355,8 @@ entryWidget entry = do
   content <- contentWidget entry
   actions <- actWidget entry
   pure $ do
-    Rcs.entryStyle
-    Rcs.formsStyle
+    Rcs.entryStyle CssR
+    Rcs.formsStyle CssR
     Rcs.checkboxCode StaticR
     PhotoSwipe.photoswipeHeader
     title

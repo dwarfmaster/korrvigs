@@ -1,18 +1,50 @@
 module Korrvigs.Web.Ressources where
 
+import Control.Arrow
 import Data.FileEmbed (embedFile)
+import qualified Data.Map as M
 import Data.Text (Text)
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Ressources.Helpers
 import Text.Blaze.Html
-import Text.Cassius (cassiusFile)
+import Text.Cassius
 import Yesod
 import Yesod.Static
 
-charisFontFamily :: (Route Static -> Route site) -> WidgetFor site ()
+data CssFile
+  = CssDefault
+  | CssFont
+  | CssHeader
+  | CssForms
+  | CssEntry
+  | CssSidenote
+  deriving (Eq, Show, Read, Bounded, Enum)
+
+cssName :: CssFile -> Text
+cssName CssDefault = "default.css"
+cssName CssFont = "fonts.css"
+cssName CssHeader = "header.css"
+cssName CssForms = "forms.css"
+cssName CssEntry = "entry.css"
+cssName CssSidenote = "sidenote.css"
+
+instance PathPiece CssFile where
+  toPathPiece = cssName
+  fromPathPiece = flip M.lookup (M.fromList $ (cssName &&& id) <$> [minBound .. maxBound])
+
+type CssRender site = CssUrl (Route site)
+
+resolveCSS :: (Base16Index -> Text) -> (Route Static -> Route site) -> CssFile -> CssRender site
+resolveCSS base _ CssDefault = $(cassiusFile $ css "default.cassius")
+resolveCSS _ mkStatic CssFont = charisFontFamily mkStatic
+resolveCSS _ _ CssHeader = $(cassiusFile $ css "header.cassius")
+resolveCSS _ _ CssForms = $(cassiusFile $ css "forms.cassius")
+resolveCSS _ _ CssEntry = $(cassiusFile $ css "entry.cassius")
+resolveCSS _ _ CssSidenote = $(cassiusFile $ css "sidenote.cassius")
+
+charisFontFamily :: (Route Static -> Route site) -> CssRender site
 charisFontFamily mkStatic =
-  toWidget
-    [cassius|
+  [cassius|
     @font-face
       font-family: CharisSILW
       src: url(@{fontRoute "CharisSIL-Regular.woff2"})
@@ -33,24 +65,24 @@ charisFontFamily mkStatic =
   where
     fontRoute name = mkStatic $ StaticRoute ["font", name] []
 
-defaultCss :: (Base16Index -> Text) -> (Route Static -> Route site) -> WidgetFor site ()
-defaultCss base mkStatic = do
-  charisFontFamily mkStatic
-  toWidget $(cassiusFile $ css "default.cassius")
+defaultCss :: (CssFile -> Route site) -> WidgetFor site ()
+defaultCss mkCss = do
+  addStylesheet $ mkCss CssDefault
+  addStylesheet $ mkCss CssFont
 
-header :: [(Bool, Text, Route site)] -> WidgetFor site ()
-header pages = do
+header :: (CssFile -> Route site) -> [(Bool, Text, Route site)] -> WidgetFor site ()
+header mkCss pages = do
   toWidget $(whamletFile $ html "header.hamlet")
-  toWidget $(cassiusFile $ css "header.cassius")
+  addStylesheet $ mkCss CssHeader
   toWidget $ mkJs $(embedFile $ js "header.js")
 
-formsStyle :: WidgetFor site ()
-formsStyle = toWidget $(cassiusFile $ css "forms.cassius")
+formsStyle :: (CssFile -> Route site) -> WidgetFor site ()
+formsStyle mkCss = addStylesheet $ mkCss CssForms
 
-entryStyle :: WidgetFor site ()
-entryStyle = do
-  toWidget $(cassiusFile $ css "entry.cassius")
-  toWidget $(cassiusFile $ css "sidenote.cassius")
+entryStyle :: (CssFile -> Route site) -> WidgetFor site ()
+entryStyle mkCss = do
+  addStylesheet $ mkCss CssEntry
+  addStylesheet $ mkCss CssSidenote
 
 leaflet :: (Route Static -> Route site) -> WidgetFor site ()
 leaflet mkStatic = do

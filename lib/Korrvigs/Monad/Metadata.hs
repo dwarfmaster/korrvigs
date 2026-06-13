@@ -2,6 +2,7 @@ module Korrvigs.Monad.Metadata
   ( updateMetadata,
     updateParents,
     updateDate,
+    updateDuration,
     updateTitle,
     listCompute,
     updateRefs,
@@ -162,6 +163,25 @@ updateDate entry ntime = do
         Update
           { uTable = entriesTable,
             uUpdateWith = updateEasy $ sqlEntryDate .~ maybe O.null (toNullable . sqlZonedTime) ntime,
+            uWhere = \e -> e ^. sqlEntryId .== sqlInt4 sqlI,
+            uReturning = rCount
+          }
+
+updateDuration :: (MonadKorrvigs m) => Entry -> Maybe CalendarDiffTime -> m ()
+updateDuration entry ndur = do
+  let sqlI = entry ^. entryId
+  case entry ^. entryKindData of
+    FileD file -> File.updateDuration file ndur
+    NoteD note -> Note.updateDuration note ndur
+    EventD _ -> undefined
+    CalendarD cal -> Cal.updateDuration cal ndur
+    SyndicateD syn -> Syn.updateDuration syn ndur
+  atomicSQL $ \conn ->
+    void $
+      runUpdate conn $
+        Update
+          { uTable = entriesTable,
+            uUpdateWith = updateEasy $ sqlEntryDuration .~ maybe O.null (toNullable . sqlInterval) ndur,
             uWhere = \e -> e ^. sqlEntryId .== sqlInt4 sqlI,
             uReturning = rCount
           }

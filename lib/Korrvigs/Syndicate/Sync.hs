@@ -118,6 +118,9 @@ updateParents syn toAdd toRm = updateImpl syn $ pure . updParents
 updateDate :: (MonadKorrvigs m) => Syndicate -> Maybe ZonedTime -> m ()
 updateDate syn ntime = updateImpl syn $ pure . (synjsDate .~ ntime)
 
+updateDuration :: (MonadKorrvigs m) => Syndicate -> Maybe CalendarDiffTime -> m ()
+updateDuration syn ndur = updateImpl syn $ pure . (synjsDuration .~ ndur)
+
 updateRef :: (MonadKorrvigs m) => Syndicate -> Id -> Maybe Id -> m ()
 updateRef syn old new =
   updateImpl syn $

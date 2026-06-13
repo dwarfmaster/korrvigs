@@ -209,6 +209,9 @@ updateParents file toAdd toRm =
 updateDate :: (MonadKorrvigs m) => File -> Maybe ZonedTime -> m ()
 updateDate file ntime = updateImpl file $ pure . (exDate .~ ntime)
 
+updateDuration :: (MonadKorrvigs m) => File -> Maybe CalendarDiffTime -> m ()
+updateDuration file ndur = updateImpl file $ pure . (exDuration .~ ndur)
+
 updateRef :: (MonadKorrvigs m) => File -> Id -> Maybe Id -> m ()
 updateRef file old new = updateImpl file $ pure . (exParents %~ upd) . (annoted %~ updateInMetadata old new)
   where

@@ -148,6 +148,10 @@ updateDate :: (MonadKorrvigs m) => Note -> Maybe ZonedTime -> m ()
 updateDate note ntime =
   updateImpl note $ pure . (docMtdt . at "date" .~ (toJSON <$> ntime))
 
+updateDuration :: (MonadKorrvigs m) => Note -> Maybe CalendarDiffTime -> m ()
+updateDuration note ndur =
+  updateImpl note $ pure . (docMtdt . at "duration" .~ (toJSON <$> ndur))
+
 updateRef :: (MonadKorrvigs m) => Note -> Id -> Maybe Id -> m ()
 updateRef note old new =
   updateImpl note $

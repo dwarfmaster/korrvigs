@@ -31,6 +31,7 @@ import Korrvigs.Web.Actions.Bibtex
 import Korrvigs.Web.Actions.Blog
 import Korrvigs.Web.Actions.Collection
 import Korrvigs.Web.Actions.Compute
+import Korrvigs.Web.Actions.Date
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Actions.EventSync
 import Korrvigs.Web.Actions.Export
@@ -66,6 +67,7 @@ data ActionLabel
   | LabBlogPreview
   | LabParentAdd
   | LabParentRm
+  | LabDate
   | LabUpdate
   | LabMtdtHook
   | LabImportRSS
@@ -98,6 +100,7 @@ actIcon LabBlogPublish = mkIcon "blog" Base0E
 actIcon LabBlogPreview = mkIcon "blog" Base0F
 actIcon LabParentAdd = mkIcon "parent" Base0B
 actIcon LabParentRm = mkIcon "parent" Base08
+actIcon LabDate = mkIcon "eventsync" Base0F
 actIcon LabUpdate = mkIcon "upload" Base0F
 actIcon LabMtdtHook = mkIcon "update" Base0F
 actIcon LabImportRSS = mkIcon "rss" Base0F
@@ -126,6 +129,7 @@ actName LabBlogPublish = "blogpublish"
 actName LabBlogPreview = "blogpreview"
 actName LabParentAdd = "addparent"
 actName LabParentRm = "rmparent"
+actName LabDate = "setdate"
 actName LabUpdate = "update"
 actName LabMtdtHook = "metadatahook"
 actName LabImportRSS = "importrss"
@@ -206,6 +210,7 @@ actForm l@LabBlogPublish = genForm publishBlogForm publishBlogTitle $ actUrl l
 actForm l@LabBlogPreview = genForm previewBlogForm previewBlogTitle $ actUrl l
 actForm l@LabParentAdd = genForm parentForm parentAddTitle $ actUrl l
 actForm l@LabParentRm = genForm parentForm parentRmTitle $ actUrl l
+actForm l@LabDate = genForm dateForm dateTitle $ actUrl l
 actForm l@LabUpdate = genForm updateForm updateTitle $ actUrl l
 actForm l@LabMtdtHook = genForm mtdtHookForm mtdtHookTitle $ actUrl l
 actForm l@LabImportRSS = genForm importRssForm importRssTitle $ actUrl l
@@ -268,6 +273,7 @@ actPost LabBlogPublish = runPost publishBlogForm runPublishBlog
 actPost LabBlogPreview = runPost previewBlogForm runPreviewBlog
 actPost LabParentAdd = runPost parentForm runParentAdd
 actPost LabParentRm = runPost parentForm runParentRm
+actPost LabDate = runPost dateForm runDate
 actPost LabUpdate = runPost updateForm runUpdate
 actPost LabMtdtHook = runPost mtdtHookForm runMtdtHook
 actPost LabImportRSS = runPost importRssForm runImportRSS
@@ -323,6 +329,7 @@ actCond LabBlogPublish = runActCond publishBlogTarget
 actCond LabBlogPreview = runActCond previewBlogTarget
 actCond LabParentAdd = runActCond parentTarget
 actCond LabParentRm = runActCond parentTarget
+actCond LabDate = runActCond dateTarget
 actCond LabUpdate = runActCond updateTarget
 actCond LabMtdtHook = runActCond mtdtHookTarget
 actCond LabImportRSS = runActCond importRssTarget

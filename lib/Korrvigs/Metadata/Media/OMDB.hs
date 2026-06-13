@@ -105,8 +105,9 @@ parseQuery url | T.isPrefixOf imdbUrl url = do
     Right i -> pure i
   where
     urlP = do
-      optional $ void $ string "/fr"
-      void $ string "/title/"
+      void $ char '/'
+      optional $ void $ string "fr"
+      void $ string "title/"
       i <- manyTill (noneOf "/") $ optional (char '/') >> eof
       pure $ T.pack i
 parseQuery _ = Nothing

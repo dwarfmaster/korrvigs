@@ -19,6 +19,7 @@ import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
+import Data.Time.Format
 import Data.Time.Format.ISO8601
 import qualified Data.Vector as V
 import Korrvigs.Compute.SQL
@@ -312,6 +313,19 @@ renderInline (MtdtLink (Just title) mtdt) = do
   forM_ title renderInline
   writeText "](mtdt:"
   writeText mtdt
+  writeText ")"
+renderInline (DateLink (Just title) day) = do
+  writeText "["
+  forM_ title renderInline
+  writeText "](date:"
+  writeText $ T.pack $ formatTime defaultTimeLocale "%Y-%m-%d" day
+  writeText ")"
+renderInline (DateLink Nothing day) = do
+  let date = T.pack $ formatTime defaultTimeLocale "%Y-%m-%d" day
+  writeText "["
+  writeText date
+  writeText "](date:"
+  writeText $ date
   writeText ")"
 renderInline (PlainLink Nothing uri) =
   writeText "<" >> writeText (T.pack $ show uri) >> writeText ">"

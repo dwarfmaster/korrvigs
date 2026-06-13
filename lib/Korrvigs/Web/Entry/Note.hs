@@ -31,6 +31,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
+import Data.Time.Format
 import Data.Vector (Vector)
 import qualified Data.Vector as V
 import Korrvigs.Compute
@@ -769,6 +770,12 @@ compileInline (MtdtLink mtitle mtdt) = do
   case mtdtVal of
     Just (Just url) -> plainLink mtitle url
     _ -> pure (mempty, mempty)
+compileInline (DateLink mtitle day) = do
+  render <- getUrlRender
+  let url = render $ DateByDayR day
+  let date = formatTime defaultTimeLocale "%Y-%m-%d" day
+  let title = Just $ fromMaybe [Plain $ T.pack date] mtitle
+  plainLink title url
 compileInline (PlainLink mtitle uri) =
   plainLink mtitle $ T.pack $ show uri
 compileInline Space = pure (toMarkup (" " :: Text), mempty)

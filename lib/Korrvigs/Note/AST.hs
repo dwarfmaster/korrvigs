@@ -9,6 +9,7 @@ import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time
 import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import Korrvigs.Metadata.Task
@@ -126,6 +127,7 @@ data Inline
   | Link Attr [Inline] Id -- Named link to another entry
   | Cite Id -- Citation to entry
   | MtdtLink (Maybe [Inline]) Text -- Named link to the content of a metadata
+  | DateLink (Maybe [Inline]) Day -- Named link to a day page
   | PlainLink (Maybe [Inline]) URI -- Named link to URI
   | Space
   | Break

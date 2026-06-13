@@ -284,6 +284,10 @@ renderInline (MtdtLink txt tgt) = do
     Nothing -> cpt mempty
   where
     cpt d = maybe (pure d) renderInlines txt
+renderInline (DateLink (Just txt) _) = renderInlines txt
+renderInline (DateLink Nothing day) = do
+  let txt = formatTime defaultTimeLocale "%Y-%m-%d" day
+  renderInline $ Plain $ T.pack txt
 renderInline (PlainLink txt tgt) = do
   let url = show tgt
   cpt <- maybe (pure $ toMarkup url) renderInlines txt

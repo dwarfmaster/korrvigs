@@ -43,7 +43,18 @@ eventsWidget = do
   evs <- getEvents time
   entries <- mapM FC.entryToEvent evs
   dt <- liftIO getCurrentZonedTime
-  let today = FC.CalendarEvent "Today" dt Nothing Nothing (Just True) (Just "var(--base0E)")
+  let day = localDay $ zonedTimeToLocalTime dt
+  render <- getUrlRender
+  let url = render $ DateByDayR day
+  let today =
+        FC.CalendarEvent
+          { FC._evTitle = "Today",
+            FC._evStart = dt,
+            FC._evEnd = Nothing,
+            FC._evAllDay = Just True,
+            FC._evUrl = Just url,
+            FC._evColor = Just "var(--base0E)"
+          }
   widget <- FC.widget $ today : catMaybes entries
   pure $ do
     FC.header

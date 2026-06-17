@@ -468,11 +468,16 @@ compileBlock' (Syndicate nm onlyNew lim ids) = do
           & Syn.renderLimitPerSyn .~ lim
   isEmbedded <- use embedded
   webId <- if isEmbedded then newIdent else pure nm
-  pure
+  buttonId <- newIdent
+  pure $ do
+    Rcs.synCode
+    toWidget [julius|setupSynMenu(#{buttonId}, null);|]
     [whamlet|
     <details .collection ##{webId} open="true">
       <summary>
         ##{nm}
+        <span ##{buttonId} .edit-syn>
+          ⋯
       ^{itemsWidget}
   |]
 compileBlock' (Sub hd) = do

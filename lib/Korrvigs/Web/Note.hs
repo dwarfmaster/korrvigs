@@ -59,7 +59,7 @@ import Korrvigs.Web.Search.Results
 import qualified Network.URI as URI
 import Opaleye
 import System.IO
-import Yesod hiding (check)
+import Yesod hiding (Header, check)
 
 getNoteR :: WebId -> Handler LT.Text
 getNoteR (WId i) =
@@ -134,7 +134,9 @@ postNoteSubR (WId i) (WLoc loc) =
                 hd <- readNoteFromText (parseTopBlocks lvl) txt
                 case hd of
                   Left err -> throwM $ KMiscError err
-                  Right bks -> pure $ doc & subs lc .~ bks
+                  Right bks -> do
+                    let shifted = bks & each . _Sub %~ shiftSubTo lvl
+                    pure $ doc & subs lc .~ shifted
               LocCheck lc -> do
                 cb <- parseTaskStatus txt
                 pure $ setCheck lc doc cb
@@ -157,6 +159,9 @@ postNoteSubR (WId i) (WLoc loc) =
       _ -> notFound
   where
     parseTaskStatus txt = maybe (throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid task state") pure $ parseStatusName txt
+    shiftSubTo :: Int -> Header -> Header
+    shiftSubTo lvl hd | hd ^. hdLevel == lvl = hd
+    shiftSubTo lvl hd = transform (hdLevel %~ (+ (lvl - hd ^. hdLevel))) hd
 
 postNoteSubActR :: WebId -> WebAnyLoc -> Handler Text
 postNoteSubActR (WId i) (WLoc (LocSub loc)) =

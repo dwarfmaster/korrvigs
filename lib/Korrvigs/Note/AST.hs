@@ -1,6 +1,9 @@
+{-# LANGUAGE RankNTypes #-}
+
 module Korrvigs.Note.AST where
 
 import Control.Lens hiding ((.=))
+import Control.Lens.Plated
 import Data.Aeson hiding (Array)
 import Data.Array
 import Data.CaseInsensitive (CI)
@@ -179,6 +182,9 @@ makePrisms ''Block
 makePrisms ''Inline
 makePrisms ''CollectionItem
 
+instance Plated Header where
+  plate = hdContent . each . _Sub
+
 -- Traversal over all the inlines of a block, not recursing into subs
 bkInlines :: Traversal' Block Inline
 bkInlines f (Para inls) = Para <$> each f inls
@@ -230,9 +236,9 @@ bkBlocks f (Figure attr caption content) =
   Figure attr <$> each (bkBlocks f) caption <*> each (bkBlocks f) content
 bkBlocks f x = f x
 
--- Traversal over all blocks in block, descending into subs
+-- Traversal over all blocks in block, descending into subs, not including headers
 bkSubBlocks :: Traversal' Block Block
-bkSubBlocks f (Sub sub) = f (Sub sub) *> (Sub . setBks <$> each (bkSubBlocks f) (sub ^. hdContent))
+bkSubBlocks f (Sub sub) = Sub . setBks <$> each (bkSubBlocks f) (sub ^. hdContent)
   where
     setBks bks = sub & hdContent .~ bks
 bkSubBlocks f x = bkBlocks f x

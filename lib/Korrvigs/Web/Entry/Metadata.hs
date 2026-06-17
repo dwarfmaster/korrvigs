@@ -19,7 +19,7 @@ widget entry = do
   mtdt <- loadMetadata i
   mtdts <- mapM (\(key, val) -> (key,val,) <$> newIdent) $ M.toList mtdt
   pure $ do
-    Rcs.mtdtCode
+    Rcs.mtdtCode StaticR
     [whamlet|
   <details .common-details>
     <summary>Metadata

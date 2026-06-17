@@ -1,7 +1,6 @@
 module Korrvigs.Web.Ressources where
 
 import Control.Arrow
-import Data.FileEmbed (embedFile)
 import qualified Data.Map as M
 import Data.Text (Text)
 import Korrvigs.Utils.Base16
@@ -42,6 +41,10 @@ resolveCSS _ _ CssForms = $(cassiusFile $ css "forms.cassius")
 resolveCSS _ _ CssEntry = $(cassiusFile $ css "entry.cassius")
 resolveCSS _ _ CssSidenote = $(cassiusFile $ css "sidenote.cassius")
 
+korrvigsJS :: (Route Static -> Route site) -> Text -> WidgetFor site ()
+korrvigsJS mkStatic jsFile =
+  addScript $ mkStatic $ StaticRoute ["korrvigs", jsFile] []
+
 charisFontFamily :: (Route Static -> Route site) -> CssRender site
 charisFontFamily mkStatic =
   [cassius|
@@ -70,11 +73,11 @@ defaultCss mkCss = do
   addStylesheet $ mkCss CssDefault
   addStylesheet $ mkCss CssFont
 
-header :: (CssFile -> Route site) -> [(Bool, Text, Route site)] -> WidgetFor site ()
-header mkCss pages = do
+header :: (Route Static -> Route site) -> (CssFile -> Route site) -> [(Bool, Text, Route site)] -> WidgetFor site ()
+header mkStatic mkCss pages = do
   toWidget $(whamletFile $ html "header.hamlet")
   addStylesheet $ mkCss CssHeader
-  toWidget $ mkJs $(embedFile $ js "header.js")
+  korrvigsJS mkStatic "header.js"
 
 formsStyle :: (CssFile -> Route site) -> WidgetFor site ()
 formsStyle mkCss = addStylesheet $ mkCss CssForms
@@ -118,24 +121,22 @@ photoswipe :: (Route Static -> Route site) -> WidgetFor site ()
 photoswipe mkStatic =
   addStylesheet $ mkStatic $ StaticRoute ["photoswipe", "photoswipe.css"] []
 
-mtdtCode :: WidgetFor site ()
-mtdtCode =
-  toWidget $ mkJs $(embedFile $ js "mtdt.js")
+mtdtCode :: (Route Static -> Route site) -> WidgetFor site ()
+mtdtCode mkStatic = korrvigsJS mkStatic "mtdt.js"
 
-actionsCode :: WidgetFor site ()
-actionsCode =
-  toWidget $ mkJs $(embedFile $ js "actions.js")
+actionsCode :: (Route Static -> Route site) -> WidgetFor site ()
+actionsCode mkStatic = korrvigsJS mkStatic "actions.js"
 
 checkboxCode :: (Route Static -> Route site) -> WidgetFor site ()
 checkboxCode mkStatic = do
   popperJS mkStatic
-  toWidget $ mkJs $(embedFile $ js "checkbox.js")
+  korrvigsJS mkStatic "checkbox.js"
 
-codeMenuCode :: WidgetFor site ()
-codeMenuCode = toWidget $ mkJs $(embedFile $ js "code-menu.js")
+codeMenuCode :: (Route Static -> Route site) -> WidgetFor site ()
+codeMenuCode mkStatic = korrvigsJS mkStatic "code-menu.js"
 
-headerMenuCode :: WidgetFor site ()
-headerMenuCode = toWidget $ mkJs $(embedFile $ js "header-menu.js")
+headerMenuCode :: (Route Static -> Route site) -> WidgetFor site ()
+headerMenuCode mkStatic = korrvigsJS mkStatic "header-menu.js"
 
 ace :: (Route Static -> Route site) -> WidgetFor site ()
 ace mkStatic =
@@ -158,13 +159,11 @@ popperJS :: (Route Static -> Route site) -> WidgetFor site ()
 popperJS mkStatic =
   addScript $ mkStatic $ StaticRoute ["popperjs", "popperjs.min.js"] []
 
-itemCode :: WidgetFor site ()
-itemCode = do
-  toWidget $ mkJs $(embedFile $ js "item.js")
+itemCode :: (Route Static -> Route site) -> WidgetFor site ()
+itemCode mkStatic = korrvigsJS mkStatic "item.js"
 
-synCode :: WidgetFor site ()
-synCode = do
-  toWidget $ mkJs $(embedFile $ js "syn-menu.js")
+synCode :: (Route Static -> Route site) -> WidgetFor site ()
+synCode mkStatic = korrvigsJS mkStatic "syn-menu.js"
 
 andypfJsonViewer :: (Route Static -> Route site) -> WidgetFor site ()
 andypfJsonViewer mkStatic =

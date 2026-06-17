@@ -15,8 +15,5 @@ css file = rcPath $ "css" </> file
 html :: FilePath -> FilePath
 html file = rcPath $ "html" </> file
 
-js :: FilePath -> FilePath
-js file = rcPath $ "js" </> file
-
 mkJs :: ByteString -> Javascript
 mkJs = toJavascript . RawJavascript . fromText . decodeUtf8

@@ -102,7 +102,7 @@ renderItems syns spec = do
   render <- getUrlRender
   let mkRead nm sq liId spanId = "readItem(this,\"" <> render (SynItemReadR (WId $ MkId nm) sq) <> "\"," <> maybe "null" (\t -> "\"" <> t <> "\"") liId <> ", \"" <> spanId <> "\")"
   pure $ do
-    Rcs.itemCode
+    Rcs.itemCode StaticR
     [whamlet|
     <div .syndicate>
       <ul>

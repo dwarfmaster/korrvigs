@@ -84,7 +84,7 @@ mkHeader =
     True -> pure mempty
     False ->
       getCurrentRoute
-        <&> Rcs.header CssR . \case
+        <&> Rcs.header StaticR CssR . \case
           Just route -> [(current route, txt, rt) | (txt, rt, current) <- headerContent]
           Nothing -> [(False, txt, rt) | (txt, rt, _) <- headerContent]
 

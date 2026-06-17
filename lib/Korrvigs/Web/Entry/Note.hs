@@ -209,8 +209,8 @@ embedContent enableEdit repComps lvl subL embedAt i doc cnt checks = do
   let w = do
         Ace.setup
         Rcs.mathjax StaticR
-        Rcs.codeMenuCode
-        Rcs.headerMenuCode
+        Rcs.codeMenuCode StaticR
+        Rcs.headerMenuCode StaticR
         [whamlet|
          $if not isEmbedded
            <p .checks-top>
@@ -480,7 +480,7 @@ compileBlock' (Syndicate nm onlyNew lim ids) = do
   webId <- if isEmbedded then newIdent else pure nm
   buttonId <- newIdent
   pure $ do
-    Rcs.synCode
+    Rcs.synCode StaticR
     toWidget [julius|setupSynMenu(#{buttonId}, "@{NoteSubR (WId entry) (WLoc loc)}", #{redirUrl});|]
     [whamlet|
     <details .collection ##{webId} open="true">

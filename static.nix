@@ -89,11 +89,24 @@
 in
   runCommand "korrvigs-static" {} ''
     mkdir -p $out
+
+    mkdir -p $out/korrvigs
+    chmod +w $out/korrvigs
+    ln -s ${./ressources/js/actions.js} $out/korrvigs/actions.js
+    ln -s ${./ressources/js/checkbox.js} $out/korrvigs/checkbox.js
+    ln -s ${./ressources/js/code-menu.js} $out/korrvigs/code-menu.js
+    ln -s ${./ressources/js/header-menu.js} $out/korrvigs/header-menu.js
+    ln -s ${./ressources/js/header.js} $out/korrvigs/header.js
+    ln -s ${./ressources/js/item.js} $out/korrvigs/item.js
+    ln -s ${./ressources/js/mtdt.js} $out/korrvigs/mtdt.js
+    ln -s ${./ressources/js/syn-menu.js} $out/korrvigs/syn-menu.js
+    chmod -w $out/korrvigs
+
     cp -r ${nodePackages_latest.mathjax}/lib/node_modules/mathjax $out/mathjax
     cp -r ${leaflet} $out/leaflet
     cp -r ${foliate-js} $out/foliate
     chmod +w $out/foliate
-    cp ${./lib/Korrvigs/Web/Ressources/js/foliate.js} $out/foliate/main.js
+    ln -s ${./ressources/js/foliate.js} $out/foliate/main.js
     chmod -w $out/foliate
     mkdir -p $out/vis
     cp ${vis-network} $out/vis/vis-network.min.js
@@ -109,7 +122,7 @@ in
     cp ${popperjs} $out/popperjs/popperjs.min.js
     mkdir -p $out/threepipe
     cp ${threepipe} $out/threepipe/threepipe.js
-    cp ${./lib/Korrvigs/Web/Ressources/js/three-viewer.js} $out/threepipe/main.js
+    ln -s ${./ressources/js/three-viewer.js} $out/threepipe/main.js
     cp ${./ressources/favicon.ico} $out/favicon.ico
     mkdir -p $out/andypf
     ln -s ${json-viewer} $out/andypf/json-viewer.js

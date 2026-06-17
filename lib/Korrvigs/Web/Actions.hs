@@ -414,7 +414,7 @@ actionsWidget tgt = do
     formId <- newIdent
     pure (formId, form, actWidget formId act)
   pure $ do
-    Rcs.actionsCode
+    Rcs.actionsCode StaticR
     toWidget
       [cassius|
       ##{templatesId}

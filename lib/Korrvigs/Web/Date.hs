@@ -5,21 +5,44 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Default
 import Data.Maybe
+import Data.Profunctor.Product
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
 import Data.Time.Calendar.OrdinalDate
+import Korrvigs.Entry
+import Korrvigs.Metadata
+import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Note.AST
 import Korrvigs.Query
+import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Home as Home
 import qualified Korrvigs.Web.JS.FullCalendar as FC
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Search.Results
 import qualified Korrvigs.Web.Widgets as Widgets
+import Opaleye hiding (not, null)
 import Text.Blaze
+import Text.Printf
 import Yesod
+import Prelude hiding (sum)
+
+activityData :: Query -> Handler [(Activity, Double, CalendarDiffTime)]
+activityData q = do
+  dat <- rSelect $ orderBy (asc $ view _1) $ aggregate (p3 (groupBy, sum, sum)) $ do
+    entry <- compileQuery q
+    let sqlI = entry ^. sqlEntryId
+    activity <- baseSelectTextMtdt ActivityMtdt sqlI
+    distanceJS <- selectMtdt DistanceMtdt sqlI
+    let distance = fromNullable (sqlDouble 0) $ sqlJsonToNum distanceJS
+    let dur = fromNullable (sqlInterval mempty) $ entry ^. sqlEntryDuration
+    pure (activity, distance, dur)
+  pure $ mapMaybe parseDat dat
+  where
+    parseDat :: (Text, Double, CalendarDiffTime) -> Maybe (Activity, Double, CalendarDiffTime)
+    parseDat (act, dist, dur) = (,dist,dur) <$> parseActivity act
 
 periodPage :: Text -> FC.CalendarEvent -> [(Text, Route WebData)] -> ZonedTime -> ZonedTime -> Handler Html
 periodPage title marker linkedDays startTime endTime = do
@@ -46,6 +69,7 @@ periodPage title marker linkedDays startTime endTime = do
   gallery <- displayResults ColGallery False photos
   let galleryHd = [whamlet|<h2> ^{Widgets.headerSymbol "✿"} Gallery|]
   -- Map
+  activities <- activityData query
   geo <- runQuery ColMap query
   geoW <- displayResults ColMap False geo
   let geoHd = [whamlet|<h2> ^{Widgets.headerSymbol "○"} Map|]
@@ -61,7 +85,14 @@ periodPage title marker linkedDays startTime endTime = do
     let cls = [("class", "collapsed")]
     unless (null entries) $ void $ Widgets.mkSection 1 cls [] entriesHd entriesW
     unless (null photos) $ void $ Widgets.mkSection 1 cls [] galleryHd gallery
-    unless (null geo) $ void $ Widgets.mkSection 1 cls [] geoHd geoW
+    unless (null geo) $ void $ Widgets.mkSection 1 cls [] geoHd $ do
+      [whamlet|
+        <ul>
+          $forall (act,dist,dur) <- activities
+            <li>
+              #{activityName act}: #{renderDistance dist}, #{renderDuration dur}
+      |]
+      geoW
   where
     query :: Query
     query =
@@ -69,6 +100,11 @@ periodPage title marker linkedDays startTime endTime = do
         & queryAfter ?~ startTime
         & queryBefore ?~ endTime
         & querySort .~ (ByDate, SortAsc)
+    renderDistance :: Double -> Text
+    renderDistance d | d < 1000 = (T.pack $ show (floor d :: Int)) <> "m"
+    renderDistance d = T.pack $ printf "%.3fkm" (d / 1000)
+    renderDuration :: CalendarDiffTime -> Text
+    renderDuration = T.pack . formatTime defaultTimeLocale "%hh%Mm"
 
 getDateByDayR :: Day -> Handler Html
 getDateByDayR day = do

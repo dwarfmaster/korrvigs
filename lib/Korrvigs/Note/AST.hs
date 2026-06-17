@@ -3,7 +3,6 @@
 module Korrvigs.Note.AST where
 
 import Control.Lens hiding ((.=))
-import Control.Lens.Plated
 import Data.Aeson hiding (Array)
 import Data.Array
 import Data.CaseInsensitive (CI)

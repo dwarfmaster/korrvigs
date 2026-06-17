@@ -45,6 +45,7 @@ import Korrvigs.Note.AST
 import Korrvigs.Note.Edit
 import Korrvigs.Note.Languages
 import Korrvigs.Note.Pandoc
+import qualified Korrvigs.Syndicate.Run as Syn
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Entry.Note (embedContent, resultWidget)
@@ -114,6 +115,9 @@ getNoteSubR (WId i) (WLoc loc) =
             LocTask lc -> case doc ^? task lc . tskStatus of
               Nothing -> notFound
               Just tk -> pure $ LT.fromStrict $ renderTaskStatus tk
+            LocSyn lc -> case doc ^? _syn lc . _4 of
+              Nothing -> notFound
+              Just ids -> pure $ mconcat $ ((<> "\n") . LT.fromStrict . unId) <$> ids
       _ -> notFound
 
 postNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text
@@ -127,8 +131,8 @@ postNoteSubR (WId i) (WLoc loc) =
           Right doc -> do
             body <- runConduit $ rawRequestBody .| fold
             let txt = Enc.decodeUtf8 body
-            ndoc <- case loc of
-              LocCode lc -> pure $ setCode lc doc txt
+            mdoc <- case loc of
+              LocCode lc -> pure $ Just $ setCode lc doc txt
               LocSub lc -> do
                 let lvl = length $ lc ^. subOffsets
                 hd <- readNoteFromText (parseTopBlocks lvl) txt
@@ -136,25 +140,35 @@ postNoteSubR (WId i) (WLoc loc) =
                   Left err -> throwM $ KMiscError err
                   Right bks -> do
                     let shifted = bks & each . _Sub %~ shiftSubTo lvl
-                    pure $ doc & subs lc .~ shifted
+                    pure $ Just $ doc & subs lc .~ shifted
               LocCheck lc -> do
                 cb <- parseTaskStatus txt
-                pure $ setCheck lc doc cb
+                pure $ Just $ setCheck lc doc cb
               LocTask lc -> do
                 tk <- parseTaskStatus txt
                 pure $
-                  doc
-                    & task lc . tskStatus .~ tk
-                    & task lc . tskStatusName .~ txt
-            let path = note ^. notePath
-            fd <- liftIO $ openFile path WriteMode
-            writeNote fd ndoc >>= \case
-              Just err -> do
-                liftIO $ hClose fd
-                throwM $ KMiscError err
-              Nothing -> pure ()
-            liftIO $ hClose fd
-            syncFileOfKind i path (entry ^. entryId) Note
+                  Just $
+                    doc
+                      & task lc . tskStatus .~ tk
+                      & task lc . tskStatusName .~ txt
+              LocSyn lc -> case doc ^? _syn lc . _4 of
+                Nothing -> notFound
+                Just ids -> do
+                  forM_ ids $ \synId -> do
+                    entrySyn <- load synId
+                    let syn = entrySyn ^? _Just . entryKindData . _SyndicateD
+                    forM_ syn Syn.run
+                  pure Nothing
+            forM_ mdoc $ \ndoc -> do
+              let path = note ^. notePath
+              fd <- liftIO $ openFile path WriteMode
+              writeNote fd ndoc >>= \case
+                Just err -> do
+                  liftIO $ hClose fd
+                  throwM $ KMiscError err
+                Nothing -> pure ()
+              liftIO $ hClose fd
+              syncFileOfKind i path (entry ^. entryId) Note
             redirect $ NoteSubR (WId i) (WLoc loc)
       _ -> notFound
   where

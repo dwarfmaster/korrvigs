@@ -14,6 +14,9 @@ module Korrvigs.Note.Loc
     checkOffset,
     TaskLoc (..),
     taskSub,
+    SynLoc (..),
+    synSub,
+    synOffset,
     AnyLoc (..),
     extractSubLoc,
     subLvl,
@@ -32,6 +35,9 @@ module Korrvigs.Note.Loc
     task,
     getTask,
     setTask,
+    _syn,
+    getSyn,
+    setSyn,
     renderSubLoc,
     renderCodeLoc,
     renderLoc,
@@ -94,18 +100,26 @@ newtype TaskLoc = TaskLoc
   }
   deriving (Eq, Ord, Show, Read)
 
+data SynLoc = SynLoc
+  { _synSub :: SubLoc,
+    _synOffset :: Int
+  }
+  deriving (Eq, Ord, Show, Read)
+
 makeLenses ''SubLoc
 makeLenses ''CodeLoc
 makeLenses ''EmbedLoc
 makeLenses ''DeepEmbedLoc
 makeLenses ''CheckLoc
 makeLenses ''TaskLoc
+makeLenses ''SynLoc
 
 data AnyLoc
   = LocSub SubLoc
   | LocCode CodeLoc
   | LocCheck CheckLoc
   | LocTask TaskLoc
+  | LocSyn SynLoc
   deriving (Eq, Ord, Show, Read)
 
 extractSubLoc :: AnyLoc -> SubLoc
@@ -113,6 +127,7 @@ extractSubLoc (LocSub loc) = loc
 extractSubLoc (LocCode loc) = loc ^. codeSub
 extractSubLoc (LocCheck loc) = loc ^. checkSub
 extractSubLoc (LocTask loc) = loc ^. taskSub
+extractSubLoc (LocSyn loc) = loc ^. synSub
 
 subOff :: (Applicative f) => Int -> (Header -> f Header) -> [Block] -> f [Block]
 subOff = elementOf (each . _Sub)
@@ -188,6 +203,15 @@ getTask loc doc = doc ^? task loc
 setTask :: TaskLoc -> Document -> Task -> Document
 setTask loc doc tsk = doc & task loc .~ tsk
 
+_syn :: (Applicative f) => SynLoc -> ((Text, Bool, Maybe Int, [Id]) -> f (Text, Bool, Maybe Int, [Id])) -> Document -> f Document
+_syn loc = subContents (loc ^. synSub) . elementOf (each . bkBlocks . _Syndicate) (loc ^. synOffset)
+
+getSyn :: SynLoc -> Document -> Maybe (Text, Bool, Maybe Int, [Id])
+getSyn loc doc = doc ^? _syn loc
+
+setSyn :: SynLoc -> Document -> (Text, Bool, Maybe Int, [Id]) -> Document
+setSyn loc doc tsk = doc & _syn loc .~ tsk
+
 -- Rendering AST locations
 buildSubLoc :: [Int] -> Builder
 buildSubLoc [] = mempty
@@ -224,11 +248,19 @@ buildTaskLoc loc =
 renderTaskLoc :: TaskLoc -> Text
 renderTaskLoc = doRender . buildTaskLoc
 
+buildSynLoc :: SynLoc -> Builder
+buildSynLoc loc =
+  buildSubLoc (loc ^. synSub . subOffsets) <> buildText ":s:" <> intDec (loc ^. synOffset)
+
+renderSynLoc :: SynLoc -> Text
+renderSynLoc = doRender . buildSynLoc
+
 renderLoc :: AnyLoc -> Text
 renderLoc (LocSub loc) = renderSubLoc loc
 renderLoc (LocCode loc) = renderCodeLoc loc
 renderLoc (LocCheck loc) = renderCheckLoc loc
 renderLoc (LocTask loc) = renderTaskLoc loc
+renderLoc (LocSyn loc) = renderSynLoc loc
 
 buildDeepEmbedLoc :: [EmbedLoc] -> Builder
 buildDeepEmbedLoc [] = mempty
@@ -260,6 +292,7 @@ anyLocP sb =
   locPrefixP 'c' *> (LocCode . CodeLoc sb <$> decimal)
     <|> locPrefixP 'x' *> (LocCheck . CheckLoc sb <$> decimal)
     <|> (locPrefixP 't' $> (LocTask . TaskLoc) sb)
+    <|> locPrefixP 's' *> (LocSyn . SynLoc sb <$> decimal)
 
 locP :: (Stream s Identity Char) => Parsec s u AnyLoc
 locP = do

@@ -77,6 +77,7 @@ data CompileState = CState
     _codeCount :: Int,
     _checkboxCount :: Int,
     _embedCount :: Int,
+    _synCount :: Int,
     _openedSub :: SubLoc,
     _deepOpenedSub :: (DeepEmbedLoc, SubLoc),
     _editOpen :: Bool,
@@ -105,6 +106,7 @@ initCState doc i =
       _codeCount = 0,
       _checkboxCount = 0,
       _embedCount = 0,
+      _synCount = 0,
       _openedSub = SubLoc [],
       _deepOpenedSub = (DeepEmbedLoc [], SubLoc []),
       _editOpen = False,
@@ -457,6 +459,14 @@ compileBlock' (Collection col nm items) = do
       Just TaskDont -> ckDont %~ (+ 1)
       Nothing -> id
 compileBlock' (Syndicate nm onlyNew lim ids) = do
+  entry <- use currentEntry
+  subL <- use subLoc
+  loc <- LocSyn . SynLoc subL <$> use synCount
+  (sourceEntry, embedL) <- use embeddedAt
+  render <- getUrlRenderParams
+  let route = if T.null (unId sourceEntry) then HomeR else EntryR (WId sourceEntry)
+  let redirUrl = render route [("open", renderEmbeddedLoc (embedL, subL))]
+  synCount %= (+ 1)
   entries <- fmap catMaybes $ forM ids $ lift . load
   let syns = mapMaybe (^? _Syndicate) entries
   itemsWidget <-
@@ -471,7 +481,7 @@ compileBlock' (Syndicate nm onlyNew lim ids) = do
   buttonId <- newIdent
   pure $ do
     Rcs.synCode
-    toWidget [julius|setupSynMenu(#{buttonId}, null);|]
+    toWidget [julius|setupSynMenu(#{buttonId}, "@{NoteSubR (WId entry) (WLoc loc)}", #{redirUrl});|]
     [whamlet|
     <details .collection ##{webId} open="true">
       <summary>
@@ -498,13 +508,16 @@ compileBlock' (Sub hd) = do
   oldCheckCount <- use checkboxCount
   checkboxCount .= 0
   oldEmbedCount <- use embedCount
+  oldSynCount <- use synCount
   embedCount .= 0
+  synCount .= 0
   contentW <- withLevel lvl $ compileBlocks $ hd ^. hdContent
   subLoc . subOffsets %= drop 1
   subCount .= subC + 1
   codeCount .= oldCodeCount
   checkboxCount .= oldCheckCount
   embedCount .= oldEmbedCount
+  synCount .= oldSynCount
   -- Render header
   editIdent <- newIdent
   entry <- use currentEntry

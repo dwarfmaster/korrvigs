@@ -94,7 +94,7 @@ postNoteR (WId i) =
             redirect $ NoteR $ WId i
       _ -> notFound
 
-getNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text
+getNoteSubR :: WebId -> WebAnyLoc -> Handler TypedContent
 getNoteSubR (WId i) (WLoc loc) =
   load i >>= \case
     Nothing -> notFound
@@ -105,19 +105,22 @@ getNoteSubR (WId i) (WLoc loc) =
           Right doc -> case loc of
             LocCode lc -> case doc ^? code lc of
               Nothing -> notFound
-              Just txt -> pure $ LT.fromStrict txt
+              Just txt -> pure $ toTypedContent txt
             LocSub lc -> case doc ^? sub lc of
               Nothing -> notFound
-              Just hd -> pure $ LEnc.decodeUtf8 $ writeHeaderLazy hd (doc ^. docComputations)
+              Just hd -> pure $ toTypedContent $ LEnc.decodeUtf8 $ writeHeaderLazy hd (doc ^. docComputations)
             LocCheck lc -> case doc ^? check lc of
               Nothing -> notFound
-              Just cb -> pure $ LT.fromStrict $ renderTaskStatus cb
+              Just cb -> pure $ toTypedContent $ renderTaskStatus cb
             LocTask lc -> case doc ^? task lc . tskStatus of
               Nothing -> notFound
-              Just tk -> pure $ LT.fromStrict $ renderTaskStatus tk
+              Just tk -> pure $ toTypedContent $ renderTaskStatus tk
             LocSyn lc -> case doc ^? _syn lc . _4 of
               Nothing -> notFound
-              Just ids -> pure $ mconcat $ ((<> "\n") . LT.fromStrict . unId) <$> ids
+              Just ids -> do
+                render <- getUrlRender
+                let content = fmap (unId &&& (render . EntryR . WId)) ids
+                pure $ toTypedContent $ toJSON content
       _ -> notFound
 
 postNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text

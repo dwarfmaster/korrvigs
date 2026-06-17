@@ -158,3 +158,4 @@ instance ToJSON Activity where
   toJSON a = String $ activityName a
 
 mkMtdt "ActivityMtdt" "activity" [t|Text|]
+mkMtdt "DistanceMtdt" "distance" [t|Double|]

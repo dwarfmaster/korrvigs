@@ -47,6 +47,7 @@ extract path _
       let title = (<> (" activity " <> titleTime)) . activityName <$> act
       let lats = msgs ^.. each . _FitMsgRecord . fitRecordPosLat . _Just
       let lons = msgs ^.. each . _FitMsgRecord . fitRecordPosLon . _Just
+      let distance :: Maybe Double = nullIsNothing sum $ msgs ^.. each . _FitMsgSession . fitSessionTotalDistance . _Just
       let geo = GeoPath $ zipWith V2 lons lats
       tz <- getCurrentTimeZone
       pure $
@@ -58,7 +59,8 @@ extract path _
             maybe id ((annoted . at (mtdtSqlName ActivityMtdt) ?~) . toJSON) act,
             exDate ?~ utcToZonedTime tz start,
             exDuration ?~ CalendarDiffTime 0 duration,
-            maybe id (exTitle ?~) title
+            maybe id (exTitle ?~) title,
+            maybe id (annoted . at (mtdtSqlName DistanceMtdt) ?~) (toJSON <$> distance)
           ]
   | otherwise = pure id
   where
@@ -69,3 +71,6 @@ extract path _
     mkActivity FITWalking _ = Just ActHiking
     mkActivity FITSnowShoeing _ = Just ActSnowShoeing
     mkActivity _ _ = Nothing
+    nullIsNothing :: ([a] -> b) -> [a] -> Maybe b
+    nullIsNothing _ [] = Nothing
+    nullIsNothing f l = Just $ f l

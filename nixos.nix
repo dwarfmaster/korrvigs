@@ -329,7 +329,7 @@ in {
             proxyPass = "http://localhost:${builtins.toString server.port}";
             recommendedProxySettings = true;
             extraConfig = ''
-              add_header Cache-Control max-age=2592000,must-revalidate,public
+              add_header Cache-Control max-age=2592000,must-revalidate,public;
             '';
           };
         };

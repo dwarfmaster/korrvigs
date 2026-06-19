@@ -7,6 +7,7 @@ import Korrvigs.Entry
 import qualified Korrvigs.File.Mtdt.ExifTool as ExifTool
 import qualified Korrvigs.File.Mtdt.FIT as FIT
 import qualified Korrvigs.File.Mtdt.GPX as GPX
+import qualified Korrvigs.File.Mtdt.MBTiles as MBTiles
 import qualified Korrvigs.File.Mtdt.Pandoc as Pandoc
 import qualified Korrvigs.File.Mtdt.PdfToText as PdfToText
 import qualified Korrvigs.File.Mtdt.Viking as Viking
@@ -28,7 +29,8 @@ extractMetadata path mime = do
         Pandoc.extract,
         GPX.extract,
         ExifTool.extract,
-        Viking.extract
+        Viking.extract,
+        MBTiles.extract
       ]
   pure $ foldr (.) id mps
   where

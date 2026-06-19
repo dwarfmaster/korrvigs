@@ -99,6 +99,7 @@ library korrvigs-lib
     Korrvigs.File.Mtdt.ExifTool
     Korrvigs.File.Mtdt.FIT
     Korrvigs.File.Mtdt.GPX
+    Korrvigs.File.Mtdt.MBTiles
     Korrvigs.File.Mtdt.Pandoc
     Korrvigs.File.Mtdt.PdfToText
     Korrvigs.File.Mtdt.Viking

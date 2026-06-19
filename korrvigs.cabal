@@ -40,6 +40,7 @@ library korrvigs-lib
     Data.FIT.Interpreter
     Data.FIT.Messages
     Data.FIT.Parser
+    Data.MBTiles
     Data.Viking
     Data.Viking.Data
     Data.Viking.Parser
@@ -323,9 +324,11 @@ library korrvigs-lib
     , product-profunctors   ^>=0.11.1.0
     , profunctors           ^>=5.6.2
     , random                ^>=1.2.1.2
+    , resourcet             ^>=1.3.0
     , shakespeare           ^>=2.1.0.1
     , skylighting           ^>=0.14.7
     , split                 ^>=0.2.5
+    , sqlite-simple         ^>=0.4.19.0
     , stm                   ^>=2.5.3.1
     , tagsoup               ^>=0.14.8
     , template-haskell      ^>=2.22.0.0

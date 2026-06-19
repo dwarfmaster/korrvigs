@@ -70,6 +70,7 @@
             hpkgs.diagrams-contrib
             hpkgs.diagrams-svg
             hpkgs.diagrams-rasterific
+            hpkgs.sqlite-simple
           ]);
 
           git-hooks.hooks = {

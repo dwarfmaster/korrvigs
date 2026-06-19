@@ -10,10 +10,11 @@
 , neat-interpolation, network-uri, opaleye, optparse-applicative
 , pandoc, pandoc-types, parsec, parsec3-numbers, password
 , postgresql-simple, process, product-profunctors, profunctors
-, random, shakespeare, skylighting, split, stm, tagsoup
-, template-haskell, temporary, text, text-builder, text-manipulate
-, time, tls, transformers, unix, utf8-string, vector, xdg-basedir
-, xml-conduit, xml-types, yaml, yesod, yesod-core, yesod-static
+, random, resourcet, shakespeare, skylighting, split, sqlite-simple
+, stm, tagsoup, template-haskell, temporary, text, text-builder
+, text-manipulate, time, tls, transformers, unix, utf8-string
+, vector, xdg-basedir, xml-conduit, xml-types, yaml, yesod
+, yesod-core, yesod-static
 }:
 mkDerivation {
   pname = "korrvigs";
@@ -32,10 +33,11 @@ mkDerivation {
     monad-loops mtl neat-interpolation network-uri opaleye
     optparse-applicative pandoc pandoc-types parsec parsec3-numbers
     password postgresql-simple process product-profunctors profunctors
-    random shakespeare skylighting split stm tagsoup template-haskell
-    temporary text text-builder text-manipulate time tls transformers
-    unix utf8-string vector xdg-basedir xml-conduit xml-types yaml
-    yesod yesod-core yesod-static
+    random resourcet shakespeare skylighting split sqlite-simple stm
+    tagsoup template-haskell temporary text text-builder
+    text-manipulate time tls transformers unix utf8-string vector
+    xdg-basedir xml-conduit xml-types yaml yesod yesod-core
+    yesod-static
   ];
   testHaskellDepends = [ base HUnit ];
   doHaddock = false;

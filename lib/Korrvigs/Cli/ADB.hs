@@ -3,15 +3,12 @@ module Korrvigs.Cli.ADB where
 import Control.Lens hiding (argument, ignored)
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Aeson
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Korrvigs.Cli.Monad
 import Korrvigs.Entry
-import Korrvigs.Metadata
 import Korrvigs.Metadata.Android
 import Korrvigs.Monad
-import Korrvigs.Monad.Metadata
 import Options.Applicative
 import System.Directory
 import System.FilePath
@@ -69,7 +66,5 @@ run (Ignore files) =
           load (phone ^. androidEntry) >>= \case
             Nothing -> liftIO $ putStrLn $ "Failed to load @" <> T.unpack (unId $ phone ^. androidEntry)
             Just phoneEntry -> do
-              ignored <- rSelectListMtdt AndroidIgnored $ sqlId $ phone ^. androidEntry
-              let newIgnored = T.pack (takeFileName rel) : ignored
-              updateMetadata phoneEntry (M.singleton (mtdtSqlName AndroidIgnored) $ toJSON newIgnored) []
+              ignoreAndroidPath phoneEntry $ T.pack $ takeFileName rel
               liftIO $ removeFile path

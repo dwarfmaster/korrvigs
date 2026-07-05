@@ -133,3 +133,9 @@ importAndroidFiles = runMaybeT $ do
       Just fEntry -> lift $ updateMetadata fEntry M.empty [mtdtSqlName FromAndroidPath]
       Nothing -> pure ()
   pure phone
+
+ignoreAndroidPath :: (MonadKorrvigs m) => Entry -> Text -> m ()
+ignoreAndroidPath phoneEntry path = do
+  ignoredPaths <- rSelectListMtdt AndroidIgnored $ sqlId $ phoneEntry ^. entryName
+  let newIgnored = S.insert path $ S.fromList ignoredPaths
+  updateMetadata phoneEntry (M.singleton (mtdtSqlName AndroidIgnored) $ toJSON newIgnored) []

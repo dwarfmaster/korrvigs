@@ -28,9 +28,9 @@ extractMetadata path mime = do
         PdfToText.extract,
         Pandoc.extract,
         GPX.extract,
-        ExifTool.extract,
         Viking.extract,
-        MBTiles.extract
+        MBTiles.extract,
+        ExifTool.extract
       ]
   pure $ foldr (.) id mps
   where

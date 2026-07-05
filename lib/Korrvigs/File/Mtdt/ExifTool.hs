@@ -11,6 +11,7 @@ import qualified Data.ByteString.Lazy as BS
 import Data.List.NonEmpty
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
@@ -71,13 +72,13 @@ seqLookup mp (key : keys) = M.lookup key mp <|> seqLookup mp keys
 
 getTitle :: Mapping -> Extractor
 getTitle mtdt = case seqLookup mtdt ["Title", "BookName", "UpdatedTitle"] of
-  Just ((_, title) :| _) -> exTitle ?~ title
+  Just ((_, title) :| _) -> exTitle %~ Just . fromMaybe title
   Nothing -> id
 
 getPageCount :: Mapping -> Extractor
 getPageCount mtdt = case seqLookup mtdt ["PageCount"] of
   Just ((_, cnt) :| _) -> case readMaybe (T.unpack cnt) :: Maybe Int of
-    Just c -> annoted . at (mtdtSqlName Pages) ?~ toJSON c
+    Just c -> annoted . at (mtdtSqlName Pages) %~ Just . fromMaybe (toJSON c)
     Nothing -> id
   Nothing -> id
 
@@ -86,7 +87,7 @@ getDate mtdt = case seqLookup mtdt ["DateTimeOriginal", "CreateDate", "GpxMetada
   Just ((_, dt) :| _) ->
     let formats = ["%Y:%m:%d %T%Ez", "%Y:%m:%d %TZ", "%Y:%m:%d %T"]
      in let results = (\f -> parseTimeM True defaultTimeLocale f (T.unpack dt)) <$> formats :: [Maybe ZonedTime]
-         in maybe id (exDate ?~) $ asum results
+         in maybe id (\d -> exDate %~ Just . fromMaybe d) $ asum results
   Nothing -> id
 
 getTimeZone :: Mapping -> Extractor

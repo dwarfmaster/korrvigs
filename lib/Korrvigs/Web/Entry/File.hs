@@ -168,10 +168,13 @@ mbtilesWidget file = do
         { _mlayUrl = tileUrl <> "/{z}/{y}/{x}",
           _mlayMinZoom = mnZoom,
           _mlayMaxZoom = mxZoom,
-          _mlayBounds = Nothing
-          -- _mlayBounds = (\bds -> (V2 (bds ^. MBTiles.mbMinLat) (bds ^. MBTiles.mbMinLon),
-          --                         V2 (bds ^. MBTiles.mbMaxLat) (bds ^. MBTiles.mbMaxLon)))
-          --               <$> bounds
+          _mlayBounds =
+            ( \bds ->
+                ( V2 (bds ^. MBTiles.mbMaxLat) (bds ^. MBTiles.mbMinLon),
+                  V2 (bds ^. MBTiles.mbMinLat) (bds ^. MBTiles.mbMaxLon)
+                )
+            )
+              <$> bounds
         }
 
 embed :: Int -> File -> Handler Widget

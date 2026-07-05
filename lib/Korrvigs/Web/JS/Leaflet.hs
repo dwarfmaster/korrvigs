@@ -15,7 +15,7 @@ module Korrvigs.Web.JS.Leaflet
 where
 
 import Control.Lens hiding ((.=))
-import Control.Monad
+import Data.Foldable
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text.Lazy.Builder as Bld
@@ -97,7 +97,9 @@ leafletWidget i layers items = do
   let mp = rawJS i
   Rcs.leaflet StaticR
   [whamlet|<div ##{i}>|]
-  let geos = view mitGeo <$> items
+  let geos =
+        (view mitGeo <$> items)
+          ++ (layers >>= (toList . view mlayBounds) >>= (\bds -> [GeoPoint (fst bds), GeoPoint (snd bds)]))
   let (V2 centerY centerX) = computeCenter geos
   let (V2 boundMinY boundMinX, V2 boundMaxY boundMaxX) = computeBounds geos
   toWidget
@@ -126,7 +128,7 @@ leafletWidget i layers items = do
     }
   |]
   forM_ layers $ \layer -> do
-    let prepBounds (V2 lat1 lon1, V2 lat2 lon2) = [[lat1, lon1], [lat2, lon2]]
+    let prepBounds (V2 lat1 lon1, V2 lat2 lon2) = [[lon1, lat1], [lon2, lat2]]
     let opts =
           object $
             catMaybes
@@ -146,13 +148,13 @@ leafletWidget i layers items = do
     case item ^. mitGeo of
       GeoPoint pt ->
         toWidget
-          [julius|var #{rawJS markerVar} = L.marker(#{rawJS $ jsPoint pt}).addTo(#{mp})|]
+          [julius|var #{rawJS markerVar} = L.marker(#{rawJS $ jsPoint pt}).addTo(#{mp});|]
       GeoPath path ->
         toWidget
-          [julius|var #{rawJS markerVar} = L.polyline(#{jsPath path}, {color: #{color}}).addTo(#{mp})|]
+          [julius|var #{rawJS markerVar} = L.polyline(#{jsPath path}, {color: #{color}}).addTo(#{mp});|]
       GeoPolygon poly ->
         toWidget
-          [julius|var #{rawJS markerVar} = L.polygon(#{jsPolygon poly}, {color: #{color}}).addTo(#{mp})|]
+          [julius|var #{rawJS markerVar} = L.polygon(#{jsPolygon poly}, {color: #{color}}).addTo(#{mp});|]
     case item ^. mitContent of
       Nothing -> pure ()
       Just content ->

@@ -4,12 +4,17 @@ module Korrvigs.Web.JS.Leaflet
     mitContent,
     mitVar,
     mitColor,
+    MapLayer (..),
+    mlayUrl,
+    mlayMinZoom,
+    mlayMaxZoom,
+    mlayBounds,
     leafletWidget,
     jsPoint,
   )
 where
 
-import Control.Lens
+import Control.Lens hiding ((.=))
 import Control.Monad
 import Data.Maybe
 import Data.Text (Text)
@@ -29,7 +34,15 @@ data MapItem = MapItem
     _mitColor :: Maybe Text
   }
 
+data MapLayer = MapLayer
+  { _mlayUrl :: Text,
+    _mlayMinZoom :: Maybe Int,
+    _mlayMaxZoom :: Maybe Int,
+    _mlayBounds :: Maybe (Point, Point)
+  }
+
 makeLenses ''MapItem
+makeLenses ''MapLayer
 
 points :: Geometry -> [V2 Double]
 points (GeoPoint pt) = [pt]
@@ -79,8 +92,8 @@ computeBounds geoms = case pts of
         V2 (max (pt ^. _x) (mx ^. _x)) (max (pt ^. _y) (mx ^. _y))
       )
 
-leafletWidget :: Text -> [MapItem] -> Widget
-leafletWidget i items = do
+leafletWidget :: Text -> [MapLayer] -> [MapItem] -> Widget
+leafletWidget i layers items = do
   let mp = rawJS i
   Rcs.leaflet StaticR
   [whamlet|<div ##{i}>|]
@@ -112,6 +125,16 @@ leafletWidget i items = do
       #{mp}.fitBounds([[#{rawJS $ show boundMinX}, #{rawJS $ show boundMinY}], [#{rawJS $ show boundMaxX}, #{rawJS $ show boundMaxY}]], { maxZoom: 13 }); 
     }
   |]
+  forM_ layers $ \layer -> do
+    let prepBounds (V2 lat1 lon1, V2 lat2 lon2) = [[lat1, lon1], [lat2, lon2]]
+    let opts =
+          object $
+            catMaybes
+              [ ("maxNativeZoom" .=) <$> layer ^. mlayMaxZoom,
+                ("minNativeZoom" .=) <$> layer ^. mlayMinZoom,
+                ("bounds" .=) . prepBounds <$> layer ^. mlayBounds
+              ]
+    toWidget [julius|L.tileLayer(#{view mlayUrl layer}, #{opts}).addTo(#{mp});|]
   toWidget
     [cassius|
       ##{i}

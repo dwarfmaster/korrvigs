@@ -1,8 +1,10 @@
 module Korrvigs.Web.Entry.File (content, embed) where
 
 import Control.Lens
+import Control.Monad.Trans.Resource
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.MBTiles as MBTiles
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Enc
@@ -22,6 +24,7 @@ import Korrvigs.Web.Routes (WebId (WId))
 import qualified Korrvigs.Web.Widgets as Widgets
 import Linear.V2
 import Network.Mime
+import System.FilePath
 import Yesod
 
 statusWidget :: FileStatus -> Widget
@@ -102,13 +105,13 @@ gpxWidget :: File -> Handler Widget
 gpxWidget file = do
   pts <- liftIO $ GPX.extractPoints $ file ^. filePath
   i <- newIdent
-  pure $ leafletWidget i [MapItem (GeoPath pts) Nothing Nothing Nothing]
+  pure $ leafletWidget i [] [MapItem (GeoPath pts) Nothing Nothing Nothing]
 
 fitWidget :: File -> Handler Widget
 fitWidget file = do
   pts <- liftIO $ FIT.extractPoints $ file ^. filePath
   i <- newIdent
-  pure $ leafletWidget i [MapItem (GeoPath pts) Nothing Nothing Nothing]
+  pure $ leafletWidget i [] [MapItem (GeoPath pts) Nothing Nothing Nothing]
 
 bookWidget :: File -> Handler Widget
 bookWidget file =
@@ -127,7 +130,7 @@ vikingWidget file = fromMaybeT mempty $ do
   let tracks = vik ^.. vikTopLayers . each . vikLayers . each . vikLayerTracks . each
   let mkSegments trk = trackItem (trk ^. vikTrackName) (trk ^. vikTrackColor) <$> (trk ^. vikSegments)
   i <- newIdent
-  pure $ leafletWidget i $ (waypointItem <$> waypoints) ++ concatMap mkSegments tracks
+  pure $ leafletWidget i [] $ (waypointItem <$> waypoints) ++ concatMap mkSegments tracks
   where
     waypointItem :: VikingWayPoint -> MapItem
     waypointItem wp =
@@ -144,6 +147,31 @@ vikingWidget file = fromMaybeT mempty $ do
           _mitContent = Just [shamlet|<p>#{name}|],
           _mitVar = Nothing,
           _mitColor = Just $ "#" <> color
+        }
+
+mbtilesWidget :: File -> Handler Widget
+mbtilesWidget file = do
+  render <- getUrlRender
+  let tileUrl = render $ FileRasterTileTopR $ WId i
+  runResourceT $ do
+    mb <- MBTiles.openMBFile $ file ^. filePath
+    mtdt <- liftIO $ MBTiles.loadMetadata mb
+    let minzoom = mtdt ^? _Just . MBTiles.mbMinZoom . _Just
+    let maxzoom = mtdt ^? _Just . MBTiles.mbMaxZoom . _Just
+    let bounds = mtdt ^? _Just . MBTiles.mbBounds . _Just
+    leafletId <- lift newIdent
+    pure $ leafletWidget leafletId [layer tileUrl minzoom maxzoom bounds] []
+  where
+    i = file ^. fileEntry . entryName
+    layer tileUrl mnZoom mxZoom bounds =
+      MapLayer
+        { _mlayUrl = tileUrl <> "/{z}/{y}/{x}",
+          _mlayMinZoom = mnZoom,
+          _mlayMaxZoom = mxZoom,
+          _mlayBounds = Nothing
+          -- _mlayBounds = (\bds -> (V2 (bds ^. MBTiles.mbMinLat) (bds ^. MBTiles.mbMinLon),
+          --                         V2 (bds ^. MBTiles.mbMaxLat) (bds ^. MBTiles.mbMaxLon)))
+          --               <$> bounds
         }
 
 embed :: Int -> File -> Handler Widget
@@ -175,7 +203,8 @@ embed _ file = do
         (mime == "application/vnd.comicbook+zip", bookWidget file),
         ("model/gltf-binary" == mime, threeWidget True file),
         (mime == "application/x-viking", vikingWidget file),
-        (hasModel mime, threeWidget False file)
+        (hasModel mime, threeWidget False file),
+        (mime == "application/vnd.sqlite3" && takeExtension (file ^. filePath) == ".mbtiles", mbtilesWidget file)
       ]
 
 content :: File -> Handler Widget

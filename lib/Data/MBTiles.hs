@@ -100,8 +100,8 @@ loadMetadata (MBFile conn) = runMaybeT $ do
       [lon, lat, zm] -> MBPoint <$> rm lon <*> rm lat <*> rm zm
       _ -> Nothing
 
-loadTile :: MBFile -> MBPoint -> IO (Maybe ByteString)
-loadTile (MBFile conn) (MBPoint lon lat zm) = do
+loadTile :: MBFile -> Int -> Int -> Int -> IO (Maybe ByteString)
+loadTile (MBFile conn) lon lat zm = do
   query conn "SELECT tile_data FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?" (zm, lon, lat) >>= \case
     [Only r] -> pure $ Just r
     _ -> pure Nothing

@@ -53,6 +53,10 @@ korrvigsRoutes =
 /note/#WebId/named/sub/#Text NoteNamedSubR GET
 /note/#WebId/named/code/#Text NoteNamedCodeR GET
 
+-- Files views
+/file/#WebId/tiles FileRasterTileTopR GET
+/file/#WebId/tiles/#Int/#Int/#Int FileRasterTileR GET
+
 -- Actions
 /action/#Text/entry/#WebId ActEntryR POST
 /action/#Text/home ActHomeR POST

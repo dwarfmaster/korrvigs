@@ -210,7 +210,7 @@ geoForm prefix dist = do
         <summary>
           <input ##{checkId} type=checkbox name=#{applyPrefix prefix "checkgeo"} *{sattr "checked" $ isJust dist}>
           Geometry
-        ^{leafletWidget mapName [MapItem (GeoPoint defCenter) Nothing (Just markerName) Nothing]}
+        ^{leafletWidget mapName [] [MapItem (GeoPoint defCenter) Nothing (Just markerName) Nothing]}
         <input ##{distId} type=number min=0 step=0.25 name=#{applyPrefix prefix "geodist"} value=#{defDist}>
         <input ##{latId} type=hidden name=#{applyPrefix prefix "geolat"} value=#{show $ defCenter ^. _2}>
         <input ##{lngId} type=hidden name=#{applyPrefix prefix "geolng"} value=#{show $ defCenter ^. _1}>

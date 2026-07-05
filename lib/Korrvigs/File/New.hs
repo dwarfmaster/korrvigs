@@ -74,10 +74,10 @@ findMime db path = do
   case exit of
     ExitSuccess -> pure ()
     ExitFailure exitCode -> throwM $ KMiscError $ "Couldn't computate mime for file, mimetype failed with exit code " <> T.pack (show exitCode) <> ":\n" <> T.pack path
-  let mime = T.strip . snd $ T.breakOnEnd ":" $ LT.toStrict $ LEnc.decodeUtf8 out
+  let mime = T.strip $ LT.toStrict $ LEnc.decodeUtf8 out
   pure $ Enc.encodeUtf8 mime
   where
-    file = proc "mimetype" ["--database", db, path]
+    file = proc "mimetype" ["--database", db, "--output-format", "%m", path]
 
 inAnnex :: (MonadKorrvigs m) => FilePath -> m Bool
 inAnnex path = do

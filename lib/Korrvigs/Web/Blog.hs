@@ -3,6 +3,7 @@ module Korrvigs.Web.Blog where
 import Control.Lens
 import Data.Binary.Builder
 import qualified Data.ByteString.Lazy as LBS
+import Data.List (find)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
@@ -52,6 +53,16 @@ blogConfig :: Handler BlogConfig
 blogConfig =
   BlogConfig <$> lookupHost <*> pure (MkId "Blog") <*> pure False
 
+topEntries :: Id -> Handler (Maybe BlogUrl)
+topEntries tgt = do
+  cfg <- blogConfig
+  topLevelSql <- rSelectMtdt BlogFiles $ sqlId $ cfg ^. blogCfgNote
+  case topLevelSql of
+    Nothing -> pure Nothing
+    Just topFiles -> do
+      let topFile = find ((== BlogFromNote tgt) . parseBlogTopContent cfg . snd) $ M.toList topFiles
+      pure $ BlogTopLevel . fst <$> topFile
+
 getBlogR :: Handler TypedContent
 getBlogR = getBlogTopR "default.html"
 
@@ -60,7 +71,7 @@ getBlogContent (BlogFromFile i) = getEntryDownloadR $ WId i
 getBlogContent (BlogFromNote i) = do
   cfg <- blogConfig
   mtdt <- loadMtdt cfg
-  toTypedContent <$> renderPost renderUrl mtdt i
+  toTypedContent <$> renderPost renderUrl topEntries mtdt i
 getBlogContent (BlogFromCode i cd) = do
   entry <- load i >>= maybe notFound pure
   note <- maybe notFound pure $ entry ^? _Note
@@ -86,10 +97,10 @@ getBlogContent (BlogFromArchiveTag tag) = do
   pure $ toTypedContent page
 getBlogContent BlogFromAtom = do
   cfg <- blogConfig
-  atomContent <$> renderAtom (cfg ^. blogCfgOnlyPublished) renderUrl Nothing "Blog feed"
+  atomContent <$> renderAtom (cfg ^. blogCfgOnlyPublished) renderUrl topEntries Nothing "Blog feed"
 getBlogContent (BlogFromAtomTag tag) = do
   cfg <- blogConfig
-  atomContent <$> renderAtom (cfg ^. blogCfgOnlyPublished) renderUrl (Just tag) ("Blog feed for " <> tag)
+  atomContent <$> renderAtom (cfg ^. blogCfgOnlyPublished) renderUrl topEntries (Just tag) ("Blog feed for " <> tag)
 
 atomContent :: LBS.ByteString -> TypedContent
 atomContent lbs =

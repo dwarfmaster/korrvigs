@@ -81,7 +81,7 @@ loadFiles cfg = do
   topLevelsSQL <- rSelectOne $ fromName (baseSelectMtdt BlogFiles) $ sqlId $ cfg ^. blogCfgNote
   let topLevels =
         M.fromList $
-          fmap (BlogTopLevel *** parseTopContent) $
+          fmap (BlogTopLevel *** parseBlogTopContent cfg) $
             M.toList $
               fromMaybe M.empty $
                 topLevelsSQL >>= fromJSONM
@@ -110,12 +110,12 @@ loadFiles cfg = do
     pure (post, cmp ^. sqlCompName, cmp ^. sqlCompType)
   let comps = (\(post, cmp, tp) -> (BlogComputation post cmp tp, BlogFromComp (MkId post) cmp)) <$> compsSQL
   pure $ topLevels <> files <> posts <> M.fromList comps
-  where
-    parseTopContent :: Text -> BlogContent
-    parseTopContent targetId = case T.split (== '#') targetId of
-      ["", code] -> BlogFromCode (cfg ^. blogCfgNote) code
-      [i, code] -> BlogFromCode (MkId i) code
-      _ -> BlogFromNote $ MkId targetId
+
+parseBlogTopContent :: BlogConfig -> Text -> BlogContent
+parseBlogTopContent cfg targetId = case T.split (== '#') targetId of
+  ["", code] -> BlogFromCode (cfg ^. blogCfgNote) code
+  [i, code] -> BlogFromCode (MkId i) code
+  _ -> BlogFromNote $ MkId targetId
 
 loadTags :: (MonadKorrvigs m) => m [Text]
 loadTags = do

@@ -6,6 +6,7 @@ import Control.Monad.RWS.Strict
 import Data.Default
 import Data.Text (Text)
 import qualified Data.Text.Lazy as LT
+import Korrvigs.Entry.Ident
 import Korrvigs.Metadata.Blog.Export
 import Korrvigs.Metadata.Blog.Structure
 import Korrvigs.Monad
@@ -14,15 +15,16 @@ import Text.Blaze.Html5 (Html)
 import Text.Blaze.Renderer.Text
 import Prelude hiding (div)
 
-postTextRender :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> FilePath -> m (Text, Text)
-postTextRender renderUrl path = do
+postTextRender :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> FilePath -> m (Text, Text)
+postTextRender renderUrl topEntries path = do
   doc <- readNote path >>= throwEither (\e -> KMiscError $ "Failed to load note for blog post: " <> e)
   let ctx =
         RenderContext
           { _rdrDoc = doc,
             _rdrRenderUrl = renderUrl,
             _rdrHdOffset = 0,
-            _rdrCurLevel = 0
+            _rdrCurLevel = 0,
+            _rdrTopEntries = topEntries
           }
   summary <- postSummary ctx $ doc ^. docContent
   content <- postContent ctx $ doc ^. docContent

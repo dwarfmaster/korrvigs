@@ -6,6 +6,7 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Reader
 import qualified Data.Binary.Builder as Bld
 import qualified Data.ByteString.Lazy as LBS
+import Data.List
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
@@ -118,15 +119,21 @@ renderUrl isLink dir url = do
     renderPath BlogAtom = "atom.xml"
     renderPath (BlogAtomTag tag) = T.unpack $ "atom-" <> tag <> ".xml"
 
+topEntries :: BlogStructure -> Id -> KorrM (Maybe BlogUrl)
+topEntries bgStr tgt = do
+  let topFile = find ((== BlogFromNote tgt) . snd) $ M.toList $ bgStr ^. blogFiles
+  pure $ fst <$> topFile
+
 writeHtml :: (MonadIO m) => FilePath -> Html -> m ()
 writeHtml path html =
   liftIO $ LBS.writeFile path $ Bld.toLazyByteString $ renderHtmlBuilder html
 
 writeContent :: FilePath -> BlogContent -> BgWriter ()
 writeContent path (BlogFromNote i) = do
+  bgStr <- view bgStructure
   mtdt <- view $ bgStructure . blogMtdt
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
-  html <- lift $ renderPost (renderUrl True dir) mtdt i
+  html <- lift $ renderPost (renderUrl True dir) (topEntries bgStr) mtdt i
   writeHtml path html
 writeContent path (BlogFromFile i) = do
   entry <- lift $ load i >>= throwMaybe (KCantLoad i "Load file for blog export")
@@ -156,14 +163,16 @@ writeContent path (BlogFromArchiveTag tag) = do
   html <- lift $ generateArchivePage mtdt onlyPublished (renderUrl True dir) (Just tag) []
   writeHtml path html
 writeContent path BlogFromAtom = do
+  bgStr <- view bgStructure
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
-  atom <- lift $ renderAtom onlyPublished (renderUrl True dir) Nothing "Blog feed"
+  atom <- lift $ renderAtom onlyPublished (renderUrl True dir) (topEntries bgStr) Nothing "Blog feed"
   liftIO $ LBS.writeFile path atom
 writeContent path (BlogFromAtomTag tag) = do
+  bgStr <- view bgStructure
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
-  atom <- lift $ renderAtom onlyPublished (renderUrl True dir) (Just tag) $ "Blog feed for " <> tag
+  atom <- lift $ renderAtom onlyPublished (renderUrl True dir) (topEntries bgStr) (Just tag) $ "Blog feed for " <> tag
   liftIO $ LBS.writeFile path atom
 
 entryPath :: Entry -> KorrM FilePath

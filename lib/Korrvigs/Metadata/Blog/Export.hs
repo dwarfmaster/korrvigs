@@ -26,6 +26,7 @@ import Korrvigs.Utils
 import Korrvigs.Utils.JSON
 import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye
+import qualified Opaleye as O
 import Text.Blaze
 import Text.Blaze.Html5
 import qualified Text.Blaze.Html5.Attributes as A
@@ -35,7 +36,8 @@ data RenderContext m = RenderContext
   { _rdrDoc :: Document,
     _rdrRenderUrl :: BlogUrl -> m Text,
     _rdrHdOffset :: Int,
-    _rdrCurLevel :: Int
+    _rdrCurLevel :: Int,
+    _rdrTopEntries :: Id -> m (Maybe BlogUrl)
   }
 
 data RenderState = RenderState
@@ -62,15 +64,15 @@ makeLenses ''BlogPageContent
 shiftOffset :: Int -> RenderMonad m a -> RenderMonad m a
 shiftOffset noffset = withRWST $ \r st -> (r & rdrHdOffset .~ noffset, st)
 
-renderPost :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Map Text Text -> Id -> m Html
-renderPost renderUrl mtdt noteId = do
+renderPost :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Map Text Text -> Id -> m Html
+renderPost renderUrl topEntries mtdt noteId = do
   entry <- load noteId >>= throwMaybe (KCantLoad noteId "Failed to load entry for blog")
   note <- throwMaybe (KMiscError "Blog post is not a note") $ entry ^? _Note
   doc <- readNote (note ^. notePath) >>= throwEither (\e -> KMiscError $ "Failed to load note for blog post: " <> e)
   let t =
         fromMaybe (doc ^. docTitle) $
           M.lookup (mtdtName BlogTitle) (doc ^. docMtdt) >>= fromJSONM
-  contentHtml <- renderDocument renderUrl t doc
+  contentHtml <- renderDocument renderUrl topEntries t doc
   renderPageContent $ BlogPageContent contentHtml mtdt t renderUrl
 
 renderPageContent :: (MonadKorrvigs m) => BlogPageContent m -> m Html
@@ -114,14 +116,15 @@ renderMeta mtdt = mconcat $ render <$> M.toList mtdt
   where
     render (nm, cnt) = meta ! A.name (toValue nm) ! A.content (toValue cnt)
 
-renderDocument :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> Text -> Document -> m Html
-renderDocument renderUrl usedTitle doc = do
+renderDocument :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Text -> Document -> m Html
+renderDocument renderUrl topEntries usedTitle doc = do
   let ctx =
         RenderContext
           { _rdrDoc = doc,
             _rdrRenderUrl = renderUrl,
             _rdrHdOffset = 1,
-            _rdrCurLevel = 1
+            _rdrCurLevel = 1,
+            _rdrTopEntries = topEntries
           }
   let date = renderDate doc
   let t = h1 $ toMarkup usedTitle
@@ -254,10 +257,10 @@ renderInline (Link _ inls tgt) = do
     blogfile <- selectTextMtdt BlogFile sqlI
     hidden <- selectTextMtdt Hidden sqlI
     url <- selectTextMtdt Url sqlI
-    pure (blogpost, blogfile, isNull hidden, url)
+    pure (blogpost, blogfile, O.not $ isNull hidden, url)
   capt <- renderInlines inls
   case r of
-    Nothing -> pure capt
+    Nothing -> pure capt -- Should happen only when tgt does not exists
     Just (blogpost, blogfile, isHidden, url) -> exitExceptT $ do
       renderUrl <- lift $ view rdrRenderUrl
       forM_ blogpost $ \post -> do
@@ -268,6 +271,11 @@ renderInline (Link _ inls tgt) = do
         throwE $ a capt ! A.href (toValue urlT)
       when isHidden $ throwE capt
       forM_ url $ \urlT -> throwE $ a capt ! A.href (toValue urlT)
+      topEntries <- lift $ view rdrTopEntries
+      entryUrl <- lift $ lift $ topEntries tgt
+      forM_ entryUrl $ \tgtUrl -> do
+        rendered <- lift $ lift $ renderUrl tgtUrl
+        throwE $ a capt ! A.href (toValue rendered)
       pure capt
   where
     exitExceptT act =

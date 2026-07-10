@@ -5,6 +5,7 @@ module Korrvigs.Web.Search.Form
     sortOptions,
     maxResultsOptions,
     displayResultOptions,
+    displayResultsField,
     getParameters,
   )
 where

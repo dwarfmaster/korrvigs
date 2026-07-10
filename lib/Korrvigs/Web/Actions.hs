@@ -75,6 +75,7 @@ data ActionLabel
   | LabRunSyndicate
   | LabEventSync
   | LabExport
+  | LabImport
   | LabCollection
   | LabBibtex
   | LabUpdateTitle
@@ -108,6 +109,7 @@ actIcon LabNewSyndicate = mkIcon "rss" Base0E
 actIcon LabRunSyndicate = mkIcon "rss" Base0E
 actIcon LabEventSync = mkIcon "eventsync" Base0E
 actIcon LabExport = mkIcon "export" Base0E
+actIcon LabImport = mkIcon "downloads" Base0E
 actIcon LabCollection = mkIcon "collection" Base0B
 actIcon LabBibtex = mkIcon "bib" Base0E
 actIcon LabUpdateTitle = mkIcon "title" Base0E
@@ -137,6 +139,7 @@ actName LabNewSyndicate = "newsyndicate"
 actName LabRunSyndicate = "runsyndicate"
 actName LabEventSync = "eventsync"
 actName LabExport = "export"
+actName LabImport = "import"
 actName LabCollection = "collection"
 actName LabBibtex = "exportbib"
 actName LabUpdateTitle = "updatetitle"
@@ -218,6 +221,7 @@ actForm l@LabNewSyndicate = genForm syndicateForm syndicateTitle $ actUrl l
 actForm l@LabRunSyndicate = genFormM runSyndicateForm runSyndicateTitle $ actUrl l
 actForm l@LabEventSync = genForm syncEvForm syncEvTitle $ actUrl l
 actForm l@LabExport = genForm exportForm exportTitle $ actUrl l
+actForm l@LabImport = genForm importForm importTitle $ actUrl l
 actForm l@LabCollection = genForm colForm colTitle $ actUrl l
 actForm l@LabBibtex = genForm bibtexForm bibtexTitle $ actUrl l
 actForm l@LabUpdateTitle = genForm titleForm titleTitle $ actUrl l
@@ -281,6 +285,7 @@ actPost LabNewSyndicate = runPost syndicateForm runSyndicate
 actPost LabRunSyndicate = runPostM runSyndicateForm runRunSyndicate
 actPost LabEventSync = runPost syncEvForm runSyncEv
 actPost LabExport = runPost exportForm runExport
+actPost LabImport = runPost importForm runImport
 actPost LabCollection = runPost colForm runCol
 actPost LabBibtex = runPost bibtexForm runBibtex
 actPost LabUpdateTitle = runPost titleForm runTitle
@@ -337,6 +342,7 @@ actCond LabNewSyndicate = runActCond syndicateTarget
 actCond LabRunSyndicate = runActCond runSyndicateTarget
 actCond LabEventSync = runActCond syncEvTarget
 actCond LabExport = runActCond exportTarget
+actCond LabImport = runActCond importTarget
 actCond LabCollection = runActCond colTarget
 actCond LabBibtex = runActCond bibtexTarget
 actCond LabUpdateTitle = runActCond titleTarget

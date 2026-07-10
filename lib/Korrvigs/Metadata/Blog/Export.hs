@@ -135,9 +135,9 @@ renderDocument renderUrl topEntries usedTitle doc = do
 renderDate :: Document -> Html
 renderDate doc =
   let docDay :: Maybe Day =
-        M.lookup (mtdtName PublishedDate) (doc ^. docMtdt)
+        M.lookup "date" (doc ^. docMtdt)
           >>= fromJSONM
-          >>= parseTimeM True defaultTimeLocale "%F"
+          >>= (pure . localDay . zonedTimeToLocalTime)
    in case docDay of
         Nothing -> mempty
         Just day -> p (toMarkup $ formatTime defaultTimeLocale "%F" day) ! A.class_ "pubdate"

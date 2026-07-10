@@ -2,7 +2,6 @@ module Korrvigs.Web.Actions.Blog where
 
 import Control.Lens
 import Data.Default
-import qualified Data.Map as M
 import Data.Text (Text)
 import Data.Time
 import Korrvigs.Entry
@@ -24,7 +23,7 @@ publishBlogTarget :: ActionTarget -> ActionCond
 publishBlogTarget (TargetEntry _) =
   ActCondAnd
     [ ActCondQuery blogpostQuery,
-      ActCondNot (ActCondQuery (def & queryMtdt .~ [(mtdtSqlName PublishedDate, AnyQuery)]))
+      ActCondQuery (def & queryMtdt .~ [(mtdtSqlName BlogPost, AnyQuery)])
     ]
 publishBlogTarget _ = ActCondNever
 
@@ -48,8 +47,8 @@ previewBlogTitle = const "Preview"
 runPublishBlog :: () -> ActionTarget -> Handler ActionReaction
 runPublishBlog () (TargetEntry entry) = do
   time <- liftIO getCurrentTime
-  let day = formatTime defaultTimeLocale "%F" $ utctDay time
-  updateMetadata entry (M.singleton (mtdtSqlName PublishedDate) (toJSON day)) []
+  tz <- liftIO getCurrentTimeZone
+  updateDate entry $ Just $ ZonedTime (utcToLocalTime tz time) tz
   pure $ def & reactMsg ?~ html
   where
     html =

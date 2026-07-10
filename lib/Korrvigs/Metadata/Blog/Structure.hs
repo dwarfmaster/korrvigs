@@ -20,6 +20,7 @@ import Korrvigs.Note.SQL
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Opaleye
+import qualified Opaleye as O
 
 data BlogConfig = BlogConfig
   { _blogCfgUrl :: Text,
@@ -95,9 +96,10 @@ loadFiles cfg = do
         where_ $ entry ^. sqlEntryKind .== sqlKind Note
         post <- baseSelectTextMtdt BlogPost $ entry ^. sqlEntryId
         when (cfg ^. blogCfgOnlyPublished) $
-          void $
-            baseSelectMtdt PublishedDate $
-              entry ^. sqlEntryId
+          where_ $
+            O.not $
+              isNull $
+                entry ^. sqlEntryDate
         pure (post, entry)
   postsSQL <- rSelect $ do
     (post, entry) <- selectPostEntries
@@ -136,8 +138,6 @@ selectBlogTitle entry = do
 loadForTag :: (MonadKorrvigs m) => Bool -> Maybe Text -> Maybe Int -> m [(Text, Day, Text, FilePath)]
 loadForTag onlyPublished mtag mlimit = do
   time <- liftIO getCurrentTime
-  let day = utctDay time
-  let dayStr = formatTime defaultTimeLocale "%F" day
   tags <- rSelect $ applyLimit $ orderBy (desc (view _2) <> asc (view _1)) $ do
     entry <- selectTable entriesTable
     note <- selectTable notesTable
@@ -146,10 +146,10 @@ loadForTag onlyPublished mtag mlimit = do
     title <- selectBlogTitle entry
     pub <-
       if onlyPublished
-        then baseSelectTextMtdt PublishedDate $ entry ^. sqlEntryId
+        then fromNullableSelect $ pure $ entry ^. sqlEntryDate
         else do
-          mpub <- selectTextMtdt PublishedDate $ entry ^. sqlEntryId
-          pure $ fromNullable (sqlString dayStr) mpub
+          let mpub = entry ^. sqlEntryDate
+          pure $ fromNullable (sqlUTCTime time) mpub
     case mtag of
       Nothing -> pure ()
       Just tag -> limit 1 $ do
@@ -157,10 +157,10 @@ loadForTag onlyPublished mtag mlimit = do
         sqlTag <- sqlJsonElementsText $ toNullable tags
         where_ $ sqlStrictText tag .== sqlTag
     pure (post, pub, title, note ^. sqlNotePath)
-  pure $ prepTag day <$> tags
+  pure $ prepTag <$> tags
   where
-    prepTag :: Day -> (Text, Text, Text, FilePath) -> (Text, Day, Text, FilePath)
-    prepTag day = _2 %~ (fromMaybe day . parsePub)
+    prepTag :: (Text, UTCTime, Text, FilePath) -> (Text, Day, Text, FilePath)
+    prepTag = _2 %~ utctDay
     applyLimit :: Select a -> Select a
     applyLimit = case mlimit of
       Nothing -> id

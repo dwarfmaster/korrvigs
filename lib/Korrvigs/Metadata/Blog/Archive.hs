@@ -28,7 +28,8 @@ generateArchivePage mtdt onlyPublished menuContent renderUrl tag tags = do
             mconcat $ renderYear <$> byYear,
             extra
           ]
-  renderPageContent $ BlogPageContent content mtdt title renderUrl menuContent
+  let url = maybe BlogArchive BlogArchiveTag tag
+  renderPageContent $ BlogPageContent content mtdt title renderUrl menuContent url
   where
     title = maybe "Archive" ("Archive for " <>) tag
     getYear :: Day -> Year

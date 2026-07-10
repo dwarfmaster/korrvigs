@@ -103,7 +103,7 @@ writeBlogFile url content = do
   dir <- view bgDir
   path <- lift $ T.unpack <$> renderUrl False dir url
   liftIO $ createDirectoryIfMissing True $ takeDirectory path
-  writeContent path content
+  writeContent path url content
 
 renderUrl :: Bool -> FilePath -> BlogUrl -> KorrM Text
 renderUrl isLink dir url = do
@@ -128,28 +128,28 @@ writeHtml :: (MonadIO m) => FilePath -> Html -> m ()
 writeHtml path html =
   liftIO $ LBS.writeFile path $ Bld.toLazyByteString $ renderHtmlBuilder html
 
-writeContent :: FilePath -> BlogContent -> BgWriter ()
-writeContent path (BlogFromNote i) = do
+writeContent :: FilePath -> BlogUrl -> BlogContent -> BgWriter ()
+writeContent path url (BlogFromNote i) = do
   bgStr <- view bgStructure
   mtdt <- view $ bgStructure . blogMtdt
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
-  html <- lift $ renderPost (bgStr ^. blogMenu) (renderUrl True dir) (topEntries bgStr) mtdt i
+  html <- lift $ renderPost url (bgStr ^. blogMenu) (renderUrl True dir) (topEntries bgStr) mtdt i
   writeHtml path html
-writeContent path (BlogFromFile i) = do
+writeContent path _ (BlogFromFile i) = do
   entry <- lift $ load i >>= throwMaybe (KCantLoad i "Load file for blog export")
   entryPth <- lift $ entryPath entry
   liftIO $ copyFile entryPth path
-writeContent path (BlogFromCode i cd) = do
+writeContent path _ (BlogFromCode i cd) = do
   entry <- lift $ load i >>= throwMaybe (KCantLoad i "Load code for blog export")
   note <- lift $ throwMaybe (KMiscError $ "During blog export, expected " <> unId i <> " to be a note") $ entry ^? _Note
   doc <- lift $ readNote (note ^. notePath) >>= throwEither (\e -> KMiscError $ "During blog export, failed to parse note " <> unId i <> ": " <> e)
   (_, content) <- lift $ throwMaybe (KMiscError $ "During blog export, " <> cd <> " is not a code block of " <> unId i) $ doc ^? docContent . each . bkNamedCode cd
   liftIO $ TIO8.writeFile path content
-writeContent path (BlogFromComp i cmp) = do
+writeContent path _ (BlogFromComp i cmp) = do
   comp <- lift $ getComputation i cmp >>= throwMaybe (KMiscError $ "During blog export, couldn't find " <> unId i <> "#" <> cmp)
   r <- lift $ runLazy comp
   liftIO $ LBS.writeFile path $ encodeToLBS r
-writeContent path BlogFromArchive = do
+writeContent path _ BlogFromArchive = do
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
   bgStr <- view bgStructure
@@ -157,20 +157,20 @@ writeContent path BlogFromArchive = do
   mtdt <- view $ bgStructure . blogMtdt
   html <- lift $ generateArchivePage mtdt onlyPublished (bgStr ^. blogMenu) (renderUrl True dir) Nothing tags
   writeHtml path html
-writeContent path (BlogFromArchiveTag tag) = do
+writeContent path _ (BlogFromArchiveTag tag) = do
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
   bgStr <- view bgStructure
   mtdt <- view $ bgStructure . blogMtdt
   html <- lift $ generateArchivePage mtdt onlyPublished (bgStr ^. blogMenu) (renderUrl True dir) (Just tag) []
   writeHtml path html
-writeContent path BlogFromAtom = do
+writeContent path _ BlogFromAtom = do
   bgStr <- view bgStructure
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
   atom <- lift $ renderAtom onlyPublished (renderUrl True dir) (topEntries bgStr) Nothing "Blog feed"
   liftIO $ LBS.writeFile path atom
-writeContent path (BlogFromAtomTag tag) = do
+writeContent path _ (BlogFromAtomTag tag) = do
   bgStr <- view bgStructure
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished

@@ -66,14 +66,14 @@ topEntries tgt = do
 getBlogR :: Handler TypedContent
 getBlogR = getBlogTopR "default.html"
 
-getBlogContent :: BlogContent -> Handler TypedContent
-getBlogContent (BlogFromFile i) = getEntryDownloadR $ WId i
-getBlogContent (BlogFromNote i) = do
+getBlogContent :: BlogUrl -> BlogContent -> Handler TypedContent
+getBlogContent _ (BlogFromFile i) = getEntryDownloadR $ WId i
+getBlogContent url (BlogFromNote i) = do
   cfg <- blogConfig
   mtdt <- loadMtdt cfg
   menu <- loadMenu cfg
-  toTypedContent <$> renderPost menu renderUrl topEntries mtdt i
-getBlogContent (BlogFromCode i cd) = do
+  toTypedContent <$> renderPost url menu renderUrl topEntries mtdt i
+getBlogContent _ (BlogFromCode i cd) = do
   entry <- load i >>= maybe notFound pure
   note <- maybe notFound pure $ entry ^? _Note
   doc <- readNote (note ^. notePath) >>= either (const notFound) pure
@@ -84,24 +84,24 @@ getBlogContent (BlogFromCode i cd) = do
         _ | "html" `elem` classes -> typeHtml
         _ -> typePlain
   pure $ toTypedContent (mime, ContentBuilder (fromByteString $ Enc.encodeUtf8 content) (Just $ T.length content))
-getBlogContent (BlogFromComp i cmp) = getEntryComputeNamedR (WId i) cmp cmp
-getBlogContent BlogFromArchive = do
+getBlogContent _ (BlogFromComp i cmp) = getEntryComputeNamedR (WId i) cmp cmp
+getBlogContent _ BlogFromArchive = do
   tags <- loadTags
   cfg <- blogConfig
   mtdt <- loadMtdt cfg
   menu <- loadMenu cfg
   page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) menu renderUrl Nothing tags
   pure $ toTypedContent page
-getBlogContent (BlogFromArchiveTag tag) = do
+getBlogContent _ (BlogFromArchiveTag tag) = do
   cfg <- blogConfig
   mtdt <- loadMtdt cfg
   menu <- loadMenu cfg
   page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) menu renderUrl (Just tag) []
   pure $ toTypedContent page
-getBlogContent BlogFromAtom = do
+getBlogContent _ BlogFromAtom = do
   cfg <- blogConfig
   atomContent <$> renderAtom (cfg ^. blogCfgOnlyPublished) renderUrl topEntries Nothing "Blog feed"
-getBlogContent (BlogFromAtomTag tag) = do
+getBlogContent _ (BlogFromAtomTag tag) = do
   cfg <- blogConfig
   atomContent <$> renderAtom (cfg ^. blogCfgOnlyPublished) renderUrl topEntries (Just tag) ("Blog feed for " <> tag)
 
@@ -115,7 +115,7 @@ getBlogTopR file = do
   str <- loadStructure cfg
   case M.lookup (BlogTopLevel file) (str ^. blogFiles) of
     Nothing -> notFound
-    Just content -> getBlogContent content
+    Just content -> getBlogContent (BlogTopLevel file) content
 
 getBlogFileR :: Text -> Handler TypedContent
 getBlogFileR filename = do
@@ -126,7 +126,7 @@ getBlogFileR filename = do
     pure $ entry ^. sqlEntryName
   case file of
     Nothing -> notFound
-    Just fileId -> getBlogContent $ BlogFromFile fileId
+    Just fileId -> getBlogContent (BlogFilePlain filename) $ BlogFromFile fileId
 
 lookupPost :: Text -> Handler Id
 lookupPost postname = do
@@ -143,7 +143,7 @@ lookupPost postname = do
 getBlogPostR :: Text -> Handler TypedContent
 getBlogPostR postname = do
   postId <- lookupPost postname
-  getBlogContent $ BlogFromNote postId
+  getBlogContent (BlogPostNote postname) $ BlogFromNote postId
 
 getBlogPostCompR :: Text -> Text -> Handler TypedContent
 getBlogPostCompR postname cmpWithExt = do
@@ -152,13 +152,13 @@ getBlogPostCompR postname cmpWithExt = do
   getEntryComputeNamedR (WId postId) cmp cmpWithExt
 
 getBlogArchiveAllR :: Handler TypedContent
-getBlogArchiveAllR = getBlogContent BlogFromArchive
+getBlogArchiveAllR = getBlogContent BlogArchive BlogFromArchive
 
 getBlogArchiveTagR :: Text -> Handler TypedContent
-getBlogArchiveTagR = getBlogContent . BlogFromArchiveTag
+getBlogArchiveTagR tag = getBlogContent (BlogArchiveTag tag) $ BlogFromArchiveTag tag
 
 getBlogAtomAllR :: Handler TypedContent
-getBlogAtomAllR = getBlogContent BlogFromAtom
+getBlogAtomAllR = getBlogContent BlogAtom BlogFromAtom
 
 getBlogAtomTagR :: Text -> Handler TypedContent
-getBlogAtomTagR = getBlogContent . BlogFromAtomTag
+getBlogAtomTagR tag = getBlogContent (BlogAtomTag tag) $ BlogFromAtomTag tag

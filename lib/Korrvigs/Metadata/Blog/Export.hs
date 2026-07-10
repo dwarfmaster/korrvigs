@@ -53,7 +53,8 @@ data BlogPageContent m = BlogPageContent
     _blogPageMetadata :: Map Text Text,
     _blogPageTitle :: Text,
     _blogPageRenderUrl :: BlogUrl -> m Text,
-    _blogPageMenu :: BlogMenuContent
+    _blogPageMenu :: BlogMenuContent,
+    _blogPageUrl :: BlogUrl
   }
 
 type RenderMonad m = RWST (RenderContext m) () RenderState m
@@ -65,8 +66,8 @@ makeLenses ''BlogPageContent
 shiftOffset :: Int -> RenderMonad m a -> RenderMonad m a
 shiftOffset noffset = withRWST $ \r st -> (r & rdrHdOffset .~ noffset, st)
 
-renderPost :: (MonadKorrvigs m) => BlogMenuContent -> (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Map Text Text -> Id -> m Html
-renderPost menuContent renderUrl topEntries mtdt noteId = do
+renderPost :: (MonadKorrvigs m) => BlogUrl -> BlogMenuContent -> (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Map Text Text -> Id -> m Html
+renderPost url menuContent renderUrl topEntries mtdt noteId = do
   entry <- load noteId >>= throwMaybe (KCantLoad noteId "Failed to load entry for blog")
   note <- throwMaybe (KMiscError "Blog post is not a note") $ entry ^? _Note
   doc <- readNote (note ^. notePath) >>= throwEither (\e -> KMiscError $ "Failed to load note for blog post: " <> e)
@@ -74,12 +75,12 @@ renderPost menuContent renderUrl topEntries mtdt noteId = do
         fromMaybe (doc ^. docTitle) $
           M.lookup (mtdtName BlogTitle) (doc ^. docMtdt) >>= fromJSONM
   contentHtml <- renderDocument renderUrl topEntries t doc
-  renderPageContent $ BlogPageContent contentHtml mtdt t renderUrl menuContent
+  renderPageContent $ BlogPageContent contentHtml mtdt t renderUrl menuContent url
 
 renderPageContent :: (MonadKorrvigs m) => BlogPageContent m -> m Html
 renderPageContent pc = do
   stl <- pc ^. blogPageRenderUrl $ BlogTopLevel "style.css"
-  sideMenu <- renderSideBar (pc ^. blogPageMenu) $ pc ^. blogPageRenderUrl
+  sideMenu <- renderSideBar (pc ^. blogPageUrl) (pc ^. blogPageMenu) $ pc ^. blogPageRenderUrl
   feed <- pc ^. blogPageRenderUrl $ BlogAtom
   let content = div (pc ^. blogPageContent) ! A.class_ "content-div"
   let leftDiv = div mempty ! A.class_ "left-div"
@@ -105,18 +106,22 @@ renderRssIcon renderUrl tag = do
   url <- renderUrl $ maybe BlogAtom BlogAtomTag tag
   pure $ a (img ! A.src "https://upload.wikimedia.org/wikipedia/commons/4/46/Generic_Feed-icon.svg" ! A.class_ "icon") ! A.href (toValue url)
 
-renderSideBar :: (MonadKorrvigs m) => BlogMenuContent -> (BlogUrl -> m Text) -> m Html
-renderSideBar menuContent renderUrl = do
+renderSideBar :: (MonadKorrvigs m) => BlogUrl -> BlogMenuContent -> (BlogUrl -> m Text) -> m Html
+renderSideBar current menuContent renderUrl = do
   let titleH = h1 $ toMarkup $ menuContent ^. blogMenuTitle
-  home <- renderUrl $ BlogTopLevel "default.html"
-  let homeH = p $ a "Home" ! A.href (toValue home)
   contentH <- forM (menuContent ^. blogMenuItems) $ \(itemName, itemLink) -> do
     url <- renderUrl $ BlogTopLevel itemLink
-    pure $ p $ a (toMarkup itemName) ! A.href (toValue url)
+    let setCurrent = mkCurrent (== BlogTopLevel itemLink)
+    pure $ setCurrent $ p $ a (toMarkup itemName) ! A.href (toValue url)
   archive <- renderUrl BlogArchive
   icon <- renderRssIcon renderUrl Nothing
-  let archiveH = p $ a "Archive" ! A.href (toValue archive) <> " " <> icon
-  pure $ div (titleH <> homeH <> mconcat contentH <> archiveH) ! A.class_ "menu-div"
+  let archiveH = p $ mkCurrent matchArchive $ a "Archive" ! A.href (toValue archive) <> " " <> icon
+  pure $ div (titleH <> mconcat contentH <> archiveH) ! A.class_ "menu-div"
+  where
+    mkCurrent matchUrl = if matchUrl current then (! A.class_ "current-page") else id
+    matchArchive BlogArchive = True
+    matchArchive (BlogArchiveTag _) = True
+    matchArchive _ = False
 
 renderMeta :: Map Text Text -> Html
 renderMeta mtdt = mconcat $ render <$> M.toList mtdt

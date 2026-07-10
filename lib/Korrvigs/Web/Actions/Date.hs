@@ -22,7 +22,7 @@ dateForm :: AForm Handler (LocalTime, Maybe Text)
 dateForm =
   (,)
     <$> areq datetimeLocalField "Start" Nothing
-    <*> aopt textField "End" Nothing
+    <*> aopt textField "Duration" Nothing
 
 dateTitle :: ActionTarget -> Text
 dateTitle = const "Set date"

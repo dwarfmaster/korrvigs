@@ -74,7 +74,10 @@ bedetheque _ _ = pure mempty
 webtoons :: (MonadKorrvigs m) => Text -> [Tag Text] -> m (Endo NewEntry)
 webtoons url tags
   | "https://www.webtoons.com/" `T.isPrefixOf` url =
-      pure $ foldMap matchFeed tags <> Endo (setMtdtValue MediaMtdt Webcomic)
+      pure $
+        foldMap matchFeed tags
+          <> Endo (setMtdtValue MediaMtdt Webcomic)
+          <> Endo (neTitle %~ fmap dropSuffix)
   where
     matchFeed :: Tag Text -> Endo NewEntry
     matchFeed tag@(TagOpen "a" attrs)
@@ -83,4 +86,6 @@ webtoons url tags
             Nothing -> mempty
             Just feed -> Endo $ setMtdtValue Feed feed
     matchFeed _ = mempty
+    dropSuffix :: Text -> Text
+    dropSuffix title = fromMaybe title $ T.stripSuffix "| WEBTOON" $ T.strip title
 webtoons _ _ = pure mempty

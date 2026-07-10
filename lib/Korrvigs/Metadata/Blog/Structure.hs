@@ -1,5 +1,6 @@
 module Korrvigs.Metadata.Blog.Structure where
 
+import Control.Applicative ((<|>))
 import Control.Arrow
 import Control.Lens
 import Control.Monad
@@ -51,14 +52,22 @@ data BlogContent
   | BlogFromAtomTag Text
   deriving (Eq, Ord, Show)
 
+data BlogMenuContent = BlogMenuContent
+  { _blogMenuTitle :: Text,
+    _blogMenuItems :: [(Text, Text)]
+  }
+  deriving (Eq, Show)
+
 data BlogStructure = BlogStructure
   { _blogMtdt :: Map Text Text,
     _blogFiles :: Map BlogUrl BlogContent,
-    _blogTags :: [Text]
+    _blogTags :: [Text],
+    _blogMenu :: BlogMenuContent
   }
   deriving (Eq, Show)
 
 makeLenses ''BlogConfig
+makeLenses ''BlogMenuContent
 makeLenses ''BlogStructure
 
 loadMtdt :: (MonadKorrvigs m) => BlogConfig -> m (Map Text Text)
@@ -173,10 +182,24 @@ loadArchivesAndAtoms tags = do
   let atoms = M.fromList $ (BlogAtomTag &&& BlogFromAtomTag) <$> tags
   pure $ toplevel <> archives <> atoms
 
+loadMenu :: (MonadKorrvigs m) => BlogConfig -> m BlogMenuContent
+loadMenu cfg = do
+  let i = cfg ^. blogCfgNote
+  blogentry <- load i >>= throwMaybe (KCantLoad i "Failed to load note for blog")
+  blogtitle <- rSelectMtdt BlogTitle $ sqlId i
+  let title = fromMaybe "Blog" $ blogtitle <|> (blogentry ^. entryTitle)
+  content <- rSelectMtdt BlogMenu $ sqlId i
+  pure $
+    BlogMenuContent
+      { _blogMenuTitle = title,
+        _blogMenuItems = fromMaybe [] content
+      }
+
 loadStructure :: (MonadKorrvigs m) => BlogConfig -> m BlogStructure
 loadStructure cfg = do
   mtdt <- loadMtdt cfg
   files <- loadFiles cfg
   tags <- loadTags
   tagFiles <- loadArchivesAndAtoms tags
-  pure $ BlogStructure mtdt (files <> tagFiles) tags
+  menuContent <- loadMenu cfg
+  pure $ BlogStructure mtdt (files <> tagFiles) tags menuContent

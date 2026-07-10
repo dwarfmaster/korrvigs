@@ -15,8 +15,8 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Yesod
 
-generateArchivePage :: (MonadKorrvigs m) => Map Text Text -> Bool -> (BlogUrl -> m Text) -> (Maybe Text) -> [Text] -> m Html
-generateArchivePage mtdt onlyPublished renderUrl tag tags = do
+generateArchivePage :: (MonadKorrvigs m) => Map Text Text -> Bool -> BlogMenuContent -> (BlogUrl -> m Text) -> (Maybe Text) -> [Text] -> m Html
+generateArchivePage mtdt onlyPublished menuContent renderUrl tag tags = do
   entries <- loadForTag onlyPublished tag Nothing
   extra <- alltags <$> mapM prepTag tags
   preppedEntries <- mapM (\(u, d, t, _) -> (,d,t) <$> renderUrl (BlogPostNote u)) entries
@@ -28,7 +28,7 @@ generateArchivePage mtdt onlyPublished renderUrl tag tags = do
             mconcat $ renderYear <$> byYear,
             extra
           ]
-  renderPageContent $ BlogPageContent content mtdt title renderUrl
+  renderPageContent $ BlogPageContent content mtdt title renderUrl menuContent
   where
     title = maybe "Archive" ("Archive for " <>) tag
     getYear :: Day -> Year

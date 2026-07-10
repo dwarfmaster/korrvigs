@@ -133,7 +133,7 @@ writeContent path (BlogFromNote i) = do
   bgStr <- view bgStructure
   mtdt <- view $ bgStructure . blogMtdt
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
-  html <- lift $ renderPost (renderUrl True dir) (topEntries bgStr) mtdt i
+  html <- lift $ renderPost (bgStr ^. blogMenu) (renderUrl True dir) (topEntries bgStr) mtdt i
   writeHtml path html
 writeContent path (BlogFromFile i) = do
   entry <- lift $ load i >>= throwMaybe (KCantLoad i "Load file for blog export")
@@ -152,15 +152,17 @@ writeContent path (BlogFromComp i cmp) = do
 writeContent path BlogFromArchive = do
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
+  bgStr <- view bgStructure
   tags <- view $ bgStructure . blogTags
   mtdt <- view $ bgStructure . blogMtdt
-  html <- lift $ generateArchivePage mtdt onlyPublished (renderUrl True dir) Nothing tags
+  html <- lift $ generateArchivePage mtdt onlyPublished (bgStr ^. blogMenu) (renderUrl True dir) Nothing tags
   writeHtml path html
 writeContent path (BlogFromArchiveTag tag) = do
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
   onlyPublished <- view $ bgConfig . blogCfgOnlyPublished
+  bgStr <- view bgStructure
   mtdt <- view $ bgStructure . blogMtdt
-  html <- lift $ generateArchivePage mtdt onlyPublished (renderUrl True dir) (Just tag) []
+  html <- lift $ generateArchivePage mtdt onlyPublished (bgStr ^. blogMenu) (renderUrl True dir) (Just tag) []
   writeHtml path html
 writeContent path BlogFromAtom = do
   bgStr <- view bgStructure

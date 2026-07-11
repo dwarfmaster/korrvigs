@@ -1,11 +1,13 @@
 module Korrvigs.Cli.Blog where
 
+import Conduit
 import Control.Lens hiding (argument)
 import Control.Monad
-import Control.Monad.Trans
 import Control.Monad.Trans.Reader
 import qualified Data.Binary.Builder as Bld
 import qualified Data.ByteString.Lazy as LBS
+import Data.Conduit.Process
+import Data.Conduit.Text
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe
@@ -23,6 +25,7 @@ import Korrvigs.Note
 import Korrvigs.Note.AST
 import Options.Applicative
 import System.Directory
+import System.Exit
 import System.FilePath
 import Text.Blaze.Html.Renderer.Utf8 (renderHtmlBuilder)
 import Text.Blaze.Html5 (Html)
@@ -143,8 +146,14 @@ writeContent path _ (BlogFromCode i cd) = do
   entry <- lift $ load i >>= throwMaybe (KCantLoad i "Load code for blog export")
   note <- lift $ throwMaybe (KMiscError $ "During blog export, expected " <> unId i <> " to be a note") $ entry ^? _Note
   doc <- lift $ readNote (note ^. notePath) >>= throwEither (\e -> KMiscError $ "During blog export, failed to parse note " <> unId i <> ": " <> e)
-  (_, content) <- lift $ throwMaybe (KMiscError $ "During blog export, " <> cd <> " is not a code block of " <> unId i) $ doc ^? docContent . each . bkNamedCode cd
-  liftIO $ TIO8.writeFile path content
+  (attr, content) <- lift $ throwMaybe (KMiscError $ "During blog export, " <> cd <> " is not a code block of " <> unId i) $ doc ^? docContent . each . bkNamedCode cd
+  liftIO $
+    if "css" `elem` (attr ^. attrClasses)
+      then yuiCompress "css" path content
+      else
+        if "js" `elem` (attr ^. attrClasses)
+          then yuiCompress "js" path content
+          else TIO8.writeFile path content
 writeContent path _ (BlogFromComp i cmp) = do
   comp <- lift $ getComputation i cmp >>= throwMaybe (KMiscError $ "During blog export, couldn't find " <> unId i <> "#" <> cmp)
   r <- lift $ runLazy comp
@@ -184,3 +193,15 @@ entryPath entry = case entry ^. entryKindData of
   EventD ev -> pure $ ev ^. eventFile
   CalendarD cal -> calendarPath cal
   SyndicateD syn -> pure $ syn ^. synPath
+
+yuiCompress :: Text -> FilePath -> Text -> IO ()
+yuiCompress tp tgt content = do
+  let yui = proc "yuicompressor" ["--type", T.unpack tp]
+  (exit, (), ()) <-
+    runResourceT $
+      sourceProcessWithStreams
+        yui
+        (yield content .| encode utf8)
+        (sinkFile tgt)
+        (sinkFile "/dev/null")
+  when (exit /= ExitSuccess) $ throwM $ KMiscError $ "Failed to compress " <> T.pack tgt

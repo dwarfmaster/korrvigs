@@ -85,6 +85,7 @@
           packages =
             [
               pkgs.haskellPackages.weeder
+              pkgs.yuicompressor
             ]
             ++ deps;
 

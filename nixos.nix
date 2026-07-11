@@ -67,6 +67,7 @@ overlay: {
     pkgs.chromium
     pkgs.perl5Packages.FileMimeInfo
     pkgs.shared-mime-info
+    pkgs.yuicompressor
   ];
 
   languages = [

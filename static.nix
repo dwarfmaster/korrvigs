@@ -1,6 +1,6 @@
 {
   runCommand,
-  nodePackages_latest,
+  mathjax,
   fetchzip,
   fetchurl,
   fetchFromGitHub,
@@ -102,7 +102,7 @@ in
     ln -s ${./ressources/js/syn-menu.js} $out/korrvigs/syn-menu.js
     chmod -w $out/korrvigs
 
-    cp -r ${nodePackages_latest.mathjax}/lib/node_modules/mathjax $out/mathjax
+    cp -r ${mathjax}/lib/node_modules/mathjax $out/mathjax
     cp -r ${leaflet} $out/leaflet
     cp -r ${foliate-js} $out/foliate
     chmod +w $out/foliate

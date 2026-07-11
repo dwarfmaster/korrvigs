@@ -481,7 +481,7 @@ compileBlock' (Syndicate nm onlyNew lim ids) = do
   buttonId <- newIdent
   pure $ do
     Rcs.synCode StaticR
-    toWidget [julius|setupSynMenu(#{buttonId}, "@{NoteSubR (WId entry) (WLoc loc)}", #{redirUrl});|]
+    toWidget [julius|setupSynMenu(#{buttonId}, "@{NoteSubR (WId entry) (WLoc loc)}", #{redirUrl}, "@{NoteSyndicateSingleR (WId entry) nm}");|]
     [whamlet|
     <details .collection ##{webId} open="true">
       <summary>

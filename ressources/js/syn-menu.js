@@ -3,7 +3,7 @@ function cleanSynMenu(ev, menu, cleaner) {
   cleaner();
 }
 
-function setupSynMenu(buttonId, synUrl, redirUrl) {
+function setupSynMenu(buttonId, synUrl, redirUrl, openUrl) {
   const elem = document.getElementById(buttonId);
   elem.addEventListener("click", (ev) => {
     ev.preventDefault();
@@ -26,6 +26,13 @@ function setupSynMenu(buttonId, synUrl, redirUrl) {
       setupSynContentMenu(elem, lines);
     });
     menu.appendChild(view);
+
+    let open = document.createElement("p");
+    let openLink = document.createElement("a");
+    openLink.href = openUrl;
+    openLink.innerText = "Open";
+    open.appendChild(openLink);
+    menu.appendChild(open);
 
     const popperInstance = Popper.createPopper(elem, menu, {
       modifiers: [

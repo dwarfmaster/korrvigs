@@ -41,6 +41,8 @@ getSyndicateImpl i mtag = do
       setTitle $ "Syndicates for " <> toMarkup (unId i)
       [whamlet|
         <p>
+          <a href=@{EntryR (WId i)}>
+            Parent entry
           $if onlyUnread
             <a href=@{selfRoute}>
               With read

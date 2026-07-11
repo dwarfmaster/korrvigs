@@ -8,6 +8,7 @@ import Control.Monad.Trans.Maybe
 import Data.Aeson.Lens
 import qualified Data.CaseInsensitive as CI
 import qualified Data.Default as D
+import Data.Foldable
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -17,6 +18,7 @@ import qualified Data.Text as T
 import Data.Time
 import Korrvigs.Entry
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Blog.Citations (prepareCitations)
 import Korrvigs.Metadata.Blog.Mtdt
 import Korrvigs.Metadata.Blog.Structure
 import Korrvigs.Metadata.Media
@@ -37,7 +39,8 @@ data RenderContext m = RenderContext
     _rdrRenderUrl :: BlogUrl -> m Text,
     _rdrHdOffset :: Int,
     _rdrCurLevel :: Int,
-    _rdrTopEntries :: Id -> m (Maybe BlogUrl)
+    _rdrTopEntries :: Id -> m (Maybe BlogUrl),
+    _rdrCitations :: Map Id Html
   }
 
 data RenderState = RenderState
@@ -66,16 +69,17 @@ makeLenses ''BlogPageContent
 shiftOffset :: Int -> RenderMonad m a -> RenderMonad m a
 shiftOffset noffset = withRWST $ \r st -> (r & rdrHdOffset .~ noffset, st)
 
-renderPost :: (MonadKorrvigs m) => BlogUrl -> BlogMenuContent -> (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Map Text Text -> Id -> m Html
-renderPost url menuContent renderUrl topEntries mtdt noteId = do
+renderPost :: (MonadKorrvigs m) => BlogUrl -> BlogMenuContent -> Maybe (Id, Text) -> (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Map Text Text -> Id -> m Html
+renderPost url menuContent csl renderUrl topEntries mtdt noteId = do
   entry <- load noteId >>= throwMaybe (KCantLoad noteId "Failed to load entry for blog")
   note <- throwMaybe (KMiscError "Blog post is not a note") $ entry ^? _Note
   doc <- readNote (note ^. notePath) >>= throwEither (\e -> KMiscError $ "Failed to load note for blog post: " <> e)
   let t =
         fromMaybe (doc ^. docTitle) $
           M.lookup (mtdtName BlogTitle) (doc ^. docMtdt) >>= fromJSONM
-  contentHtml <- renderDocument renderUrl topEntries t doc
-  renderPageContent $ BlogPageContent contentHtml mtdt t renderUrl menuContent url
+  (citations, bibliography) <- maybe (pure mempty) (flip renderCitations doc) csl
+  contentHtml <- renderDocument renderUrl topEntries citations t doc
+  renderPageContent $ BlogPageContent (contentHtml <> bibliography) mtdt t renderUrl menuContent url
 
 renderPageContent :: (MonadKorrvigs m) => BlogPageContent m -> m Html
 renderPageContent pc = do
@@ -89,6 +93,18 @@ renderPageContent pc = do
       html $
         renderHead (pc ^. blogPageMetadata) (pc ^. blogPageTitle) stl feed
           <> (body $ div (leftDiv <> content <> sideMenu) ! A.class_ "main-div")
+
+renderCitations :: (MonadKorrvigs m) => (Id, Text) -> Document -> m (Map Id Html, Html)
+renderCitations csl doc = do
+  citations <- prepareCitations csl doc
+  let ids = view _1 <$> citations
+  let citationsList = flip foldMap citations $ \(_, ref, content) ->
+        li $
+          span content ! A.class_ "citation-content" ! A.id (toValue $ "ref-" <> ref)
+  let citationsHtml = do
+        h2 "Citations"
+        ul citationsList ! A.class_ "citations"
+  pure (ids, if M.null ids then mempty else citationsHtml)
 
 renderHead :: Map Text Text -> Text -> Text -> Text -> Html
 renderHead mtdt t stl feed =
@@ -128,15 +144,16 @@ renderMeta mtdt = mconcat $ render <$> M.toList mtdt
   where
     render (nm, cnt) = meta ! A.name (toValue nm) ! A.content (toValue cnt)
 
-renderDocument :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Text -> Document -> m Html
-renderDocument renderUrl topEntries usedTitle doc = do
+renderDocument :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Map Id Html -> Text -> Document -> m Html
+renderDocument renderUrl topEntries citations usedTitle doc = do
   let ctx =
         RenderContext
           { _rdrDoc = doc,
             _rdrRenderUrl = renderUrl,
             _rdrHdOffset = 1,
             _rdrCurLevel = 1,
-            _rdrTopEntries = topEntries
+            _rdrTopEntries = topEntries,
+            _rdrCitations = citations
           }
   let date = renderDate doc
   let t = h1 $ toMarkup usedTitle
@@ -271,7 +288,7 @@ renderInline (Link _ inls tgt) = do
     url <- selectTextMtdt Url sqlI
     pure (blogpost, blogfile, O.not $ isNull hidden, url)
   capt <- renderInlines inls
-  case r of
+  lnk <- case r of
     Nothing -> pure capt -- Should happen only when tgt does not exists
     Just (blogpost, blogfile, isHidden, url) -> exitExceptT $ do
       renderUrl <- lift $ view rdrRenderUrl
@@ -289,6 +306,9 @@ renderInline (Link _ inls tgt) = do
         rendered <- lift $ lift $ renderUrl tgtUrl
         throwE $ a capt ! A.href (toValue rendered)
       pure capt
+  citations <- view rdrCitations
+  let citation = fromMaybe mempty $ M.lookup tgt citations
+  pure $ lnk <> citation
   where
     exitExceptT act =
       runExceptT act >>= \case

@@ -125,6 +125,7 @@ library korrvigs-lib
     Korrvigs.Metadata.Blog
     Korrvigs.Metadata.Blog.Archive
     Korrvigs.Metadata.Blog.Atom
+    Korrvigs.Metadata.Blog.Citations
     Korrvigs.Metadata.Blog.Content
     Korrvigs.Metadata.Blog.Export
     Korrvigs.Metadata.Blog.Mtdt

@@ -1,4 +1,4 @@
-module Korrvigs.Metadata.Media.Export (export) where
+module Korrvigs.Metadata.Media.Export where
 
 import Control.Lens
 import Control.Monad (join)

@@ -10,6 +10,7 @@ module Korrvigs.Metadata.Blog
     blogFiles,
     blogTags,
     blogMenu,
+    blogCSL,
     blogCfgOnlyPublished,
     loadStructure,
     renderPost,

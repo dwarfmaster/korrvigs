@@ -6,6 +6,7 @@ import Korrvigs.Metadata
 import Korrvigs.Metadata.TH
 
 mkMtdt "BlogFiles" "blog-files" [t|Map Text Text|]
+mkMtdt "BlogCSL" "blog-csl" [t|Text|]
 mkMtdt "BlogMenu" "blog-menu" [t|[(Text, Text)]|]
 mkMtdt "BlogMtdt" "blog-meta" [t|Map Text Text|]
 mkMtdt "BlogPost" "blogpost" [t|Text|]

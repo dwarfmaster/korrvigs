@@ -136,7 +136,7 @@ writeContent path url (BlogFromNote i) = do
   bgStr <- view bgStructure
   mtdt <- view $ bgStructure . blogMtdt
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack
-  html <- lift $ renderPost url (bgStr ^. blogMenu) (renderUrl True dir) (topEntries bgStr) mtdt i
+  html <- lift $ renderPost url (bgStr ^. blogMenu) (Just $ bgStr ^. blogCSL) (renderUrl True dir) (topEntries bgStr) mtdt i
   writeHtml path html
 writeContent path _ (BlogFromFile i) = do
   entry <- lift $ load i >>= throwMaybe (KCantLoad i "Load file for blog export")

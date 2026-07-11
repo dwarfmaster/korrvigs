@@ -27,6 +27,7 @@ module Korrvigs.Note
     hdTasks,
     hdCollections,
     Block (..),
+    EntryView (..),
     Inline (..),
     Collection (..),
     CollectionItem (..),

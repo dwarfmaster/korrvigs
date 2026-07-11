@@ -122,11 +122,17 @@ data Block
   | Table Table
   deriving (Show)
 
+data EntryView
+  = ViewEntry
+  | ViewSyndicate
+  | ViewSyndicateUnread
+  deriving (Show)
+
 data Inline
   = Plain Text
   | Styled Style [Inline]
   | Code Attr Text
-  | Link Attr [Inline] Id -- Named link to another entry
+  | Link Attr [Inline] Id EntryView -- Named link to another entry
   | Cite Id -- Citation to entry
   | MtdtLink (Maybe [Inline]) Text -- Named link to the content of a metadata
   | DateLink (Maybe [Inline]) Day -- Named link to a day page
@@ -216,7 +222,7 @@ bkInlines _ b = pure b
 -- Traversal over the recursive inlines. It is a singleton on the non-recursive inlines.
 inlInlines :: Traversal' Inline Inline
 inlInlines f (Styled st inls) = Styled st <$> each f inls
-inlInlines f (Link attr txt i) = Link attr <$> each f txt <*> pure i
+inlInlines f (Link attr txt i vw) = Link attr <$> each f txt <*> pure i <*> pure vw
 inlInlines f (PlainLink (Just txt) uri) =
   (PlainLink . Just <$> each f txt) <*> pure uri
 inlInlines f (Sidenote bks) = Sidenote <$> each (bkInlines $ inlInlines f) bks

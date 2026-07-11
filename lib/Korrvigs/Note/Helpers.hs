@@ -16,7 +16,7 @@ inlineToText :: Inline -> Builder
 inlineToText (Plain txt) = fromText txt
 inlineToText (Styled _ inls) = inlinesToText inls
 inlineToText (Code _ txt) = "`" <> fromText txt <> "`"
-inlineToText (Link _ inls _) = inlinesToText inls
+inlineToText (Link _ inls _ _) = inlinesToText inls
 inlineToText (Cite i) = "@" <> fromText (unId i)
 inlineToText (PlainLink inls uri) =
   maybe mempty ((<> " ") . inlinesToText) inls <> fromString (uriToString id uri "")

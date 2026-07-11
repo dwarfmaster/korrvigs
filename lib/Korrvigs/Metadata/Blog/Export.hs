@@ -277,7 +277,7 @@ renderInline (Styled Quote inls) = q <$> renderInlines inls
 renderInline (Styled SubScript inls) = sub <$> renderInlines inls
 renderInline (Styled SuperScript inls) = sup <$> renderInlines inls
 renderInline (Code _ txt) = pure $ code $ toMarkup txt
-renderInline (Link _ inls tgt) = do
+renderInline (Link _ inls tgt _) = do
   r :: Maybe (Maybe Text, Maybe Text, Bool, Maybe Text) <- lift $ rSelectOne $ do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryName .== sqlId tgt

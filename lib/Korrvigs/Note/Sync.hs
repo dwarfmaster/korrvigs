@@ -199,12 +199,12 @@ updateRefBlock _ _ bk = pure bk
 updateRefInline :: Id -> Maybe Id -> Inline -> [Inline]
 updateRefInline old new (Styled style inls) =
   pure $ Styled style $ updateRefInline old new =<< inls
-updateRefInline old new (Link attr inls i)
+updateRefInline old new (Link attr inls i vw)
   | old == i =
       let ninls = updateRefInline old new =<< inls
        in case new of
             Nothing -> ninls
-            Just nw -> [Link attr ninls nw]
+            Just nw -> [Link attr ninls nw vw]
 updateRefInline old new (PlainLink (Just inls) uri) =
   pure $ PlainLink (Just $ updateRefInline old new =<< inls) uri
 updateRefInline old new (Sidenote bks) =

@@ -296,11 +296,16 @@ renderInline (Styled style inls) = surrounded sym $ forM_ inls renderInline
       SubScript -> "~"
       SuperScript -> "^"
 renderInline (Code attr code) = surrounded "`" (writeText code) >> renderAttr attr
-renderInline (Link attr txt (MkId i)) = do
+renderInline (Link attr txt (MkId i) vw) = do
   writeText "["
   forM_ txt renderInline
-  writeText "](" >> writeText i >> writeText ")"
+  writeText "](" >> writeText i >> writeView >> writeText ")"
   renderAttr attr
+  where
+    writeView = case vw of
+      ViewEntry -> pure ()
+      ViewSyndicate -> writeText "?syn"
+      ViewSyndicateUnread -> writeText "?syn-unread"
 renderInline (Cite (MkId i)) = writeText "[@" >> writeText i >> writeText "]"
 renderInline (MtdtLink Nothing mtdt) = do
   writeText "["

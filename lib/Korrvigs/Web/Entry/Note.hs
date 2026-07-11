@@ -752,13 +752,16 @@ compileInline (Styled SuperScript inls) = do
 compileInline (Code attr txt) = do
   html <- compileAttr' attr $ Html.code $ toMarkup txt
   pure (html, mempty)
-compileInline (Link attr inls tgt) = do
+compileInline (Link attr inls tgt vw) = do
   (inlsH, inlsW) <- compileInlines' inls
-  render <- getUrlRender
-  let link = textValue $ render $ EntryR $ WId tgt
+  render <- getUrlRenderParams
+  let link = case vw of
+        ViewEntry -> render (EntryR $ WId tgt) []
+        ViewSyndicate -> render (NoteSyndicateR $ WId tgt) []
+        ViewSyndicateUnread -> render (NoteSyndicateR $ WId tgt) [("unread", "")]
   html <- compileAttr' attr $ Html.a inlsH
   lift isPublic >>= \case
-    False -> pure (applyAttr (Attr.href link) html, inlsW)
+    False -> pure (applyAttr (Attr.href $ toValue link) html, inlsW)
     True -> do
       isFile <- lift $ rSelectOne $ do
         file <- selectTable filesTable
@@ -769,7 +772,7 @@ compileInline (Link attr inls tgt) = do
         Nothing -> pure (inlsH, inlsW)
         Just () -> do
           route <- lift $ mkPublic $ EntryDownloadR $ WId tgt
-          let pubLink = textValue $ render route
+          let pubLink = textValue $ render route []
           pure (applyAttr (Attr.href pubLink) html, inlsW)
 compileInline (Cite i) = do
   render <- getUrlRender

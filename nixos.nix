@@ -19,6 +19,14 @@ overlay: {
   nginx = server.nginx;
   postgre = config.services.postgresql;
   blog = cfg.blog;
+  autocommit = cfg.autocommit;
+
+  autocommit-script = pkgs.writeScript "korrvigs-autocommit.sh" ''
+    cd "${cfg.root}"
+    git annex add files
+    git add .
+    git commit -m "$(date +"${autocommit.commitMessage}")"
+  '';
 
   configContent =
     {
@@ -155,6 +163,7 @@ in {
       description = "Path to the credential file";
       default = null;
     };
+
     autorun = {
       enable = mkEnableOption "Enable autorunning of korrvigs targets";
       timeWindow = mkOption {
@@ -166,6 +175,20 @@ in {
         type = types.str;
         description = "A systemd timer OnCalendar string describing when to run the targets";
         default = "*-*-* 2:00:00";
+      };
+    };
+
+    autocommit = {
+      enable = mkEnableOption "Enable autocommiting of data in korrvigs";
+      activationTime = mkOption {
+        type = types.str;
+        description = "A systemd timer OnCalendar string describing when to autocommit";
+        default = "*-*-* 4:00:00";
+      };
+      commitMessage = mkOption {
+        type = types.str;
+        description = "Commit message, passed as format to the date command before commiting";
+        default = "Daily commit %Y-%m-%d";
       };
     };
 
@@ -398,6 +421,30 @@ in {
         timerConfig = {
           OnCalendar = blog.autopublish;
           Unit = "korrvigs-autopublish.service";
+        };
+      };
+    })
+
+    (mkIf (cfg.enable && autocommit.enable) {
+      systemd.services.korrvigs-autocommit = {
+        description = "Autocommit korrvigs's data";
+        script = "${autocommit-script}";
+        path = [pkgs.git pkgs.git-annex];
+
+        serviceConfig = {
+          User = cfg.user;
+          Group = config.users.users.${cfg.user}.group;
+          Type = "simple";
+        };
+      };
+
+      systemd.timers.korrvigs-autocommit = {
+        enable = true;
+        wantedBy = ["multi-user.target"];
+
+        timerConfig = {
+          OnCalendar = autocommit.activationTime;
+          Unit = "korrvigs-autocommit.service";
         };
       };
     })

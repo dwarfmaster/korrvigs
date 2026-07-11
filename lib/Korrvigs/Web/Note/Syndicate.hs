@@ -1,4 +1,4 @@
-module Korrvigs.Web.Note.Syndicate (getNoteSyndicateR) where
+module Korrvigs.Web.Note.Syndicate (getNoteSyndicateR, getNoteSyndicateSingleR) where
 
 import Control.Arrow
 import Control.Lens
@@ -23,10 +23,16 @@ import Text.Blaze
 import Yesod
 
 getNoteSyndicateR :: WebId -> Handler TypedContent
-getNoteSyndicateR (WId i) = do
+getNoteSyndicateR (WId i) = getSyndicateImpl i Nothing
+
+getNoteSyndicateSingleR :: WebId -> Text -> Handler TypedContent
+getNoteSyndicateSingleR (WId i) tag = getSyndicateImpl i (Just tag)
+
+getSyndicateImpl :: Id -> Maybe Text -> Handler TypedContent
+getSyndicateImpl i mtag = do
   accept <- lookupHeader "accept"
   onlyUnread <- isJust <$> lookupGetParam "unread"
-  dat <- getData onlyUnread i
+  dat <- getData onlyUnread mtag i
   render <- getUrlRenderParams
   if maybe False ("application/json" `BS.isPrefixOf`) accept
     then pure $ toTypedContent $ toJSON dat
@@ -34,19 +40,31 @@ getNoteSyndicateR (WId i) = do
       Rcs.syndicates StaticR CssR
       setTitle $ "Syndicates for " <> toMarkup (unId i)
       [whamlet|
-        $if onlyUnread
-          <a href=@{NoteSyndicateR (WId i)}>
-            With read
-        $else
-          <a href=#{render (NoteSyndicateR (WId i)) [("unread","")]}>
-            Only unread
+        <p>
+          $if onlyUnread
+            <a href=@{selfRoute}>
+              With read
+          $else
+            <a href=#{render selfRoute [("unread","")]}>
+              Only unread
+          $if isJust mtag
+            $if onlyUnread
+              <a href=#{render (NoteSyndicateR (WId i)) [("unread", "")]}>
+                All tags
+            $else
+              <a href=@{NoteSyndicateR (WId i)}>
+                All tags
         <ul .syndicate-items>
           $forall item <- dat
-            ^{renderItem item}
+            ^{renderItem i onlyUnread item}
       |]
+  where
+    selfRoute = case mtag of
+      Nothing -> NoteSyndicateR (WId i)
+      Just tag -> NoteSyndicateSingleR (WId i) tag
 
-getData :: Bool -> Id -> Handler [(Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime)]
-getData onlyUnread i = do
+getData :: Bool -> Maybe Text -> Id -> Handler [(Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime)]
+getData onlyUnread mtag i = do
   entry <- maybe notFound pure =<< load i
   note <- maybe notFound pure $ entry ^? _Note
   let path = note ^. notePath
@@ -55,7 +73,7 @@ getData onlyUnread i = do
         fmap doGroup $
           NE.groupBy (\(_, s1) (_, s2) -> s1 == s2) $
             sortBy (\(_, s1) (_, s2) -> compare s1 s2) $
-              doc ^.. docContent . each . bkSubBlocks . _Syndicate . to prepSyn . each
+              doc ^.. docContent . each . bkSubBlocks . _Syndicate . synFilter . to prepSyn . each
   rSelect $ orderBy (descNullsFirst (view _8)) $ do
     (synId, tags) <- values $ (sqlId *** sqlArray sqlStrictText) <$> syndicates
     syn <- selectTable entriesTable
@@ -70,11 +88,16 @@ getData onlyUnread i = do
   where
     prepSyn (col, _, _, syns) = (col,) <$> syns
     doGroup ((col1, s) :| cols) = (s, col1 : (fst <$> cols))
+    synFilter = case mtag of
+      Nothing -> id
+      Just tag -> filtered ((== tag) . view _1)
 
-renderItem :: (Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime) -> Widget
-renderItem (synId, sq, synTitle, tags, title, url, isRead, date) = do
+renderItem :: Id -> Bool -> (Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime) -> Widget
+renderItem curId onlyUnread (synId, sq, synTitle, tags, title, url, isRead, date) = do
+  render <- getUrlRenderParams
   liId <- newIdent
   [whamlet|
+      $newline never
       <li ##{liId} *{readClass}>
         <p>
           $if not isRead
@@ -93,8 +116,13 @@ renderItem (synId, sq, synTitle, tags, title, url, isRead, date) = do
               #{formatTime defaultTimeLocale "%Y/%m/%d" dt}
           $forall tag <- tags
             <span .tag>
-              #{tag}
-    |]
+              $if onlyUnread
+                <a href=#{render (NoteSyndicateSingleR (WId curId) tag) [("unread","")]}>
+                  #{tag}
+              $else
+                <a href=@{NoteSyndicateSingleR (WId curId) tag}>
+                  #{tag}
+  |]
   where
     readClass :: [(Text, Text)]
     readClass = [("class", "read") | isRead]

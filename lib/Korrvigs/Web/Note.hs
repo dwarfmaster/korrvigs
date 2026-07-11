@@ -13,6 +13,7 @@ module Korrvigs.Web.Note
     getNoteColEditR,
     postNoteColEditR,
     getNoteSyndicateR,
+    getNoteSyndicateSingleR,
   )
 where
 

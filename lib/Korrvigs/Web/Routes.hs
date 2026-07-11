@@ -53,6 +53,7 @@ korrvigsRoutes =
 /note/#WebId/named/sub/#Text NoteNamedSubR GET
 /note/#WebId/named/code/#Text NoteNamedCodeR GET
 /note/#WebId/syndicates NoteSyndicateR GET
+/note/#WebId/syndicates/#Text NoteSyndicateSingleR GET
 
 -- Files views
 /file/#WebId/tiles FileRasterTileTopR GET

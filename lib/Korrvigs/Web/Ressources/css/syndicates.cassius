@@ -20,15 +20,20 @@
     border-radius: 0.5em
     font-size: 0.7em
     padding: 0.1em
+    margin-left: 0.25em
   .item-date
     background-color: var(--base02)
     font-variant-caps: small-caps
     border-radius: 0.5em
     font-size: 0.7em
     padding: 0.1em
+    margin-right: 0.2em
   .tag
     border-radius: 0.5em
     background-color: var(--base0B)
     color: var(--base00)
     font-size: 0.7em
     padding: 0.1em
+    margin-right: 0.2em
+    a
+      color: inherit

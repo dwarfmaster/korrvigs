@@ -68,6 +68,7 @@ hdIsNote (NoteR _) = True
 hdIsNote (NoteSubR _ _) = True
 hdIsNote (NoteColR _ _) = True
 hdIsNote (NoteColEditR _ _) = True
+hdIsNote (NoteSyndicateR _) = True
 hdIsNote _ = False
 
 headerContent :: [(Text, Route WebData, Route WebData -> Bool)]

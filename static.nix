@@ -100,6 +100,7 @@ in
     ln -s ${./ressources/js/item.js} $out/korrvigs/item.js
     ln -s ${./ressources/js/mtdt.js} $out/korrvigs/mtdt.js
     ln -s ${./ressources/js/syn-menu.js} $out/korrvigs/syn-menu.js
+    ln -s ${./ressources/js/syndicates.js} $out/korrvigs/syndicates.js
     chmod -w $out/korrvigs
 
     cp -r ${mathjax}/lib/node_modules/mathjax $out/mathjax

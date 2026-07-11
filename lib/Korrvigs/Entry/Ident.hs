@@ -18,6 +18,7 @@ where
 import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad.Extra (findM)
+import Data.Aeson
 import Data.Char
 import Data.List (find, unfoldr)
 import Data.Maybe (fromJust, isNothing)
@@ -47,6 +48,12 @@ commonStopwords =
 
 newtype Id = MkId {unId :: Text}
   deriving (Eq, Ord, Show, Read)
+
+instance ToJSON Id where
+  toJSON (MkId i) = toJSON i
+
+instance FromJSON Id where
+  parseJSON v = MkId <$> parseJSON v
 
 instance Default ToFields Id (Field SqlText) where
   def = dimap unId id def

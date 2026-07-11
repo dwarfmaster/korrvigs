@@ -42,6 +42,6 @@ mkDerivation {
   testHaskellDepends = [ base HUnit ];
   doHaddock = false;
   description = "A wiki system for my personal use";
-  license = lib.licensesSpdx."MIT";
+  license = lib.meta.getLicenseFromSpdxId "MIT";
   mainProgram = "korrvigs-cli";
 }

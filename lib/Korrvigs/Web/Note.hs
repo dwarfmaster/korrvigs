@@ -12,6 +12,7 @@ module Korrvigs.Web.Note
     getNoteNamedCodeR,
     getNoteColEditR,
     postNoteColEditR,
+    getNoteSyndicateR,
   )
 where
 
@@ -52,6 +53,7 @@ import Korrvigs.Web.Entry.Note (embedContent, resultWidget)
 import qualified Korrvigs.Web.JS.Fuse as Fuse
 import qualified Korrvigs.Web.JS.PhotoSwipe as PhotoSwipe
 import Korrvigs.Web.Note.Col
+import Korrvigs.Web.Note.Syndicate
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search

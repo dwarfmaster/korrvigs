@@ -17,6 +17,7 @@ data CssFile
   | CssForms
   | CssEntry
   | CssSidenote
+  | CssSyndicates
   deriving (Eq, Show, Read, Bounded, Enum)
 
 cssName :: CssFile -> Text
@@ -26,6 +27,7 @@ cssName CssHeader = "header.css"
 cssName CssForms = "forms.css"
 cssName CssEntry = "entry.css"
 cssName CssSidenote = "sidenote.css"
+cssName CssSyndicates = "syndicates.css"
 
 instance PathPiece CssFile where
   toPathPiece = cssName
@@ -40,6 +42,7 @@ resolveCSS _ _ CssHeader = $(cassiusFile $ css "header.cassius")
 resolveCSS _ _ CssForms = $(cassiusFile $ css "forms.cassius")
 resolveCSS _ _ CssEntry = $(cassiusFile $ css "entry.cassius")
 resolveCSS _ _ CssSidenote = $(cassiusFile $ css "sidenote.cassius")
+resolveCSS _ _ CssSyndicates = $(cassiusFile $ css "syndicates.cassius")
 
 korrvigsJS :: (Route Static -> Route site) -> Text -> WidgetFor site ()
 korrvigsJS mkStatic jsFile =
@@ -179,3 +182,8 @@ threePipeJS mkStatic = do
   addScriptAttrs
     (mkStatic $ StaticRoute ["threepipe", "main.js"] [])
     [("type", "module")]
+
+syndicates :: (Route Static -> Route site) -> (CssFile -> Route site) -> WidgetFor site ()
+syndicates mkStatic mkCss = do
+  addStylesheet $ mkCss CssSyndicates
+  korrvigsJS mkStatic "syndicates.js"

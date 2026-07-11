@@ -1,0 +1,34 @@
+.syndicate-items
+  list-style-type: none
+  a
+    color: var(--base05)
+    font-weight: normal
+  p
+    margin: 0
+  li.read
+    background-color: var(--base00)
+  li
+    background-color: var(--base01)
+    white-space: nowrap
+    overflow-x: scroll
+  .item-read
+    margin-right: 0.25em
+    cursor: pointer
+  .item-syn
+    color: var(--base06)
+    font-variant-caps: small-caps
+    border-radius: 0.5em
+    font-size: 0.7em
+    padding: 0.1em
+  .item-date
+    background-color: var(--base02)
+    font-variant-caps: small-caps
+    border-radius: 0.5em
+    font-size: 0.7em
+    padding: 0.1em
+  .tag
+    border-radius: 0.5em
+    background-color: var(--base0B)
+    color: var(--base00)
+    font-size: 0.7em
+    padding: 0.1em

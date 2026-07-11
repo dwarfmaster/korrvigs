@@ -3,11 +3,9 @@
 module Korrvigs.Metadata.Blog.Citations where
 
 import Citeproc
-import Control.Arrow
 import Control.Lens
 import Control.Monad
-import Control.Monad.IO.Class
-import Data.Foldable
+import Data.ISBN (renderISBN)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -19,6 +17,7 @@ import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import qualified Korrvigs.Metadata.Media.Export as E
+import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
 import Korrvigs.Note hiding (Style)
 import Korrvigs.Note.AST hiding (Style)
@@ -98,14 +97,39 @@ buildReference i bib =
       referenceVariables =
         M.fromList $
           catMaybes
-            [ m (bib ^. E.bibTitle) "title" TextVal
-            -- TODO
+            [ m (bib ^. E.bibTitle) "title" TextVal,
+              Just ("authors", NamesVal $ mkName <$> bib ^. E.bibAuthors),
+              m (bib ^. E.bibAbstract) "abstract" TextVal,
+              m (bib ^. E.bibDOI) "doi" TextVal,
+              m (bib ^. E.bibISBN) "ISBN" (TextVal . renderISBN),
+              m (bib ^. E.bibMonth) "month" NumVal,
+              m (bib ^. E.bibYear) "year" (NumVal . fromInteger),
+              m (bib ^. E.bibJournal) "journal" TextVal,
+              m (bib ^. E.bibPublisher) "publisher" TextVal,
+              m (bib ^? E.bibContainer . _Just . conTitle) "container" TextVal,
+              m (bib ^? E.bibContainer . _Just . conCollection . _Just) "booktitle" TextVal,
+              m (bib ^? E.bibContainer . _Just . conChapter . _Just) "chapter" TextVal,
+              m (bib ^? E.bibContainer . _Just . conPages . _Just) "pages" (\(p1, p2) -> TextVal $ T.pack (show p1) <> "--" <> T.pack (show p2)),
+              m (bib ^? E.bibContainer . _Just . conVolume . _Just) "volume" NumVal,
+              m (bib ^. E.bibCollection) "booktitle" TextVal,
+              m (Just $ bib ^. E.bibInstitution) "organisation" (TextVal . T.intercalate ", ")
             ]
     }
   where
     m :: Maybe a -> Variable -> (a -> Val Html) -> Maybe (Variable, Val Html)
     m Nothing _ _ = Nothing
     m (Just v) nm mk = Just (nm, mk v)
+    mkName nm =
+      Name
+        { nameFamily = Nothing,
+          nameGiven = Nothing,
+          nameDroppingParticle = Nothing,
+          nameNonDroppingParticle = Nothing,
+          nameSuffix = Nothing,
+          nameCommaSuffix = False,
+          nameStaticOrdering = True,
+          nameLiteral = Just nm
+        }
 
 loadReference :: (MonadKorrvigs m) => Id -> m (Maybe (Reference Html))
 loadReference i = do

@@ -2,10 +2,12 @@ module Korrvigs.Web.Note.Syndicate (getNoteSyndicateR) where
 
 import Control.Arrow
 import Control.Lens
+import Control.Monad
 import qualified Data.ByteString as BS
 import Data.List
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty as NE
+import Data.Maybe
 import Data.Text (Text)
 import Data.Time
 import Korrvigs.Entry hiding (_Syndicate)
@@ -23,20 +25,28 @@ import Yesod
 getNoteSyndicateR :: WebId -> Handler TypedContent
 getNoteSyndicateR (WId i) = do
   accept <- lookupHeader "accept"
-  dat <- getData i
+  onlyUnread <- isJust <$> lookupGetParam "unread"
+  dat <- getData onlyUnread i
+  render <- getUrlRenderParams
   if maybe False ("application/json" `BS.isPrefixOf`) accept
     then pure $ toTypedContent $ toJSON dat
     else fmap toTypedContent $ defaultLayout $ do
       Rcs.syndicates StaticR CssR
       setTitle $ "Syndicates for " <> toMarkup (unId i)
       [whamlet|
+        $if onlyUnread
+          <a href=@{NoteSyndicateR (WId i)}>
+            With read
+        $else
+          <a href=#{render (NoteSyndicateR (WId i)) [("unread","")]}>
+            Only unread
         <ul .syndicate-items>
           $forall item <- dat
             ^{renderItem item}
       |]
 
-getData :: Id -> Handler [(Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime)]
-getData i = do
+getData :: Bool -> Id -> Handler [(Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime)]
+getData onlyUnread i = do
   entry <- maybe notFound pure =<< load i
   note <- maybe notFound pure $ entry ^? _Note
   let path = note ^. notePath
@@ -54,6 +64,7 @@ getData i = do
     item <- limit 10 $ orderBy (desc (view sqlSynItSequence)) $ do
       item <- selectTable syndicatedItemsTable
       where_ $ item ^. sqlSynItSyndicate .== sqlI
+      when onlyUnread $ where_ $ item ^. sqlSynItRead .== sqlBool False
       pure item
     pure (synId, item ^. sqlSynItSequence, syn ^. sqlEntryTitle, tags, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItRead, item ^. sqlSynItDate)
   where

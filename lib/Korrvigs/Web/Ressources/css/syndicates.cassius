@@ -7,6 +7,8 @@
     margin: 0
   li.read
     background-color: var(--base00)
+  .starred
+    background-color: var(--base02)
   li
     background-color: var(--base01)
     white-space: nowrap

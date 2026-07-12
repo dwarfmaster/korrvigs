@@ -8,7 +8,9 @@ import Data.List
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe
+import qualified Data.Set as S
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time
 import Korrvigs.Entry hiding (_Syndicate)
 import Korrvigs.Monad
@@ -18,7 +20,7 @@ import Korrvigs.Syndicate.SQL
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
-import Opaleye hiding (groupBy, not)
+import Opaleye hiding (groupBy, not, null)
 import Text.Blaze
 import Yesod
 
@@ -105,6 +107,8 @@ renderItem curId onlyUnread (synId, sq, synTitle, tags, title, url, isRead, date
           $if not isRead
             <span .item-read item-to-read=#{liId} item-read-url=@{SynItemReadR (WId synId) sq}>
               ✓
+          $if starred
+            ★
           <a href=#{url}>
             #{title}
           <a href=@{EntryR (WId synId)} .item-syn>
@@ -116,7 +120,7 @@ renderItem curId onlyUnread (synId, sq, synTitle, tags, title, url, isRead, date
           $maybe dt <- date
             <span .item-date>
               #{formatTime defaultTimeLocale "%Y/%m/%d" dt}
-          $forall tag <- tags
+          $forall tag <- showedTags
             <span .tag>
               $if onlyUnread
                 <a href=#{render (NoteSyndicateSingleR (WId curId) tag) [("unread","")]}>
@@ -126,5 +130,10 @@ renderItem curId onlyUnread (synId, sq, synTitle, tags, title, url, isRead, date
                   #{tag}
   |]
   where
+    classes :: [Text]
+    classes = ["read" | isRead] <> ["starred" | starred]
     readClass :: [(Text, Text)]
-    readClass = [("class", "read") | isRead]
+    readClass = [("class", T.intercalate " " classes) | not (null classes)]
+    tagSet = S.fromList tags
+    showedTags = S.difference tagSet $ S.fromList ["star"]
+    starred = "star" `S.member` tagSet

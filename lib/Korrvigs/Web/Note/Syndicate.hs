@@ -4,6 +4,7 @@ import Control.Arrow
 import Control.Lens
 import Control.Monad
 import qualified Data.ByteString as BS
+import Data.Hashable
 import Data.List
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty as NE
@@ -21,6 +22,7 @@ import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Opaleye hiding (groupBy, not, null)
+import System.Random
 import Text.Blaze
 import Yesod
 
@@ -121,7 +123,7 @@ renderItem curId onlyUnread (synId, sq, synTitle, tags, title, url, isRead, date
             <span .item-date>
               #{formatTime defaultTimeLocale "%Y/%m/%d" dt}
           $forall tag <- showedTags
-            <span .tag>
+            <span .tag *{tagStyle tag}>
               $if onlyUnread
                 <a href=#{render (NoteSyndicateSingleR (WId curId) tag) [("unread","")]}>
                   #{tag}
@@ -137,3 +139,19 @@ renderItem curId onlyUnread (synId, sq, synTitle, tags, title, url, isRead, date
     tagSet = S.fromList tags
     showedTags = S.difference tagSet $ S.fromList ["star"]
     starred = "star" `S.member` tagSet
+    tagStyle :: Text -> [(Text, Text)]
+    tagStyle tg = [("style", "background-color: " <> cssColor (tagColor tg))]
+
+-- Returns an integer between 1 and 8 included
+tagColor :: Text -> Int
+tagColor tag = fst $ uniformR (1, 8) $ mkStdGen $ hash tag
+
+cssColor :: Int -> Text
+cssColor 1 = "var(--base08)"
+cssColor 2 = "var(--base09)"
+cssColor 3 = "var(--base0A)"
+cssColor 4 = "var(--base0B)"
+cssColor 5 = "var(--base0C)"
+cssColor 6 = "var(--base0D)"
+cssColor 7 = "var(--base0E)"
+cssColor _ = "var(--base0F)"

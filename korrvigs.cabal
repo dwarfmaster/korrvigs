@@ -299,6 +299,7 @@ library korrvigs-lib
     , feed                  ^>=1.3.2.1
     , file-embed            ^>=0.0.16.0
     , filepath              ^>=1.5.4.0
+    , hashable              ^>=1.5.1.0
     , hmatrix-glpk          ^>=0.19.0.0
     , http-client           ^>=0.7.17
     , http-client-tls       ^>=0.3.6.3

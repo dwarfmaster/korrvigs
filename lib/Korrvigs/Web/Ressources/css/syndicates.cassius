@@ -32,7 +32,6 @@
     margin-right: 0.2em
   .tag
     border-radius: 0.5em
-    background-color: var(--base0B)
     color: var(--base00)
     font-size: 0.7em
     padding: 0.1em

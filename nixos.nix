@@ -21,6 +21,14 @@ overlay: {
   blog = cfg.blog;
   autocommit = cfg.autocommit;
 
+  autopublish-script = pkgs.writeScriptBin "korrvigs-blog-publish" ''
+    directory=${lib.strings.escapeShellArg blog.directory}
+    ${cfg.package}/bin/korr blog publish "$directory" https://${lib.strings.escapeShellArg blog.domain} --entry ${lib.strings.escapeShellArg blog.note}
+    find "$directory" -mindepth 1 -type d -exec chmod 770 {} \;
+    find "$directory" -type f -exec chmod 660 {} \;
+    find "$directory" -mindepth 1 -exec chown -R ${cfg.user}:${config.services.nginx.group} {} \;
+  '';
+
   autocommit-script = pkgs.writeScript "korrvigs-autocommit.sh" ''
     cd "${cfg.root}"
     git annex add files
@@ -378,15 +386,7 @@ in {
         "d ${blog.directory} 0770 ${config.services.nginx.user} ${config.users.users.${cfg.user}.group} - -"
       ];
 
-      environment.systemPackages = [
-        (pkgs.writeScriptBin "korrvigs-blog-publish" ''
-          directory=${lib.strings.escapeShellArg blog.directory}
-          ${cfg.package}/bin/korr blog publish "$directory" ${lib.strings.escapeShellArg blog.domain} --entry https://${lib.strings.escapeShellArg blog.note}
-          find "$directory" -type d -exec chmod 770 {}
-          find "$directory" -type f -exec chmod 660 {}
-          chown -R ${config.services.nginx.user}:${config.users.users.${cfg.user}.group} "$directory"
-        '')
-      ];
+      environment.systemPackages = [autopublish-script];
     })
 
     (mkIf (cfg.enable && blog.enable && blog.nginx) {
@@ -403,7 +403,7 @@ in {
     (mkIf (cfg.enable && blog.enable && (blog.autopublish != null)) {
       systemd.services.korrvigs-autopublish = {
         description = "Autopublish korrvigs's blog";
-        script = "korrvigs-blog-publish";
+        script = "${autopublish-script}/bin/korrvigs-blog-publish";
         path = dependencies;
 
         serviceConfig = {

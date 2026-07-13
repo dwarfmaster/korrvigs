@@ -64,7 +64,7 @@ generateAtomFor renderUrl topEntries tag title entries = do
 generateAtomEntryFor :: (MonadKorrvigs m) => Text -> (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> (Text, Day, Text, FilePath) -> m A.Entry
 generateAtomEntryFor feedURI renderUrl topEntries (nm, day, title, path) = do
   uri <- renderUrl $ BlogPostNote nm
-  blogURI <- renderUrl $ BlogTopLevel "default.html"
+  blogURI <- renderUrl $ BlogTopLevel "index.html"
   let date = T.pack $ iso8601Show $ UTCTime day 0
   (summary, content) <- postTextRender renderUrl topEntries path
   pure $

@@ -112,12 +112,12 @@ renderUrl :: Bool -> FilePath -> BlogUrl -> KorrM Text
 renderUrl isLink dir url = do
   pure $ T.pack $ (dir </>) $ renderPath url
   where
-    addDefault = if isLink then id else (</> "default.html")
+    addIndex = if isLink then id else (</> "index.html")
     renderPath (BlogTopLevel txt) = T.unpack txt
     renderPath (BlogFilePlain file) = "files" </> T.unpack file
-    renderPath (BlogPostNote note) = addDefault $ "posts" </> T.unpack note
+    renderPath (BlogPostNote note) = addIndex $ "posts" </> T.unpack note
     renderPath (BlogComputation entry cmp tp) = "posts" </> T.unpack entry </> T.unpack (cmp <> "." <> runTypeExt tp)
-    renderPath BlogArchive = addDefault "archive"
+    renderPath BlogArchive = addIndex "archive"
     renderPath (BlogArchiveTag tag) = "archive" </> (T.unpack $ tag <> ".html")
     renderPath BlogAtom = "atom.xml"
     renderPath (BlogAtomTag tag) = T.unpack $ "atom-" <> tag <> ".xml"

@@ -113,6 +113,7 @@ renderUrl isLink dir url = do
   pure $ T.pack $ (dir </>) $ renderPath url
   where
     addIndex = if isLink then id else (</> "index.html")
+    renderPath (BlogTopLevel "index.html") = if isLink then "/" else "index.html"
     renderPath (BlogTopLevel txt) = T.unpack txt
     renderPath (BlogFilePlain file) = "files" </> T.unpack file
     renderPath (BlogPostNote note) = addIndex $ "posts" </> T.unpack note

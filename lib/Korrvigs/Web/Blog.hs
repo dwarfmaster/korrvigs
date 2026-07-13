@@ -27,6 +27,7 @@ import System.FilePath
 import Yesod
 
 renderUrlImpl :: BlogUrl -> Route WebData
+renderUrlImpl (BlogTopLevel "index.html") = BlogR
 renderUrlImpl (BlogTopLevel txt) = BlogTopR txt
 renderUrlImpl (BlogFilePlain file) = BlogFileR file
 renderUrlImpl (BlogPostNote note) = BlogPostR note
@@ -64,7 +65,7 @@ topEntries tgt = do
       pure $ BlogTopLevel . fst <$> topFile
 
 getBlogR :: Handler TypedContent
-getBlogR = getBlogTopR "default.html"
+getBlogR = getBlogTopR "index.html"
 
 getBlogContent :: BlogUrl -> BlogContent -> Handler TypedContent
 getBlogContent _ (BlogFromFile i) = getEntryDownloadR $ WId i

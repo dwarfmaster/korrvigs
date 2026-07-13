@@ -145,9 +145,21 @@ extractCitations doc = rSelect $ do
   media <- selectTable entriesMetadataTable
   where_ $ media ^. sqlEntry .== sqlI
   where_ $ media ^. sqlKey .== sqlStrictText (mtdtSqlName MediaMtdt)
+  where_ $ in_ (sqlValueJSONB <$> mediaToExport) $ media ^. sqlValue
   pure i
   where
     candidates = S.fromList $ doc ^.. docContent . each . bkSubBlocks . bkInlines . ((_Link . _3) <> _Cite)
+    mediaToExport =
+      [ Article,
+        Book,
+        Booklet,
+        Inbook,
+        Incollection,
+        Manual,
+        PhdThesis,
+        TechReport,
+        Unpublished
+      ]
 
 -- Extract the citations, build the bibliography. Associate to each cited entry
 -- a text key and a formatted bibliography entry.

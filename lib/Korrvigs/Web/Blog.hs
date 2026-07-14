@@ -88,8 +88,8 @@ getBlogContent _ (BlogFromCode i cd) = do
   pure $ toTypedContent (mime, ContentBuilder (fromByteString $ Enc.encodeUtf8 content) (Just $ T.length content))
 getBlogContent _ (BlogFromComp i cmp) = getEntryComputeNamedR (WId i) cmp cmp
 getBlogContent _ BlogFromArchive = do
-  tags <- loadTags
   cfg <- blogConfig
+  tags <- loadTags cfg
   mtdt <- loadMtdt cfg
   menu <- loadMenu cfg
   page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) menu renderUrl Nothing tags

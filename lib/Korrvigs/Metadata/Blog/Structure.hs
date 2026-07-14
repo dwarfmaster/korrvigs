@@ -129,11 +129,15 @@ parseBlogTopContent cfg targetId = case T.split (== '#') targetId of
   [i, code] -> BlogFromCode (MkId i) code
   _ -> BlogFromNote $ MkId targetId
 
-loadTags :: (MonadKorrvigs m) => m [Text]
-loadTags = do
+loadTags :: (MonadKorrvigs m) => BlogConfig -> m [Text]
+loadTags cfg = do
   rSelect $ distinct $ orderBy (asc id) $ do
     mtdt <- selectTable entriesMetadataTable
     where_ $ mtdt ^. sqlKey .== sqlStrictText (mtdtSqlName BlogTags)
+    when (cfg ^. blogCfgOnlyPublished) $ do
+      entry <- selectTable entriesTable
+      where_ $ entry ^. sqlEntryId .== (mtdt ^. sqlEntry)
+      where_ $ O.not $ isNull $ entry ^. sqlEntryDate
     sqlJsonElementsText $ toNullable $ mtdt ^. sqlValue
 
 parsePub :: Text -> Maybe Day
@@ -209,7 +213,7 @@ loadStructure :: (MonadKorrvigs m) => BlogConfig -> m BlogStructure
 loadStructure cfg = do
   mtdt <- loadMtdt cfg
   files <- loadFiles cfg
-  tags <- loadTags
+  tags <- loadTags cfg
   tagFiles <- loadArchivesAndAtoms tags
   menuContent <- loadMenu cfg
   csl <- loadCSL cfg

@@ -11,7 +11,6 @@ import Korrvigs.Web.Date
 import Korrvigs.Web.Download
 import Korrvigs.Web.Entry
 import Korrvigs.Web.File
-import Korrvigs.Web.Git
 import Korrvigs.Web.Home
 import Korrvigs.Web.Metadata
 import Korrvigs.Web.Note

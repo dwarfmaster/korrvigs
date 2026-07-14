@@ -239,7 +239,6 @@ library korrvigs-lib
     Korrvigs.Web.Entry.Note
     Korrvigs.Web.Entry.Syndicate
     Korrvigs.Web.File
-    Korrvigs.Web.Git
     Korrvigs.Web.Home
     Korrvigs.Web.JS.Ace
     Korrvigs.Web.JS.Foliate

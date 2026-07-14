@@ -76,8 +76,7 @@ headerContent :: [(Text, Route WebData, Route WebData -> Bool)]
 headerContent =
   [ ("Home", HomeR, hdIsHome),
     ("Entry", SearchR, hdIsEntry),
-    ("Note", NoteFuzzyR, hdIsNote),
-    ("Git", GitR, (== GitR))
+    ("Note", NoteFuzzyR, hdIsNote)
   ]
 
 mkHeader :: Handler Widget

@@ -71,9 +71,6 @@ korrvigsRoutes =
 /syndicate/#WebId/#Int/import SynItemImportR GET
 /syndicate/#WebId/#Int/read SynItemReadR GET
 
--- Git visualisation and manipulation
-/git GitR GET POST
-
 -- Data
 /static StaticR Static getStaticR
 /favicon.ico FaviconR GET

@@ -24,9 +24,8 @@ overlay: {
   autopublish-script = pkgs.writeScriptBin "korrvigs-blog-publish" ''
     directory=${lib.strings.escapeShellArg blog.directory}
     ${cfg.package}/bin/korr blog publish "$directory" https://${lib.strings.escapeShellArg blog.domain} --entry ${lib.strings.escapeShellArg blog.note}
-    find "$directory" -mindepth 1 -type d -exec chmod 770 {} \;
-    find "$directory" -type f -exec chmod 660 {} \;
-    find "$directory" -mindepth 1 -exec chown -R ${cfg.user}:${config.services.nginx.group} {} \;
+    find "$directory" -mindepth 1 -type d -exec chmod 755 {} \;
+    find "$directory" -type f -exec chmod 644 {} \;
   '';
 
   autocommit-script = pkgs.writeScript "korrvigs-autocommit.sh" ''

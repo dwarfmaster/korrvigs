@@ -6,6 +6,7 @@ import Control.Monad.RWS.Strict
 import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
 import Data.Aeson.Lens
+import qualified Data.ByteString as BS
 import qualified Data.CaseInsensitive as CI
 import qualified Data.Default as D
 import Data.Foldable
@@ -233,10 +234,17 @@ renderBlock (Embed ref) = do
     Nothing -> pure mempty
     Just ident -> fromMaybeT mempty $ do
       entry <- hoistLift $ lift $ load ident
-      note <- hoistMaybe $ entry ^? _Note
-      embedded <- hoistEither =<< readNote (note ^. notePath)
-      lvl <- view rdrCurLevel
-      lift $ shiftOffset lvl $ renderBlocks $ embedded ^. docContent
+      case entry ^. entryKindData of
+        NoteD note -> do
+          embedded <- hoistEither =<< readNote (note ^. notePath)
+          lvl <- view rdrCurLevel
+          lift $ shiftOffset lvl $ renderBlocks $ embedded ^. docContent
+        FileD file | "image" `BS.isPrefixOf` (file ^. fileMime) -> do
+          fileName <- hoistLift $ lift $ rSelectMtdt BlogFile $ sqlId $ entry ^. entryName
+          render <- view rdrRenderUrl
+          url <- lift $ lift $ render $ BlogFilePlain fileName
+          pure $ img ! A.src (toValue url) ! A.width "100%"
+        _ -> pure mempty
 renderBlock (EmbedHeader ref hdLvl) = do
   doc <- view rdrDoc
   case resolveEmbedRef doc ref of

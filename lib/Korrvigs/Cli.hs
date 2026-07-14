@@ -11,6 +11,7 @@ import qualified Korrvigs.Cli.File as File
 import qualified Korrvigs.Cli.Import as Import
 import qualified Korrvigs.Cli.Info as Info
 import Korrvigs.Cli.Monad
+import qualified Korrvigs.Cli.Mtdt as Mtdt
 import qualified Korrvigs.Cli.Note as Note
 import qualified Korrvigs.Cli.Query as Query
 import qualified Korrvigs.Cli.Remove as Rm
@@ -33,6 +34,7 @@ data Command
   | Import Import.Cmd
   | Eris Eris.Cmd
   | Autorun Autorun.Cmd
+  | Mtdt Mtdt.Cmd
   | Blog Blog.Cmd
 
 parser' :: Parser Command
@@ -52,6 +54,7 @@ parser' =
       <> command "import" (Import <$> Import.parser)
       <> command "eris" (Eris <$> Eris.parser)
       <> command "autorun" (Autorun <$> Autorun.parser)
+      <> command "mtdt" (Mtdt <$> Mtdt.parser)
       <> command "blog" (Blog <$> Blog.parser)
 
 parser :: ParserInfo Command
@@ -76,6 +79,7 @@ run (Adb cmd) = Adb.run cmd
 run (Import cmd) = Import.run cmd
 run (Eris cmd) = Eris.run cmd
 run (Autorun cmd) = Autorun.run cmd
+run (Mtdt cmd) = Mtdt.run cmd
 run (Blog cmd) = Blog.run cmd
 
 main :: IO ()

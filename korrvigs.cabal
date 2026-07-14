@@ -63,6 +63,7 @@ library korrvigs-lib
     Korrvigs.Cli.Import
     Korrvigs.Cli.Info
     Korrvigs.Cli.Monad
+    Korrvigs.Cli.Mtdt
     Korrvigs.Cli.New
     Korrvigs.Cli.Note
     Korrvigs.Cli.Query

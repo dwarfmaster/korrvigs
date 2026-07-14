@@ -103,6 +103,9 @@ sqlCast = C.Column . HPQ.CastExpr (showSqlType proxy) . C.unColumn
 sqlArrayLength :: Field (SqlArray a) -> Field SqlInt4 -> Field SqlInt4
 sqlArrayLength = ap2 "array_length"
 
+sqlStartsWith :: Field SqlText -> Field SqlText -> Field SqlBool
+sqlStartsWith = ap2 "starts_with"
+
 sqlUnnest :: Field (SqlArray a) -> Select (Field a)
 sqlUnnest = sel1 "unnest"
 

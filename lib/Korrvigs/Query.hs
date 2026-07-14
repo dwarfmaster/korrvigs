@@ -8,6 +8,7 @@ import Data.Aeson
 import Data.Default
 import Data.Foldable
 import Data.Functor (($>))
+import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Lazy (toStrict)
@@ -25,7 +26,7 @@ import Korrvigs.Note.SQL
 import Korrvigs.Syndicate.SQL
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
-import Opaleye hiding (null)
+import Opaleye hiding (null, optional)
 import Text.Parsec hiding (count)
 import Text.Parsec.Number
 import Prelude hiding (not)
@@ -42,6 +43,7 @@ data JsonTextQuery
         _levenshteinMax :: Int
       }
   | JSTextEq Text
+  | JSTextStartWith Text
   deriving (Eq, Show)
 
 data JsonNumQuery
@@ -551,6 +553,7 @@ compileJsonTextQuery :: JsonTextQuery -> Field SqlText -> Field SqlBool
 compileJsonTextQuery (JSTextLevenshtein obj dist) value =
   levenshteinLE value (sqlStrictText obj) (sqlInt4 dist) .< sqlInt4 dist
 compileJsonTextQuery (JSTextEq txt) value = value .== sqlStrictText txt
+compileJsonTextQuery (JSTextStartWith txt) value = sqlStartsWith value $ sqlStrictText txt
 
 compileJsonNumQuery :: JsonNumQuery -> Field SqlFloat8 -> Field SqlBool
 compileJsonNumQuery (JSNumEqual d) v = v .== sqlDouble d
@@ -661,9 +664,10 @@ textQueryP = do
   txt <- T.pack <$> many (noneOf "\"")
   void $ char '"'
   mx <- optionMaybe $ char '<' *> decimal
+  start <- fmap isJust $ optionMaybe $ char '^'
   pure $ case mx of
     Just m -> JSTextLevenshtein txt m
-    Nothing -> JSTextEq txt
+    Nothing -> if start then JSTextStartWith txt else JSTextEq txt
 
 boolQueryP :: (Stream s Identity Char) => Parsec s u JsonBoolQuery
 boolQueryP =
@@ -708,6 +712,7 @@ renderJsonQuery (ObjectQuery (JSObjSubQuery sub q)) =
 renderJSTextQuery :: JsonTextQuery -> Builder
 renderJSTextQuery (JSTextLevenshtein obj dist) = fromText obj <> "\"<" <> fromString (show dist)
 renderJSTextQuery (JSTextEq obj) = fromText obj <> "\""
+renderJSTextQuery (JSTextStartWith obj) = fromText obj <> "\"^"
 
 renderJSNumQuery :: JsonNumQuery -> Builder
 renderJSNumQuery (JSNumEqual x) = "=" <> fromString (show x)

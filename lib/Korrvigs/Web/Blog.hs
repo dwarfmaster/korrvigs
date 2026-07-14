@@ -71,8 +71,9 @@ getBlogContent :: BlogUrl -> BlogContent -> Handler TypedContent
 getBlogContent _ (BlogFromFile i) = getEntryDownloadR $ WId i
 getBlogContent url (BlogFromNote i) = do
   cfg <- blogConfig
+  tags <- loadTags cfg
   mtdt <- loadMtdt cfg
-  menu <- loadMenu cfg
+  menu <- loadMenu cfg tags
   csl <- loadCSL cfg
   toTypedContent <$> renderPost url menu (Just csl) renderUrl topEntries mtdt i
 getBlogContent _ (BlogFromCode i cd) = do
@@ -91,13 +92,14 @@ getBlogContent _ BlogFromArchive = do
   cfg <- blogConfig
   tags <- loadTags cfg
   mtdt <- loadMtdt cfg
-  menu <- loadMenu cfg
-  page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) menu renderUrl Nothing tags
+  menu <- loadMenu cfg tags
+  page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) menu renderUrl Nothing $ fst <$> tags
   pure $ toTypedContent page
 getBlogContent _ (BlogFromArchiveTag tag) = do
   cfg <- blogConfig
+  tags <- loadTags cfg
   mtdt <- loadMtdt cfg
-  menu <- loadMenu cfg
+  menu <- loadMenu cfg tags
   page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) menu renderUrl (Just tag) []
   pure $ toTypedContent page
 getBlogContent _ BlogFromAtom = do

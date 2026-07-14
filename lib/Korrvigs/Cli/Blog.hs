@@ -165,7 +165,7 @@ writeContent path _ BlogFromArchive = do
   bgStr <- view bgStructure
   tags <- view $ bgStructure . blogTags
   mtdt <- view $ bgStructure . blogMtdt
-  html <- lift $ generateArchivePage mtdt onlyPublished (bgStr ^. blogMenu) (renderUrl True dir) Nothing tags
+  html <- lift $ generateArchivePage mtdt onlyPublished (bgStr ^. blogMenu) (renderUrl True dir) Nothing $ fst <$> tags
   writeHtml path html
 writeContent path _ (BlogFromArchiveTag tag) = do
   dir <- view $ bgConfig . blogCfgUrl . to T.unpack

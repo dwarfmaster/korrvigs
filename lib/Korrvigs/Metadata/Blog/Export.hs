@@ -132,7 +132,12 @@ renderSideBar current menuContent renderUrl = do
   archive <- renderUrl BlogArchive
   icon <- renderRssIcon renderUrl Nothing
   let archiveH = p $ mkCurrent matchArchive $ a "Archive" ! A.href (toValue archive) <> " " <> icon
-  pure $ div (titleH <> mconcat contentH <> archiveH) ! A.class_ "menu-div"
+  tagsH <- forM (menuContent ^. blogMenuTags) $ \(tag, tagCount) -> do
+    url <- renderUrl $ BlogArchiveTag tag
+    rssIcon <- renderRssIcon renderUrl (Just tag)
+    let archiveTagH = p $ mkCurrent (== BlogArchiveTag tag) $ a (toMarkup tag) ! A.href (toValue url) <> "(" <> toMarkup tagCount <> ") " <> rssIcon
+    pure $ archiveTagH ! A.class_ "archive-tag"
+  pure $ div (titleH <> mconcat contentH <> archiveH <> mconcat tagsH) ! A.class_ "menu-div"
   where
     mkCurrent matchUrl = if matchUrl current then (! A.class_ "current-page") else id
     matchArchive BlogArchive = True

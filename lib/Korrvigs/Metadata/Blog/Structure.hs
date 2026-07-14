@@ -5,9 +5,11 @@ import Control.Applicative ((<|>))
 import Control.Arrow
 import Control.Lens
 import Control.Monad
+import Data.Int (Int64)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Profunctor.Product (p2)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
@@ -54,14 +56,15 @@ data BlogContent
 
 data BlogMenuContent = BlogMenuContent
   { _blogMenuTitle :: Text,
-    _blogMenuItems :: [(Text, Text)]
+    _blogMenuItems :: [(Text, Text)],
+    _blogMenuTags :: [(Text, Int)]
   }
   deriving (Eq, Show)
 
 data BlogStructure = BlogStructure
   { _blogMtdt :: Map Text Text,
     _blogFiles :: Map BlogUrl BlogContent,
-    _blogTags :: [Text],
+    _blogTags :: [(Text, Int)],
     _blogMenu :: BlogMenuContent,
     _blogCSL :: (Id, Text)
   }
@@ -129,16 +132,23 @@ parseBlogTopContent cfg targetId = case T.split (== '#') targetId of
   [i, code] -> BlogFromCode (MkId i) code
   _ -> BlogFromNote $ MkId targetId
 
-loadTags :: (MonadKorrvigs m) => BlogConfig -> m [Text]
-loadTags cfg = do
-  rSelect $ distinct $ orderBy (asc id) $ do
+loadTags :: (MonadKorrvigs m) => BlogConfig -> m [(Text, Int)]
+loadTags cfg =
+  fmap (second trunc <$>) $ rSelect $ orderBy (asc fst) $ aggregate (p2 (groupBy, count)) $ do
     mtdt <- selectTable entriesMetadataTable
     where_ $ mtdt ^. sqlKey .== sqlStrictText (mtdtSqlName BlogTags)
-    when (cfg ^. blogCfgOnlyPublished) $ do
-      entry <- selectTable entriesTable
-      where_ $ entry ^. sqlEntryId .== (mtdt ^. sqlEntry)
-      where_ $ O.not $ isNull $ entry ^. sqlEntryDate
-    sqlJsonElementsText $ toNullable $ mtdt ^. sqlValue
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryId .== (mtdt ^. sqlEntry)
+    when (cfg ^. blogCfgOnlyPublished) $
+      where_ $
+        O.not $
+          isNull $
+            entry ^. sqlEntryDate
+    tag <- sqlJsonElementsText $ toNullable $ mtdt ^. sqlValue
+    pure (tag, entry ^. sqlEntryId)
+  where
+    trunc :: Int64 -> Int
+    trunc = fromInteger . toInteger
 
 parsePub :: Text -> Maybe Day
 parsePub = parseTimeM True defaultTimeLocale "%F" . T.unpack
@@ -187,8 +197,8 @@ loadArchivesAndAtoms tags = do
   let atoms = M.fromList $ (BlogAtomTag &&& BlogFromAtomTag) <$> tags
   pure $ toplevel <> archives <> atoms
 
-loadMenu :: (MonadKorrvigs m) => BlogConfig -> m BlogMenuContent
-loadMenu cfg = do
+loadMenu :: (MonadKorrvigs m) => BlogConfig -> [(Text, Int)] -> m BlogMenuContent
+loadMenu cfg tags = do
   let i = cfg ^. blogCfgNote
   blogentry <- load i >>= throwMaybe (KCantLoad i "Failed to load note for blog")
   blogtitle <- rSelectMtdt BlogTitle $ sqlId i
@@ -197,7 +207,8 @@ loadMenu cfg = do
   pure $
     BlogMenuContent
       { _blogMenuTitle = title,
-        _blogMenuItems = fromMaybe [] content
+        _blogMenuItems = fromMaybe [] content,
+        _blogMenuTags = tags
       }
 
 loadCSL :: (MonadKorrvigs m) => BlogConfig -> m (Id, Text)
@@ -214,7 +225,7 @@ loadStructure cfg = do
   mtdt <- loadMtdt cfg
   files <- loadFiles cfg
   tags <- loadTags cfg
-  tagFiles <- loadArchivesAndAtoms tags
-  menuContent <- loadMenu cfg
+  tagFiles <- loadArchivesAndAtoms $ fst <$> tags
+  menuContent <- loadMenu cfg tags
   csl <- loadCSL cfg
   pure $ BlogStructure mtdt (files <> tagFiles) tags menuContent csl

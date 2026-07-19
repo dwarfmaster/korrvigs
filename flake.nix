@@ -86,6 +86,7 @@
             [
               pkgs.haskellPackages.weeder
               pkgs.yuicompressor
+              pkgs.mathjax-node-cli
             ]
             ++ deps;
 

@@ -83,6 +83,7 @@ overlay: {
     pkgs.perl5Packages.FileMimeInfo
     pkgs.shared-mime-info
     pkgs.yuicompressor
+    pkgs.mathjax-node-cli
   ];
 
   languages = [

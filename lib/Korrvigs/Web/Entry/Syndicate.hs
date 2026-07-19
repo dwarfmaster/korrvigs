@@ -37,7 +37,7 @@ instance Default RenderSpec where
 embed :: Int -> Syndicate -> Handler Widget
 embed lvl syn = do
   let murl = syn ^. synUrl
-  itemsWidget <- renderItems [syn] def
+  itemsWidget <- renderItems [(syn ^. synEntry . entryName, syn ^. synEntry . entryTitle, syn)] def
   public <- isPublic
   pure $ do
     Rcs.checkboxCode StaticR
@@ -59,22 +59,23 @@ embed lvl syn = do
     ^{itemsWidget}
   |]
 
-renderItems :: [Syndicate] -> RenderSpec -> Handler Widget
+renderItems :: [(Id, Maybe Text, Syndicate)] -> RenderSpec -> Handler Widget
 renderItems syns spec = do
   let onlyNew = spec ^. renderOnlyNew
   let showTitle = spec ^. renderShowSyndicate
   public <- isPublic
   let ordByDate = descNullsFirst $ view _5
   let ordBySeq = desc $ view _6
-  itemsSQL :: [(Text, Text, Text, Maybe Id, Maybe UTCTime, Int, Bool, Maybe Text, Maybe Text)] <-
+  itemsSQL :: [(Text, Text, Text, Maybe Id, Maybe UTCTime, Int, Bool, Maybe Text, Id, Maybe Text)] <-
     rSelect $ orderBy (ordByDate <> ordBySeq) $ do
-      let mkVal syn =
+      let mkVal (i, title, syn) =
             let e = syn ^. synEntry
              in ( sqlId $ e ^. entryName,
                   sqlInt4 $ e ^. entryId,
-                  toFields $ e ^. entryTitle
+                  toFields $ title,
+                  sqlId i
                 )
-      (synName, synId, synTitle :: FieldNullable SqlText) <- values $ mkVal <$> syns
+      (synName, synId, synTitle :: FieldNullable SqlText, synParentId) <- values $ mkVal <$> syns
       let ordItByDate = descNullsFirst $ view sqlSynItDate
       let ordItBySeq = desc $ view sqlSynItSequence
       let ordIt = orderBy $ ordItByDate <> ordItBySeq
@@ -92,7 +93,7 @@ renderItems syns spec = do
       when onlyNew $ do
         where_ $ isNull $ item ^. sqlSynItInstance
         where_ $ item ^. sqlSynItRead .== sqlBool False
-      pure (synName, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItInstance, item ^. sqlSynItDate, item ^. sqlSynItSequence, item ^. sqlSynItRead, task, synTitle)
+      pure (synName, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItInstance, item ^. sqlSynItDate, item ^. sqlSynItSequence, item ^. sqlSynItRead, task, synParentId, synTitle)
   items <- forM itemsSQL $ \item -> do
     cb <- maybe (pure mempty) (flip checkBoxDWIM $ item ^. _8) $ item ^. _4
     liId <- if onlyNew then Just <$> newIdent else pure Nothing
@@ -106,7 +107,7 @@ renderItems syns spec = do
     [whamlet|
     <div .syndicate>
       <ul>
-        $forall (synName,title,url,inst,(liId,spanId),sq,read,cb,synTitle) <- items
+        $forall (synName,title,url,inst,(liId,spanId),sq,read,cb,synParentId,synTitle) <- items
           <li *{optId liId}>
             $if not public
               ^{cb}
@@ -124,12 +125,12 @@ renderItems syns spec = do
             <a href=#{url}>#{title}
             $if not public
               $if showTitle
-                <a .syndicate-ref href=@{EntryR $ WId $ MkId synName}>
+                <a .syndicate-ref href=@{EntryR $ WId synParentId}>
                   [
                   $maybe title <- synTitle
                     #{title}
                   $nothing
-                    @#{synName}
+                    @#{unId synParentId}
                   ]
               $if isNothing inst
                 <a href=@{SynItemImportR (WId $ MkId synName) sq}>

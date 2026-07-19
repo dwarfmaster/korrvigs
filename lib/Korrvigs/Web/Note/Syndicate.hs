@@ -1,6 +1,5 @@
 module Korrvigs.Web.Note.Syndicate (getNoteSyndicateR, getNoteSyndicateSingleR) where
 
-import Control.Arrow
 import Control.Lens
 import Control.Monad
 import qualified Data.ByteString as BS
@@ -24,7 +23,7 @@ import Korrvigs.Web.Routes
 import Opaleye hiding (groupBy, not, null)
 import System.Random
 import Text.Blaze
-import Yesod
+import Yesod hiding (Field)
 
 getNoteSyndicateR :: WebId -> Handler TypedContent
 getNoteSyndicateR (WId i) = getSyndicateImpl i Nothing
@@ -69,37 +68,36 @@ getSyndicateImpl i mtag = do
       Nothing -> NoteSyndicateR (WId i)
       Just tag -> NoteSyndicateSingleR (WId i) tag
 
-getData :: Bool -> Maybe Text -> Id -> Handler [(Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime)]
+getData :: Bool -> Maybe Text -> Id -> Handler [(Id, Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime)]
 getData onlyUnread mtag i = do
   entry <- maybe notFound pure =<< load i
   note <- maybe notFound pure $ entry ^? _Note
   let path = note ^. notePath
   doc <- either (const notFound) pure =<< readNote path
+  let docSyns = doc ^.. docContent . each . bkSubBlocks . _Syndicate . synFilter
+  loadedSyns <- fmap mconcat $ forM docSyns $ \(tag, _, _, synIds) -> do
+    syns <- resolveSyndicate synIds
+    pure $ (tag,) . (_3 %~ \s -> let e = s ^. synEntry in (e ^. entryName, e ^. entryId)) <$> syns
   let syndicates =
         fmap doGroup $
           NE.groupBy (\(_, s1) (_, s2) -> s1 == s2) $
-            sortBy (\(_, s1) (_, s2) -> compare s1 s2) $
-              doc ^.. docContent . each . bkSubBlocks . _Syndicate . synFilter . to prepSyn . each
-  rSelect $ orderBy (descNullsFirst (view _8)) $ do
-    (synId, tags) <- values $ (sqlId *** sqlArray sqlStrictText) <$> syndicates
-    syn <- selectTable entriesTable
-    where_ $ syn ^. sqlEntryName .== synId
-    let sqlI = syn ^. sqlEntryId
+            sortBy (\(_, s1) (_, s2) -> compare s1 s2) loadedSyns
+  rSelect $ orderBy (descNullsFirst (view _9)) $ do
+    (synParentId, synTitle :: FieldNullable SqlText, synId, sqlI, tags) <- values $ (\((parentId, title, (synId, sqlI)), tags) -> (sqlId parentId, toFields title, sqlId synId, sqlInt4 sqlI, sqlArray sqlStrictText tags)) <$> syndicates
     item <- limit 10 $ orderBy (desc (view sqlSynItSequence)) $ do
       item <- selectTable syndicatedItemsTable
       where_ $ item ^. sqlSynItSyndicate .== sqlI
       when onlyUnread $ where_ $ item ^. sqlSynItRead .== sqlBool False
       pure item
-    pure (synId, item ^. sqlSynItSequence, syn ^. sqlEntryTitle, tags, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItRead, item ^. sqlSynItDate)
+    pure (synId, synParentId, item ^. sqlSynItSequence, synTitle, tags, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItRead, item ^. sqlSynItDate)
   where
-    prepSyn (col, _, _, syns) = (col,) <$> syns
     doGroup ((col1, s) :| cols) = (s, col1 : (fst <$> cols))
     synFilter = case mtag of
       Nothing -> id
       Just tag -> filtered ((== tag) . view _1)
 
-renderItem :: Id -> Bool -> (Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime) -> Widget
-renderItem curId onlyUnread (synId, sq, synTitle, tags, title, url, isRead, date) = do
+renderItem :: Id -> Bool -> (Id, Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime) -> Widget
+renderItem curId onlyUnread (synId, synParentId, sq, synTitle, tags, title, url, isRead, date) = do
   render <- getUrlRenderParams
   liId <- newIdent
   [whamlet|
@@ -113,11 +111,11 @@ renderItem curId onlyUnread (synId, sq, synTitle, tags, title, url, isRead, date
             ★
           <a href=#{url}>
             #{title}
-          <a href=@{EntryR (WId synId)} .item-syn>
+          <a href=@{EntryR (WId synParentId)} .item-syn>
             $maybe t <- synTitle
               #{t}
             $nothing
-              @#{unId synId}
+              @#{unId synParentId}
         <p>
           $maybe dt <- date
             <span .item-date>

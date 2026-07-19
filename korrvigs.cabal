@@ -159,6 +159,7 @@ library korrvigs-lib
     Korrvigs.Monad.Remove
     Korrvigs.Monad.SQL
     Korrvigs.Monad.Sync
+    Korrvigs.Monad.Syndicate
     Korrvigs.Monad.Utils
     Korrvigs.Note
     Korrvigs.Note.AST

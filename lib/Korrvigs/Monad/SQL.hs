@@ -1,6 +1,7 @@
 module Korrvigs.Monad.SQL
   ( load,
     loadSql,
+    loadSelect,
     loadMetadata,
     removeKindDB,
     removeDB,
@@ -31,6 +32,7 @@ import qualified Data.CaseInsensitive as CI
 import Data.Foldable
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Profunctor.Product.Default
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
@@ -101,21 +103,26 @@ loadImpl (Just row) =
         Calendar -> Cal.sqlLoad sqlI $ mkEntry row
         Syndicate -> Syn.sqlLoad sqlI $ mkEntry row
 
+loadSelect :: (MonadKorrvigs m, Default FromFields a b) => Select (a, EntryRowSQLR) -> m (Maybe (b, Entry))
+loadSelect s = do
+  r <- rSelectOne s
+  entry <- loadImpl $ snd <$> r
+  pure $ entry >>= \e -> r & _Just . _2 .~ e
+
+loadSelect' :: (MonadKorrvigs m) => Select (EntryRowSQLR) -> m (Maybe Entry)
+loadSelect' s = fmap (fmap snd) $ loadSelect $ (,) <$> pure () <*> s
+
 loadSql :: (MonadKorrvigs m) => Int -> m (Maybe Entry)
-loadSql sqlI = do
-  mrow <- rSelectOne $ do
-    entry <- selectTable entriesTable
-    where_ $ entry ^. sqlEntryId .== sqlInt4 sqlI
-    pure entry
-  loadImpl mrow
+loadSql sqlI = loadSelect' $ do
+  entry <- selectTable entriesTable
+  where_ $ entry ^. sqlEntryId .== sqlInt4 sqlI
+  pure entry
 
 load :: (MonadKorrvigs m) => Id -> m (Maybe Entry)
-load i = do
-  mrow <- rSelectOne $ do
-    entry <- selectTable entriesTable
-    where_ $ entry ^. sqlEntryName .== sqlId i
-    pure entry
-  loadImpl mrow
+load i = loadSelect' $ do
+  entry <- selectTable entriesTable
+  where_ $ entry ^. sqlEntryName .== sqlId i
+  pure entry
 
 loadMetadata :: (MonadKorrvigs m) => Id -> m Metadata
 loadMetadata i = do

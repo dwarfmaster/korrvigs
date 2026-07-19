@@ -467,8 +467,7 @@ compileBlock' (Syndicate nm onlyNew lim ids) = do
   let route = if T.null (unId sourceEntry) then HomeR else EntryR (WId sourceEntry)
   let redirUrl = render route [("open", renderEmbeddedLoc (embedL, subL))]
   synCount %= (+ 1)
-  entries <- fmap catMaybes $ forM ids $ lift . load
-  let syns = mapMaybe (^? _Syndicate) entries
+  syns <- lift $ resolveSyndicate ids
   itemsWidget <-
     lift $
       Syn.renderItems syns $

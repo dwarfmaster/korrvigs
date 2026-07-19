@@ -300,8 +300,11 @@ parseBlock (RawBlock (Format fmt) i)
         let (onlyNew, (nm, limit)) = case T.stripPrefix "+" hd of
               Just suffix -> (True, parseHd suffix)
               Nothing -> (False, parseHd hd)
-        let parsed = MkId <$> ids
-        forM_ parsed refTo
+        let parseId synId = case T.split (== '#') synId of
+              [note, w] -> (MkId note, Just w)
+              _ -> (MkId synId, Nothing)
+        let parsed = parseId <$> ids
+        forM_ parsed $ refTo . fst
         pure $ pure $ A.Syndicate nm onlyNew limit parsed
   | CI.mk fmt == "result" = case T.lines i of
       (cmp : tpT : hashLineT : content) -> fromMaybeT [] $ do

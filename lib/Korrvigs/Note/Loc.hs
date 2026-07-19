@@ -203,13 +203,13 @@ getTask loc doc = doc ^? task loc
 setTask :: TaskLoc -> Document -> Task -> Document
 setTask loc doc tsk = doc & task loc .~ tsk
 
-_syn :: (Applicative f) => SynLoc -> ((Text, Bool, Maybe Int, [Id]) -> f (Text, Bool, Maybe Int, [Id])) -> Document -> f Document
+_syn :: (Applicative f) => SynLoc -> ((Text, Bool, Maybe Int, [(Id, Maybe Text)]) -> f (Text, Bool, Maybe Int, [(Id, Maybe Text)])) -> Document -> f Document
 _syn loc = subContents (loc ^. synSub) . elementOf (each . bkBlocks . _Syndicate) (loc ^. synOffset)
 
-getSyn :: SynLoc -> Document -> Maybe (Text, Bool, Maybe Int, [Id])
+getSyn :: SynLoc -> Document -> Maybe (Text, Bool, Maybe Int, [(Id, Maybe Text)])
 getSyn loc doc = doc ^? _syn loc
 
-setSyn :: SynLoc -> Document -> (Text, Bool, Maybe Int, [Id]) -> Document
+setSyn :: SynLoc -> Document -> (Text, Bool, Maybe Int, [(Id, Maybe Text)]) -> Document
 setSyn loc doc tsk = doc & _syn loc .~ tsk
 
 -- Rendering AST locations

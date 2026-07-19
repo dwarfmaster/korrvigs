@@ -42,6 +42,7 @@ import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Monad.Sync (syncFileOfKind)
+import Korrvigs.Monad.Syndicate
 import Korrvigs.Note
 import Korrvigs.Note.AST
 import Korrvigs.Note.Edit
@@ -120,9 +121,10 @@ getNoteSubR (WId i) (WLoc loc) =
               Just tk -> pure $ toTypedContent $ renderTaskStatus tk
             LocSyn lc -> case doc ^? _syn lc . _4 of
               Nothing -> notFound
-              Just ids -> do
+              Just syns -> do
+                ids <- resolveSyndicate syns
                 render <- getUrlRender
-                let content = fmap (unId &&& (render . EntryR . WId)) ids
+                let content = fmap ((unId . view _1) &&& (render . EntryR . WId . view _1)) ids
                 pure $ toTypedContent $ toJSON content
       _ -> notFound
 
@@ -159,11 +161,9 @@ postNoteSubR (WId i) (WLoc loc) =
                       & task lc . tskStatusName .~ txt
               LocSyn lc -> case doc ^? _syn lc . _4 of
                 Nothing -> notFound
-                Just ids -> do
-                  forM_ ids $ \synId -> do
-                    entrySyn <- load synId
-                    let syn = entrySyn ^? _Just . entryKindData . _SyndicateD
-                    forM_ syn Syn.run
+                Just syns -> do
+                  ids <- resolveSyndicate syns
+                  forM_ ids $ \(_, _, syn) -> Syn.run syn
                   pure Nothing
             forM_ mdoc $ \ndoc -> do
               let path = note ^. notePath

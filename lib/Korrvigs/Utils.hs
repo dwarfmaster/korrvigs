@@ -12,7 +12,7 @@ import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Monad (MonadKorrvigs, manager)
+import Korrvigs.Monad.Class (MonadKorrvigs, manager)
 import Network.Connection
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status

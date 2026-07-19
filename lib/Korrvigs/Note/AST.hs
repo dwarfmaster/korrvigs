@@ -13,7 +13,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
 import Korrvigs.Compute.SQL
-import Korrvigs.Entry
+import Korrvigs.Entry hiding (_Syndicate)
 import Korrvigs.Metadata.Task
 import Korrvigs.Query
 import Korrvigs.Utils
@@ -117,7 +117,7 @@ data Block
   | Embed (Either Text Id) -- Embed a document
   | EmbedHeader (Either Text Id) Int -- Embed a document as a sub header
   | Collection Collection Text [CollectionItem]
-  | Syndicate Text Bool (Maybe Int) [Id]
+  | Syndicate Text Bool (Maybe Int) [(Id, Maybe Text)]
   | Sub Header
   | Table Table
   deriving (Show)
@@ -265,3 +265,6 @@ bkNamedSub i = bkSubBlocks . _Sub . filtered ((== i) . view (hdAttr . attrId))
 
 bkNamedCode :: (Applicative f) => Text -> ((Attr, Text) -> f (Attr, Text)) -> Block -> f Block
 bkNamedCode i = bkSubBlocks . _CodeBlock . filtered ((== i) . view (_1 . attrId))
+
+bkNamedSyn :: (Applicative f) => Text -> ((Text, Bool, Maybe Int, [(Id, Maybe Text)]) -> f (Text, Bool, Maybe Int, [(Id, Maybe Text)])) -> Block -> f Block
+bkNamedSyn i = bkSubBlocks . _Syndicate . filtered ((== i) . view _1)

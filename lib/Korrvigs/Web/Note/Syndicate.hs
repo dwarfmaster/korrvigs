@@ -14,6 +14,7 @@ import qualified Data.Text as T
 import Data.Time
 import Korrvigs.Entry hiding (_Syndicate)
 import Korrvigs.Monad
+import Korrvigs.Monad.Syndicate
 import Korrvigs.Note
 import Korrvigs.Note.AST
 import Korrvigs.Syndicate.SQL

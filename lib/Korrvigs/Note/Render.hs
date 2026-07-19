@@ -228,7 +228,10 @@ renderBlock (Syndicate nm onlyNew limit ids) = do
   writeText nm
   forM_ limit $ \l -> writeText $ T.pack $ " " <> show l
   flush >> newline
-  forM_ ids $ \i -> writeText (unId i) >> flush >> newline
+  forM_ ids $ \(i, w) -> do
+    writeText (unId i)
+    forM_ w $ \part -> writeText "#" >> writeText part
+    flush >> newline
   writeText "```"
 renderBlock (Sub header) = do
   writeText $ mconcat $ replicate (header ^. hdLevel) "#"

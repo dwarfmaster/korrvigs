@@ -40,6 +40,7 @@ import Korrvigs.File.SQL
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
+import Korrvigs.Monad.Syndicate
 import Korrvigs.Note hiding (code, task)
 import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend

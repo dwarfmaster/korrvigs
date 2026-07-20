@@ -136,7 +136,7 @@ renderSideBar current menuContent renderUrl = do
     pure $ setCurrent $ p $ a (toMarkup itemName) ! A.href (toValue url)
   archive <- renderUrl BlogArchive
   icon <- renderRssIcon renderUrl Nothing
-  let archiveH = p $ mkCurrent matchArchive $ a "Archive" ! A.href (toValue archive) <> " " <> icon
+  let archiveH = p $ mkCurrent matchArchive $ a "Posts" ! A.href (toValue archive) <> " " <> icon
   tagsH <- forM (menuContent ^. blogMenuTags) $ \(tag, tagCount) -> do
     url <- renderUrl $ BlogArchiveTag tag
     rssIcon <- renderRssIcon renderUrl (Just tag)

@@ -93,14 +93,16 @@ getBlogContent _ BlogFromArchive = do
   tags <- loadTags cfg
   mtdt <- loadMtdt cfg
   menu <- loadMenu cfg tags
-  page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) menu renderUrl Nothing $ fst <$> tags
+  tagsDesc <- loadTagsDesc cfg
+  page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) menu renderUrl Nothing (fst <$> tags) tagsDesc
   pure $ toTypedContent page
 getBlogContent _ (BlogFromArchiveTag tag) = do
   cfg <- blogConfig
   tags <- loadTags cfg
   mtdt <- loadMtdt cfg
   menu <- loadMenu cfg tags
-  page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) menu renderUrl (Just tag) []
+  tagsDesc <- loadTagsDesc cfg
+  page <- generateArchivePage mtdt (cfg ^. blogCfgOnlyPublished) menu renderUrl (Just tag) [] tagsDesc
   pure $ toTypedContent page
 getBlogContent _ BlogFromAtom = do
   cfg <- blogConfig

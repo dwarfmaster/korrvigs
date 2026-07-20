@@ -11,6 +11,7 @@ module Korrvigs.Metadata.Blog
     blogTags,
     blogMenu,
     blogCSL,
+    blogTagsDesc,
     blogCfgOnlyPublished,
     loadStructure,
     renderPost,

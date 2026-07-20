@@ -65,6 +65,7 @@ data BlogStructure = BlogStructure
   { _blogMtdt :: Map Text Text,
     _blogFiles :: Map BlogUrl BlogContent,
     _blogTags :: [(Text, Int)],
+    _blogTagsDesc :: Map Text Text,
     _blogMenu :: BlogMenuContent,
     _blogCSL :: (Id, Text)
   }
@@ -220,12 +221,18 @@ loadCSL cfg = do
     Just _ -> throwM $ KMiscError $ "Invalid CSL for blog " <> unId (cfg ^. blogCfgNote)
     Nothing -> throwM $ KMiscError $ "CSL undefined for blog " <> unId (cfg ^. blogCfgNote)
 
+loadTagsDesc :: (MonadKorrvigs m) => BlogConfig -> m (Map Text Text)
+loadTagsDesc cfg = do
+  tagsDesc <- rSelectMtdt BlogTagsDesc $ sqlId $ cfg ^. blogCfgNote
+  pure $ fromMaybe M.empty tagsDesc
+
 loadStructure :: (MonadKorrvigs m) => BlogConfig -> m BlogStructure
 loadStructure cfg = do
   mtdt <- loadMtdt cfg
   files <- loadFiles cfg
   tags <- loadTags cfg
   tagFiles <- loadArchivesAndAtoms $ fst <$> tags
+  tagsDesc <- loadTagsDesc cfg
   menuContent <- loadMenu cfg tags
   csl <- loadCSL cfg
-  pure $ BlogStructure mtdt (files <> tagFiles) tags menuContent csl
+  pure $ BlogStructure mtdt (files <> tagFiles) tags tagsDesc menuContent csl

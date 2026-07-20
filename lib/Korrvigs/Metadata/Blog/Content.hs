@@ -25,7 +25,8 @@ postTextRender renderUrl topEntries path = do
             _rdrHdOffset = 0,
             _rdrCurLevel = 0,
             _rdrTopEntries = topEntries,
-            _rdrCitations = mempty
+            _rdrCitations = mempty,
+            _rdrOnlyPublished = True
           }
   summary <- postSummary ctx $ doc ^. docContent
   content <- postContent ctx $ doc ^. docContent

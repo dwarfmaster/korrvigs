@@ -68,7 +68,6 @@ korrvigsRoutes =
 /action/#Text/note/#WebId/code/#Text ActNoteCodeR POST
 
 -- Syndicate items
-/syndicate/#WebId/#Int/import SynItemImportR GET
 /syndicate/#WebId/#Int/read SynItemReadR GET
 
 -- Data

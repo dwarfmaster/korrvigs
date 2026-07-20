@@ -58,7 +58,6 @@ updateAggregate updateMetadata entry syn =
       mcnt :: Maybe Int64 <- rSelectOne $ countRows $ do
         item <- selectTable syndicatedItemsTable
         where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
-        where_ $ isNull $ item ^. sqlSynItInstance
         where_ $ item ^. sqlSynItRead .== sqlBool False
         pure $ item ^. sqlSynItSequence
       forM_ mcnt $ \cnt -> updateMetadata entry (M.singleton (mtdtSqlName AggregateCount) (toJSON cnt)) []

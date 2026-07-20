@@ -84,7 +84,7 @@ syncSynJSON i path sqlI json = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  let irows = flip fmap (zip [1 ..] $ json ^. synjsItems) $ \(sq, item) -> SyndicateItemRow sqlI sq (item ^. synitTitle) (item ^. synitUrl) (item ^. synitRead) (item ^. synitGUID) (item ^. synitDate) (unId <$> item ^. synitInstance) :: SyndicateItemRow
+  let irows = flip fmap (zip [1 ..] $ json ^. synjsItems) $ \(sq, item) -> SyndicateItemRow sqlI sq (item ^. synitTitle) (item ^. synitUrl) (item ^. synitRead) (item ^. synitGUID) (item ^. synitDate) :: SyndicateItemRow
   let insertItemRows =
         Insert
           { iTable = syndicatedItemsTable,
@@ -92,7 +92,7 @@ syncSynJSON i path sqlI json = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  let refs = (json ^.. synjsFilters . each . _1) ++ mapMaybe (view synitInstance) (json ^. synjsItems)
+  let refs = json ^.. synjsFilters . each . _1
   pure $ SyncData erow [insert, insertItemRows] mtdtrows (json ^. synjsText) (MkId <$> json ^. synjsParents) refs M.empty
 
 updateFile :: (MonadKorrvigs m) => Id -> FilePath -> (SyndicateJSON -> m SyndicateJSON) -> m ()
@@ -128,41 +128,15 @@ updateRef syn old new =
       . (synjsParents %~ upd)
       . (synjsMetadata %~ updateInMetadata old new)
       . (synjsFilters %~ (>>= updFilter))
-      . (synjsItems . each %~ updItem)
   where
     upd [] = []
     upd (p : ps) | p == unId old = maybe id ((:) . unId) new ps
     upd (p : ps) = p : upd ps
     updFilter (entry, code) | entry == old = (,code) <$> toList new
     updFilter (entry, code) = [(entry, code)]
-    updItem item | item ^. synitInstance == Just old = item & synitInstance .~ new
-    updItem item = item
 
 updateTitle :: (MonadKorrvigs m) => Syndicate -> Maybe Text -> m ()
 updateTitle syn ntitle = updateImpl syn $ pure . (synjsTitle .~ ntitle)
-
-instantiateItem :: (MonadKorrvigs m) => Syndicate -> Int -> Id -> m ()
-instantiateItem syn item i = do
-  let sqlI = syn ^. synEntry . entryId
-  newSqlI <- rSelectOne (fromName pure $ sqlId i) >>= throwMaybe (KCantLoad i "No sql ID found")
-  updateImpl syn $ pure . (synjsItems . ix (item - 1) . synitInstance ?~ i)
-  atomicSQL $ \conn -> do
-    void $
-      runUpdate conn $
-        Update
-          { uTable = syndicatedItemsTable,
-            uUpdateWith = sqlSynItInstance .~ toNullable (sqlId i),
-            uWhere = \row -> row ^. sqlSynItSyndicate .== sqlInt4 sqlI .&& (row ^. sqlSynItSequence) .== sqlInt4 item,
-            uReturning = rCount
-          }
-    void $
-      runInsert conn $
-        Insert
-          { iTable = entriesRefTable,
-            iRows = [RelRow (sqlInt4 sqlI) (sqlInt4 newSqlI)],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
 
 readItem :: (MonadKorrvigs m) => Syndicate -> Int -> m ()
 readItem syn item = do

@@ -5,15 +5,13 @@ import Data.Aeson
 import Data.Maybe
 import Data.Text (Text)
 import Data.Time.Clock
-import Korrvigs.Entry
 
 data SyndicatedItem = SyndicatedItem
   { _synitTitle :: Text,
     _synitUrl :: Text,
     _synitRead :: Bool,
     _synitGUID :: Maybe Text,
-    _synitDate :: Maybe UTCTime,
-    _synitInstance :: Maybe Id
+    _synitDate :: Maybe UTCTime
   }
   deriving (Show)
 
@@ -27,7 +25,6 @@ instance FromJSON SyndicatedItem where
       <*> (fromMaybe False <$> obj .:? "read")
       <*> obj .:? "guid"
       <*> obj .:? "date"
-      <*> (fmap MkId <$> obj .:? "instance")
 
 instance ToJSON SyndicatedItem where
   toJSON syn =
@@ -38,7 +35,6 @@ instance ToJSON SyndicatedItem where
         ++ ["read" .= True | syn ^. synitRead]
         ++ maybe [] ((: []) . ("guid" .=)) (syn ^. synitGUID)
         ++ maybe [] ((: []) . ("date" .=)) (syn ^. synitDate)
-        ++ maybe [] ((: []) . ("instance" .=) . unId) (syn ^. synitInstance)
 
 isSame :: SyndicatedItem -> SyndicatedItem -> Bool
 isSame it1 it2 =

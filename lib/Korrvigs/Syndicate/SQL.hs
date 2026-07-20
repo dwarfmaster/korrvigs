@@ -67,26 +67,25 @@ synFromRow row entry =
 
 -- syndicated_items table
 
-data SyndicateItemRowImpl a b c d e f g h = SyndicateItemRow
+data SyndicateItemRowImpl a b c d e f g = SyndicateItemRow
   { _sqlSynItSyndicate :: a,
     _sqlSynItSequence :: b,
     _sqlSynItTitle :: c,
     _sqlSynItUrl :: d,
     _sqlSynItRead :: e,
     _sqlSynItGUID :: f,
-    _sqlSynItDate :: g,
-    _sqlSynItInstance :: h
+    _sqlSynItDate :: g
   }
 
 makeLenses ''SyndicateItemRowImpl
 makeAdaptorAndInstanceInferrable "pSynItRow" ''SyndicateItemRowImpl
 
-type SyndicateItemRow = SyndicateItemRowImpl Int Int Text Text Bool (Maybe Text) (Maybe UTCTime) (Maybe Text)
+type SyndicateItemRow = SyndicateItemRowImpl Int Int Text Text Bool (Maybe Text) (Maybe UTCTime)
 
-type SyndicateItemRowSQL = SyndicateItemRowImpl (Field SqlInt4) (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlBool) (FieldNullable SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlText)
+type SyndicateItemRowSQL = SyndicateItemRowImpl (Field SqlInt4) (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlBool) (FieldNullable SqlText) (FieldNullable SqlTimestamptz)
 
 instance Default ToFields SyndicateItemRow SyndicateItemRowSQL where
-  def = pSynItRow $ SyndicateItemRow def def def def def def def def
+  def = pSynItRow $ SyndicateItemRow def def def def def def def
 
 syndicatedItemsTable :: Table SyndicateItemRowSQL SyndicateItemRowSQL
 syndicatedItemsTable =
@@ -100,7 +99,6 @@ syndicatedItemsTable =
         (tableField "read")
         (tableField "guid")
         (tableField "date")
-        (tableField "instance")
 
 synItemFromRow :: SyndicateItemRow -> SyndicatedItem
 synItemFromRow row =
@@ -109,8 +107,7 @@ synItemFromRow row =
       _synitUrl = row ^. sqlSynItUrl,
       _synitRead = row ^. sqlSynItRead,
       _synitGUID = row ^. sqlSynItGUID,
-      _synitDate = row ^. sqlSynItDate,
-      _synitInstance = MkId <$> row ^. sqlSynItInstance
+      _synitDate = row ^. sqlSynItDate
     }
 
 -- Functions

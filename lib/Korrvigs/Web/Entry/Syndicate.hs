@@ -4,23 +4,16 @@ import Control.Lens
 import Control.Monad
 import Data.Default
 import Data.Foldable
-import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock
 import Korrvigs.Entry
-import Korrvigs.Metadata
-import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Syndicate.SQL
-import Korrvigs.Utils.JSON
-import Korrvigs.Utils.Opaleye
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
-import Korrvigs.Web.Widgets (checkBoxDWIM, openIcon)
 import Opaleye hiding (not)
-import qualified Opaleye as O
 import Yesod hiding (Field)
 
 data RenderSpec = RenderSpec
@@ -66,7 +59,7 @@ renderItems syns spec = do
   public <- isPublic
   let ordByDate = descNullsFirst $ view _5
   let ordBySeq = desc $ view _6
-  itemsSQL :: [(Text, Text, Text, Maybe Id, Maybe UTCTime, Int, Bool, Maybe Text, Id, Maybe Text)] <-
+  itemsSQL :: [(Text, Text, Text, Maybe UTCTime, Int, Bool, Id, Maybe Text)] <-
     rSelect $ orderBy (ordByDate <> ordBySeq) $ do
       let mkVal (i, title, syn) =
             let e = syn ^. synEntry
@@ -83,22 +76,12 @@ renderItems syns spec = do
         item <- selectTable syndicatedItemsTable
         where_ $ item ^. sqlSynItSyndicate .== synId
         pure item
-      task <- fmap joinMField $ optional $ limit 1 $ fromNullableSelect $ do
-        task <- selectTable entriesMetadataTable
-        entry <- selectTable entriesTable
-        where_ $ matchNullable (sqlBool False) (entry ^. sqlEntryName .==) (item ^. sqlSynItInstance)
-        where_ $ task ^. sqlKey .== sqlStrictText (mtdtSqlName TaskMtdt)
-        where_ $ task ^. sqlEntry .== (entry ^. sqlEntryId)
-        pure $ sqlJsonToText $ toNullable $ task ^. sqlValue
-      when onlyNew $ do
-        where_ $ isNull $ item ^. sqlSynItInstance
-        where_ $ item ^. sqlSynItRead .== sqlBool False
-      pure (synName, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItInstance, item ^. sqlSynItDate, item ^. sqlSynItSequence, item ^. sqlSynItRead, task, synParentId, synTitle)
+      when onlyNew $ where_ $ item ^. sqlSynItRead .== sqlBool False
+      pure (synName, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItDate, item ^. sqlSynItSequence, item ^. sqlSynItRead, synParentId, synTitle)
   items <- forM itemsSQL $ \item -> do
-    cb <- maybe (pure mempty) (flip checkBoxDWIM $ item ^. _8) $ item ^. _4
     liId <- if onlyNew then Just <$> newIdent else pure Nothing
     spanId :: Text <- newIdent
-    pure $ item & _8 .~ cb & _5 .~ (liId, spanId)
+    pure $ item & _4 .~ (liId, spanId)
   let optId someId = [("id" :: Text, i) | i <- toList someId]
   render <- getUrlRender
   let mkRead nm sq liId spanId = "readItem(this,\"" <> render (SynItemReadR (WId $ MkId nm) sq) <> "\"," <> maybe "null" (\t -> "\"" <> t <> "\"") liId <> ", \"" <> spanId <> "\")"
@@ -107,20 +90,15 @@ renderItems syns spec = do
     [whamlet|
     <div .syndicate>
       <ul>
-        $forall (synName,title,url,inst,(liId,spanId),sq,read,cb,synParentId,synTitle) <- items
+        $forall (synName,title,url,(liId,spanId),sq,read,synParentId,synTitle) <- items
           <li *{optId liId}>
             $if not public
-              ^{cb}
               <span ##{spanId}>
-                $if read && isNothing inst
+                $if read
                   ✓
-              $maybe i <- inst
-                <a href=@{EntryR $ WId i}>
-                  ^{openIcon}
-              $nothing
-                $if not read
-                  <span .item-read onclick=#{mkRead synName sq liId spanId}>
-                    ✓
+              $if not read
+                <span .item-read onclick=#{mkRead synName sq liId spanId}>
+                  ✓
               #{T.pack " "}
             <a href=#{url}>#{title}
             $if not public
@@ -132,15 +110,7 @@ renderItems syns spec = do
                   $nothing
                     @#{unId synParentId}
                   ]
-              $if isNothing inst
-                <a href=@{SynItemImportR (WId $ MkId synName) sq}>
-                  ⤓
   |]
-  where
-    joinMField :: MaybeFields (Field a) -> FieldNullable a
-    joinMField mfield = matchMaybe mfield $ \case
-      Just f -> toNullable f
-      Nothing -> O.null
 
 content :: Syndicate -> Handler Widget
 content = embed 0

@@ -283,8 +283,7 @@ doCaptureLink clk syn = do
             _synitUrl = clk ^. clkUrl,
             _synitRead = False,
             _synitGUID = Nothing,
-            _synitDate = Just tm,
-            _synitInstance = Nothing
+            _synitDate = Just tm
           }
   Sync.updateImpl syn $ pure . (synjsItems %~ (++ [item]))
   syncFileOfKind (syn ^. synEntry . entryName) (syn ^. synPath) (syn ^. synEntry . entryId) Syndicate

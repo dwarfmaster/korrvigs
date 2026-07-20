@@ -6,7 +6,6 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.CaseInsensitive as CI
-import Data.Default
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
@@ -19,7 +18,6 @@ import Korrvigs.File.New
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
-import qualified Korrvigs.Metadata.Media.New as Media
 import Korrvigs.Monad
 import qualified Korrvigs.Monad.Metadata as Mtdt
 import Korrvigs.Monad.Sync (syncFileOfKind)
@@ -116,35 +114,3 @@ lazyUpdateDate i time = do
     forM_ time $ \dt -> do
       tz <- liftIO getCurrentTimeZone
       Mtdt.updateDate entry $ Just $ utcToZonedTime tz dt
-
-newFromItem :: (MonadKorrvigs m) => Syndicate -> Int -> m Id
-newFromItem syn itemSeq = do
-  let sqlI = syn ^. synEntry . entryId
-  itemM <- rSelectOne $ do
-    item <- selectTable syndicatedItemsTable
-    where_ $ item ^. sqlSynItSyndicate .== sqlInt4 sqlI
-    where_ $ item ^. sqlSynItSequence .== sqlInt4 itemSeq
-    pure item
-  item :: SyndicateItemRow <- flip throwMaybe itemM $ KMiscError $ "Syndicate " <> unId (syn ^. synEntry . entryName) <> " has no item #" <> T.pack (show itemSeq)
-  case item ^. sqlSynItInstance of
-    Just i -> pure $ MkId i
-    Nothing -> do
-      oldI <- lookupFromUrl $ item ^. sqlSynItUrl
-      i <- case oldI of
-        Just i -> do
-          lazyUpdateDate i $ item ^. sqlSynItDate
-          pure i
-        Nothing -> do
-          let nmedia =
-                Media.NewMedia
-                  { Media._nmEntry =
-                      def
-                        & neTitle ?~ (item ^. sqlSynItTitle)
-                        & neDate %~ maybe id (const . Just . utctDay) (item ^. sqlSynItDate),
-                    Media._nmInput = item ^. sqlSynItUrl,
-                    Media._nmType = Nothing,
-                    Media._nmCapture = True
-                  }
-          Media.new nmedia
-      instantiateItem syn itemSeq i
-      pure i

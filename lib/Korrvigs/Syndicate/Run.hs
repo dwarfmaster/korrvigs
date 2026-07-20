@@ -40,7 +40,6 @@ import Korrvigs.Monad.Computation
 import Korrvigs.Monad.Sync
 import Korrvigs.Syndicate.Item
 import Korrvigs.Syndicate.JSON
-import Korrvigs.Syndicate.New (lazyUpdateDate, lookupFromUrl)
 import Korrvigs.Syndicate.Sync (updateImpl)
 import Korrvigs.Utils
 import Korrvigs.Utils.JSON (sqlJsonToBool)
@@ -186,26 +185,14 @@ mergeItemsInto :: (MonadKorrvigs m) => [SyndicatedItem] -> [SyndicatedItem] -> m
 mergeItemsInto = flip (foldM (flip insertOneItem)) . reverse
 
 insertOneItem :: (MonadKorrvigs m) => SyndicatedItem -> [SyndicatedItem] -> m [SyndicatedItem]
-insertOneItem it = findAndInsert
+insertOneItem it = pure . findAndInsert
   where
-    merge :: (MonadKorrvigs m) => SyndicatedItem -> SyndicatedItem -> m SyndicatedItem
-    merge new old =
-      tryInstantiate $
-        new
-          & synitInstance .~ old ^. synitInstance
-          & synitRead .~ old ^. synitRead
-    findAndInsert :: (MonadKorrvigs m) => [SyndicatedItem] -> m [SyndicatedItem]
-    findAndInsert [] = (: []) <$> tryInstantiate it
-    findAndInsert (oit : oits) | isSame it oit = (: oits) <$> merge it oit
-    findAndInsert (oit : oits) = (oit :) <$> findAndInsert oits
-
-tryInstantiate :: (MonadKorrvigs m) => SyndicatedItem -> m SyndicatedItem
-tryInstantiate it = case it ^. synitInstance of
-  Just _ -> pure it
-  Nothing -> do
-    inst <- lookupFromUrl $ it ^. synitUrl
-    forM_ inst $ flip lazyUpdateDate $ it ^. synitDate
-    pure $ it & synitInstance .~ inst
+    merge :: SyndicatedItem -> SyndicatedItem -> SyndicatedItem
+    merge new old = new & synitRead .~ old ^. synitRead
+    findAndInsert :: [SyndicatedItem] -> [SyndicatedItem]
+    findAndInsert [] = [it]
+    findAndInsert (oit : oits) | isSame it oit = merge it oit : oits
+    findAndInsert (oit : oits) = oit : findAndInsert oits
 
 parseDate :: Text -> Maybe UTCTime
 parseDate date =
@@ -239,8 +226,7 @@ importFromAtom settings feed = (setTitle . setAuthors, mapMaybe importFromEntry 
             _synitUrl = normalizeURL settings url,
             _synitRead = False,
             _synitGUID = Just $ Atom.entryId entry,
-            _synitDate = parseDate dt,
-            _synitInstance = Nothing
+            _synitDate = parseDate dt
           }
 
 extractText :: Atom.TextContent -> Text
@@ -276,8 +262,7 @@ importFromRSS settings time feed = (setTitle . setDesc . setTTL, mapMaybe import
             _synitUrl = normalizeURL settings url,
             _synitRead = False,
             _synitGUID = RSS.rssGuidValue <$> RSS.rssItemGuid item,
-            _synitDate = parseDate =<< RSS.rssItemPubDate item,
-            _synitInstance = Nothing
+            _synitDate = parseDate =<< RSS.rssItemPubDate item
           }
 
 importFromRSS1 :: SyndicateSettings -> RSS1.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
@@ -293,8 +278,7 @@ importFromRSS1 settings feed = (setTitle . setDesc, importFromItem <$> RSS1.feed
           _synitUrl = normalizeURL settings $ RSS1.itemURI item,
           _synitRead = False,
           _synitGUID = Nothing,
-          _synitDate = Nothing,
-          _synitInstance = Nothing
+          _synitDate = Nothing
         }
 
 importFromXML :: SyndicateSettings -> Element -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
@@ -321,8 +305,7 @@ importFromXML settings xml = (appEndo synEndo, mapMaybe extractItem $ elementNod
                 _synitUrl = "",
                 _synitRead = False,
                 _synitGUID = Nothing,
-                _synitDate = Nothing,
-                _synitInstance = Nothing
+                _synitDate = Nothing
               }
       let item = appEndo f defItem
       guard $ not $ T.null $ item ^. synitTitle

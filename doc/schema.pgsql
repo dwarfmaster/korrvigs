@@ -138,6 +138,5 @@ CREATE TABLE IF NOT EXISTS syndicated_items (
   url TEXT NOT NULL,
   read BOOLEAN NOT NULL,
   guid TEXT,
-  date TIMESTAMP WITH TIME ZONE,
-  instance TEXT
+  date TIMESTAMP WITH TIME ZONE
 );

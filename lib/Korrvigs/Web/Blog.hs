@@ -75,7 +75,7 @@ getBlogContent url (BlogFromNote i) = do
   mtdt <- loadMtdt cfg
   menu <- loadMenu cfg tags
   csl <- loadCSL cfg
-  toTypedContent <$> renderPost url menu (Just csl) renderUrl topEntries mtdt i
+  toTypedContent <$> renderPost url menu (Just csl) renderUrl topEntries mtdt False i
 getBlogContent _ (BlogFromCode i cd) = do
   entry <- load i >>= maybe notFound pure
   note <- maybe notFound pure $ entry ^? _Note

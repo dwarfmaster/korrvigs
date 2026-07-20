@@ -45,7 +45,8 @@ data RenderContext m = RenderContext
     _rdrHdOffset :: Int,
     _rdrCurLevel :: Int,
     _rdrTopEntries :: Id -> m (Maybe BlogUrl),
-    _rdrCitations :: Map Id Html
+    _rdrCitations :: Map Id Html,
+    _rdrOnlyPublished :: Bool
   }
 
 data RenderState = RenderState
@@ -74,8 +75,8 @@ makeLenses ''BlogPageContent
 shiftOffset :: Int -> RenderMonad m a -> RenderMonad m a
 shiftOffset noffset = withRWST $ \r st -> (r & rdrHdOffset .~ noffset, st)
 
-renderPost :: (MonadKorrvigs m) => BlogUrl -> BlogMenuContent -> Maybe (Id, Text) -> (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Map Text Text -> Id -> m Html
-renderPost url menuContent csl renderUrl topEntries mtdt noteId = do
+renderPost :: (MonadKorrvigs m) => BlogUrl -> BlogMenuContent -> Maybe (Id, Text) -> (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Map Text Text -> Bool -> Id -> m Html
+renderPost url menuContent csl renderUrl topEntries mtdt onlyPublished noteId = do
   entry <- load noteId >>= throwMaybe (KCantLoad noteId "Failed to load entry for blog")
   note <- throwMaybe (KMiscError "Blog post is not a note") $ entry ^? _Note
   doc <- readNote (note ^. notePath) >>= throwEither (\e -> KMiscError $ "Failed to load note for blog post: " <> e)
@@ -83,7 +84,7 @@ renderPost url menuContent csl renderUrl topEntries mtdt noteId = do
         fromMaybe (doc ^. docTitle) $
           M.lookup (mtdtName BlogTitle) (doc ^. docMtdt) >>= fromJSONM
   (citations, bibliography) <- maybe (pure mempty) (flip renderCitations doc) csl
-  contentHtml <- renderDocument renderUrl topEntries citations t doc
+  contentHtml <- renderDocument renderUrl topEntries citations onlyPublished t doc
   renderPageContent $ BlogPageContent (contentHtml <> bibliography) mtdt t renderUrl menuContent url
 
 renderPageContent :: (MonadKorrvigs m) => BlogPageContent m -> m Html
@@ -154,8 +155,8 @@ renderMeta mtdt = mconcat $ render <$> M.toList mtdt
   where
     render (nm, cnt) = meta ! A.name (toValue nm) ! A.content (toValue cnt)
 
-renderDocument :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Map Id Html -> Text -> Document -> m Html
-renderDocument renderUrl topEntries citations usedTitle doc = do
+renderDocument :: (MonadKorrvigs m) => (BlogUrl -> m Text) -> (Id -> m (Maybe BlogUrl)) -> Map Id Html -> Bool -> Text -> Document -> m Html
+renderDocument renderUrl topEntries citations onlyPublished usedTitle doc = do
   let ctx =
         RenderContext
           { _rdrDoc = doc,
@@ -163,7 +164,8 @@ renderDocument renderUrl topEntries citations usedTitle doc = do
             _rdrHdOffset = 1,
             _rdrCurLevel = 1,
             _rdrTopEntries = topEntries,
-            _rdrCitations = citations
+            _rdrCitations = citations,
+            _rdrOnlyPublished = onlyPublished
           }
   let date = renderDate doc
   let t = h1 $ toMarkup usedTitle
@@ -261,6 +263,20 @@ renderBlock (EmbedHeader ref hdLvl) = do
       let lvl = hdLvl + off
       let hdr = h lvl $ toMarkup $ doc ^. docTitle
       fmap (hdr <>) $ lift $ shiftOffset lvl $ renderBlocks $ embedded ^. docContent
+renderBlock (Collection _ "last-posts" _) = do
+  onlyPublished <- view rdrOnlyPublished
+  render <- view rdrRenderUrl
+  posts <- lift $ loadForTag onlyPublished Nothing (Just 10)
+  items <- forM posts $ \(post, pub, postTitle, _) -> do
+    url <- lift $ render $ BlogPostNote post
+    pure $
+      li $
+        mconcat
+          [ span (toMarkup $ formatTime defaultTimeLocale "%F" pub) ! A.class_ "postdate",
+            " ",
+            a (toMarkup postTitle) ! A.href (toValue url)
+          ]
+  pure $ ul $ mconcat items
 renderBlock (Collection _ _ _) = pure mempty
 renderBlock (Syndicate _ _ _ _) = pure mempty
 renderBlock (Sub hd) | "blog-ignore" `elem` (hd ^. hdAttr . attrClasses) = pure mempty

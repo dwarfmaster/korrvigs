@@ -198,7 +198,7 @@ renderBlocksWithFootnotes bks = do
   rdrstFootNotes .= M.empty
   ftHtml <- mapM renderFootNote $ M.toList footnotes
   off <- view rdrHdOffset
-  let footnotesHtml = if M.null footnotes then mempty else dl (h (off + 1) "Footnotes" <> mconcat ftHtml) ! A.class_ "footnotes"
+  let footnotesHtml = if M.null footnotes then mempty else h (off + 1) "Footnotes" <> dl (mconcat ftHtml) ! A.class_ "footnotes"
   pure $ content <> footnotesHtml
   where
     renderFootNote :: (Int, [Block]) -> RenderMonad m Html

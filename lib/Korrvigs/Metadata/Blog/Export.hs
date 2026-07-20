@@ -16,11 +16,11 @@ import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Blog.Citations (prepareCitations)
+import Korrvigs.Metadata.Blog.Math
 import Korrvigs.Metadata.Blog.Mtdt
 import Korrvigs.Metadata.Blog.Structure
 import Korrvigs.Metadata.Media
@@ -28,12 +28,9 @@ import Korrvigs.Monad
 import Korrvigs.Note hiding (code, sub)
 import Korrvigs.Utils
 import Korrvigs.Utils.JSON
-import Korrvigs.Utils.Process
 import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye
 import qualified Opaleye as O
-import System.Exit
-import System.Process
 import Text.Blaze
 import Text.Blaze.Html5
 import qualified Text.Blaze.Html5.Attributes as A
@@ -367,8 +364,8 @@ renderInline (PlainLink txt tgt) = do
   pure $ a cpt ! A.href (toValue url)
 renderInline Space = pure $ toMarkup (" " :: Text)
 renderInline Break = pure br
-renderInline (DisplayMath mth) = liftIO $ renderMath False mth
-renderInline (InlineMath mth) = liftIO $ renderMath True mth
+renderInline (DisplayMath mth) = lift $ renderMath False mth
+renderInline (InlineMath mth) = lift $ renderMath True mth
 renderInline (Sidenote note) = do
   idx <- use rdrstCount
   rdrstCount %= (+ 1)
@@ -378,11 +375,3 @@ renderInline (Sidenote note) = do
   let lnk = a (toMarkup $ show idx) ! A.href (toValue $ "#" <> ftContentId)
   pure $ span lnk ! A.class_ "footnote" ! A.id (toValue ftId)
 renderInline (Check _) = pure mempty
-
-renderMath :: Bool -> Text -> IO Html
-renderMath inline mth = do
-  (exit, r) <- runStdout $ proc "tex2svg" $ ["--inline" | inline] <> [T.unpack mth]
-  pure $
-    if exit /= ExitSuccess
-      then code $ toMarkup mth
-      else preEscapedToHtml $ LEnc.decodeUtf8 r

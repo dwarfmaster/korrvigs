@@ -140,3 +140,8 @@ CREATE TABLE IF NOT EXISTS syndicated_items (
   guid TEXT,
   date TIMESTAMP WITH TIME ZONE
 );
+
+CREATE TABLE IF NOT EXISTS blog_math_cache (
+  math TEXT NOT NULL PRIMARY KEY,
+  svg TEXT NOT NULL
+);

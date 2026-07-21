@@ -7,8 +7,10 @@ import Korrvigs.Web.Download (getEntryDownloadR)
 import Korrvigs.Web.Entry (getEntryR)
 import Korrvigs.Web.Note (getNoteColR, getNoteNamedCodeR, getNoteNamedSubR)
 import Korrvigs.Web.Public.Crypto
+import Korrvigs.Web.Ressources
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Search (getSearchR)
+import Text.Cassius (Css)
 import Yesod hiding (cached, joinPath)
 
 getPublicR :: Handler Html
@@ -18,6 +20,11 @@ getPublicR = do
   <h1> Forbidden
   <p>You have tried to access a private part of the website.
   |]
+
+getPublicCssR :: Text -> CssFile -> Handler Css
+getPublicCssR mac css = do
+  checkMac mac $ CssR css
+  getCssR css
 
 getPublicEntryR :: Text -> WebId -> Handler Html
 getPublicEntryR mac i = do

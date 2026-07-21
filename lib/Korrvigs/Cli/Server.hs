@@ -64,6 +64,7 @@ run cmd = do
           web_static_redirect = staticRedirect,
           web_mime_database = mimeDb,
           web_mac_secret = secret,
+          web_route_signer = mkRouteSigner secret,
           web_capture_root = captureRt,
           web_credentials = creds,
           web_manager = ref,

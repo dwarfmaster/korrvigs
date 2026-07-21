@@ -210,8 +210,9 @@ displayLibrary _ entries = do
         & PhotoSwipe.swpCaption .~ [whamlet|<p *{title}>^{caption}|]
         & PhotoSwipe.swpRedirect .~ (if public then Nothing else Just (EntryR $ WId $ e ^. _1 . sqlEntryName))
   library <- PhotoSwipe.photoswipe (def & PhotoSwipe.swpLibrary .~ True) $ catMaybes items
+  cssR <- mkCss
   pure $ do
-    Rcs.entryStyle CssR
+    Rcs.entryStyle cssR
     PhotoSwipe.photoswipeHeader
     Rcs.checkboxCode StaticR
     library
@@ -236,8 +237,9 @@ displayTaskList :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayTaskList _ entries = do
   public <- isPublic
   items <- mapM (uncurry $ mkTaskItem public) entries
+  cssR <- mkCss
   pure $ do
-    Rcs.entryStyle CssR
+    Rcs.entryStyle cssR
     Rcs.checkboxCode StaticR
     [whamlet|
       <ul>

@@ -85,11 +85,12 @@ displayHome = do
   favs <- favouritesWidget
   let eventsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🕑"} Calendar|]
   evs <- eventsWidget
+  cssR <- mkCss
   defaultLayout $ do
     setTitle "Korrvigs's Home"
     setDescriptionIdemp "Korrvigs home page"
-    Rcs.entryStyle CssR
-    Rcs.formsStyle CssR
+    Rcs.entryStyle cssR
+    Rcs.formsStyle cssR
     Widgets.sectionLogic
     Rcs.checkboxCode StaticR
     toWidget [julius|checkboxCleanSpans();|]

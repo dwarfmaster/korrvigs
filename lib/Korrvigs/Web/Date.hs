@@ -74,8 +74,9 @@ periodPage title marker linkedDays startTime endTime = do
   geoW <- displayResults ColMap False geo
   let geoHd = [whamlet|<h2> ^{Widgets.headerSymbol "○"} Map|]
   -- Building the page
+  cssR <- mkCss
   defaultLayout $ do
-    Rcs.entryStyle CssR
+    Rcs.entryStyle cssR
     Widgets.sectionLogic
     setTitle $ "Period " <> toMarkup title
     [whamlet|<h1>#{title}|]

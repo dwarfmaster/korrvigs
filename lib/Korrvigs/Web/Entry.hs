@@ -354,9 +354,10 @@ entryWidget entry = do
   gallery <- galleryWidget entry
   content <- contentWidget entry
   actions <- actWidget entry
+  cssR <- mkCss
   pure $ do
-    Rcs.entryStyle CssR
-    Rcs.formsStyle CssR
+    Rcs.entryStyle cssR
+    Rcs.formsStyle cssR
     Rcs.checkboxCode StaticR
     PhotoSwipe.photoswipeHeader
     title

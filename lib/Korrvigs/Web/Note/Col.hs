@@ -88,8 +88,9 @@ getNoteColEditR (WId i) col = do
                   #{fromMaybe ("#" <> unId (view sqlEntryName row)) (view sqlEntryTitle row)}
       |]
     ColItemComment _ -> pure mempty
+  cssR <- mkCss
   defaultLayout $ do
-    Rcs.formsStyle CssR
+    Rcs.formsStyle cssR
     [whamlet|
       <form action=@{NoteColEditR (WId i) col} method=POST>
         <ul>

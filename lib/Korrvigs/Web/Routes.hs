@@ -87,6 +87,7 @@ korrvigsRoutes =
 
 -- Public
 /public PublicR GET
+/public/#Text/style/#CssFile PublicCssR GET
 /public/#Text/entry/#WebId PublicEntryR GET
 /public/#Text/entry/#WebId/download PublicEntryDownloadR GET
 /public/#Text/entry/#WebId/cache/#Text PublicEntryComputeR GET

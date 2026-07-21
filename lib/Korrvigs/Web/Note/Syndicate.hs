@@ -38,10 +38,11 @@ getSyndicateImpl i mtag = do
   onlyUnread <- isJust <$> lookupGetParam "unread"
   dat <- getData onlyUnread mtag i
   render <- getUrlRenderParams
+  cssR <- mkCss
   if maybe False ("application/json" `BS.isPrefixOf`) accept
     then pure $ toTypedContent $ toJSON dat
     else fmap toTypedContent $ defaultLayout $ do
-      Rcs.syndicates StaticR CssR
+      Rcs.syndicates StaticR cssR
       setTitle $ "Syndicates for " <> toMarkup (unId i)
       [whamlet|
         <p>

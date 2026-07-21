@@ -40,13 +40,21 @@ loadOrGenerateKey = do
       BS.writeFile file key
       pure key
 
+mkRouteSigner ::
+  ByteString ->
+  (Route WebData -> [(Text, Text)] -> Text) ->
+  Route WebData ->
+  [(Text, Text)] ->
+  Text
+mkRouteSigner secret render route params =
+  extractBase64 . B64.encodeBase64 . BS.pack . BA.unpack . keyedBlake2GetDigest $ cmac
+  where
+    url = render route params
+    cmac :: KeyedBlake2 Algo = keyedBlake2 secret $ Enc.encodeUtf8 url
+
 signRoute :: Route WebData -> [(Text, Text)] -> Handler Text
-signRoute route params = do
-  render <- getUrlRenderParams
-  let url = render route params
-  secret <- getsYesod web_mac_secret
-  let cmac :: KeyedBlake2 Algo = keyedBlake2 secret $ Enc.encodeUtf8 url
-  pure . extractBase64 . B64.encodeBase64 . BS.pack . BA.unpack . keyedBlake2GetDigest $ cmac
+signRoute route params =
+  getsYesod web_route_signer <*> getUrlRenderParams <*> pure route <*> pure params
 
 checkMac :: Text -> Route WebData -> Handler ()
 checkMac mac64 route = do

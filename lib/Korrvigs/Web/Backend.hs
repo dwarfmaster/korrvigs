@@ -35,6 +35,7 @@ data WebData = WebData
     web_static_redirect :: Maybe Text,
     web_mime_database :: FilePath,
     web_mac_secret :: ByteString,
+    web_route_signer :: (Route WebData -> [(Text, Text)] -> Text) -> Route WebData -> [(Text, Text)] -> Text,
     web_capture_root :: FilePath,
     web_credentials :: Map Text Value,
     web_manager :: IORef (Maybe Manager),
@@ -79,13 +80,23 @@ headerContent =
     ("Note", NoteFuzzyR, hdIsNote)
   ]
 
+mkCss :: Handler (CssFile -> Route WebData)
+mkCss =
+  isPublic >>= \case
+    True -> do
+      render <- getUrlRenderParams
+      signer <- getsYesod web_route_signer
+      pure $ \css -> PublicCssR (signer render (CssR css) []) css
+    False -> pure CssR
+
 mkHeader :: Handler Widget
 mkHeader =
   isPublic >>= \case
     True -> pure mempty
-    False ->
+    False -> do
+      cssR <- mkCss
       getCurrentRoute
-        <&> Rcs.header StaticR CssR . \case
+        <&> Rcs.header StaticR cssR . \case
           Just route -> [(current route, txt, rt) | (txt, rt, current) <- headerContent]
           Nothing -> [(False, txt, rt) | (txt, rt, _) <- headerContent]
 
@@ -95,6 +106,7 @@ mkQuery (key, val) = (Enc.encodeUtf8 key, Just $ Enc.encodeUtf8 val)
 
 isPublicRoute :: Route WebData -> Bool
 isPublicRoute PublicR = True
+isPublicRoute (PublicCssR _ _) = True
 isPublicRoute (PublicEntryR _ _) = True
 isPublicRoute (PublicEntryDownloadR _ _) = True
 isPublicRoute (PublicEntryComputeR {}) = True
@@ -113,7 +125,8 @@ instance Yesod WebData where
   maximumContentLength _ _ = Nothing
   defaultLayout w = do
     hd <- mkHeader
-    let widget = sequence_ [Rcs.defaultCss CssR, hd, w]
+    cssR <- mkCss
+    let widget = sequence_ [Rcs.defaultCss cssR, hd, w]
     p <- widgetToPageContent widget
     msgs <- getMessages
     withUrlRenderer

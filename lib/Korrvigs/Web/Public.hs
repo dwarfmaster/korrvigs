@@ -2,6 +2,7 @@ module Korrvigs.Web.Public where
 
 import Data.Text (Text)
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Blog
 import Korrvigs.Web.Compute (getEntryComputeR)
 import Korrvigs.Web.Download (getEntryDownloadR)
 import Korrvigs.Web.Entry (getEntryR)
@@ -60,3 +61,13 @@ getPublicNoteNamedCodeR :: Text -> WebId -> Text -> Handler Html
 getPublicNoteNamedCodeR mac i cd = do
   checkMac mac $ NoteNamedCodeR i cd
   getNoteNamedCodeR i cd
+
+getPublicBlogTopR :: Text -> Text -> Handler TypedContent
+getPublicBlogTopR mac top = do
+  checkMac mac $ BlogTopR top
+  getBlogTopR top
+
+getPublicBlogPostR :: Text -> Text -> Handler TypedContent
+getPublicBlogPostR mac post = do
+  checkMac mac $ BlogPostR post
+  getBlogPostR post

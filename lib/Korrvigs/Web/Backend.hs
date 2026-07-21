@@ -114,6 +114,8 @@ isPublicRoute (PublicSearchR _) = True
 isPublicRoute (PublicNoteColR {}) = True
 isPublicRoute (PublicNoteNamedSubR {}) = True
 isPublicRoute (PublicNoteNamedCodeR {}) = True
+isPublicRoute (PublicBlogTopR _ _) = True
+isPublicRoute (PublicBlogPostR _ _) = True
 isPublicRoute _ = False
 
 isPublic :: Handler Bool

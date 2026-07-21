@@ -1,12 +1,15 @@
 module Korrvigs.Web.Actions.Share where
 
 import Control.Lens
+import Control.Monad
 import Control.Monad.Extra (whenMaybe)
 import Data.Default
 import Data.Maybe
 import Data.Text (Text)
 import Korrvigs.Compute
 import Korrvigs.Entry
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Blog
 import Korrvigs.Monad
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
@@ -36,17 +39,25 @@ runShare () (TargetEntry entry) = do
   public <- Public.signRoute (EntryR $ WId i) []
   publicDl <- Public.signRoute (EntryDownloadR $ WId i) []
   render <- getUrlRenderParams
-  let html = htmlUrl public publicDl render
+  blogpost <- rSelectMtdt BlogPost $ sqlId $ entry ^. entryName
+  signedpost <- forM blogpost $ \post -> do
+    publicPost <- Public.signRoute (BlogPostR post) []
+    pure $ PublicBlogPostR publicPost post
+  let html = htmlUrl public publicDl signedpost render
   pure $ def & reactMsg ?~ html
   where
     i = entry ^. entryName
-    htmlUrl public publicDl =
+    htmlUrl public publicDl signedpost =
       [hamlet|
       <ul>
         <li>
           <a href=@{PublicEntryR public $ WId i}>Share this entry
         <li>
           <a href=@{PublicEntryDownloadR publicDl $ WId i}>Share the content of this entry
+        $maybe post <- signedpost
+          <li>
+            <a href=@{post}>
+              Share the blogpost
     |]
 runShare () TargetHome = pure def
 runShare () (TargetSearch q disp) = do

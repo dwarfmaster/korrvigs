@@ -21,26 +21,43 @@ import Korrvigs.Note.AST
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Compute
 import Korrvigs.Web.Download
+import Korrvigs.Web.Public.Crypto
 import Korrvigs.Web.Routes
 import Opaleye
 import System.FilePath
 import Yesod
 
-renderUrlImpl :: BlogUrl -> Route WebData
-renderUrlImpl (BlogTopLevel "index.html") = BlogR
-renderUrlImpl (BlogTopLevel txt) = BlogTopR txt
-renderUrlImpl (BlogFilePlain file) = BlogFileR file
-renderUrlImpl (BlogPostNote note) = BlogPostR note
-renderUrlImpl (BlogComputation note cmp tp) = BlogPostCompR note $ cmp <> "." <> ext
+renderPublic :: BlogUrl -> Handler (Route WebData)
+renderPublic (BlogTopLevel txt) = do
+  mac <- signRoute (BlogTopR txt) []
+  pure $ PublicBlogTopR mac txt
+renderPublic (BlogPostNote post) = do
+  mac <- signRoute (BlogPostR post) []
+  pure $ PublicBlogPostR mac post
+renderPublic _ = pure PublicR
+
+withPublic :: BlogUrl -> Route WebData -> Handler (Route WebData)
+withPublic url route =
+  isPublic >>= \case
+    True -> renderPublic url
+    False -> pure route
+
+renderUrlImpl :: BlogUrl -> Handler (Route WebData)
+renderUrlImpl u@(BlogTopLevel "index.html") = withPublic u BlogR
+renderUrlImpl u@(BlogTopLevel txt) = withPublic u $ BlogTopR txt
+renderUrlImpl u@(BlogFilePlain file) = withPublic u $ BlogFileR file
+renderUrlImpl u@(BlogPostNote note) = withPublic u $ BlogPostR note
+renderUrlImpl u@(BlogComputation note cmp tp) =
+  withPublic u $ BlogPostCompR note $ cmp <> "." <> ext
   where
     ext = runTypeExt tp
-renderUrlImpl BlogArchive = BlogArchiveAllR
-renderUrlImpl (BlogArchiveTag tag) = BlogArchiveTagR tag
-renderUrlImpl BlogAtom = BlogAtomAllR
-renderUrlImpl (BlogAtomTag tag) = BlogAtomTagR tag
+renderUrlImpl u@BlogArchive = withPublic u $ BlogArchiveAllR
+renderUrlImpl u@(BlogArchiveTag tag) = withPublic u $ BlogArchiveTagR tag
+renderUrlImpl u@BlogAtom = withPublic u $ BlogAtomAllR
+renderUrlImpl u@(BlogAtomTag tag) = withPublic u $ BlogAtomTagR tag
 
 renderUrl :: BlogUrl -> Handler Text
-renderUrl u = getUrlRender <*> pure (renderUrlImpl u)
+renderUrl u = getUrlRender <*> renderUrlImpl u
 
 lookupHost :: Handler Text
 lookupHost =

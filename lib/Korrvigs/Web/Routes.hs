@@ -95,4 +95,6 @@ korrvigsRoutes =
 /public/#Text/note/#WebId/col/#Text PublicNoteColR GET
 /public/#Text/note/#WebId/named/sub/#Text PublicNoteNamedSubR GET
 /public/#Text/note/#WebId/named/code/#Text PublicNoteNamedCodeR GET
+/public/#Text/blog/#Text PublicBlogTopR GET
+/public/#Text/blog/posts/#Text PublicBlogPostR GET
 |]

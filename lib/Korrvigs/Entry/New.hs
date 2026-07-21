@@ -64,7 +64,7 @@ instance Default NewEntry where
 
 zonedTimeFromDay :: TimeZone -> Day -> ZonedTime
 zonedTimeFromDay tz day =
-  ZonedTime (LocalTime day (TimeOfDay 0 0 0)) tz
+  ZonedTime (LocalTime day (TimeOfDay 12 0 0)) tz
 
 useDate :: (MonadIO m) => NewEntry -> Maybe ZonedTime -> m (Maybe ZonedTime)
 useDate ne dt = do

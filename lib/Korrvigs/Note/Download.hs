@@ -1,4 +1,4 @@
-module Korrvigs.Note.Download (downloadInformation) where
+module Korrvigs.Note.Download (downloadInformation, downloadInformationWithExtractor) where
 
 import Conduit (liftIO)
 import Control.Applicative
@@ -32,7 +32,7 @@ import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import qualified Korrvigs.Note.Download.Books as Books
 import qualified Korrvigs.Note.Download.Video as Vid
-import Korrvigs.Utils (rightToMaybe)
+import Korrvigs.Utils (liftEndo, rightToMaybe)
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Pandoc (pdExtractMtdt)
 import Network.HTTP.Simple
@@ -172,21 +172,25 @@ ldToMeta ld
     parseLanguage _ = Nothing
 ldToMeta _ = mempty
 
-extractHTMLMeta :: (MonadKorrvigs m) => Text -> Text -> m (Endo NewEntry)
-extractHTMLMeta url txt =
-  fmap mconcat . sequence $
-    [ Vid.nebula url tags,
-      Books.manytoon url tags,
-      Books.goodreads url tags,
-      Books.bedetheque url tags,
-      Books.webtoons url tags,
-      pure . mconcat $ matchLD <$> divvy 2 1 html,
-      pure . mconcat $ matchTitle <$> divvy 2 1 html,
-      pure . mconcat $ matchRSS <$> html,
-      pure . mconcat $ matchMeta <$> html,
-      pure matchLanguage
-    ]
+type MetaExtractor m a = Text -> [Tag Text] -> m (Endo a)
+
+extractHTMLMeta :: (MonadKorrvigs m) => ASetter' a NewEntry -> [MetaExtractor m a] -> Text -> Text -> m (Endo a)
+extractHTMLMeta neLens extractors url txt =
+  fmap mconcat . sequence $ alwaysExtract <> fmap (\f -> f url tags) extractors
   where
+    alwaysExtract =
+      fmap (liftEndo neLens)
+        <$> [ Vid.nebula url tags,
+              Books.manytoon url tags,
+              Books.goodreads url tags,
+              Books.bedetheque url tags,
+              Books.webtoons url tags,
+              pure . mconcat $ matchLD <$> divvy 2 1 html,
+              pure . mconcat $ matchTitle <$> divvy 2 1 html,
+              pure . mconcat $ matchRSS <$> html,
+              pure . mconcat $ matchMeta <$> html,
+              pure matchLanguage
+            ]
     tags = parseTags txt
     html = takeWhile (/= TagClose ("head" :: Text)) tags
     matchRSS :: Tag Text -> Endo NewEntry
@@ -244,7 +248,10 @@ extractPandocMtdt pd = Endo (setContent . setTitle) <> processPandocMtdt mtdt
     setTitle = maybe id (neTitle ?~) $ M.lookup "title" mtdt >>= fromJSONM
 
 downloadInformation :: (MonadKorrvigs m) => Text -> m (Endo NewEntry)
-downloadInformation uri = do
+downloadInformation = downloadInformationWithExtractor id []
+
+downloadInformationWithExtractor :: (MonadKorrvigs m) => ASetter' a NewEntry -> [MetaExtractor m a] -> Text -> m (Endo a)
+downloadInformationWithExtractor neLens extractors uri = do
   req <- parseRequest $ T.unpack uri
   resp <- liftIO $ tryJust (guard . isHttpException) $ httpBS req
   case resp of
@@ -259,9 +266,9 @@ downloadInformation uri = do
           case r of
             (Right ("text/html", decoder)) : _ -> case decoder (getResponseBody response) of
               Just content -> do
-                htmlMeta <- extractHTMLMeta uri content
+                htmlMeta <- extractHTMLMeta neLens extractors uri content
                 liftIO (runIO $ readHtml def content) >>= \case
                   Left _ -> pure htmlMeta
-                  Right pd -> pure $ htmlMeta <> extractPandocMtdt pd
+                  Right pd -> pure $ htmlMeta <> liftEndo neLens (extractPandocMtdt pd)
               Nothing -> pure mempty
             _ -> pure mempty

@@ -1,5 +1,6 @@
 module Korrvigs.Utils where
 
+import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
@@ -144,3 +145,6 @@ lazyCreateManager ref = liftIO $ do
 rightToMaybe :: Either a b -> Maybe b
 rightToMaybe (Left _) = Nothing
 rightToMaybe (Right r) = Just r
+
+liftEndo :: ASetter' a b -> Endo b -> Endo a
+liftEndo ls endo = Endo $ ls %~ appEndo endo

@@ -28,6 +28,7 @@ import Data.Default
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
@@ -47,6 +48,7 @@ import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import qualified Korrvigs.Monad.Computation as Comp
 import Korrvigs.Monad.Sync (syncFileOfKind)
+import qualified Korrvigs.Note.Download as Dl
 import Korrvigs.Utils
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
 import Korrvigs.Utils.JSON
@@ -63,6 +65,7 @@ import System.FilePath
 import System.IO.Temp
 import qualified System.Posix as Posix
 import System.Process
+import Text.HTML.TagSoup
 import Text.Parsec hiding ((<|>))
 
 findMime :: FilePath -> FilePath -> IO MimeType
@@ -297,8 +300,41 @@ contDispGetFilename bs = case runParser contDispP () "content-disposition" bs of
   Left _ -> Nothing
   Right v -> v
 
+extractOgImage :: Tag Text -> Endo NewDownloadedFile
+extractOgImage tag@(TagOpen "meta" attrs)
+  | tag ~== TagOpen ("meta" :: Text) [("property", "og:image")] =
+      case lookup "content" attrs of
+        Nothing -> mempty
+        Just img -> Endo $ ndlUrl .~ img
+extractOgImage _ = mempty
+
+extractDeviantArt :: (MonadKorrvigs m) => Text -> [Tag Text] -> m (Endo NewDownloadedFile)
+extractDeviantArt url tags
+  | "https://www.deviantart.com" `T.isPrefixOf` url =
+      pure $ foldMap extractOgImage tags
+  where
+
+extractDeviantArt _ _ = pure mempty
+
+extractKonachan :: (MonadKorrvigs m) => Text -> [Tag Text] -> m (Endo NewDownloadedFile)
+extractKonachan url tags
+  | "https://konachan.com" `T.isPrefixOf` url =
+      pure $ foldMap extractOgImage tags
+extractKonachan _ _ = pure mempty
+
+extractFromUrl :: (MonadKorrvigs m) => Text -> m (Endo NewDownloadedFile)
+extractFromUrl url = do
+  endo <- Dl.downloadInformationWithExtractor ndlEntry [extractDeviantArt, extractKonachan] url
+  pure $
+    mconcat
+      [ endo,
+        Endo (ndlEntry . neMtdt . at (mtdtName Url) %~ Just . fromMaybe (toJSON url))
+      ]
+
 newFromUrl :: (MonadKorrvigs m) => NewDownloadedFile -> m (Maybe Id)
-newFromUrl dl = do
+newFromUrl dl' = do
+  dlEndo <- extractFromUrl $ dl' ^. ndlUrl
+  let dl = appEndo dlEndo dl'
   man <- manager
   withRunInIO $ \runIO ->
     withSystemTempDirectory "korrvigsDownload" $ \dir -> do
@@ -318,7 +354,7 @@ newFromUrl dl = do
       case success of
         Nothing -> pure Nothing
         Just tmp -> do
-          let nfile = NewFile (dl ^. ndlEntry) False & nfEntry . neMtdt %~ M.insert (mtdtName Url) (toJSON url)
+          let nfile = NewFile (dl ^. ndlEntry) False & nfEntry . neCover .~ Nothing
           i <- runIO $ new tmp nfile
           pure $ Just i
 

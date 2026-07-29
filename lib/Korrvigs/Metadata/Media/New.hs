@@ -144,6 +144,7 @@ prepareNewMedia nm = do
     medTxt Webcomic = "Webcomic"
     medTxt Blog = "Blog"
     medTxt Podcast = "Podcast"
+    medTxt AudioSaga = "Audio Saga"
     medTxt Album = "Album"
     medTxt Channel = "Channel"
     medTxt Show = "Série"

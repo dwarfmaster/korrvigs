@@ -38,6 +38,7 @@ data MediaType
   | Webcomic
   | Blog
   | Podcast
+  | AudioSaga
   | Album
   | Channel
   | Show
@@ -91,6 +92,7 @@ displayMediaType Song = "song"
 displayMediaType Webcomic = "webcomic"
 displayMediaType Blog = "blog"
 displayMediaType Podcast = "podcast"
+displayMediaType AudioSaga = "audio-saga"
 displayMediaType Album = "album"
 displayMediaType Channel = "channel"
 displayMediaType Show = "show"

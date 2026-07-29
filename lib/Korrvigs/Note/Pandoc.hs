@@ -396,6 +396,7 @@ parseColName hd = do
     "kanban" -> pure A.ColKanban
     "tasklist" -> pure A.ColTaskList
     "library" -> pure A.ColLibrary
+    "playlist" -> pure A.ColPlayList
     _ -> pure A.ColList
   pure (col, colname)
 

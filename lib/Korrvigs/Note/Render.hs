@@ -280,6 +280,7 @@ renderCollection col nm =
       ColKanban -> "kanban"
       ColTaskList -> "tasklist"
       ColLibrary -> "library"
+      ColPlayList -> "playlist"
 
 surrounded :: Text -> RenderM a -> RenderM a
 surrounded del act = do

@@ -3,7 +3,7 @@
 module Korrvigs.Monad.Collections where
 
 import Control.Arrow ((&&&))
-import Control.Lens
+import Control.Lens hiding (like)
 import Control.Monad
 import Control.Monad.Extra
 import Control.Monad.Trans.Class
@@ -78,8 +78,14 @@ otherQuery display entry = case display of
         & optCover .~ toNullable cover
         & optMime .~ mime
         & optTask .~ tsk
-  _ -> do
-    pure optDef
+  ColPlayList -> do
+    file <- selectTable filesTable
+    where_ $ file ^. sqlFileId .== (entry ^. sqlEntryId)
+    let mime = file ^. sqlFileMime
+    where_ $ (mime `like` sqlStrictText "audio/%") .|| (mime `like` sqlStrictText "video/%")
+    tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryId
+    pure $ optDef & optMime .~ justFields mime & optTask .~ tsk
+  _ -> pure optDef
   where
     galleryQueryFor sqlI = do
       void $ selComp sqlI "miniature"

@@ -26,6 +26,7 @@ import qualified Korrvigs.Web.JS.FullCalendar as Cal
 import qualified Korrvigs.Web.JS.Fuse as Fuse
 import Korrvigs.Web.JS.Leaflet
 import qualified Korrvigs.Web.JS.PhotoSwipe as PhotoSwipe
+import Korrvigs.Web.Public.Crypto
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import Korrvigs.Web.Utils
@@ -66,6 +67,7 @@ displayResults ColCalendar = displayCalendar
 displayResults ColKanban = displayUnsupported ColKanban
 displayResults ColTaskList = displayTaskList
 displayResults ColLibrary = displayLibrary
+displayResults ColPlayList = displayPlayList
 
 displayUnsupported :: Collection -> Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayUnsupported col _ _ =
@@ -275,3 +277,34 @@ mkTaskItem public entry dat = do
       $nothing
         @#{unId i}
     |]
+
+displayPlayList :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
+displayPlayList _ entries = do
+  public <- isPublic
+  items <- mapM (mkItem public) entries
+  cssR <- mkCss
+  pure $ do
+    Rcs.entryStyle cssR
+    Rcs.checkboxCode StaticR
+    [whamlet|
+      <div .playlist>
+        <ul>
+          $forall item <- items
+            ^{item}
+    |]
+  where
+    mkItem public (entry, dat) = do
+      let i = entry ^. sqlEntryName
+      let defRoute = EntryDownloadR $ WId i
+      route <- case public of
+        False -> pure defRoute
+        True -> do
+          hash <- signRoute defRoute []
+          pure $ PublicEntryDownloadR hash (WId i)
+      title <- mkTaskItem public entry dat
+      pure
+        [whamlet|
+        <li>
+          ^{title}
+          <audio controls autoplay=false loading=lazy src=@{route}>
+      |]

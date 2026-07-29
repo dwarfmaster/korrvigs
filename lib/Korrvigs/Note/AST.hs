@@ -72,6 +72,7 @@ data Collection
   | ColKanban
   | ColTaskList
   | ColLibrary
+  | ColPlayList
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data CollectionItem

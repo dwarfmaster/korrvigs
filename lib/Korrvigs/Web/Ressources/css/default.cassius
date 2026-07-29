@@ -66,3 +66,6 @@ span.entry-kind
   display: inline-block
   margin: 0.05em
 
+audio
+  width: 100%
+  display: block

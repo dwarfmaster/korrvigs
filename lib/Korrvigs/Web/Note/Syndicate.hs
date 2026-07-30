@@ -76,14 +76,15 @@ getData onlyUnread mtag i = do
   note <- maybe notFound pure $ entry ^? _Note
   let path = note ^. notePath
   doc <- either (const notFound) pure =<< readNote path
-  let docSyns = doc ^.. docContent . each . bkSubBlocks . _Syndicate . synFilter
+  let docSyns = doc ^.. docContent . each . bkSubBlocks . _Syndicate
   loadedSyns <- fmap mconcat $ forM docSyns $ \(tag, _, _, synIds) -> do
     syns <- resolveSyndicate synIds
     pure $ (tag,) . (_3 %~ \s -> let e = s ^. synEntry in (e ^. entryName, e ^. entryId)) <$> syns
   let syndicates =
-        fmap doGroup $
-          NE.groupBy (\(_, s1) (_, s2) -> s1 == s2) $
-            sortBy (\(_, s1) (_, s2) -> compare s1 s2) loadedSyns
+        filter synFilter $
+          fmap doGroup $
+            NE.groupBy (\(_, s1) (_, s2) -> s1 == s2) $
+              sortBy (\(_, s1) (_, s2) -> compare s1 s2) loadedSyns
   rSelect $ orderBy (descNullsFirst (view _9)) $ do
     (synParentId, synTitle :: FieldNullable SqlText, synId, sqlI, tags) <- values $ (\((parentId, title, (synId, sqlI)), tags) -> (sqlId parentId, toFields title, sqlId synId, sqlInt4 sqlI, sqlArray sqlStrictText tags)) <$> syndicates
     item <- limit 10 $ orderBy (desc (view sqlSynItSequence)) $ do
@@ -94,9 +95,9 @@ getData onlyUnread mtag i = do
     pure (synId, synParentId, item ^. sqlSynItSequence, synTitle, tags, item ^. sqlSynItTitle, item ^. sqlSynItUrl, item ^. sqlSynItRead, item ^. sqlSynItDate)
   where
     doGroup ((col1, s) :| cols) = (s, col1 : (fst <$> cols))
-    synFilter = case mtag of
-      Nothing -> id
-      Just tag -> filtered ((== tag) . view _1)
+    synFilter (_, tags) = case mtag of
+      Nothing -> True
+      Just tag -> tag `elem` tags
 
 renderItem :: Id -> Bool -> (Id, Id, Int, Maybe Text, [Text], Text, Text, Bool, Maybe UTCTime) -> Widget
 renderItem curId onlyUnread (synId, synParentId, sq, synTitle, tags, title, url, isRead, date) = do

@@ -120,6 +120,7 @@ library korrvigs-lib
     Korrvigs.Kind
     Korrvigs.Kind.Def
     Korrvigs.Kind.SQL
+    Korrvigs.Log
     Korrvigs.Metadata
     Korrvigs.Metadata.Android
     Korrvigs.Metadata.Android.ADB
@@ -154,6 +155,7 @@ library korrvigs-lib
     Korrvigs.Monad.Class
     Korrvigs.Monad.Collections
     Korrvigs.Monad.Computation
+    Korrvigs.Monad.Log
     Korrvigs.Monad.Metadata
     Korrvigs.Monad.Metadata.Autorun
     Korrvigs.Monad.Metadata.Hooks

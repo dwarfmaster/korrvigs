@@ -43,7 +43,8 @@ data KorrState = KState
     _korrWeb :: WebState,
     _korrCreds :: Map Text Value,
     _korrTokens :: TVar (Map Text Value),
-    _korrManager :: IORef (Maybe Manager)
+    _korrManager :: IORef (Maybe Manager),
+    _korrLogContext :: IORef (Maybe Int)
   }
 
 data KorrConfig = KConfig
@@ -88,6 +89,12 @@ instance MonadKorrvigs KorrM where
   storeToken tok v = do
     tv <- view korrTokens
     liftIO $ atomically $ modifyTVar tv $ M.insert tok $ toJSON v
+  registerLogContext ctx = do
+    ctxRef <- view korrLogContext
+    liftIO $ writeIORef ctxRef ctx
+  getLogContext = do
+    ctxRef <- view korrLogContext
+    liftIO $ readIORef ctxRef
 
 instance MonadFail KorrM where
   fail s = throwM $ KMiscError $ T.pack s
@@ -99,6 +106,7 @@ runKorrM config act = do
     Nothing -> pure M.empty
     Just credsPath -> fromMaybe M.empty . decode <$> BSL.readFile credsPath
   ref <- newIORef Nothing
+  ctxref <- newIORef Nothing
   toks <- newTVarIO M.empty
   lock <- newMVar ()
   let state =
@@ -117,7 +125,8 @@ runKorrM config act = do
                 },
             _korrCreds = creds,
             _korrTokens = toks,
-            _korrManager = ref
+            _korrManager = ref,
+            _korrLogContext = ctxref
           }
   let (KorrM action) = setupPsql >> act
   r <- catch (Right <$> runReaderT action state) (pure . Left)

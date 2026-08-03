@@ -145,3 +145,19 @@ CREATE TABLE IF NOT EXISTS blog_math_cache (
   math TEXT NOT NULL PRIMARY KEY,
   svg TEXT NOT NULL
 );
+
+DO $$ BEGIN
+  CREATE TYPE LOGLEVEL AS ENUM ('trace', 'info', 'warning', 'error');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS log_events (
+  id SERIAL PRIMARY KEY,
+  parent INTEGER references log_events(id) ON DELETE CASCADE,
+  time TIMESTAMP WITH TIME ZONE NOT NULL,
+  module TEXT NOT NULL,
+  line TEXT NOT NULL,
+  level LOGLEVEL NOT NULL,
+  payload JSONB NOT NULL
+);

@@ -46,6 +46,8 @@ class (MonadIO m, MonadThrow m, MonadUnliftIO m) => MonadKorrvigs m where
   getCredential :: (FromJSON cred) => Text -> m (Maybe cred)
   getToken :: (FromJSON tok) => Text -> m (Maybe tok)
   storeToken :: (ToJSON tok) => Text -> tok -> m ()
+  registerLogContext :: Maybe Int -> m ()
+  getLogContext :: m (Maybe Int)
 
 instance (MonadKorrvigs m) => MonadKorrvigs (ResourceT m) where
   lockSQL = lift lockSQL
@@ -57,6 +59,8 @@ instance (MonadKorrvigs m) => MonadKorrvigs (ResourceT m) where
   getCredential = lift . getCredential
   getToken = lift . getToken
   storeToken tokName = lift . storeToken tokName
+  registerLogContext = lift . registerLogContext
+  getLogContext = lift getLogContext
 
 withSQL :: (MonadKorrvigs m) => (Connection -> m a) -> m a
 withSQL act = do

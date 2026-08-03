@@ -49,24 +49,27 @@ run cmd = do
   captureRt <- captureRoot
   creds <- view korrCreds
   ref <- view korrManager
+  ctxref <- view korrLogContext
   toks <- view korrTokens
   conn <- view korrConnection
   lock <- view korrSQLLock
   mimeDb <- mimeDatabase
-  liftIO $
-    warp prt $
-      WebData
-        { web_connection = conn,
-          web_sql_lock = lock,
-          web_root = rt,
-          web_theme = theme16 theme,
-          web_static = stc,
-          web_static_redirect = staticRedirect,
-          web_mime_database = mimeDb,
-          web_mac_secret = secret,
-          web_route_signer = mkRouteSigner secret,
-          web_capture_root = captureRt,
-          web_credentials = creds,
-          web_manager = ref,
-          web_tokens = toks
-        }
+  $(withLogContext) "Serving web" $
+    liftIO $
+      warp prt $
+        WebData
+          { web_connection = conn,
+            web_sql_lock = lock,
+            web_root = rt,
+            web_theme = theme16 theme,
+            web_static = stc,
+            web_static_redirect = staticRedirect,
+            web_mime_database = mimeDb,
+            web_mac_secret = secret,
+            web_route_signer = mkRouteSigner secret,
+            web_capture_root = captureRt,
+            web_credentials = creds,
+            web_manager = ref,
+            web_tokens = toks,
+            web_log_context = ctxref
+          }

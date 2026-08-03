@@ -39,6 +39,7 @@ data WebData = WebData
     web_capture_root :: FilePath,
     web_credentials :: Map Text Value,
     web_manager :: IORef (Maybe Manager),
+    web_log_context :: IORef (Maybe Int),
     web_tokens :: TVar (Map Text Value)
   }
 
@@ -183,6 +184,12 @@ instance MonadKorrvigs Handler where
   storeToken tok v = do
     tv <- getsYesod web_tokens
     liftIO $ atomically $ modifyTVar tv $ M.insert tok $ toJSON v
+  registerLogContext ctx = do
+    ctxRef <- getsYesod web_log_context
+    liftIO $ writeIORef ctxRef ctx
+  getLogContext = do
+    ctxRef <- getsYesod web_log_context
+    liftIO $ readIORef ctxRef
 
 getFaviconR :: Handler TypedContent
 getFaviconR = redirect $ StaticR $ StaticRoute ["favicon.ico"] []

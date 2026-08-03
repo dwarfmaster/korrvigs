@@ -22,6 +22,7 @@ import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.New hiding (moveFile, new)
 import Korrvigs.Kind
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
@@ -35,6 +36,7 @@ import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
 import Korrvigs.Utils.Time
 import Opaleye hiding (not, null)
+import Prelude hiding (log)
 
 data NewNote = NewNote
   { _nnEntry :: NewEntry,
@@ -46,14 +48,16 @@ data NewNote = NewNote
 makeLenses ''NewNote
 
 new :: (MonadKorrvigs m) => NewNote -> m Id
-new note = do
+new note = $withLogContext ("Creating note \"" <> note ^. nnTitle <> "\"") $ do
   mi <- rSelect $ do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryKind .== sqlKind Note
     where_ $ matchNullable (sqlBool False) (.== sqlStrictText (note ^. nnTitle)) $ entry ^. sqlEntryTitle
     pure $ entry ^. sqlEntryName
   case mi of
-    (i : _) -> pure i
+    (i : _) -> do
+      $log $ EntryAlreadyExistsEvent Note i
+      pure i
     [] -> create note
 
 initContent :: Map (CI Text) Value -> [Block]
@@ -79,6 +83,7 @@ create note = do
         if note ^. nnTitleOverride
           then fromMaybe (note ^. nnTitle) $ nentry' ^. neTitle
           else note ^. nnTitle
+  $logTrace $ MiscEvent $ "Note title: " <> title
   nentry <- applyCover nentry' $ Just title
   idmk' <- applyNewEntry nentry (imk $ choosePrefix PrefixNote)
   let idmk = idmk' & idTitle ?~ title
@@ -108,6 +113,7 @@ create note = do
   let bs = writeNoteLazy doc
   rt <- noteDirectory
   path <- storeFile rt noteTreeType (nentry ^. neDate) (unId i <> ".md") $ FileLazy bs
+  $logTrace $ MiscEvent $ "Writing note at " <> T.pack path
   sqlI <- insertNew i Note
   syncFileOfKind i path sqlI Note
   applyOnNewEntry nentry i

@@ -9,12 +9,14 @@ import qualified Data.CaseInsensitive as CI
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
+import qualified Data.Text as T
 import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.Sync
 import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.New
 import Korrvigs.Kind
+import Korrvigs.Log
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync (syncFileOfKind)
 import Korrvigs.Utils.JSON (writePrettyJsonToFile)
@@ -33,11 +35,12 @@ unmapCI :: Map (CI Text) a -> Map Text a
 unmapCI = M.fromList . fmap (first CI.foldedCase) . M.toList
 
 new :: (MonadKorrvigs m) => NewCalendar -> m Id
-new nc = do
+new nc = $withLogContext ("Creating new calendar " <> ncMsg) $ do
   nentry <- applyCover (nc ^. ncEntry) $ Just $ nc ^. ncCalendar
   -- Create ID
   idmk <- applyNewEntry nentry $ imk (choosePrefix PrefixCalendar) & idTitle ?~ nc ^. ncCalendar
   i <- newId idmk
+  $logTrace $ NewEntryEvent Calendar i
   -- Make sure directory exists
   dir <- calJSONPath
   liftIO $ createDirectoryIfMissing True dir
@@ -57,12 +60,15 @@ new nc = do
             _cljsParents = unId <$> nentry ^. neParents
           }
   path <- calendarPath' i
+  $logTrace $ MiscEvent $ "Writing calendar to " <> T.pack path
   writePrettyJsonToFile path json
   -- Sync
   sqlI <- insertNew i Calendar
   syncFileOfKind i path sqlI Calendar
   applyOnNewEntry nentry i
   pure i
+  where
+    ncMsg = nc ^. ncUser <> "@" <> nc ^. ncServer <> ":" <> nc ^. ncCalendar
 
 moveFile :: (MonadKorrvigs m) => Calendar -> Id -> m ()
 moveFile cal ni = do

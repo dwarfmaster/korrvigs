@@ -9,6 +9,7 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry.New
+import Korrvigs.Log hiding (logError)
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -60,10 +61,17 @@ querySteam :: (MonadKorrvigs m) => SteamID -> m (Maybe (NewEntry -> NewEntry))
 querySteam i = do
   let url = steamUrl <> "/api/appdetails?appids=" <> T.pack (show i)
   content <- simpleHttpM url
-  case extract . eitherDecode <$> content of
-    Nothing -> pure Nothing
-    Just [] -> pure Nothing
-    Just (steam : _) -> do
+  case fmap extract . eitherDecode <$> content of
+    Nothing -> do
+      $logWarning $ MiscEvent $ "Failed to download " <> url
+      pure Nothing
+    Just (Left err) -> do
+      $logWarning $ ParseErrorEvent "json" url (T.pack err)
+      pure Nothing
+    Just (Right []) -> do
+      $logWarning $ MiscEvent "No games found in response"
+      pure Nothing
+    Just (Right (steam : _)) -> do
       let title = steam ^. stName
       let steamGameUrl = steamUrl <> "/app/" <> T.pack (show i)
       let gameUrl = fromMaybe steamGameUrl $ steam ^. stWebsite
@@ -84,6 +92,5 @@ querySteam i = do
               neCover .~ (steam ^. stImage)
             ]
   where
-    extract :: Either a (Map Text c) -> [c]
-    extract (Left _) = []
-    extract (Right mp) = M.elems mp
+    extract :: (Map Text c) -> [c]
+    extract = M.elems

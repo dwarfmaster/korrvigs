@@ -23,12 +23,14 @@ import Korrvigs.Event.SQL
 import Korrvigs.Event.Sync
 import Korrvigs.File.New
 import Korrvigs.Kind
+import Korrvigs.Log hiding (logError)
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
 import Opaleye hiding (not, null)
+import Prelude hiding (log)
 
 data NewEvent = NewEvent
   { _nevEntry :: NewEntry,
@@ -44,12 +46,14 @@ data NewEvent = NewEvent
 makeLenses ''NewEvent
 
 new :: (MonadKorrvigs m) => NewEvent -> m Id
-new opts = do
+new opts = $withLogContext ("Creating new event in calendar " <> unId (opts ^. nevCalendar)) $ do
   calExists <- fmap (not . null) $ rSelectOne $ do
     cal <- selectTable calendarsTable
     nm <- nameFor $ cal ^. sqlCalId
     where_ $ nm .== sqlId (opts ^. nevCalendar)
-  unless calExists $ throwM $ KMiscError $ "Calendar \"" <> unId (opts ^. nevCalendar) <> "\" does not exists"
+  unless calExists $ do
+    $logError $ MiscEvent $ "Calendar " <> unId (opts ^. nevCalendar) <> " does not exists"
+    throwM $ KMiscError $ "Calendar \"" <> unId (opts ^. nevCalendar) <> "\" does not exists"
   rt <- eventsDirectory
   tz <- liftIO getCurrentTimeZone
   let tzname = if null (timeZoneName tz) then "KorrvigsTZ" else T.pack (timeZoneName tz)
@@ -119,11 +123,13 @@ new opts = do
             _icEvent = Just ievent
           }
   i <- createIdFor ical ievent
+  $log $ NewEntryEvent Event i
   let uid = T.map (\c -> if c == ':' then '-' else c) (unId i) <> "@korrvigs"
   let ncal = ical & icEvent . _Just . iceUid .~ uid
   let filename = unId i <> "_" <> unId (opts ^. nevCalendar) <> ".ics"
   let day = localDay . zonedTimeToLocalTime . resolveICalTime ncal <$> ncal ^? icEvent . _Just . iceStart . _Just
   path <- storeFile rt eventTreeType day filename $ FileLazy $ renderICalFile ncal
+  $logTrace $ MiscEvent $ "Writing event file to " <> T.pack path
   sqlI <- insertNew i Event
   syncFileOfKind i path sqlI Event
   applyOnNewEntry nentry i

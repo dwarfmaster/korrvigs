@@ -12,6 +12,7 @@ import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.Format
 import Korrvigs.Entry.New
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -115,7 +116,9 @@ parseQuery _ = Nothing
 queryOMDB :: (MonadKorrvigs m) => OMDBId -> m (Maybe (NewEntry -> NewEntry))
 queryOMDB i =
   getCredential "omdb" >>= \case
-    Nothing -> pure Nothing
+    Nothing -> do
+      $logWarning $ MissingCredentialEvent "omdb"
+      pure Nothing
     Just key -> queryOMDBWithKey key i
 
 queryOMDBWithKey :: (MonadKorrvigs m) => Text -> OMDBId -> m (Maybe (NewEntry -> NewEntry))
@@ -144,4 +147,9 @@ queryOMDBWithKey key i = do
               if isFr then setMtdtValue Language "fr" else id,
               neCover .~ omdb ^. omdbPoster
             ]
-    _ -> pure Nothing
+    Just (Left err) -> do
+      $logWarning $ ParseErrorEvent "json" url (T.pack err)
+      pure Nothing
+    Nothing -> do
+      $logWarning $ MiscEvent $ "Failed to download from " <> url
+      pure Nothing

@@ -9,7 +9,6 @@ where
 
 import Citeproc.Types (readAsInt)
 import Control.Lens
-import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Foldable (toList)
@@ -19,6 +18,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
 import Korrvigs.Entry.New
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -138,9 +138,11 @@ queryOpenLibrary q = case mkAPIUrl q of
   Just url -> do
     content <- simpleHttpM url
     case eitherDecode <$> content of
-      Nothing -> pure Nothing
+      Nothing -> do
+        $(logTrace) $ MiscEvent "Failed to download content"
+        pure Nothing
       Just (Left err) -> do
-        liftIO $ putStrLn $ ">>> " <> err
+        $(logTrace) $ ParseErrorEvent "json" "OpenLibrary API call" $ T.pack err
         pure Nothing
       Just (Right olr) -> do
         let title = olr ^. olTitle

@@ -10,6 +10,7 @@ import Citeproc.Types
 import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BSL
 import Data.CaseInsensitive (CI)
@@ -26,9 +27,11 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Builder as LB
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Entry.New
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
+import Korrvigs.Monad
 import Korrvigs.Utils.JSON (fromJSONM)
 import Korrvigs.Utils.Pandoc
 import Korrvigs.Utils.Time
@@ -166,11 +169,15 @@ importReference ref = appEndo endo . med
 importReferences :: [Reference Inlines] -> Map Text (NewEntry -> NewEntry)
 importReferences = M.fromList . map (unItemId . referenceId &&& importReference)
 
-importPandoc :: (ReaderOptions -> Text -> PandocIO Pandoc) -> BSL.ByteString -> IO (Map Text (NewEntry -> NewEntry))
+importPandoc ::
+  (MonadKorrvigs m) =>
+  (ReaderOptions -> Text -> PandocIO Pandoc) ->
+  BSL.ByteString ->
+  m (Map Text (NewEntry -> NewEntry))
 importPandoc reader input =
-  runIO act >>= \case
+  liftIO (runIO act) >>= \case
     Left err -> do
-      putStrLn $ "Failed to load: " <> show err
+      $(logTrace) $ ParseErrorEvent "bibtex/RIS" (LT.toStrict $ LEnc.decodeUtf8 input) $ T.pack $ show err
       pure M.empty
     Right v -> pure v
   where
@@ -180,13 +187,13 @@ importPandoc reader input =
       refs <- getReferences Nothing pd
       pure $ importReferences refs
 
-importBibtex :: BSL.ByteString -> IO (Map Text (NewEntry -> NewEntry))
+importBibtex :: (MonadKorrvigs m) => BSL.ByteString -> m (Map Text (NewEntry -> NewEntry))
 importBibtex = importPandoc readBibLaTeX
 
-importRIS :: BSL.ByteString -> IO (Map Text (NewEntry -> NewEntry))
+importRIS :: (MonadKorrvigs m) => BSL.ByteString -> m (Map Text (NewEntry -> NewEntry))
 importRIS = importPandoc readRIS
 
-importRef :: Text -> IO (Maybe (NewEntry -> NewEntry))
+importRef :: (MonadKorrvigs m) => Text -> m (Maybe (NewEntry -> NewEntry))
 importRef url | "http" `T.isPrefixOf` url = pure Nothing
 importRef txt = do
   let bsl = LEnc.encodeUtf8 $ LT.fromStrict txt

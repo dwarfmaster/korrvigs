@@ -16,6 +16,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Korrvigs.Entry.New
+import Korrvigs.Log hiding (logError)
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -65,9 +66,11 @@ queryMangaUpdates url = do
   content <- simpleHttpM url
   let tags = parseTags <$> content
   ldDat <- case sections isLD <$> tags of
-    Just ((_ : TagText js : _) : _) -> case decode js of
-      Nothing -> pure Nothing
-      Just muData -> do
+    Just ((_ : TagText js : _) : _) -> case eitherDecode js of
+      Left err -> do
+        $logWarning $ ParseErrorEvent "json" (LT.toStrict $ LEnc.decodeUtf8 js) (T.pack err)
+        pure Nothing
+      Right muData -> do
         let title = muData ^. muName
         let date = muData ^. muDate
         pure $
@@ -83,7 +86,12 @@ queryMangaUpdates url = do
                 setMtdtValue Publisher $ muData ^. muPublishers,
                 neCover ?~ muData ^. muImage
               ]
-    _ -> pure Nothing
+    Nothing -> do
+      $logWarning $ ParseErrorEvent "tags" url ""
+      pure Nothing
+    _ -> do
+      $logWarning $ MiscEvent "Could not find application/ld+json tag"
+      pure Nothing
   let forum = flip fmap tags $ \tgs -> flip foldMap tgs $ \case
         tag@(TagOpen "a" attrs)
           | tag ~== TagOpen ("a" :: ByteString) [("title", "Click for Forum Info")] ->

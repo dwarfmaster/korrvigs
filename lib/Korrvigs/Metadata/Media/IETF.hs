@@ -9,6 +9,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
 import Korrvigs.Entry.New
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -93,4 +94,9 @@ queryIETF i = do
               maybe id (neDate ?~) date,
               neCover .~ Nothing
             ]
-    _ -> pure Nothing
+    Just (Left err) -> do
+      $logWarning $ ParseErrorEvent "json" url (T.pack err)
+      pure Nothing
+    _ -> do
+      $logWarning $ MiscEvent $ "Failed to download " <> url
+      pure Nothing

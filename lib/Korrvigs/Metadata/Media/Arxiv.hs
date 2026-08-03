@@ -16,6 +16,7 @@ import Data.Time.Format.ISO8601
 import qualified Data.XML.Types as XML
 import Korrvigs.Entry.New
 import Korrvigs.File.New
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -92,9 +93,11 @@ queryArxivBibtex i = do
   case bibtex of
     Nothing -> pure Nothing
     Just bib -> do
-      meds <- liftIO $ Pandoc.importBibtex bib
+      meds <- Pandoc.importBibtex bib
       case M.toList meds of
-        [] -> pure Nothing
+        [] -> do
+          $(logTrace) $ MiscEvent "No references found"
+          pure Nothing
         ((_, med) : _) -> pure $ Just med
 
 queryArxiv :: (MonadKorrvigs m) => ArxivId -> m (Maybe (NewEntry -> NewEntry))
@@ -105,6 +108,7 @@ queryArxiv i = do
   queryArxivBibtex i >>= \case
     Nothing -> pure Nothing
     Just med -> do
+      $(logTrace) $ MiscEvent $ "Download arXiv feed from " <> T.pack url
       content <- liftIO $ runResourceT $ do
         resp <- http req man
         let scode = statusCode (responseStatus resp)
@@ -112,13 +116,20 @@ queryArxiv i = do
           then fmap Just $ runConduit $ responseBody resp .| decode utf8 .| sinkTextDoc def
           else pure Nothing
       case content >>= elementFeed . toXMLElement . documentRoot <&> feedEntries of
-        Nothing -> pure Nothing
-        Just [] -> pure Nothing
+        Nothing -> do
+          $(logTrace) $ MiscEvent "Failed to download/parse arXiv feed"
+          pure Nothing
+        Just [] -> do
+          $(logTrace) $ MiscEvent "ArXiv feed has no entry"
+          pure Nothing
         Just (entry : _) -> do
           let files = extractFiles entry
           let title = T.pack $ txtToString $ entryTitle entry
           dls <- fmap catMaybes $ forM files $ \f ->
-            newFromUrl $ NewDownloadedFile f $ def & neTitle ?~ title <> " PDF"
+            $(withLogContext) ("Download arXiv PDF from " <> f) $
+              newFromUrl $
+                NewDownloadedFile f $
+                  def & neTitle ?~ title <> " PDF"
           pure $
             Just $
               foldr

@@ -11,7 +11,6 @@ where
 import Conduit (throwM)
 import Control.Lens
 import Control.Monad ((>=>))
-import Control.Monad.IO.Class
 import Data.Aeson.Lens
 import Data.Foldable
 import qualified Data.Map as M
@@ -21,6 +20,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Entry.New
+import Korrvigs.Log (LogEventData (MiscEvent))
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import qualified Korrvigs.Metadata.Media.Arxiv as AR
@@ -69,13 +69,12 @@ mkDispatcher lbl parser extractor txt =
   parser txt >>= \case
     Nothing -> pure DispatcherSkip
     Just parsed ->
-      extractor parsed >>= \case
-        Nothing -> pure $ DispatcherFail lbl
-        Just med -> pure $ DispatcherSuccess med
-
-mkDispatcherIO :: (MonadKorrvigs m) => Text -> (Text -> IO (Maybe a)) -> (a -> IO (Maybe (NewEntry -> NewEntry))) -> Text -> m DispatcherData
-mkDispatcherIO lbl parser extractor =
-  mkDispatcher lbl (liftIO . parser) (liftIO . extractor)
+      $(withLogContext) msg $
+        extractor parsed >>= \case
+          Nothing -> $(logTrace) (MiscEvent "Fail") >> pure (DispatcherFail lbl)
+          Just med -> $(logTrace) (MiscEvent "Success") >> pure (DispatcherSuccess med)
+  where
+    msg = "Running extractor " <> lbl <> " for " <> txt
 
 dispatchMedia :: (MonadKorrvigs m) => NewMedia -> m (NewEntry -> NewEntry)
 dispatchMedia nm = do
@@ -86,7 +85,9 @@ dispatchMedia nm = do
       pure $
         setMtdtValueLazy MediaMtdt (fromMaybe Blogpost $ nm ^. nmType)
           . setMtdtValueLazy Url (nm ^. nmInput)
-    DispatcherFail lbl -> throwM $ KMiscError $ "Failed to import from " <> lbl
+    DispatcherFail lbl -> do
+      $logError $ MiscEvent $ "Failed to import from " <> lbl
+      throwM $ KMiscError $ "Failed to import from " <> lbl
   where
     dispatchers =
       ($ (nm ^. nmInput))
@@ -101,11 +102,11 @@ dispatchMedia nm = do
               mkDispatcher "MusicBrainz" (pure . MB.parseQuery) MB.queryMB,
               mkDispatcher "Youtube" (pure . Yt.parseQuery) Yt.queryYoutube,
               mkDispatcher "IETF" (pure . IETF.parseQuery) IETF.queryIETF,
-              mkDispatcherIO "BibTeX/RIS" Pd.importRef (pure . Just)
+              mkDispatcher "BibTeX/RIS" Pd.importRef (pure . Just)
             ]
 
 prepareNewMedia :: (MonadKorrvigs m) => NewMedia -> m Note.NewNote
-prepareNewMedia nm = do
+prepareNewMedia nm = $(withLogContext) "Prepare new media" $ do
   fromUrl <- case parseURI $ T.unpack $ nm ^. nmInput of
     Nothing -> pure mempty
     Just _ -> Dl.downloadInformation $ nm ^. nmInput

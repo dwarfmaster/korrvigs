@@ -16,6 +16,7 @@ import Korrvigs.Entry
 import Korrvigs.Entry.New
 import Korrvigs.File.New
 import Korrvigs.Kind
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
@@ -27,6 +28,7 @@ import Korrvigs.Syndicate.Sync
 import Korrvigs.Utils (joinNull, recursiveRemoveFile)
 import Korrvigs.Utils.DateTree (FileContent (..), storeFile)
 import Opaleye
+import Prelude hiding (log)
 
 data NewSyndicate = NewSyndicate
   { _nsEntry :: NewEntry,
@@ -37,7 +39,7 @@ data NewSyndicate = NewSyndicate
 makeLenses ''NewSyndicate
 
 new :: (MonadKorrvigs m) => NewSyndicate -> m Id
-new ns = case ns ^. nsUrl of
+new ns = $withLogContext "Create new syndicate" $ case ns ^. nsUrl of
   Nothing -> create ns
   Just url -> do
     si <- rSelectOne $ do
@@ -48,7 +50,9 @@ new ns = case ns ^. nsUrl of
       nameFor $ entry ^. sqlSynId
     case si of
       Nothing -> create ns
-      Just i -> pure i
+      Just i -> do
+        $log $ EntryAlreadyExistsEvent Syndicate i
+        pure i
 
 create :: (MonadKorrvigs m) => NewSyndicate -> m Id
 create ns = do
@@ -59,6 +63,7 @@ create ns = do
   let txt = nentry ^. neContent
   let parents = unId <$> nentry ^. neParents
   let title = joinNull T.null $ nentry ^. neTitle
+  forM_ title $ \t -> $logTrace $ MiscEvent $ "Title: " <> t
   let json =
         SyndicateJSON
           { _synjsUrl = ns ^. nsUrl,
@@ -76,10 +81,12 @@ create ns = do
           }
   idmk <- applyNewEntry nentry $ imk $ choosePrefix PrefixSyndicate
   i <- newId idmk
+  $log $ NewEntryEvent Syndicate i
   rt <- synJSONPath
   let jsonTT = synTreeType
   let content = encodePretty json
   pth <- storeFile rt jsonTT (nentry ^. neDate) (unId i <> ".json") $ FileLazy content
+  $logTrace $ MiscEvent $ "Writing syndicate to " <> T.pack pth
   sqlI <- insertNew i Syndicate
   syncFileOfKind i pth sqlI Syndicate
   applyOnNewEntry nentry i

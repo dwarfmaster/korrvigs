@@ -38,6 +38,7 @@ import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
@@ -93,17 +94,18 @@ applyNewEntry ne idmk = do
 
 applyCollections :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
 applyCollections ne i =
-  forM_ (ne ^. neCollections) $ \(entry, colName) ->
+  forM_ (ne ^. neCollections) $ \(entry, colName) -> do
+    $logTrace $ MiscEvent $ "Adding to collection " <> unId entry <> "#" <> colName
     addToCollection entry colName (ColItemEntry i)
 
 applyChildren :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
 applyChildren ne i = do
-  forM_ (ne ^. neChildren) $
-    load
-      >=> ( \case
-              Just child -> updateParents child [i] []
-              Nothing -> pure ()
-          )
+  forM_ (ne ^. neChildren) $ \childId -> do
+    $logTrace $ MiscEvent $ "Attaching child " <> unId childId
+    loaded <- load childId
+    case loaded of
+      Just child -> updateParents child [i] []
+      Nothing -> pure ()
 
 applyCapture :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
 applyCapture ne i =
@@ -113,7 +115,9 @@ applyCapture ne i =
         && null (ne ^. neParents)
     )
     $ void
-    $ capture i
+    $ do
+      $logTrace $ MiscEvent "Capturing new entry"
+      capture i
 
 applyOnNewEntry :: (MonadKorrvigs m) => NewEntry -> Id -> m ()
 applyOnNewEntry ne i = do

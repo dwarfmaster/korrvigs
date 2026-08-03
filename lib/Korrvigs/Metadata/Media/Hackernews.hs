@@ -5,6 +5,7 @@ import Data.Aeson
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry.New
+import Korrvigs.Log
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
 import Korrvigs.Monad
@@ -59,4 +60,12 @@ queryHN i = do
                       setMtdtValue Url hnurl,
                       setMtdtValue Discussions [hnurl]
                     ]
-    _ -> pure Nothing
+    Just (Right _) -> do
+      $logWarning $ MiscEvent "Could not find hackernews story"
+      pure Nothing
+    Just (Left err) -> do
+      $logWarning $ ParseErrorEvent "json" url (T.pack err)
+      pure Nothing
+    Nothing -> do
+      $logWarning $ MiscEvent $ "Failed to download " <> url
+      pure Nothing

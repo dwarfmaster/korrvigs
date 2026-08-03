@@ -19,6 +19,7 @@ import Data.Time.Format.ISO8601
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Entry.New
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -147,13 +148,22 @@ doQueryYoutube cred endpoint cond parts = do
   let req = req' {requestHeaders = ("User-Agent", "korrvigs v1.0") : requestHeaders req'}
   resp <- reqHttpM req
   case eitherDecode <$> resp of
-    Nothing -> throwM $ KMiscError $ "Failed to get " <> url
-    Just (Left err) -> throwM $ KMiscError $ "Failed to decode response (" <> url <> "): " <> T.pack err
-    Just (Right vs) -> throwMaybe (KMiscError $ "No items returned from " <> url) $ listToMaybe $ vs ^. respItems
+    Nothing -> do
+      $logWarning $ MiscEvent $ "Failed to download " <> url
+      throwM $ KMiscError $ "Failed to get " <> url
+    Just (Left err) -> do
+      $logWarning $ ParseErrorEvent "json" url (T.pack err)
+      throwM $ KMiscError $ "Failed to decode response (" <> url <> "): " <> T.pack err
+    Just (Right vs) -> do
+      let items = listToMaybe $ vs ^. respItems
+      when (isNothing items) $ $logWarning $ MiscEvent "No items returned"
+      throwMaybe (KMiscError $ "No items returned from " <> url) items
 
 queryYoutube :: (MonadKorrvigs m) => YtRessource -> m (Maybe (NewEntry -> NewEntry))
 queryYoutube ressource = do
-  cred <- getCredential "youtube" >>= throwMaybe (KMiscError "No credential for Youtube")
+  mcred <- getCredential "youtube"
+  when (isNothing mcred) $ $logWarning $ MissingCredentialEvent "youtube"
+  cred <- throwMaybe (KMiscError "No credential for Youtube") mcred
   queryYoutubeCred cred ressource
 
 selectCover :: Map Text YtThumbnail -> Maybe Text

@@ -42,6 +42,7 @@ import Korrvigs.File.Mtdt
 import Korrvigs.File.SQL
 import Korrvigs.File.Sync
 import Korrvigs.Kind
+import Korrvigs.Log hiding (logError)
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Android
 import Korrvigs.Metadata.Media
@@ -67,6 +68,7 @@ import qualified System.Posix as Posix
 import System.Process
 import Text.HTML.TagSoup
 import Text.Parsec hiding ((<|>))
+import Prelude hiding (log)
 
 findMime :: FilePath -> FilePath -> IO MimeType
 findMime _ path | takeExtension path == ".gpx" = pure "application/gpx+xml"
@@ -192,25 +194,33 @@ isAlreadyPresent mtdt = runMaybeT $ do
   hoistLift $ isDevicePresent dev dt
 
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
-new path' options' = do
+new path' options' = $withLogContext ("Creating new file from " <> T.pack path') $ do
   alreadyAnnexed <- inAnnex path'
   path <- liftIO $ resolveSymbolicLink path'
+  $logTrace $ MiscEvent $ "Resolved path: " <> T.pack path
   isFromAndroid <- recogniseCaptured path
+  $logTrace $ MiscEvent $ "Already annexed: " <> T.pack (show alreadyAnnexed)
+  $logTrace $ MiscEvent $ "From Android: " <> T.pack (show isFromAndroid)
   options <- ($ options') <$> maybe (pure id) fromAndroid isFromAndroid
   let basename = listToMaybe [T.pack (takeBaseName path') | null (options ^. nfEntry . neParents)]
   ex <- liftIO $ doesFileExist path
+  $logError $ MiscEvent $ "File does not exists"
   unless ex $ throwM $ KIOError $ userError $ "File \"" <> path <> "\" does not exists"
   db <- mimeDatabase
   mime <- liftIO $ findMime db path
   let mimeTxt = Enc.decodeUtf8 mime
+  $logTrace $ MiscEvent $ "Found mime: " <> mimeTxt
   let mtdt' = FileMetadata mimeTxt M.empty Nothing Nothing Nothing Nothing basename [] M.empty
   mtdt'' <- liftIO $ ($ mtdt') <$> extractMetadata path mime
   let title = mtdt'' ^. exTitle <|> joinNull T.null (options ^. nfEntry . neTitle)
+  forM_ title $ \t -> $logTrace $ MiscEvent $ "Title: \"" <> t <> "\""
   nentry <- applyCover (options ^. nfEntry) title
   mtdt <- ($ mtdt'') <$> applyNewOptions nentry
   alreadyPresent <- isAlreadyPresent mtdt
   case alreadyPresent of
-    Just i -> pure i
+    Just i -> do
+      $log $ EntryAlreadyExistsEvent File i
+      pure i
     Nothing -> do
       let idmk' =
             imk (choosePrefix $ PrefixFile mime)
@@ -218,6 +228,7 @@ new path' options' = do
               & idDate .~ mtdt ^. exDate
       idmk <- applyNewEntry nentry idmk'
       i <- newId idmk
+      $log $ NewEntryEvent File i
       let ext = T.pack $ takeExtension path
       let nm = unId i <> ext
       dir <- filesDirectory
@@ -227,7 +238,9 @@ new path' options' = do
           then pure $ (if options ^. nfRemove then FileMove else FileCopy) path'
           else liftIO $ FileLazy <$> BSL.readFile path
       stored <- storeFile dir filesTreeType day nm content
+      $logTrace $ MiscEvent $ "Storing to " <> T.pack stored
       let metapath = metaPath stored
+      $logTrace $ MiscEvent $ "Writing metadata to " <> T.pack metapath
       liftIO $ BSL.writeFile metapath $ encodePretty mtdt
       rt <- root
       when alreadyAnnexed $ void $ runSilentK (proc "git" ["annex", "fix", stored]) {cwd = Just rt}
@@ -332,12 +345,14 @@ extractFromUrl url = do
       ]
 
 newFromUrl :: (MonadKorrvigs m) => NewDownloadedFile -> m (Maybe Id)
-newFromUrl dl' = do
+newFromUrl dl' = $(withLogContext) ("New file from url " <> dl' ^. ndlUrl) $ do
   dlEndo <- extractFromUrl $ dl' ^. ndlUrl
   let dl = appEndo dlEndo dl'
+  $(logTrace) $ MiscEvent $ "Effective url " <> dl ^. ndlUrl
   man <- manager
   withRunInIO $ \runIO ->
     withSystemTempDirectory "korrvigsDownload" $ \dir -> do
+      runIO $ $(logTrace) $ MiscEvent $ "Downloading to " <> T.pack dir
       let url = dl ^. ndlUrl
       let urlFileName = takeFileName . uriPath <$> parseURI (T.unpack url)
       req <- parseRequest $ T.unpack $ dl ^. ndlUrl
@@ -352,7 +367,9 @@ newFromUrl dl' = do
           then runConduit (responseBody resp .| sinkFile tmp) >> pure (Just tmp)
           else pure Nothing
       case success of
-        Nothing -> pure Nothing
+        Nothing -> do
+          runIO $ $(logTrace) $ MiscEvent "Failed to download url"
+          pure Nothing
         Just tmp -> do
           let nfile = NewFile (dl ^. ndlEntry) False & nfEntry . neCover .~ Nothing
           i <- runIO $ new tmp nfile
@@ -360,7 +377,7 @@ newFromUrl dl' = do
 
 applyCover :: (MonadKorrvigs m) => NewEntry -> Maybe Text -> m NewEntry
 applyCover ne title = do
-  mne <- fmap join $ forM (ne ^. neCover) $ \cover -> do
+  mne <- fmap join $ forM (ne ^. neCover) $ \cover -> $withLogContext ("Applying cover " <> cover) $ do
     let nw =
           NewDownloadedFile cover $
             def

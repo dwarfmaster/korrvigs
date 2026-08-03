@@ -12,6 +12,7 @@ import qualified Data.Text.Encoding as Enc
 import Data.Time.Calendar
 import Data.Time.Format
 import Korrvigs.Entry.New
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -135,6 +136,11 @@ doQuery url mkMedia = do
   content <- reqHttpM req
   case eitherDecode <$> content of
     Just (Right v) -> Just <$> mkMedia v
-    _ -> pure Nothing
+    Just (Left err) -> do
+      $logWarning $ ParseErrorEvent "json" url (T.pack err)
+      pure Nothing
+    _ -> do
+      $logWarning $ MiscEvent $ "Failed to download " <> url
+      pure Nothing
   where
     mbUserAgent = "korrvigs/1.0 (korrvigs@dwarfmaster.net)"

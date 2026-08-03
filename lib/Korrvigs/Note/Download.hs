@@ -248,7 +248,9 @@ extractPandocMtdt pd = Endo (setContent . setTitle) <> processPandocMtdt mtdt
     setTitle = maybe id (neTitle ?~) $ M.lookup "title" mtdt >>= fromJSONM
 
 downloadInformation :: (MonadKorrvigs m) => Text -> m (Endo NewEntry)
-downloadInformation = downloadInformationWithExtractor id []
+downloadInformation url =
+  $(withLogContext) ("Download information for " <> url) $
+    downloadInformationWithExtractor id [] url
 
 downloadInformationWithExtractor :: (MonadKorrvigs m) => ASetter' a NewEntry -> [MetaExtractor m a] -> Text -> m (Endo a)
 downloadInformationWithExtractor neLens extractors uri = do

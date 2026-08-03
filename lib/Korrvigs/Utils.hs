@@ -13,7 +13,8 @@ import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Monad.Class (MonadKorrvigs, manager)
+import Korrvigs.Log
+import Korrvigs.Monad hiding (root)
 import Network.Connection
 import Network.HTTP.Conduit
 import Network.HTTP.Types.Status
@@ -111,11 +112,13 @@ hoistEitherLift act = lift act >>= hoistEither
 
 simpleHttpM :: (MonadKorrvigs m) => Text -> m (Maybe ByteString)
 simpleHttpM url = do
+  $(logTrace) $ MiscEvent $ "Fetching from \"" <> url <> "\""
   req <- parseRequest $ T.unpack url
   reqHttpM req
 
 reqHttpM :: (MonadKorrvigs m) => Request -> m (Maybe ByteString)
 reqHttpM req = do
+  $(logTrace) $ MiscEvent $ "Fetching from \"" <> T.pack (show req) <> "\""
   man <- manager
   resp <- httpLbs req man
   let scode = statusCode $ responseStatus resp

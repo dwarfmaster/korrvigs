@@ -12,6 +12,7 @@ import qualified Data.Text as T
 import Data.Time.Clock
 import Database.PostgreSQL.Simple (Connection)
 import Korrvigs.Entry
+import Korrvigs.Kind
 import Korrvigs.Utils.JSON (fromJSONM)
 import Korrvigs.Utils.Opaleye (makeSqlMapper)
 import Opaleye
@@ -21,27 +22,53 @@ data LogEventData
   = MiscEvent Text
   | LoadEvent Id
   | ParseErrorEvent {_logParser :: Text, _logSource :: Text, _logError :: Text}
+  | NewEntryEvent Kind Id
+  | EntryAlreadyExistsEvent Kind Id
+  | MissingCredentialEvent Text
   deriving (Eq, Show, Ord)
 
 instance ToJSON LogEventData where
   toJSON (MiscEvent txt) = String txt
-  toJSON (LoadEvent i) = object ["kind" .= ("load" :: Text), "entry" .= unId i]
+  toJSON (LoadEvent i) = object ["type" .= ("load" :: Text), "entry" .= unId i]
   toJSON (ParseErrorEvent parser src err) =
     object
-      [ "kind" .= ("parse-error" :: Text),
+      [ "type" .= ("parse-error" :: Text),
         "parser" .= parser,
         "source" .= src,
         "error" .= err
+      ]
+  toJSON (NewEntryEvent kd i) =
+    object
+      [ "type" .= ("new-entry" :: Text),
+        "kind" .= kd,
+        "id" .= i
+      ]
+  toJSON (EntryAlreadyExistsEvent kd i) =
+    object
+      [ "type" .= ("entry-already-exists" :: Text),
+        "kind" .= kd,
+        "id" .= i
+      ]
+  toJSON (MissingCredentialEvent for) =
+    object
+      [ "type" .= ("missing-credential" :: Text),
+        "for" .= for
       ]
 
 instance FromJSON LogEventData where
   parseJSON (String txt) = pure $ MiscEvent txt
   parseJSON (Object obj) = do
-    kd :: Text <- obj .: "kind"
+    kd :: Text <- obj .: "type"
     case kd of
       "load" -> LoadEvent . MkId <$> obj .: "entry"
       "parse-error" ->
         ParseErrorEvent <$> obj .: "parser" <*> obj .: "source" <*> obj .: "error"
+      "new-entry" ->
+        NewEntryEvent <$> obj .: "kind" <*> obj .: "id"
+      "entry-already-exists" ->
+        EntryAlreadyExistsEvent <$> obj .: "kind" <*> obj .: "id"
+      "missing-credential" ->
+        MissingCredentialEvent <$> obj .: "for"
       _ -> fail $ T.unpack $ "Unknown log error kind " <> kd
   parseJSON _ = fail $ "Expected string or object for LogEventData"
 

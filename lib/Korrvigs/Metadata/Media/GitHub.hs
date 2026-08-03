@@ -8,6 +8,7 @@ import Data.Foldable
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Entry.New
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -72,8 +73,12 @@ queryGitHub i = do
           }
   content <- reqHttpM req
   case eitherDecode <$> content of
-    Nothing -> pure Nothing
-    Just (Left _) -> pure Nothing
+    Nothing -> do
+      $logWarning $ MiscEvent $ "Failed to download from " <> url
+      pure Nothing
+    Just (Left err) -> do
+      $logWarning $ ParseErrorEvent "json" url (T.pack err)
+      pure Nothing
     Just (Right gh) -> do
       let title = i ^. ghiRepo <> maybe "" (" - " <>) (gh ^. ghrDescription)
       pure $

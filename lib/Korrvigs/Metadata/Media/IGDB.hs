@@ -15,6 +15,7 @@ import Data.Time.Clock
 import Data.Time.Clock.POSIX
 import Data.Time.LocalTime
 import Korrvigs.Entry.New
+import Korrvigs.Log hiding (logError)
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Media.Ontology
@@ -80,8 +81,12 @@ newAccessToken cred = do
   req <- parseRequest $ T.unpack url
   resp <- reqHttpM $ req {method = methodPost}
   case eitherDecode <$> resp of
-    Nothing -> throwM $ KMiscError "Failed to get access token for IGDB"
-    Just (Left err) -> throwM $ KMiscError $ "Failed to decode acces token for IGDB: " <> T.pack err
+    Nothing -> do
+      $logError $ MiscEvent "Failed to request credential from twitch"
+      throwM $ KMiscError "Failed to get access token for IGDB"
+    Just (Left err) -> do
+      $logError $ ParseErrorEvent "json" "<twitch token>" (T.pack err)
+      throwM $ KMiscError $ "Failed to decode acces token for IGDB: " <> T.pack err
     Just (Right tok) -> do
       tm <- zonedTimeToLocalTime <$> liftIO getZonedTime
       let expires = addLocalTime (fromInteger (tok ^. akExpires) - 10) tm
@@ -97,6 +102,7 @@ getAccessToken :: (MonadKorrvigs m) => IGDBCredentials -> m AccessToken
 getAccessToken creds =
   getToken "igdb" >>= \case
     Just tok -> do
+      $logTrace $ MiscEvent "Found access token for IGDB"
       tm <- zonedTimeToLocalTime <$> liftIO getZonedTime
       if tm > tok ^. stExpires
         then newAccessToken creds
@@ -242,14 +248,16 @@ getCompanies creds tok ids = do
         <> (if inv ^. invPublisher then ([], [nm]) else ([], []))
   pure $ mconcat comps
 
-queryIGDB :: (MonadKorrvigs m) => Text -> m (Maybe (NewEntry -> NewEntry))
+queryIGDB :: forall m. (MonadKorrvigs m) => Text -> m (Maybe (NewEntry -> NewEntry))
 queryIGDB slug = do
   let url = "https://www.igdb.com/games/" <> slug
-  creds <- getCredential "igdb" >>= throwMaybe (KMiscError "No credential for IGDB")
+  creds <- getCredential "igdb" >>= extractCredential
   tok <- getAccessToken creds
   dat <- doQueryIGDB creds tok "games" ("slug=\"" <> slug <> "\"") ["cover", "first_release_date", "release_dates", "involved_companies", "name", "summary", "slug"]
   case dat of
-    [] -> pure Nothing
+    [] -> do
+      $logWarning $ MiscEvent "No game found"
+      pure Nothing
     game : _ -> do
       let title = game ^. igdbName
       cover <- maybe (pure Nothing) (getCover creds tok) $ game ^. igdbCover
@@ -270,3 +278,9 @@ queryIGDB slug = do
               neCover .~ cover,
               maybe id (neDate ?~) day
             ]
+  where
+    extractCredential :: Maybe IGDBCredentials -> m IGDBCredentials
+    extractCredential (Just cred) = pure cred
+    extractCredential Nothing = do
+      $logWarning $ MissingCredentialEvent "igdb"
+      throwM (KMiscError "No credential for IGDB")

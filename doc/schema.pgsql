@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS log_events (
   parent INTEGER references log_events(id) ON DELETE CASCADE,
   time TIMESTAMP WITH TIME ZONE NOT NULL,
   module TEXT NOT NULL,
-  line TEXT NOT NULL,
+  line INTEGER NOT NULL,
   level LOGLEVEL NOT NULL,
   payload JSONB NOT NULL
 );

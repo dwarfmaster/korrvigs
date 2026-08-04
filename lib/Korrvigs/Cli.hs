@@ -10,6 +10,7 @@ import qualified Korrvigs.Cli.Event as Event
 import qualified Korrvigs.Cli.File as File
 import qualified Korrvigs.Cli.Import as Import
 import qualified Korrvigs.Cli.Info as Info
+import qualified Korrvigs.Cli.Log as Log
 import Korrvigs.Cli.Monad
 import qualified Korrvigs.Cli.Mtdt as Mtdt
 import qualified Korrvigs.Cli.Note as Note
@@ -36,6 +37,7 @@ data Command
   | Autorun Autorun.Cmd
   | Mtdt Mtdt.Cmd
   | Blog Blog.Cmd
+  | Log Log.Cmd
 
 parser' :: Parser Command
 parser' =
@@ -56,6 +58,7 @@ parser' =
       <> command "autorun" (Autorun <$> Autorun.parser)
       <> command "mtdt" (Mtdt <$> Mtdt.parser)
       <> command "blog" (Blog <$> Blog.parser)
+      <> command "log" (Log <$> Log.parser)
 
 parser :: ParserInfo Command
 parser =
@@ -81,6 +84,7 @@ run (Eris cmd) = Eris.run cmd
 run (Autorun cmd) = Autorun.run cmd
 run (Mtdt cmd) = Mtdt.run cmd
 run (Blog cmd) = Blog.run cmd
+run (Log cmd) = Log.run cmd
 
 main :: IO ()
 main = do

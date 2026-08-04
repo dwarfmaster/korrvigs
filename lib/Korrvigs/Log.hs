@@ -79,6 +79,12 @@ data LogLevel
   | LogError
   deriving (Eq, Show, Ord, Enum, Bounded)
 
+instance ToJSON LogLevel where
+  toJSON LogTrace = String "trace"
+  toJSON LogInfo = String "info"
+  toJSON LogWarning = String "warning"
+  toJSON LogError = String "error"
+
 data LogEvent = LogEvent
   { _logTime :: UTCTime,
     _logModule :: Text,
@@ -92,6 +98,17 @@ data LogEvent = LogEvent
 makeLenses ''LogEventData
 makePrisms ''LogEventData
 makeLenses ''LogEvent
+
+instance ToJSON LogEvent where
+  toJSON ev =
+    object
+      [ "time" .= (ev ^. logTime),
+        "module" .= (ev ^. logModule),
+        "line" .= (ev ^. logLine),
+        "level" .= (ev ^. logLevel),
+        "data" .= (ev ^. logData),
+        "childs" .= (ev ^. logChilds)
+      ]
 
 data SqlLogLevel
 

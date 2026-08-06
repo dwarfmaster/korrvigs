@@ -53,7 +53,7 @@ run (Show mday json) = do
   day <- case mday of
     Just day -> pure day
     Nothing -> liftIO $ utctDay <$> getCurrentTime
-  sqlEvents <- rSelect $ do
+  sqlEvents <- rSelect $ orderBy (asc $ view evsqlTime) $ do
     ev <- selectTable logEventTable
     where_ $ isNull $ ev ^. evsqlParent
     let start = UTCTime day 0

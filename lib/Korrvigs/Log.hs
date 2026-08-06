@@ -173,7 +173,7 @@ loadEvents conn evs = do
 
 recLoadEvent :: Connection -> LogEventRowR -> IO (Maybe LogEvent)
 recLoadEvent conn row = do
-  childsSQL <- runSelect conn $ do
+  childsSQL <- runSelect conn $ orderBy (asc $ view evsqlTime) $ do
     e <- selectTable logEventTable
     where_ $ matchNullable (sqlBool False) (.== sqlInt4 (row ^. evsqlId)) $ e ^. evsqlParent
     pure e

@@ -18,6 +18,7 @@ data CssFile
   | CssEntry
   | CssSidenote
   | CssSyndicates
+  | CssLog
   deriving (Eq, Show, Read, Bounded, Enum)
 
 cssName :: CssFile -> Text
@@ -28,6 +29,7 @@ cssName CssForms = "forms.css"
 cssName CssEntry = "entry.css"
 cssName CssSidenote = "sidenote.css"
 cssName CssSyndicates = "syndicates.css"
+cssName CssLog = "log.css"
 
 instance PathPiece CssFile where
   toPathPiece = cssName
@@ -43,6 +45,7 @@ resolveCSS _ _ CssForms = $(cassiusFile $ css "forms.cassius")
 resolveCSS _ _ CssEntry = $(cassiusFile $ css "entry.cassius")
 resolveCSS _ _ CssSidenote = $(cassiusFile $ css "sidenote.cassius")
 resolveCSS _ _ CssSyndicates = $(cassiusFile $ css "syndicates.cassius")
+resolveCSS _ _ CssLog = $(cassiusFile $ css "log.cassius")
 
 korrvigsJS :: (Route Static -> Route site) -> Text -> WidgetFor site ()
 korrvigsJS mkStatic jsFile =
@@ -89,6 +92,9 @@ entryStyle :: (CssFile -> Route site) -> WidgetFor site ()
 entryStyle mkCss = do
   addStylesheet $ mkCss CssEntry
   addStylesheet $ mkCss CssSidenote
+
+logStyle :: (CssFile -> Route site) -> WidgetFor site ()
+logStyle mkCss = addStylesheet $ mkCss CssLog
 
 leaflet :: (Route Static -> Route site) -> WidgetFor site ()
 leaflet mkStatic = do

@@ -1,0 +1,31 @@
+.log-icon
+  border-radius: 0.25em
+  color: var(--base01)
+  margin-right: 0.2em
+  padding-left: 0.1em
+  padding-right: 0.1em
+
+.log-icon-trace
+  background-color: var(--base0F)
+
+.log-icon-info
+  background-color: var(--base0D)
+
+.log-icon-warning
+  background-color: var(--base09)
+
+.log-icon-error
+  background-color: var(--base08)
+
+.log-time
+  background-color: var(--base00)
+  font-size: 0.8em
+  font-family: monospace
+  margin-right: 0.2em
+
+.log-module
+  font-weight: bold
+  margin-right: 0.2em
+
+.log-data p
+  text-align: left

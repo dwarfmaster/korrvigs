@@ -13,6 +13,7 @@ import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as Enc
 import Korrvigs.Log
 import Korrvigs.Monad hiding (root)
 import Network.Connection
@@ -118,7 +119,7 @@ simpleHttpM url = do
 
 reqHttpM :: (MonadKorrvigs m) => Request -> m (Maybe ByteString)
 reqHttpM req = do
-  $(logTrace) $ MiscEvent $ "Fetching from \"" <> T.pack (show req) <> "\""
+  $(logTrace) $ MiscEvent $ "Fetching from \"" <> reqURI <> "\""
   man <- manager
   resp <- httpLbs req man
   let scode = statusCode $ responseStatus resp
@@ -128,6 +129,8 @@ reqHttpM req = do
       liftIO $ print req
       liftIO $ putStrLn $ "Failed to download request with error code " <> show scode
       pure Nothing
+  where
+    reqURI = Enc.decodeUtf8 $ host req <> path req
 
 lazyCreateManager :: IORef (Maybe Manager) -> IO Manager
 lazyCreateManager ref = liftIO $ do

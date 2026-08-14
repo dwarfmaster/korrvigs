@@ -6,14 +6,19 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Data.Default
 import Data.Maybe
+import qualified Data.Text as T
+import Data.Time.Calendar
 import Data.Time.Clock
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Contact
 import Korrvigs.Monad
 import Korrvigs.Note.Loc
 import Korrvigs.Query
 import Korrvigs.Utils
+import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
@@ -22,6 +27,7 @@ import qualified Korrvigs.Web.JS.FullCalendar as FC
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widgets
+import Opaleye
 import Yesod hiding (joinPath)
 
 getEvents :: ZonedTime -> Handler [EntryRowR]
@@ -60,6 +66,37 @@ eventsWidget = do
     FC.header
     widget
 
+birthdaysWidget :: Handler (Maybe Widget)
+birthdaysWidget = do
+  time <- liftIO getCurrentTime
+  let (_, month, day) = toGregorian $ utctDay time
+  let bday = BirthDay month day
+  birthers <- rSelect $ do
+    bdaymtdt <- selectTable entriesMetadataTable
+    where_ $ bdaymtdt ^. sqlKey .== sqlStrictText (mtdtSqlName BirthDayMtdt)
+    where_ $ bdaymtdt ^. sqlValue .== sqlValueJSONB bday
+    bdayYear <- sqlJsonToNum <$> selectMtdt BirthYear (bdaymtdt ^. sqlEntry)
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryId .== bdaymtdt ^. sqlEntry
+    pure (entry ^. sqlEntryName, entry ^. sqlEntryTitle, bdayYear)
+  birthersWithAge <- forM birthers $ \(nm, title, yr) -> case yr of
+    Nothing -> pure (nm, title, Nothing)
+    Just y -> (nm,title,) . Just <$> computeAge (floor (y :: Double)) (Just bday)
+  case birthers of
+    [] -> pure Nothing
+    _ -> do
+      pure $
+        Just $
+          [whamlet|
+          <ul>
+            $forall (nm, title, mage) <- birthersWithAge
+              <li>
+                <a href=@{EntryR (WId nm)}>
+                  #{fromMaybe ("@" <> unId nm) title}
+                $maybe age <- mage
+                  #{mconcat [" (", T.pack (show age), " years old)"]}
+        |]
+
 favouritesWidget :: Handler Widget
 favouritesWidget = fromMaybeT notFoundWidget $ do
   let i = MkId "Favourites"
@@ -85,6 +122,8 @@ displayHome = do
   favs <- favouritesWidget
   let eventsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🕑"} Calendar|]
   evs <- eventsWidget
+  births <- birthdaysWidget
+  let birthsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🎉"} Birthdays|]
   cssR <- mkCss
   defaultLayout $ do
     setTitle "Korrvigs's Home"
@@ -97,6 +136,8 @@ displayHome = do
     [whamlet|
     <h1>Welcome to Korrvigs
     ^{void $ Widgets.mkSection 1 [] [] actionsHd actions}
+    $maybe bwidget <- births
+      ^{void $ Widgets.mkSection 1 [] [] birthsHd bwidget}
     ^{void $ Widgets.mkSection 1 [] [] favsHd favs}
     ^{void $ Widgets.mkSection 1 [] [] eventsHd evs}
   |]

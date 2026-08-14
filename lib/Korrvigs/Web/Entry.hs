@@ -45,6 +45,7 @@ import Opaleye hiding (groupBy, not, null)
 import qualified Opaleye as O
 import Text.Blaze (toMarkup)
 import Yesod hiding (Field)
+import Yesod.Static
 
 -- Takes the ID of the div containing the content
 titleWidget :: Entry -> Text -> Handler Widget
@@ -364,10 +365,34 @@ mkContactWidget dat = do
                   Website:
                 <a href=#{url}>
                   #{url}
+            $if not (M.null (view contactContacts dat))
+              <li>
+                <span .contact-desc>
+                  Socials:
+                $forall (platform,accounts) <- M.toList (view contactContacts dat)
+                  $forall account <- accounts
+                    ^{mkPlatform platform account}
     |]
   where
     agePrefix :: Text
     agePrefix = if isNothing (dat ^. contactBirthDay) then "~" else ""
+    platformIcon :: Text -> Text -> Widget
+    platformIcon icon url =
+      [whamlet|
+        <a .contact-icon href=#{url}>
+          <img .contact-platform src=@{StaticR (StaticRoute ["platforms", mconcat [icon, ".png"]] [])}>
+      |]
+    mkPlatform :: Text -> Text -> Widget
+    mkPlatform "mail" address = platformIcon "mail" ("mailto:" <> address)
+    mkPlatform "github" account = platformIcon "github" ("https://github.com/" <> account)
+    mkPlatform "discord" _ = platformIcon "discord" "https://discord.com"
+    mkPlatform "phone" phone = platformIcon "phone" ("tel:" <> phone)
+    mkPlatform "steam" _ = platformIcon "steam" "https://steampowered.com"
+    mkPlatform "instagram" account = platformIcon "instagram" ("https://www.instagram.com/" <> account)
+    mkPlatform "gitlab" account = platformIcon "gitlab" ("https://gitlab.com/" <> account)
+    mkPlatform "bluesky" account = platformIcon "bluesky" ("https://bluesky.app/profile/" <> account)
+    mkPlatform "linkedin" account = platformIcon "linkedin" ("https://linkedin.com/in/" <> account)
+    mkPlatform _ _ = mempty
 
 galleryWidget :: Entry -> Handler Widget
 galleryWidget entry =

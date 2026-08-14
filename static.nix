@@ -137,6 +137,7 @@ in
     ${sed} 's/fill="#000000"/fill="${theme.base08}"/' ${./ressources/icons/checkbox-dont.svg} > $out/icons/checkbox-dont.svg
     ${sed} 's/fill="#0F0F0F"/fill="${theme.base01}"/' ${./ressources/icons/edit-save.svg} > $out/icons/edit-save.svg
     ${sed} 's/fill="#0D0D0D"/fill="${theme.base01}"/' ${./ressources/icons/edit-quit.svg} > $out/icons/edit-quit.svg
+
     ln -s ${./ressources/icons/file.png} $out/icons/file.png
     ln -s ${./ressources/icons/note.png} $out/icons/note.png
     ln -s ${./ressources/icons/link.png} $out/icons/link.png
@@ -157,6 +158,17 @@ in
     ln -s ${./ressources/icons/action.png} $out/icons/action.png
     ln -s ${./ressources/icons/update.png} $out/icons/update.png
     ln -s ${./ressources/icons/blog.png} $out/icons/blog.png
+
+    mkdir $out/platforms
+    ln -s ${./ressources/icons/platforms/github.png} $out/platforms/github.png
+    ln -s ${./ressources/icons/platforms/mail.png} $out/platforms/mail.png
+    ln -s ${./ressources/icons/platforms/discord.png} $out/platforms/discord.png
+    ln -s ${./ressources/icons/platforms/steam.png} $out/platforms/steam.png
+    ln -s ${./ressources/icons/platforms/instagram.png} $out/platforms/instagram.png
+    ln -s ${./ressources/icons/platforms/phone.png} $out/platforms/phone.png
+    ln -s ${./ressources/icons/platforms/gitlab.png} $out/platforms/gitlab.png
+    ln -s ${./ressources/icons/platforms/bluesky.png} $out/platforms/bluesky.png
+    ln -s ${./ressources/icons/platforms/linkedin.png} $out/platforms/linkedin.png
 
     mkdir -p $out/font
     cp ${charis}/web/*.woff2 $out/font

@@ -35,7 +35,7 @@ mkMtdt "FullName" "fullname" [t|Text|]
 mkMtdt "BirthDayMtdt" "birthday" [t|BirthDay|]
 mkMtdt "BirthYear" "birthyear" [t|Year|]
 mkMtdt "Death" "death" [t|Day|]
-mkMtdt "ContactMtdt" "contact" [t|Map Text Value|]
+mkMtdt "ContactMtdt" "contact" [t|Map Text [Text]|]
 mkMtdt "Gender" "gender" [t|Text|]
 mkMtdt "Pronouns" "pronouns" [t|Map Text Text|]
 mkMtdt "Nicknames" "nicknames" [t|[Text]|]
@@ -45,7 +45,7 @@ data ContactData = ContactData
     _contactBirthDay :: Maybe BirthDay,
     _contactBirthYear :: Maybe Year,
     _contactDeath :: Maybe Day,
-    _contactContacts :: Map Text Value,
+    _contactContacts :: Map Text [Text],
     _contactGender :: Maybe Text,
     _contactPronouns :: Map Text Text,
     _contactNicknames :: [Text],

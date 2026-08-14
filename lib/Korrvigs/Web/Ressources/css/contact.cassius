@@ -14,3 +14,9 @@
 .contact-info
   display: grid
   grid-template-columns: fit-content(20%) 1fr
+
+.contact-platform
+  width: 1.3em
+  padding: 0.1em
+  background-color: var(--base06)
+  border-radius: 0.1em

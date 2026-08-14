@@ -134,6 +134,7 @@ library korrvigs-lib
     Korrvigs.Metadata.Blog.Math
     Korrvigs.Metadata.Blog.Mtdt
     Korrvigs.Metadata.Blog.Structure
+    Korrvigs.Metadata.Contact
     Korrvigs.Metadata.Media
     Korrvigs.Metadata.Media.Arxiv
     Korrvigs.Metadata.Media.Export

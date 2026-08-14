@@ -5,8 +5,12 @@ import Control.Monad
 import Data.Default
 import Data.List
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Time.Calendar
+import Data.Time.Format
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
 import Korrvigs.Compute.SQL
@@ -14,6 +18,7 @@ import Korrvigs.Entry
 import Korrvigs.File.SQL
 import Korrvigs.Kind
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Contact
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Note.Loc hiding (sub, subs)
@@ -278,6 +283,92 @@ subWidget entry = do
   where
     ord = ascNullsLast snd <> asc fst
 
+contactWidget :: Entry -> Handler Widget
+contactWidget entry = do
+  mdat <- rSelectContact $ entry ^. entryName
+  case mdat of
+    Nothing -> pure mempty
+    Just dat -> do
+      let nodisplay =
+            and
+              [ isNothing (dat ^. contactBirthDay),
+                isNothing (dat ^. contactBirthYear),
+                isNothing (dat ^. contactDeath),
+                M.null (dat ^. contactContacts),
+                isNothing (dat ^. contactGender),
+                M.null (dat ^. contactPronouns),
+                null (dat ^. contactNicknames)
+              ]
+      if nodisplay
+        then pure mempty
+        else do
+          ctc <- mkContactWidget dat
+          pure $ do
+            Rcs.contactStyle CssR
+            [whamlet|
+              <details .common-details>
+                <summary>Contact
+                ^{ctc}
+            |]
+
+mkContactWidget :: ContactData -> Handler Widget
+mkContactWidget dat = do
+  mage <- forM (dat ^. contactBirthYear) $ \yr ->
+    computeAge yr (dat ^. contactBirthDay)
+  pure
+    [whamlet|
+      <div .contact-info>
+        <div .contact-picture>
+          $maybe pict <- view contactPicture dat
+            <a href=@{EntryR (WId pict)}>
+              <img src=@{EntryDownloadR (WId pict)}>
+        <div .contact-data>
+          <ul>
+            <li>
+              <span .contact-desc>
+                Name:
+              #{view contactName dat}
+              $maybe gender <- view contactGender dat
+                #{mconcat [" (", gender, ")"]}
+              $if not (M.null (view contactPronouns dat))
+                <span .contact-pronouns>
+                  $forall (lang,pronoun) <- M.toList (view contactPronouns dat)
+                    #{mconcat [" ", pronoun, " (", lang, ")"]}
+            $if not (null (view contactNicknames dat))
+              <li>
+                <span .contact-desc>
+                  Nicknames:
+                #{T.intercalate ", " (view contactNicknames dat)}
+            $maybe age <- mage
+              <li>
+                <span .contact-desc>
+                  Age:
+                #{agePrefix}#{age} years old
+            $maybe (BirthDay mth dy) <- view contactBirthDay dat
+              <li>
+                <span .contact-desc>
+                  Birthday:
+                $maybe yr <- view contactBirthYear dat
+                  <a href=@{DateByDayR (fromGregorian yr mth dy)}>
+                    #{formatTime defaultTimeLocale "%A %d, %B %Y" (fromGregorian yr mth dy)}
+                $nothing
+                  #{formatTime defaultTimeLocale "%d %B" (fromGregorian 0 mth dy)}
+            $maybe death <- view contactDeath dat
+              <li>
+                <span .contact-desc>
+                  Death:
+                #{formatTime defaultTimeLocale "%A %d, %B %Y" death}
+            $maybe url <- view contactUrl dat
+              <li>
+                <span .contact-desc>
+                  Website:
+                <a href=#{url}>
+                  #{url}
+    |]
+  where
+    agePrefix :: Text
+    agePrefix = if isNothing (dat ^. contactBirthDay) then "~" else ""
+
 galleryWidget :: Entry -> Handler Widget
 galleryWidget entry =
   rSelectMtdt Gallery (sqlId $ entry ^. entryName) >>= \case
@@ -351,6 +442,7 @@ entryWidget entry = do
   mtdt <- Mtdt.widget entry
   refs <- refsWidget entry
   subs <- subWidget entry
+  contact <- contactWidget entry
   gallery <- galleryWidget entry
   content <- contentWidget entry
   actions <- actWidget entry
@@ -368,6 +460,7 @@ entryWidget entry = do
       mtdt
       refs
       subs
+      contact
       gallery
     [whamlet|
       <div ##{contentId}>

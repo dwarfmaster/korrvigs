@@ -1,0 +1,16 @@
+.contact-desc
+  font-style: italic
+
+.contact-pronouns
+  font-size: 80%
+  font-variant: small-caps
+
+.contact-info li
+  list-style-type: none
+
+.contact-picture img
+  width: 100%
+
+.contact-info
+  display: grid
+  grid-template-columns: fit-content(20%) 1fr

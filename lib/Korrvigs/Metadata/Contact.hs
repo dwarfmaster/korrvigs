@@ -1,6 +1,7 @@
 module Korrvigs.Metadata.Contact where
 
 import Control.Lens
+import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -61,8 +62,8 @@ rSelectContact i = do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryName .== sqlId i
     let sqlI = entry ^. sqlEntryId
-    title <- fromNullableSelect $ pure $ sqlCast $ entry ^. sqlEntryTitle
-    name <- fromNullable title <$> selectMtdt FullName sqlI
+    title <- fromNullableSelect $ pure $ entry ^. sqlEntryTitle
+    name <- fromNullable (sqlTextToJson title) <$> selectMtdt FullName sqlI
     birthday <- selectMtdt BirthDayMtdt sqlI
     birthyear <- selectMtdt BirthYear sqlI
     death <- selectMtdt Death sqlI
@@ -90,3 +91,13 @@ rSelectContact i = do
               _contactPicture = fromJSONM =<< picture,
               _contactUrl = fromJSONM =<< url
             }
+
+computeAge :: (MonadIO m) => Year -> Maybe BirthDay -> m Integer
+computeAge yr mbday = do
+  current <- liftIO getCurrentTime
+  let (curYear, curMonth, curDay) = toGregorian $ utctDay current
+  let diffYear = curYear - yr
+  pure $ case mbday of
+    Nothing -> diffYear
+    Just (BirthDay mth dy) ->
+      if curMonth < mth || (curMonth == mth && curDay < dy) then diffYear - 1 else diffYear

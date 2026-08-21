@@ -3,6 +3,7 @@ module Korrvigs.Utils.Time
     addNominal,
     addCalendar,
     dayToZonedTime,
+    zonedDay,
     getCurrentZonedTime,
     measureTime,
     measureTimeMs,
@@ -24,6 +25,9 @@ fromGreg year month day = fromGregorian (toInteger year) (fromMaybe 1 month) (fr
 
 dayToZonedTime :: TimeZone -> Day -> ZonedTime
 dayToZonedTime tz day = ZonedTime (LocalTime day (TimeOfDay 0 0 0)) tz
+
+zonedDay :: ZonedTime -> Day
+zonedDay = localDay . zonedTimeToLocalTime
 
 addNominal :: NominalDiffTime -> ZonedTime -> ZonedTime
 addNominal diff zt = utcToZonedTime (zonedTimeZone zt) $ addUTCTime diff $ zonedTimeToUTC zt

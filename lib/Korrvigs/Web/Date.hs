@@ -20,6 +20,7 @@ import Korrvigs.Monad.Collections
 import Korrvigs.Note.AST
 import Korrvigs.Query
 import Korrvigs.Utils.JSON
+import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Home as Home
 import qualified Korrvigs.Web.JS.FullCalendar as FC
@@ -65,6 +66,9 @@ periodPage title marker linkedDays startTime endTime = do
   evsEntries <- mapM FC.entryToEvent evs
   calendar <- FC.widget $ marker : catMaybes evsEntries
   let eventsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🕑"} Calendar|]
+  -- Birthdays
+  birthdaysW <- Widgets.birthdaysWidget (zonedDay startTime) (zonedDay endTime)
+  let birthsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🎉"} Birthdays|]
   -- All entries
   entries <- runQuery ColList query
   entriesW <- displayResults ColList False entries
@@ -93,6 +97,7 @@ periodPage title marker linkedDays startTime endTime = do
     linked
     void $ Widgets.mkSection 1 [] [] eventsHd calendar
     let cls = [("class", "collapsed")]
+    forM_ birthdaysW $ Widgets.mkSection 1 cls [] birthsHd
     unless (null entries) $ void $ Widgets.mkSection 1 cls [] entriesHd entriesW
     unless (null photos) $ void $ Widgets.mkSection 1 cls [] galleryHd gallery
     unless (null geo) $ void $ Widgets.mkSection 1 cls [] geoHd $ do

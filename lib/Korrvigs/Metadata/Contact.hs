@@ -1,3 +1,5 @@
+{-# LANGUAGE UndecidableInstances #-}
+
 module Korrvigs.Metadata.Contact where
 
 import Control.Lens
@@ -6,6 +8,7 @@ import Data.Aeson
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
@@ -43,57 +46,106 @@ mkMtdt "Gender" "gender" [t|Text|]
 mkMtdt "Pronouns" "pronouns" [t|Map Text Text|]
 mkMtdt "Nicknames" "nicknames" [t|[Text]|]
 
-data ContactData = ContactData
-  { _contactName :: Text,
-    _contactBirthDay :: Maybe BirthDay,
-    _contactBirthYear :: Maybe Year,
-    _contactDeath :: Maybe Day,
-    _contactContacts :: Map Text [Text],
-    _contactGender :: Maybe Text,
-    _contactPronouns :: Map Text Text,
-    _contactNicknames :: [Text],
-    _contactPicture :: Maybe Id,
-    _contactUrl :: Maybe Text
+data ContactDataImpl a b c d e f g h i j = ContactData
+  { _contactName :: a,
+    _contactBirthDay :: b,
+    _contactBirthYear :: c,
+    _contactDeath :: d,
+    _contactContacts :: e,
+    _contactGender :: f,
+    _contactPronouns :: g,
+    _contactNicknames :: h,
+    _contactPicture :: i,
+    _contactUrl :: j
   }
   deriving (Eq, Ord, Show)
 
-makeLenses ''ContactData
+type ContactData =
+  ContactDataImpl
+    Text
+    (Maybe BirthDay)
+    (Maybe Year)
+    (Maybe Day)
+    (Map Text [Text])
+    (Maybe Text)
+    (Map Text Text)
+    [Text]
+    (Maybe Id)
+    (Maybe Text)
+
+type ContactDataRow =
+  ContactDataImpl
+    Text
+    (Maybe Value)
+    (Maybe Value)
+    (Maybe Value)
+    (Maybe Value)
+    (Maybe Value)
+    (Maybe Value)
+    (Maybe Value)
+    (Maybe Value)
+    (Maybe Value)
+
+type ContactDataSQL =
+  ContactDataImpl
+    (Field SqlText)
+    (FieldNullable SqlJsonb)
+    (FieldNullable SqlJsonb)
+    (FieldNullable SqlJsonb)
+    (FieldNullable SqlJsonb)
+    (FieldNullable SqlJsonb)
+    (FieldNullable SqlJsonb)
+    (FieldNullable SqlJsonb)
+    (FieldNullable SqlJsonb)
+    (FieldNullable SqlJsonb)
+
+makeLenses ''ContactDataImpl
+makeAdaptorAndInstanceInferrable "pContactData" ''ContactDataImpl
+
+selectContactData :: EntryRowSQLR -> Select ContactDataSQL
+selectContactData entry =
+  ContactData
+    <$> selectName
+    <*> selectMtdt BirthDayMtdt sqlI
+    <*> selectMtdt BirthYear sqlI
+    <*> selectMtdt Death sqlI
+    <*> selectMtdt ContactMtdt sqlI
+    <*> selectMtdt Gender sqlI
+    <*> selectMtdt Pronouns sqlI
+    <*> selectMtdt Nicknames sqlI
+    <*> selectMtdt Cover sqlI
+    <*> selectMtdt Url sqlI
+  where
+    sqlI = entry ^. sqlEntryId
+    selectName = do
+      title <- fromNullableSelect $ pure $ entry ^. sqlEntryTitle
+      name <- fromNullable (sqlTextToJson title) <$> selectMtdt FullName sqlI
+      fromNullableSelect $ pure $ sqlJsonToText $ toNullable name
+
+reifyContactData :: ContactDataRow -> ContactData
+reifyContactData row =
+  ContactData
+    { _contactName = row ^. contactName,
+      _contactBirthDay = fromJSONM =<< row ^. contactBirthDay,
+      _contactBirthYear = fromJSONM =<< row ^. contactBirthYear,
+      _contactDeath = fromJSONM =<< row ^. contactDeath,
+      _contactContacts = fromMaybe M.empty $ fromJSONM =<< row ^. contactContacts,
+      _contactGender = fromJSONM =<< row ^. contactGender,
+      _contactPronouns = fromMaybe M.empty $ fromJSONM =<< row ^. contactPronouns,
+      _contactNicknames = fromMaybe [] $ fromJSONM =<< row ^. contactNicknames,
+      _contactPicture = fromJSONM =<< row ^. contactPicture,
+      _contactUrl = fromJSONM =<< row ^. contactUrl
+    }
 
 rSelectContact :: (MonadKorrvigs m) => Id -> m (Maybe ContactData)
 rSelectContact i = do
   r <- rSelectOne $ do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryName .== sqlId i
-    let sqlI = entry ^. sqlEntryId
-    title <- fromNullableSelect $ pure $ entry ^. sqlEntryTitle
-    name <- fromNullable (sqlTextToJson title) <$> selectMtdt FullName sqlI
-    birthday <- selectMtdt BirthDayMtdt sqlI
-    birthyear <- selectMtdt BirthYear sqlI
-    death <- selectMtdt Death sqlI
-    contacts <- selectMtdt ContactMtdt sqlI
-    gender <- selectMtdt Gender sqlI
-    pronouns <- selectMtdt Pronouns sqlI
-    nicks <- selectMtdt Nicknames sqlI
-    picture <- selectMtdt Cover sqlI
-    url <- selectMtdt Url sqlI
-    pure (name, birthday, birthyear, death, contacts, gender, pronouns, nicks, picture, url)
-  case r of
-    Nothing -> pure Nothing
-    Just (name, birthday, birthyear, death, contacts, gender, pronouns, nicks, picture, url) -> do
-      pure $
-        Just $
-          ContactData
-            { _contactName = name,
-              _contactBirthDay = fromJSONM =<< birthday,
-              _contactBirthYear = fromJSONM =<< birthyear,
-              _contactDeath = fromJSONM =<< death,
-              _contactContacts = fromMaybe M.empty $ fromJSONM =<< contacts,
-              _contactGender = fromJSONM =<< gender,
-              _contactPronouns = fromMaybe M.empty $ fromJSONM =<< pronouns,
-              _contactNicknames = fromMaybe [] $ fromJSONM =<< nicks,
-              _contactPicture = fromJSONM =<< picture,
-              _contactUrl = fromJSONM =<< url
-            }
+    selectContactData entry
+  pure $ case r of
+    Nothing -> Nothing
+    Just (dat :: ContactDataRow) -> Just $ reifyContactData dat
 
 computeAge :: (MonadIO m) => Year -> Maybe BirthDay -> m (Bool, Integer)
 computeAge yr mbday = computeAgeAt yr mbday . utctDay <$> liftIO getCurrentTime

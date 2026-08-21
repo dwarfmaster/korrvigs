@@ -9,12 +9,14 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
 import Data.Default
 import Data.Foldable
+import Data.List (intersperse)
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Metadata.Contact (reifyContactData)
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Note (Collection (..))
@@ -35,6 +37,7 @@ import qualified Korrvigs.Web.Vis.Timeline as Timeline
 import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye hiding (Field, not)
 import qualified Opaleye as O
+import qualified Text.Blaze.Html5 as H
 import Yesod
 
 displayEntry :: EntryRowR -> Handler Html
@@ -68,6 +71,7 @@ displayResults ColKanban = displayUnsupported ColKanban
 displayResults ColTaskList = displayTaskList
 displayResults ColLibrary = displayLibrary
 displayResults ColPlayList = displayPlayList
+displayResults ColContacts = displayContacts
 
 displayUnsupported :: Collection -> Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayUnsupported col _ _ =
@@ -308,3 +312,16 @@ displayPlayList _ entries = do
           ^{title}
           <audio controls autoplay=false loading=lazy src=@{route}>
       |]
+
+displayContacts :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
+displayContacts _ entries = do
+  widgets <- forM entries $ \(entry, dat) -> case dat ^. optContact of
+    Nothing -> pure mempty
+    Just contact ->
+      Wdgs.mkContactWidget (Just $ entry ^. sqlEntryName) (reifyContactData contact)
+  pure $ do
+    Rcs.contactStyle CssR
+    sequence_ $ intersperse sep widgets
+  where
+    sep :: Widget
+    sep = toWidget $ H.hr

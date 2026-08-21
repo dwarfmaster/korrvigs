@@ -73,6 +73,7 @@ data Collection
   | ColTaskList
   | ColLibrary
   | ColPlayList
+  | ColContacts
   deriving (Show, Eq, Ord, Bounded, Enum)
 
 data CollectionItem

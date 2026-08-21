@@ -281,6 +281,7 @@ renderCollection col nm =
       ColTaskList -> "tasklist"
       ColLibrary -> "library"
       ColPlayList -> "playlist"
+      ColContacts -> "contacts"
 
 surrounded :: Text -> RenderM a -> RenderM a
 surrounded del act = do

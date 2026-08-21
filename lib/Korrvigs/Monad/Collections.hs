@@ -18,6 +18,7 @@ import Korrvigs.Compute.SQL
 import Korrvigs.Entry
 import Korrvigs.File.SQL
 import Korrvigs.Metadata
+import Korrvigs.Metadata.Contact
 import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad.Class
@@ -33,25 +34,26 @@ import Korrvigs.Utils.Opaleye
 import Opaleye hiding (Field)
 import qualified Opaleye as O
 
-data OptionalSQLDataImpl a b c d = OptionalSQLData
+data OptionalSQLDataImpl a b c d e = OptionalSQLData
   { _optTask :: a,
     _optMime :: b,
     _optAggregCount :: c,
-    _optCover :: d
+    _optCover :: d,
+    _optContact :: e
   }
 
 makeLenses ''OptionalSQLDataImpl
 $(makeAdaptorAndInstanceInferrable "pOptSQLData" ''OptionalSQLDataImpl)
 
-type OptionalSQLData = OptionalSQLDataImpl (Maybe Text) (Maybe Text) (Maybe Value) (Maybe Text)
+type OptionalSQLData = OptionalSQLDataImpl (Maybe Text) (Maybe Text) (Maybe Value) (Maybe Text) (Maybe ContactDataRow)
 
-type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlText) (MaybeFields (O.Field SqlText)) (FieldNullable SqlJsonb) (FieldNullable SqlText)
+type OptionalSQLDataSQL = OptionalSQLDataImpl (FieldNullable SqlText) (MaybeFields (O.Field SqlText)) (FieldNullable SqlJsonb) (FieldNullable SqlText) (MaybeFields ContactDataSQL)
 
 instance Default OptionalSQLData where
-  def = OptionalSQLData Nothing Nothing Nothing Nothing
+  def = OptionalSQLData Nothing Nothing Nothing Nothing Nothing
 
 instance Default OptionalSQLDataSQL where
-  def = OptionalSQLData O.null O.nothingFields O.null O.null
+  def = OptionalSQLData O.null O.nothingFields O.null O.null O.nothingFields
 
 optDef :: OptionalSQLDataSQL
 optDef = def
@@ -85,6 +87,9 @@ otherQuery display entry = case display of
     where_ $ (mime `like` sqlStrictText "audio/%") .|| (mime `like` sqlStrictText "video/%")
     tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryId
     pure $ optDef & optMime .~ justFields mime & optTask .~ tsk
+  ColContacts -> do
+    dat <- selectContactData entry
+    pure $ optDef & optContact .~ justFields dat
   _ -> pure optDef
   where
     galleryQueryFor sqlI = do

@@ -8,9 +8,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
-import qualified Data.Text as T
-import Data.Time.Calendar
-import Data.Time.Format
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
 import Korrvigs.Compute.SQL
@@ -45,7 +42,6 @@ import Opaleye hiding (groupBy, not, null)
 import qualified Opaleye as O
 import Text.Blaze (toMarkup)
 import Yesod hiding (Field)
-import Yesod.Static
 
 -- Takes the ID of the div containing the content
 titleWidget :: Entry -> Text -> Handler Widget
@@ -303,7 +299,7 @@ contactWidget entry = do
       if nodisplay
         then pure mempty
         else do
-          ctc <- mkContactWidget dat
+          ctc <- Wdgs.mkContactWidget Nothing dat
           pure $ do
             Rcs.contactStyle CssR
             [whamlet|
@@ -311,91 +307,6 @@ contactWidget entry = do
                 <summary>Contact
                 ^{ctc}
             |]
-
-mkContactWidget :: ContactData -> Handler Widget
-mkContactWidget dat = do
-  mage <- forM (dat ^. contactBirthYear) $ \yr ->
-    computeAge yr (dat ^. contactBirthDay)
-  pure
-    [whamlet|
-      <div .contact-info>
-        <div .contact-picture>
-          $maybe pict <- view contactPicture dat
-            <a href=@{EntryR (WId pict)}>
-              <img src=@{EntryDownloadR (WId pict)}>
-        <div .contact-data>
-          <ul>
-            <li>
-              <span .contact-desc>
-                Name:
-              #{view contactName dat}
-              $maybe gender <- view contactGender dat
-                #{mconcat [" (", gender, ")"]}
-              $if not (M.null (view contactPronouns dat))
-                <span .contact-pronouns>
-                  $forall (lang,pronoun) <- M.toList (view contactPronouns dat)
-                    #{mconcat [" ", pronoun, " (", lang, ")"]}
-            $if not (null (view contactNicknames dat))
-              <li>
-                <span .contact-desc>
-                  Nicknames:
-                #{T.intercalate ", " (view contactNicknames dat)}
-            $maybe (isPrecise,age) <- mage
-              <li>
-                <span .contact-desc>
-                  Age:
-                $if isPrecise
-                  #{agePrefix}#{age} years old
-                $else
-                  ~#{agePrefix}#{age} years old
-            $maybe (BirthDay mth dy) <- view contactBirthDay dat
-              <li>
-                <span .contact-desc>
-                  Birthday:
-                $maybe yr <- view contactBirthYear dat
-                  <a href=@{DateByDayR (fromGregorian yr mth dy)}>
-                    #{formatTime defaultTimeLocale "%A %d, %B %Y" (fromGregorian yr mth dy)}
-                $nothing
-                  #{formatTime defaultTimeLocale "%d %B" (fromGregorian 0 mth dy)}
-            $maybe death <- view contactDeath dat
-              <li>
-                <span .contact-desc>
-                  Death:
-                #{formatTime defaultTimeLocale "%A %d, %B %Y" death}
-            $maybe url <- view contactUrl dat
-              <li>
-                <span .contact-desc>
-                  Website:
-                <a href=#{url}>
-                  #{url}
-            $if not (M.null (view contactContacts dat))
-              <li>
-                <span .contact-desc>
-                  Socials:
-                $forall (platform,accounts) <- M.toList (view contactContacts dat)
-                  $forall account <- accounts
-                    ^{mkPlatform platform account}
-    |]
-  where
-    agePrefix :: Text
-    agePrefix = if isNothing (dat ^. contactBirthDay) then "~" else ""
-    platformIcon :: Text -> Text -> Text -> Widget
-    platformIcon icon alt url =
-      [whamlet|
-        <a .contact-icon href=#{url} title=#{alt}>
-          <img .contact-platform src=@{StaticR (StaticRoute ["platforms", mconcat [icon, ".png"]] [])}>
-      |]
-    mkPlatform :: Text -> Text -> Widget
-    mkPlatform "mail" address = platformIcon "mail" address ("mailto:" <> address)
-    mkPlatform "github" account = platformIcon "github" account ("https://github.com/" <> account)
-    mkPlatform "discord" account = platformIcon "discord" account "https://discord.com"
-    mkPlatform "phone" phone = platformIcon "phone" phone ("tel:" <> phone)
-    mkPlatform "steam" account = platformIcon "steam" account "https://steampowered.com"
-    mkPlatform "instagram" account = platformIcon "instagram" ("@" <> account) ("https://www.instagram.com/" <> account)
-    mkPlatform "gitlab" account = platformIcon "gitlab" account ("https://gitlab.com/" <> account)
-    mkPlatform "bluesky" account = platformIcon "bluesky" account ("https://bluesky.app/profile/" <> account)
-    mkPlatform "linkedin" account = platformIcon "linkedin" account ("https://linkedin.com/in/" <> account)
-    mkPlatform _ _ = mempty
 
 galleryWidget :: Entry -> Handler Widget
 galleryWidget entry =

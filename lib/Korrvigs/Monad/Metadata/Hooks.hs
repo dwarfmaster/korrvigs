@@ -52,6 +52,7 @@ updateAggregate updateMetadata entry syn =
           where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
           let op = if isStrict then (.>) else (.>=)
           where_ $ (item ^. sqlSynItSequence) `op` sqlInt4 sq
+          where_ $ item ^. sqlSynItRead .== sqlBool False
           pure $ item ^. sqlSynItSequence
         forM_ mcnt $ \cnt -> updateMetadata entry (M.singleton (mtdtSqlName AggregateCount) (toJSON cnt)) []
     Just "count-new" -> do

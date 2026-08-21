@@ -3,6 +3,7 @@ module Korrvigs.Web.Widgets where
 import Control.Lens
 import Control.Monad
 import Data.Either.Extra (eitherToMaybe)
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -201,7 +202,9 @@ birthdaysWidget startDay endDay = do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryId .== bdaymtdt ^. sqlEntry
     pure (entry ^. sqlEntryName, entry ^. sqlEntryTitle, (bdayYear, bdaymtdt ^. sqlValue))
-  let birthersPrepared = map (_3 %~ \(yr, bdayJS) -> (,) <$> yr <*> fromJSONM bdayJS) birthers
+  let birthersPrepared =
+        sortBy (\bd1 bd2 -> compare (bd1 ^? _3 . _Just . _2) (bd2 ^? _3 . _Just . _2)) $
+          map (_3 %~ \(yr, bdayJS) -> (,) <$> yr <*> fromJSONM bdayJS) birthers
   case birthers of
     [] -> pure Nothing
     _ -> do

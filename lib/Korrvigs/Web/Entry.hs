@@ -340,11 +340,14 @@ mkContactWidget dat = do
                 <span .contact-desc>
                   Nicknames:
                 #{T.intercalate ", " (view contactNicknames dat)}
-            $maybe age <- mage
+            $maybe (isPrecise,age) <- mage
               <li>
                 <span .contact-desc>
                   Age:
-                #{agePrefix}#{age} years old
+                $if isPrecise
+                  #{agePrefix}#{age} years old
+                $else
+                  ~#{agePrefix}#{age} years old
             $maybe (BirthDay mth dy) <- view contactBirthDay dat
               <li>
                 <span .contact-desc>

@@ -21,9 +21,12 @@ import Opaleye
 data BirthDay = BirthDay MonthOfYear DayOfMonth
   deriving (Eq, Ord, Show)
 
+renderBirthday :: BirthDay -> Text
+renderBirthday (BirthDay month day) =
+  T.pack $ formatTime defaultTimeLocale "%m-%d" $ fromGregorian 0 month day
+
 instance ToJSON BirthDay where
-  toJSON (BirthDay month day) =
-    String $ T.pack $ formatTime defaultTimeLocale "%m-%d" $ fromGregorian 0 month day
+  toJSON bday = String $ renderBirthday bday
 
 instance FromJSON BirthDay where
   parseJSON = withText "BirthDay" $ \txt ->
@@ -92,12 +95,15 @@ rSelectContact i = do
               _contactUrl = fromJSONM =<< url
             }
 
-computeAge :: (MonadIO m) => Year -> Maybe BirthDay -> m Integer
-computeAge yr mbday = do
-  current <- liftIO getCurrentTime
-  let (curYear, curMonth, curDay) = toGregorian $ utctDay current
-  let diffYear = curYear - yr
-  pure $ case mbday of
-    Nothing -> diffYear
+computeAge :: (MonadIO m) => Year -> Maybe BirthDay -> m (Bool, Integer)
+computeAge yr mbday = computeAgeAt yr mbday . utctDay <$> liftIO getCurrentTime
+
+computeAgeAt :: Year -> Maybe BirthDay -> Day -> (Bool, Integer)
+computeAgeAt yr mbday currentDay = do
+  case mbday of
+    Nothing -> (False, diffYear)
     Just (BirthDay mth dy) ->
-      if curMonth < mth || (curMonth == mth && curDay < dy) then diffYear - 1 else diffYear
+      (True,) $ if curMonth < mth || (curMonth == mth && curDay < dy) then diffYear - 1 else diffYear
+  where
+    (curYear, curMonth, curDay) = toGregorian currentDay
+    diffYear = curYear - yr

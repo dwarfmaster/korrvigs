@@ -5,22 +5,30 @@ import Control.Monad
 import Data.Either.Extra (eitherToMaybe)
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.Calendar
+import Data.Time.Format
 import Korrvigs.Entry
+import Korrvigs.Metadata
+import Korrvigs.Metadata.Contact
 import Korrvigs.Metadata.Task
+import Korrvigs.Monad
 import Korrvigs.Note
 import Korrvigs.Note.Languages
+import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
+import Opaleye hiding (not, null)
 import Skylighting hiding (lookupSyntax)
 import Text.Blaze hiding ((!))
 import qualified Text.Blaze as Blz
 import Text.Blaze.Html5 ((!))
 import qualified Text.Blaze.Html5 as Html
 import qualified Text.Blaze.Html5.Attributes as Attr
-import Yesod hiding (Attr)
+import Yesod hiding (Attr, Field)
 import Yesod.Static
 
 headerSymbol :: Text -> Widget
@@ -176,3 +184,51 @@ skyContent attr codeSource = case parseResult of
     lookupSyntax = lookupSky >=> flip M.lookup defaultSyntaxMap
     lookupSky :: Text -> Maybe Text
     lookupSky l = languagesMap ^? at l . _Just . langSkylight . _Just
+
+-- Assumes startDay and endDay are less than one year appart, otherwise it is not
+-- possible to compute someone's age in the range.
+birthdaysWidget :: Day -> Day -> Handler (Maybe Widget)
+birthdaysWidget startDay endDay = do
+  birthers <- rSelect $ do
+    bdaymtdt <- selectTable entriesMetadataTable
+    where_ $ bdaymtdt ^. sqlKey .== sqlStrictText (mtdtSqlName BirthDayMtdt)
+    where_ $
+      matchNullable (sqlBool False) cond $
+        sqlJsonToText $
+          toNullable $
+            bdaymtdt ^. sqlValue
+    bdayYear <- sqlJsonToNum <$> selectMtdt BirthYear (bdaymtdt ^. sqlEntry)
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryId .== bdaymtdt ^. sqlEntry
+    pure (entry ^. sqlEntryName, entry ^. sqlEntryTitle, (bdayYear, bdaymtdt ^. sqlValue))
+  let birthersPrepared = map (_3 %~ \(yr, bdayJS) -> (,) <$> yr <*> fromJSONM bdayJS) birthers
+  case birthers of
+    [] -> pure Nothing
+    _ -> do
+      pure $
+        Just $
+          [whamlet|
+          <ul>
+            $forall (nm, title, mage) <- birthersPrepared
+              <li>
+                <a href=@{EntryR (WId nm)}>
+                  #{fromMaybe ("@" <> unId nm) title}
+                $maybe (byear,bday) <- mage
+                  #{mconcat [" (", T.pack (show $ ageAt byear bday), " years old on ", rdrBday bday, ")"]}
+        |]
+  where
+    (year, month, dnum) = toGregorian startDay
+    (endYear, endMonth, endDnum) = toGregorian endDay
+    startBirth = renderBirthday $ BirthDay month dnum
+    endBirth = renderBirthday $ BirthDay endMonth endDnum
+    birthOp = if month == December then (.||) else (.&&)
+    cond bday = (bday .>= sqlStrictText startBirth) `birthOp` (bday .<= sqlStrictText endBirth)
+    birthYear :: BirthDay -> Year
+    birthYear (BirthDay mth day) =
+      if mth < month || (mth == month && day < dnum) then endYear else year
+    rdrBday :: BirthDay -> Text
+    rdrBday bday@(BirthDay mth day) =
+      T.pack $ formatTime defaultTimeLocale "%A %d, %B" $ fromGregorian (birthYear bday) mth day
+    ageAt :: Double -> BirthDay -> Integer
+    ageAt byear bday@(BirthDay mth day) =
+      snd $ computeAgeAt (floor byear) (Just bday) $ fromGregorian (birthYear bday) mth day

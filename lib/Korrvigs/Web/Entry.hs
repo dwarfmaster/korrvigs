@@ -379,22 +379,22 @@ mkContactWidget dat = do
   where
     agePrefix :: Text
     agePrefix = if isNothing (dat ^. contactBirthDay) then "~" else ""
-    platformIcon :: Text -> Text -> Widget
-    platformIcon icon url =
+    platformIcon :: Text -> Text -> Text -> Widget
+    platformIcon icon alt url =
       [whamlet|
-        <a .contact-icon href=#{url}>
+        <a .contact-icon href=#{url} title=#{alt}>
           <img .contact-platform src=@{StaticR (StaticRoute ["platforms", mconcat [icon, ".png"]] [])}>
       |]
     mkPlatform :: Text -> Text -> Widget
-    mkPlatform "mail" address = platformIcon "mail" ("mailto:" <> address)
-    mkPlatform "github" account = platformIcon "github" ("https://github.com/" <> account)
-    mkPlatform "discord" _ = platformIcon "discord" "https://discord.com"
-    mkPlatform "phone" phone = platformIcon "phone" ("tel:" <> phone)
-    mkPlatform "steam" _ = platformIcon "steam" "https://steampowered.com"
-    mkPlatform "instagram" account = platformIcon "instagram" ("https://www.instagram.com/" <> account)
-    mkPlatform "gitlab" account = platformIcon "gitlab" ("https://gitlab.com/" <> account)
-    mkPlatform "bluesky" account = platformIcon "bluesky" ("https://bluesky.app/profile/" <> account)
-    mkPlatform "linkedin" account = platformIcon "linkedin" ("https://linkedin.com/in/" <> account)
+    mkPlatform "mail" address = platformIcon "mail" address ("mailto:" <> address)
+    mkPlatform "github" account = platformIcon "github" account ("https://github.com/" <> account)
+    mkPlatform "discord" account = platformIcon "discord" account "https://discord.com"
+    mkPlatform "phone" phone = platformIcon "phone" phone ("tel:" <> phone)
+    mkPlatform "steam" account = platformIcon "steam" account "https://steampowered.com"
+    mkPlatform "instagram" account = platformIcon "instagram" ("@" <> account) ("https://www.instagram.com/" <> account)
+    mkPlatform "gitlab" account = platformIcon "gitlab" account ("https://gitlab.com/" <> account)
+    mkPlatform "bluesky" account = platformIcon "bluesky" account ("https://bluesky.app/profile/" <> account)
+    mkPlatform "linkedin" account = platformIcon "linkedin" account ("https://linkedin.com/in/" <> account)
     mkPlatform _ _ = mempty
 
 galleryWidget :: Entry -> Handler Widget

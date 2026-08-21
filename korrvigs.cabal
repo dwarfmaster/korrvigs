@@ -216,6 +216,7 @@ library korrvigs-lib
     Korrvigs.Web.Actions.Bibtex
     Korrvigs.Web.Actions.Blog
     Korrvigs.Web.Actions.Collection
+    Korrvigs.Web.Actions.Complete
     Korrvigs.Web.Actions.Compute
     Korrvigs.Web.Actions.Date
     Korrvigs.Web.Actions.Defs

@@ -32,7 +32,7 @@ generateArchivePage mtdt onlyPublished menuContent renderUrl tag tags tagsDesc =
             extra
           ]
   let url = maybe BlogArchive BlogArchiveTag tag
-  renderPageContent $ BlogPageContent content mtdt title renderUrl menuContent url
+  renderPageContent $ BlogPageContent content mtdt title renderUrl menuContent url mempty
   where
     title = maybe "Archive" ("Archive for " <>) tag
     getYear :: Day -> Year

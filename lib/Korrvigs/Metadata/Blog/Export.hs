@@ -60,7 +60,8 @@ data BlogPageContent m = BlogPageContent
     _blogPageTitle :: Text,
     _blogPageRenderUrl :: BlogUrl -> m Text,
     _blogPageMenu :: BlogMenuContent,
-    _blogPageUrl :: BlogUrl
+    _blogPageUrl :: BlogUrl,
+    _blogPageFooter :: Html
   }
 
 type RenderMonad m = RWST (RenderContext m) () RenderState m
@@ -82,20 +83,35 @@ renderPost url menuContent csl renderUrl topEntries mtdt onlyPublished noteId = 
           M.lookup (mtdtName BlogTitle) (doc ^. docMtdt) >>= fromJSONM
   (citations, bibliography) <- maybe (pure mempty) (flip renderCitations doc) csl
   contentHtml <- renderDocument renderUrl topEntries citations onlyPublished t doc
-  renderPageContent $ BlogPageContent (contentHtml <> bibliography) mtdt t renderUrl menuContent url
+  renderPageContent $ BlogPageContent (contentHtml <> bibliography) mtdt t renderUrl menuContent url bgFooter
+  where
+    bgFooter :: Html
+    bgFooter = case url of
+      BlogPostNote note ->
+        p $
+          mconcat
+            [ "If you want to react or discuss this blog post, send me a mail at ",
+              a "blog AT dwarfmaster DOT net" ! A.href (toValue $ "mailto:blog@dwarfmaster.net?subject=%5B" <> note <> "%5D")
+            ]
+      _ -> mempty
 
 renderPageContent :: (MonadKorrvigs m) => BlogPageContent m -> m Html
 renderPageContent pc = do
   stl <- pc ^. blogPageRenderUrl $ BlogTopLevel "style.css"
   sideMenu <- renderSideBar (pc ^. blogPageUrl) (pc ^. blogPageMenu) $ pc ^. blogPageRenderUrl
   feed <- pc ^. blogPageRenderUrl $ BlogAtom
-  let content = div (pc ^. blogPageContent) ! A.class_ "content-div"
+  let pagecontent =
+        pc ^. blogPageContent
+          <> div (pc ^. blogPageFooter) ! A.class_ "footer-div"
+  let content = div pagecontent ! A.class_ "content-div"
   let leftDiv = div mempty ! A.class_ "left-div"
   pure $
     docTypeHtml $
       html $
-        renderHead (pc ^. blogPageMetadata) (pc ^. blogPageTitle) stl feed
-          <> (body $ div (leftDiv <> content <> sideMenu) ! A.class_ "main-div")
+        mconcat
+          [ renderHead (pc ^. blogPageMetadata) (pc ^. blogPageTitle) stl feed,
+            (body $ div (leftDiv <> content <> sideMenu) ! A.class_ "main-div")
+          ]
 
 renderCitations :: (MonadKorrvigs m) => (Id, Text) -> Document -> m (Map Id Html, Html)
 renderCitations csl doc = do

@@ -5,7 +5,7 @@ import Control.Lens hiding (noneOf)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.Trans.Maybe
-import Data.Aeson (FromJSON)
+import Data.Aeson
 import Data.Functor
 import Data.ISBN
 import Data.List (intersperse)
@@ -52,6 +52,18 @@ instance (Applicative m) => Buildable m ISBN where
 
 instance (Monad m, Buildable m a) => Buildable m [a] where
   build l = mconcat <$> mapM build l
+
+newtype TextMtdt mtdt = TextMtdt {unTextMtdt :: mtdt}
+
+instance (Applicative m, IsJsonText mtdt) => Buildable m (TextMtdt mtdt) where
+  build = pure . (: []) . Bld.text . jsonText . unTextMtdt
+
+instance (FromJSON m) => FromJSON (TextMtdt m) where
+  parseJSON v = TextMtdt <$> parseJSON v
+
+instance (ExtraMetadata mtdt) => ExtraMetadata (TextMtdt mtdt) where
+  type MtdtType (TextMtdt mtdt) = TextMtdt (MtdtType mtdt)
+  mtdtName = mtdtName . unTextMtdt
 
 liftSpec :: (Monad m) => ((b -> Const [b] b) -> a -> Const [b] a) -> FormatSpec m b -> FormatSpec m a
 liftSpec get =
@@ -212,7 +224,7 @@ entrySpec =
     <> mtdtSpec Pages
     <> mtdtSpec Height
     <> mtdtSpec Width
-    <> mtdtSpec TaskMtdt
+    <> mtdtSpec (TextMtdt TaskMtdt)
     <> mtdtSpec TaskDeadline
     <> mtdtSpec TaskScheduled
     <> mtdtSpec TaskStarted

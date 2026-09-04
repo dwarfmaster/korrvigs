@@ -24,6 +24,16 @@ data TaskStatus
   | TaskDont
   deriving (Eq, Show, Bounded, Enum, Ord)
 
+isTaskTodo :: TaskStatus -> Bool
+isTaskTodo TaskTodo = True
+isTaskTodo TaskImportant = True
+isTaskTodo _ = False
+
+isTaskDone :: TaskStatus -> Bool
+isTaskDone TaskDone = True
+isTaskDone TaskDont = True
+isTaskDone _ = False
+
 makePrisms ''TaskStatus
 
 data Task = Task
@@ -52,7 +62,16 @@ parseStatusName = flip M.lookup statusMap
   where
     statusMap = M.fromList $ (renderTaskStatus &&& id) <$> [minBound .. maxBound]
 
-mkMtdt "TaskMtdt" "task" [t|Text|]
+instance IsJsonText TaskStatus where
+  jsonText = renderTaskStatus
+
+instance ToJSON TaskStatus where
+  toJSON = mkToJSONText
+
+instance FromJSON TaskStatus where
+  parseJSON = mkFromJSONText "TaskStatus"
+
+mkMtdt "TaskMtdt" "task" [t|TaskStatus|]
 mkMtdt "TaskDeadline" "deadline" [t|ZonedTime|]
 mkMtdt "TaskScheduled" "scheduled" [t|ZonedTime|]
 mkMtdt "TaskStarted" "started" [t|ZonedTime|]

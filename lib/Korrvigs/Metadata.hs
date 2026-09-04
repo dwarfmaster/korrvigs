@@ -2,7 +2,7 @@ module Korrvigs.Metadata where
 
 import Control.Arrow (first, (&&&))
 import Control.Lens
-import Data.Aeson
+import Data.Aeson.Types
 import Data.CaseInsensitive (CI)
 import qualified Data.CaseInsensitive as CI
 import Data.Kind (Type)
@@ -31,6 +31,23 @@ unCIMtdt = M.fromList . fmap (first CI.foldedCase) . M.toList
 
 reCIMtdt :: Map Text Value -> Metadata
 reCIMtdt = M.fromList . fmap (first CI.mk) . M.toList
+
+-- Indicates that the type is encoded in JSON as text
+class IsJsonText mtdt where
+  jsonText :: mtdt -> Text
+
+instance IsJsonText Text where
+  jsonText = id
+
+mkToJSONText :: (IsJsonText mtdt) => mtdt -> Value
+mkToJSONText = String . jsonText
+
+mkFromJSONText :: (IsJsonText mtdt, Enum mtdt, Bounded mtdt) => String -> Value -> Parser mtdt
+mkFromJSONText lbl = withText lbl $ \txt -> case M.lookup txt mp of
+  Nothing -> fail $ "Invalid " <> lbl <> ": " <> T.unpack txt
+  Just v -> pure v
+  where
+    mp = M.fromList $ (jsonText &&& id) <$> [minBound .. maxBound]
 
 extractMtdt ::
   (ExtraMetadata mtdt, FromJSON (MtdtType mtdt)) =>
@@ -77,7 +94,7 @@ selectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlInt4 -> Select (FieldNull
 selectMtdt mtdt i =
   fmap maybeFieldsToNullable $ optional $ limit 1 $ baseSelectMtdt mtdt i
 
-baseSelectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlInt4 -> Select (Field SqlText)
+baseSelectTextMtdt :: (ExtraMetadata mtdt, IsJsonText (MtdtType mtdt)) => mtdt -> Field SqlInt4 -> Select (Field SqlText)
 baseSelectTextMtdt mtdt i = fromNullableSelect $ do
   m <- selectTable entriesMetadataTable
   where_ $ (m ^. sqlEntry) .== i
@@ -85,13 +102,13 @@ baseSelectTextMtdt mtdt i = fromNullableSelect $ do
   pure $ sqlJsonToText $ toNullable $ m ^. sqlValue
 
 rSelectTextMtdt ::
-  (ExtraMetadata mtdt, MtdtType mtdt ~ Text, MonadKorrvigs m) =>
+  (ExtraMetadata mtdt, IsJsonText (MtdtType mtdt), MonadKorrvigs m) =>
   mtdt ->
   Field SqlText ->
   m (Maybe Text)
 rSelectTextMtdt mtdt i = rSelectOne (fromName (baseSelectTextMtdt mtdt) i)
 
-selectTextMtdt :: (ExtraMetadata mtdt, MtdtType mtdt ~ Text) => mtdt -> Field SqlInt4 -> Select (FieldNullable SqlText)
+selectTextMtdt :: (ExtraMetadata mtdt, IsJsonText (MtdtType mtdt)) => mtdt -> Field SqlInt4 -> Select (FieldNullable SqlText)
 selectTextMtdt mtdt i = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtdt mtdt i
   where
     joinMField :: MaybeFields (Field a) -> FieldNullable a

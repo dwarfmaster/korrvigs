@@ -21,12 +21,13 @@ import Conduit hiding (fuse)
 import Control.Arrow ((&&&))
 import Control.Lens
 import Control.Monad
+import Data.Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.Conduit.Combinators (fold)
 import Data.Default
 import qualified Data.Map as M
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -49,6 +50,7 @@ import Korrvigs.Note.Edit
 import Korrvigs.Note.Languages
 import Korrvigs.Note.Pandoc
 import qualified Korrvigs.Syndicate.Run as Syn
+import Korrvigs.Utils.Time
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Entry.Note (embedContent, resultWidget)
@@ -62,7 +64,7 @@ import Korrvigs.Web.Search
 import Korrvigs.Web.Search.Form
 import Korrvigs.Web.Search.Results
 import qualified Network.URI as URI
-import Opaleye
+import Opaleye hiding (not)
 import System.IO
 import Yesod hiding (Header, check)
 
@@ -154,11 +156,20 @@ postNoteSubR (WId i) (WLoc loc) =
                 pure $ Just $ setCheck lc doc cb
               LocTask lc -> do
                 tk <- parseTaskStatus txt
+                let sublc = lc ^. taskSub
+                let oldtk = fromMaybe TaskTodo $ doc ^? task lc . tskStatus
+                let setStarted = isTaskTodo oldtk && not (isTaskTodo tk) && (isNothing $ doc ^? sub sublc . hdAttr . attrMtdt . at "started" . _Just)
+                let setFinished = isTaskDone tk && not (isTaskDone oldtk)
+                time <- liftIO getCurrentZonedTime
+                let renderedTime = T.pack $ iso8601Show time
+                let setIf b f = if b then f else id
                 pure $
                   Just $
                     doc
                       & task lc . tskStatus .~ tk
                       & task lc . tskStatusName .~ txt
+                      & setIf setStarted (sub sublc . hdAttr . attrMtdt . at "started" ?~ [renderedTime])
+                      & setIf setFinished (sub sublc . hdAttr . attrMtdt . at "finished" ?~ [renderedTime])
               LocSyn lc -> case doc ^? _syn lc . _4 of
                 Nothing -> notFound
                 Just syns -> do

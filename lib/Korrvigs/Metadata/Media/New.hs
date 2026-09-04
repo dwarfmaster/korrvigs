@@ -122,6 +122,7 @@ prepareNewMedia nm = $(withLogContext) "Prepare new media" $ do
     medTxt Article = "Article"
     medTxt Book = "Livre"
     medTxt Comic = "BD"
+    medTxt ComicSerie = "BD (serie)"
     medTxt Booklet = "Brochure"
     medTxt Inbook = "Chapitre"
     medTxt Incollection = "Partie"

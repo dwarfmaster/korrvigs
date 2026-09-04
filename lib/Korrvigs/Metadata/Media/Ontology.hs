@@ -15,6 +15,7 @@ data MediaType
   = Article
   | Book
   | Comic
+  | ComicSerie
   | Booklet
   | Inbook
   | Incollection
@@ -69,6 +70,7 @@ displayMediaType :: MediaType -> Text
 displayMediaType Article = "article"
 displayMediaType Book = "book"
 displayMediaType Comic = "comic"
+displayMediaType ComicSerie = "comicserie"
 displayMediaType Booklet = "booklet"
 displayMediaType Inbook = "inbook"
 displayMediaType Incollection = "incollection"

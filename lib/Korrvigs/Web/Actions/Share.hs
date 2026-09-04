@@ -36,13 +36,12 @@ shareTitle = const "Share"
 
 runShare :: () -> ActionTarget -> Handler ActionReaction
 runShare () (TargetEntry entry) = do
-  public <- Public.signRoute (EntryR $ WId i) []
-  publicDl <- Public.signRoute (EntryDownloadR $ WId i) []
+  public <- Public.mkPublicAlways (EntryR $ WId i) []
+  publicDl <- Public.mkPublicAlways (EntryDownloadR $ WId i) []
   render <- getUrlRenderParams
   blogpost <- rSelectMtdt BlogPost $ sqlId $ entry ^. entryName
   signedpost <- forM blogpost $ \post -> do
-    publicPost <- Public.signRoute (BlogPostR post) []
-    pure $ PublicBlogPostR publicPost post
+    Public.mkPublicAlways (BlogPostR post) []
   let html = htmlUrl public publicDl signedpost render
   pure $ def & reactMsg ?~ html
   where
@@ -51,9 +50,9 @@ runShare () (TargetEntry entry) = do
       [hamlet|
       <ul>
         <li>
-          <a href=@{PublicEntryR public $ WId i}>Share this entry
+          <a href=@{public}>Share this entry
         <li>
-          <a href=@{PublicEntryDownloadR publicDl $ WId i}>Share the content of this entry
+          <a href=@{publicDl}>Share the content of this entry
         $maybe post <- signedpost
           <li>
             <a href=@{post}>
@@ -62,7 +61,7 @@ runShare () (TargetEntry entry) = do
 runShare () TargetHome = pure def
 runShare () (TargetSearch q disp) = do
   let params = Search.getParameters Nothing q disp
-  public <- Public.signRoute SearchR params
+  public <- Public.mkPublicAlways SearchR params
   render <- getUrlRenderParams
   let html = htmlUrl public params render render
   pure $ def & reactMsg ?~ html
@@ -71,11 +70,11 @@ runShare () (TargetSearch q disp) = do
       [hamlet|
         <ul>
           <li>
-            <a href=#{render (PublicSearchR public) params}>
+            <a href=#{render public params}>
               Share this query
       |]
 runShare () (TargetNoteCollection note col) = do
-  public <- Public.signRoute (NoteColR (WId i) col) []
+  public <- Public.mkPublicAlways (NoteColR (WId i) col) []
   render <- getUrlRenderParams
   let html = htmlUrl public render
   pure $ def & reactMsg ?~ html
@@ -85,11 +84,11 @@ runShare () (TargetNoteCollection note col) = do
       [hamlet|
         <ul>
           <li>
-            <a href=@{PublicNoteColR public (WId i) col}>
+            <a href=@{public}>
               Share this collection
       |]
 runShare () (TargetNoteSub note sb) = do
-  public <- Public.signRoute (NoteNamedSubR (WId i) sb) []
+  public <- Public.mkPublicAlways (NoteNamedSubR (WId i) sb) []
   render <- getUrlRenderParams
   let html = htmlUrl public render
   pure $ def & reactMsg ?~ html
@@ -99,16 +98,16 @@ runShare () (TargetNoteSub note sb) = do
       [hamlet|
         <ul>
           <li>
-            <a href=@{PublicNoteNamedSubR public (WId i) sb}>
+            <a href=@{public}>
               Share this subtree
       |]
 runShare () (TargetNoteCode note cd) = do
-  public <- Public.signRoute (NoteNamedCodeR (WId i) cd) []
+  public <- Public.mkPublicAlways (NoteNamedCodeR (WId i) cd) []
   isCached <- fmap isJust $ rSelectOne $ do
     cmp <- selComp (sqlInt4 $ note ^. noteEntry . entryId) cd
     where_ $ O.not $ isNull $ cmp ^. sqlCompLastRun
     pure ()
-  publicCache <- whenMaybe isCached $ Public.signRoute (EntryComputeR (WId i) cd) []
+  publicCache <- whenMaybe isCached $ Public.mkPublicAlways (EntryComputeR (WId i) cd) []
   render <- getUrlRenderParams
   let html = htmlUrl public publicCache render
   pure $ def & reactMsg ?~ html
@@ -118,10 +117,10 @@ runShare () (TargetNoteCode note cd) = do
       [hamlet|
         <ul>
           <li>
-            <a href=@{PublicNoteNamedCodeR public (WId i) cd}>
+            <a href=@{public}>
               Share this code block
             $maybe cache <- publicCache
               <li>
-                <a href=@{PublicEntryComputeR cache (WId i) cd}>
+                <a href=@{cache}>
                   Share the computation result
       |]

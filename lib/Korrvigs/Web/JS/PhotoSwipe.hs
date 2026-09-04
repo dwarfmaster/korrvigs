@@ -30,10 +30,8 @@ data PhotoswipeContentType
 
 data PhotoswipeEntry = PhotoswipeEntry
   { _swpUrl :: Route WebData,
-    _swpUrlPublic :: Route WebData,
     _swpType :: PhotoswipeContentType,
     _swpMiniature :: Route WebData,
-    _swpMiniaturePublic :: Route WebData,
     _swpRedirect :: Maybe (Route WebData),
     _swpCaption :: Widget,
     _swpLabel :: Maybe Text,
@@ -48,10 +46,8 @@ miniatureEntryImpl :: PhotoswipeContentType -> Maybe Day -> Id -> Handler (Maybe
 miniatureEntryImpl tp day i = do
   szM <- getComputation i "size"
   szR <- forM szM runVeryLazy
-  let url = EntryDownloadR (WId i)
-  let miniatureUrl = EntryComputeR (WId i) "miniature"
-  urlSignature <- Public.signRoute url []
-  miniatureSignature <- Public.signRoute miniatureUrl []
+  url <- Public.mkPublic $ EntryDownloadR (WId i)
+  miniatureUrl <- Public.mkPublic $ EntryComputeR (WId i) "miniature"
   pure $ do
     sz :: Map Text Int <- szR ^? _Just . _ResultJson . _JSON
     width <- M.lookup "width" sz
@@ -59,9 +55,7 @@ miniatureEntryImpl tp day i = do
     pure $
       PhotoswipeEntry
         { _swpUrl = url,
-          _swpUrlPublic = PublicEntryDownloadR urlSignature (WId i),
           _swpMiniature = miniatureUrl,
-          _swpMiniaturePublic = PublicEntryComputeR miniatureSignature (WId i) "miniature",
           _swpType = tp,
           _swpRedirect = Just $ EntryR (WId i),
           _swpCaption = mempty,
@@ -193,9 +187,6 @@ photoswipe settings (item : items) = do
   let togroup = settings ^. swpGroup
   let displayLib = settings ^. swpLibrary
   i <- newIdent
-  public <- isPublic
-  let getUrl = if public then view swpUrlPublic else view swpUrl
-  let getMiniature = if public then view swpMiniaturePublic else view swpMiniature
   let grouped = if togroup then groupEntries (item : items) else [item :| items]
   let widgetFn = if displayLib then libWidget else itemWidget
   pure $ do
@@ -215,7 +206,7 @@ photoswipe settings (item : items) = do
         [whamlet|
         <div ##{i} .pswp-gallery>
           $forall item <- group 
-            ^{widgetFn getUrl getMiniature item}
+            ^{widgetFn item}
       |]
       _ ->
         [whamlet|
@@ -225,30 +216,30 @@ photoswipe settings (item : items) = do
               <summary>
                 #{displayDateOfGroup group}
               $forall item <- group 
-                ^{widgetFn getUrl getMiniature item}
+                ^{widgetFn item}
       |]
   where
-    itemTarget getUrl entry = fromMaybe (getUrl entry) (entry ^. swpRedirect)
+    itemTarget entry = fromMaybe (entry ^. swpUrl) (entry ^. swpRedirect)
     videoAttrs :: PhotoswipeEntry -> [(Text, Text)]
     videoAttrs it = case it ^. swpType of
       PSPicture -> []
       PSVideo _ -> [("data-pswp-type", "video")]
-    mkLink :: (PhotoswipeEntry -> Route WebData) -> (PhotoswipeEntry -> Route WebData) -> PhotoswipeEntry -> Widget -> Widget
-    mkLink getUrl getMiniature it widget =
+    mkLink :: PhotoswipeEntry -> Widget -> Widget
+    mkLink it widget =
       [whamlet|
-        <a href=@{getUrl it} .photoswipe-entry data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-korrvigs-target=@{itemTarget getUrl it} target="_blank" *{videoAttrs it}>
-          <img loading=lazy src=@{getMiniature it} alt="">
+        <a href=@{view swpUrl it} .photoswipe-entry data-pswp-width=#{_swpWidth it} data-pswp-height=#{_swpHeight it} data-korrvigs-target=@{itemTarget it} target="_blank" *{videoAttrs it}>
+          <img loading=lazy src=@{view swpMiniature it} alt="">
           ^{widget}
       |]
-    itemWidget getUrl getMiniature it = mkLink getUrl getMiniature it $ _swpCaption it
-    libWidget getUrl getMiniature it =
+    itemWidget it = mkLink it $ it ^. swpCaption
+    libWidget it =
       [whamlet|
         <div .library-item>
           <div .library-miniature>
-            ^{mkLink getUrl getMiniature it mempty}
+            ^{mkLink it mempty}
             $maybe lbl <- view swpLabel it
               <div .library-label>
                 #{lbl}
           <div .library-caption>
-            ^{_swpCaption it}
+            ^{view swpCaption it}
       |]

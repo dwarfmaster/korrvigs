@@ -2,6 +2,7 @@
 
 module Korrvigs.Web.Public.Crypto where
 
+import Control.Lens
 import Crypto.Hash.Algorithms
 import Crypto.MAC.KeyedBlake2
 import Data.Base64.Types
@@ -56,8 +57,10 @@ signRoute :: Route WebData -> [(Text, Text)] -> Handler Text
 signRoute route params =
   getsYesod web_route_signer <*> getUrlRenderParams <*> pure route <*> pure params
 
-checkMac :: Text -> Route WebData -> Handler ()
-checkMac mac64 route = do
+checkMac :: Route WebData -> SubHandlerFor PublicSubSite WebData ()
+checkMac route = do
+  sub <- getSubYesod
+  let mac64 = sub ^. publicHash
   secret <- getsYesod web_mac_secret
   render <- getUrlRenderParams
   params <- reqGetParams <$> getRequest
@@ -69,14 +72,26 @@ checkMac mac64 route = do
     Right False -> permissionDenied "Invalid MAC"
     Right True -> pure ()
 
-mkPublicImpl :: Route WebData -> Handler (Route WebData)
-mkPublicImpl r@(EntryR i) = PublicEntryR <$> signRoute r [] <*> pure i
-mkPublicImpl r@(EntryDownloadR i) = PublicEntryDownloadR <$> signRoute r [] <*> pure i
-mkPublicImpl r@(EntryComputeR i cached) = PublicEntryComputeR <$> signRoute r [] <*> pure i <*> pure cached
-mkPublicImpl _ = pure PublicR
+mkPublicRoute :: Route WebData -> Maybe (Route PublicSubSite)
+mkPublicRoute (EntryR i) = Just $ PublicEntryR i
+mkPublicRoute (EntryDownloadR i) = Just $ PublicEntryDownloadR i
+mkPublicRoute (EntryComputeR i cached) = Just $ PublicEntryComputeR i cached
+mkPublicRoute (CssR css) = Just $ PublicCssR css
+mkPublicRoute SearchR = Just PublicSearchR
+mkPublicRoute (NoteColR i col) = Just $ PublicNoteColR i col
+mkPublicRoute (NoteNamedSubR i sub) = Just $ PublicNoteNamedSubR i sub
+mkPublicRoute (NoteNamedCodeR i code) = Just $ PublicNoteNamedCodeR i code
+mkPublicRoute (BlogTopR blog) = Just $ PublicBlogTopR blog
+mkPublicRoute (BlogPostR post) = Just $ PublicBlogPostR post
+mkPublicRoute _ = Nothing
+
+mkPublicAlways :: Route WebData -> [(Text, Text)] -> Handler (Route WebData)
+mkPublicAlways r attrs = case mkPublicRoute r of
+  Nothing -> pure PublicR
+  Just publicR -> PublicSubR <$> signRoute r attrs <*> pure publicR
 
 mkPublic :: Route WebData -> Handler (Route WebData)
 mkPublic r =
   isPublic >>= \case
-    True -> mkPublicImpl r
+    True -> mkPublicAlways r []
     False -> pure r

@@ -20,6 +20,21 @@ instance PathPiece WebAnyLoc where
   toPathPiece (WLoc loc) = renderLoc loc
   fromPathPiece s = parseLoc s ^? _Right . to WLoc
 
+publicRoutes :: [ResourceTree String]
+publicRoutes =
+  [parseRoutes|
+/style/#CssFile PublicCssR GET
+/entry/#WebId PublicEntryR GET
+/entry/#WebId/download PublicEntryDownloadR GET
+/entry/#WebId/cache/#Text PublicEntryComputeR GET
+/entry PublicSearchR GET
+/note/#WebId/col/#Text PublicNoteColR GET
+/note/#WebId/named/sub/#Text PublicNoteNamedSubR GET
+/note/#WebId/named/code/#Text PublicNoteNamedCodeR GET
+/blog/#Text PublicBlogTopR GET
+/blog/posts/#Text PublicBlogPostR GET
+|]
+
 korrvigsRoutes :: [ResourceTree String]
 korrvigsRoutes =
   [parseRoutes|
@@ -87,14 +102,5 @@ korrvigsRoutes =
 
 -- Public
 /public PublicR GET
-/public/#Text/style/#CssFile PublicCssR GET
-/public/#Text/entry/#WebId PublicEntryR GET
-/public/#Text/entry/#WebId/download PublicEntryDownloadR GET
-/public/#Text/entry/#WebId/cache/#Text PublicEntryComputeR GET
-/public/#Text/entry PublicSearchR GET
-/public/#Text/note/#WebId/col/#Text PublicNoteColR GET
-/public/#Text/note/#WebId/named/sub/#Text PublicNoteNamedSubR GET
-/public/#Text/note/#WebId/named/code/#Text PublicNoteNamedCodeR GET
-/public/#Text/blog/#Text PublicBlogTopR GET
-/public/#Text/blog/posts/#Text PublicBlogPostR GET
+/public/#Text PublicSubR PublicSubSite getPublicSubSite
 |]

@@ -305,12 +305,7 @@ displayPlayList _ entries = do
   where
     mkItem public (entry, dat) = do
       let i = entry ^. sqlEntryName
-      let defRoute = EntryDownloadR $ WId i
-      route <- case public of
-        False -> pure defRoute
-        True -> do
-          hash <- signRoute defRoute []
-          pure $ PublicEntryDownloadR hash (WId i)
+      route <- mkPublic $ EntryDownloadR $ WId i
       title <- mkTaskItem public entry dat
       pure
         [whamlet|

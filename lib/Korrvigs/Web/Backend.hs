@@ -2,9 +2,9 @@ module Korrvigs.Web.Backend where
 
 import Control.Concurrent.MVar
 import Control.Concurrent.STM
+import Control.Lens
 import Data.Binary.Builder
 import Data.ByteString (ByteString)
-import Data.Functor ((<&>))
 import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -45,6 +45,16 @@ data WebData = WebData
 
 getStaticR :: WebData -> Static
 getStaticR = web_static
+
+data PublicSubSite = PublicSubSite
+  { _publicHash :: Text
+  }
+
+mkYesodSubData "PublicSubSite" publicRoutes
+makeLenses ''PublicSubSite
+
+getPublicSubSite :: WebData -> Text -> PublicSubSite
+getPublicSubSite _ hsh = PublicSubSite hsh
 
 mkYesodData "WebData" korrvigsRoutes
 
@@ -87,7 +97,7 @@ mkCss =
     True -> do
       render <- getUrlRenderParams
       signer <- getsYesod web_route_signer
-      pure $ \css -> PublicCssR (signer render (CssR css) []) css
+      pure $ \css -> PublicSubR (signer render (CssR css) []) $ PublicCssR css
     False -> pure CssR
 
 mkHeader :: Handler Widget
@@ -107,16 +117,7 @@ mkQuery (key, val) = (Enc.encodeUtf8 key, Just $ Enc.encodeUtf8 val)
 
 isPublicRoute :: Route WebData -> Bool
 isPublicRoute PublicR = True
-isPublicRoute (PublicCssR _ _) = True
-isPublicRoute (PublicEntryR _ _) = True
-isPublicRoute (PublicEntryDownloadR _ _) = True
-isPublicRoute (PublicEntryComputeR {}) = True
-isPublicRoute (PublicSearchR _) = True
-isPublicRoute (PublicNoteColR {}) = True
-isPublicRoute (PublicNoteNamedSubR {}) = True
-isPublicRoute (PublicNoteNamedCodeR {}) = True
-isPublicRoute (PublicBlogTopR _ _) = True
-isPublicRoute (PublicBlogPostR _ _) = True
+isPublicRoute (PublicSubR _ _) = True
 isPublicRoute _ = False
 
 isPublic :: Handler Bool
@@ -190,6 +191,19 @@ instance MonadKorrvigs Handler where
   getLogContext = do
     ctxRef <- getsYesod web_log_context
     liftIO $ readIORef ctxRef
+
+instance MonadKorrvigs (SubHandlerFor PublicSubSite WebData) where
+  lockSQL = liftHandler lockSQL
+  unlockSQL = liftHandler unlockSQL
+  root = liftHandler root
+  captureRoot = liftHandler captureRoot
+  mimeDatabase = liftHandler mimeDatabase
+  getCredential = liftHandler . getCredential
+  manager = liftHandler manager
+  getToken = liftHandler . getToken
+  storeToken tok = liftHandler . storeToken tok
+  registerLogContext = liftHandler . registerLogContext
+  getLogContext = liftHandler getLogContext
 
 getFaviconR :: Handler TypedContent
 getFaviconR = redirect $ StaticR $ StaticRoute ["favicon.ico"] []

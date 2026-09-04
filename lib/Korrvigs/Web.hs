@@ -20,4 +20,7 @@ import Korrvigs.Web.Search
 import Korrvigs.Web.Syn
 import Yesod
 
+instance YesodSubDispatch PublicSubSite WebData where
+  yesodSubDispatch = $(mkYesodSubDispatch publicRoutes)
+
 mkYesodDispatch "WebData" korrvigsRoutes

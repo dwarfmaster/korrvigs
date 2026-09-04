@@ -14,6 +14,8 @@ import Korrvigs.Web.Search (getSearchR)
 import Text.Cassius (Css)
 import Yesod hiding (cached, joinPath)
 
+type PublicHandler = SubHandlerFor PublicSubSite WebData
+
 getPublicR :: Handler Html
 getPublicR = do
   defaultLayout
@@ -22,52 +24,52 @@ getPublicR = do
   <p>You have tried to access a private part of the website.
   |]
 
-getPublicCssR :: Text -> CssFile -> Handler Css
-getPublicCssR mac css = do
-  checkMac mac $ CssR css
-  getCssR css
+getPublicCssR :: CssFile -> PublicHandler Css
+getPublicCssR css = do
+  checkMac $ CssR css
+  liftHandler $ getCssR css
 
-getPublicEntryR :: Text -> WebId -> Handler Html
-getPublicEntryR mac i = do
-  checkMac mac $ EntryR i
-  getEntryR i
+getPublicEntryR :: WebId -> PublicHandler Html
+getPublicEntryR i = do
+  checkMac $ EntryR i
+  liftHandler $ getEntryR i
 
-getPublicEntryDownloadR :: Text -> WebId -> Handler TypedContent
-getPublicEntryDownloadR mac i = do
-  checkMac mac $ EntryDownloadR i
-  getEntryDownloadR i
+getPublicEntryDownloadR :: WebId -> PublicHandler TypedContent
+getPublicEntryDownloadR i = do
+  checkMac $ EntryDownloadR i
+  liftHandler $ getEntryDownloadR i
 
-getPublicEntryComputeR :: Text -> WebId -> Text -> Handler TypedContent
-getPublicEntryComputeR mac i cached = do
-  checkMac mac $ EntryComputeR i cached
-  getEntryComputeR i cached
+getPublicEntryComputeR :: WebId -> Text -> PublicHandler TypedContent
+getPublicEntryComputeR i cached = do
+  checkMac $ EntryComputeR i cached
+  liftHandler $ getEntryComputeR i cached
 
-getPublicSearchR :: Text -> Handler Html
-getPublicSearchR mac = do
-  checkMac mac SearchR
-  getSearchR
+getPublicSearchR :: PublicHandler Html
+getPublicSearchR = do
+  checkMac SearchR
+  liftHandler getSearchR
 
-getPublicNoteColR :: Text -> WebId -> Text -> Handler TypedContent
-getPublicNoteColR mac i col = do
-  checkMac mac $ NoteColR i col
-  getNoteColR i col
+getPublicNoteColR :: WebId -> Text -> PublicHandler TypedContent
+getPublicNoteColR i col = do
+  checkMac $ NoteColR i col
+  liftHandler $ getNoteColR i col
 
-getPublicNoteNamedSubR :: Text -> WebId -> Text -> Handler Html
-getPublicNoteNamedSubR mac i sb = do
-  checkMac mac $ NoteNamedSubR i sb
-  getNoteNamedSubR i sb
+getPublicNoteNamedSubR :: WebId -> Text -> PublicHandler Html
+getPublicNoteNamedSubR i sb = do
+  checkMac $ NoteNamedSubR i sb
+  liftHandler $ getNoteNamedSubR i sb
 
-getPublicNoteNamedCodeR :: Text -> WebId -> Text -> Handler Html
-getPublicNoteNamedCodeR mac i cd = do
-  checkMac mac $ NoteNamedCodeR i cd
-  getNoteNamedCodeR i cd
+getPublicNoteNamedCodeR :: WebId -> Text -> PublicHandler Html
+getPublicNoteNamedCodeR i cd = do
+  checkMac $ NoteNamedCodeR i cd
+  liftHandler $ getNoteNamedCodeR i cd
 
-getPublicBlogTopR :: Text -> Text -> Handler TypedContent
-getPublicBlogTopR mac top = do
-  checkMac mac $ BlogTopR top
-  getBlogTopR top
+getPublicBlogTopR :: Text -> PublicHandler TypedContent
+getPublicBlogTopR top = do
+  checkMac $ BlogTopR top
+  liftHandler $ getBlogTopR top
 
-getPublicBlogPostR :: Text -> Text -> Handler TypedContent
-getPublicBlogPostR mac post = do
-  checkMac mac $ BlogPostR post
-  getBlogPostR post
+getPublicBlogPostR :: Text -> PublicHandler TypedContent
+getPublicBlogPostR post = do
+  checkMac $ BlogPostR post
+  liftHandler $ getBlogPostR post

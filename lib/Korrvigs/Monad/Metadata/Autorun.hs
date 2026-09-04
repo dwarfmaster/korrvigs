@@ -28,7 +28,6 @@ import Data.Profunctor.Product.Default
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding.Base64
-import qualified Data.Text.IO as TIO
 import Data.Time.Calendar hiding (periodLength)
 import Data.Time.Clock
 import Data.Time.Format.ISO8601
@@ -38,6 +37,7 @@ import qualified Korrvigs.Compute.Run as Comp
 import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type (RunnableResult (..), RunnableType)
 import Korrvigs.Entry
+import Korrvigs.Log (LogEventData (..))
 import Korrvigs.Metadata
 import Korrvigs.Monad
 import Korrvigs.Monad.Computation (getComputation)
@@ -219,13 +219,13 @@ targetRun (AutoCal cal) = fromMaybeT () $ do
   davCreds <- hoistLift $ getCredential "caldav"
   pwdEnc <- hoistMaybe $ M.lookup (cal ^. calServer) davCreds
   let pwd = T.strip $ decodeBase64Lenient pwdEnc
-  void $ lift $ Cal.syncCalendar (liftIO . putStrLn . T.unpack) cal pwd
+  void $ lift $ Cal.syncCalendar ($logTrace . MiscEvent) cal pwd
 targetRun (AutoCode i code) = fromMaybeT () $ do
   comp <- hoistLift $ getComputation i code
   r <- lift $ Comp.runForce comp
   case r of
     ResultError err ->
-      liftIO $ TIO.putStrLn $ "Computation " <> unId i <> "#" <> code <> " failed: " <> err
+      lift $ $logError $ MiscEvent $ "Computation " <> unId i <> "#" <> code <> " failed: " <> err
     _ -> pure ()
 
 displayTarget :: AutoRunnableTarget -> Text
@@ -234,13 +234,12 @@ displayTarget (AutoCal cal) = "cal:" <> unId (cal ^. calEntry . entryName)
 displayTarget (AutoCode i code) = "code:" <> unId i <> "#" <> code
 
 targetsRun :: (MonadKorrvigs m) => Int -> m ()
-targetsRun time = do
+targetsRun time = $withLogContext (T.pack $ "Autorunning targets for " <> show time <> "ms") $ do
   targets <- targetsToRunTimed time
   forM_ targets $ \auto -> do
     let tgt = auto ^. autoTarget
-    liftIO $ putStrLn $ "Running " <> T.unpack (displayTarget tgt)
-    withRunInIO $ \runInIO ->
+    $withLogContext ("Running " <> displayTarget tgt) $ withRunInIO $ \runInIO ->
       tryJust Just (runInIO $ targetRun tgt) >>= \case
         Left (err :: KorrvigsError) ->
-          TIO.putStrLn $ "Autorun " <> displayTarget (auto ^. autoTarget) <> " failed with: " <> T.pack (show err)
+          runInIO $ $logError $ MiscEvent $ "Autorun " <> displayTarget (auto ^. autoTarget) <> " failed with: " <> T.pack (show err)
         Right () -> pure ()

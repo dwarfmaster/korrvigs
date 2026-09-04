@@ -22,6 +22,7 @@ import Korrvigs.File.SQL
 import Korrvigs.Geometry
 import Korrvigs.Kind
 import Korrvigs.Metadata
+import Korrvigs.Monad.Class
 import Korrvigs.Note.SQL
 import Korrvigs.Syndicate.SQL
 import Korrvigs.Utils.JSON
@@ -466,7 +467,7 @@ compileQuery query = do
   -- Collection
   forM_ (query ^. queryInCollection) $ \incol -> do
     col <- selectTable notesCollectionsTable
-    sqlI <- fromName pure $ sqlId $ incol ^. colEntry
+    sqlI <- selectEntryId $ incol ^. colEntry
     where_ $ col ^. sqlNoteColId .== sqlI
     where_ $ col ^. sqlNoteColName .== sqlStrictText (incol ^. colName)
     where_ $ col ^. sqlNoteColEntry .== (entry ^. sqlEntryName)

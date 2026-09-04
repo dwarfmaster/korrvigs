@@ -16,12 +16,12 @@ import Opaleye
 removeDWIM :: (MonadKorrvigs m) => Entry -> m ()
 removeDWIM entry = do
   -- If some entries were sub only to this one, remove them also
-  subs <- rSelect $ do
+  subs :: [Int] <- rSelect $ do
     sub <- selectSourcesFor entriesSubTable $ sqlInt4 $ entry ^. entryId
     c <- aggregate count $ selectTargetsFor entriesSubTable sub
     where_ $ c .== sqlInt8 1
     pure sub
-  forM_ subs $ loadSql >=> maybe (pure ()) removeDWIM
+  forM_ subs $ load >=> maybe (pure ()) removeDWIM
   -- Hooks
   androidFileRemoveHook entry
   -- Remove the entry itself

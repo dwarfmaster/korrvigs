@@ -64,52 +64,54 @@ insertMtdt ::
   Map (CI Text) Value
 insertMtdt mtdt val = M.insert (mtdtName mtdt) $ toJSON val
 
-baseSelectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlInt4 -> Select (Field SqlJsonb)
-baseSelectMtdt mtdt i = do
+baseSelectMtdt :: (ExtraMetadata mtdt, EntrySelector s) => mtdt -> s -> Select (Field SqlJsonb)
+baseSelectMtdt mtdt s = do
   m <- selectTable entriesMetadataTable
+  i <- selectEntryId s
   where_ $ (m ^. sqlEntry) .== i
   where_ $ m ^. sqlKey .== sqlStrictText (mtdtSqlName mtdt)
   pure $ m ^. sqlValue
 
 rSelectMtdt ::
-  (ExtraMetadata mtdt, FromJSON (MtdtType mtdt), MonadKorrvigs m) =>
+  (ExtraMetadata mtdt, FromJSON (MtdtType mtdt), MonadKorrvigs m, EntrySelector s) =>
   mtdt ->
-  Field SqlText ->
+  s ->
   m (Maybe (MtdtType mtdt))
-rSelectMtdt mtdt i =
-  rSelectOne (fromName (baseSelectMtdt mtdt) i) <&> \case
+rSelectMtdt mtdt s =
+  rSelectOne (baseSelectMtdt mtdt s) <&> \case
     Nothing -> Nothing
     Just js -> case fromJSON js of
       Success v -> v
       Error _ -> Nothing
 
 rSelectListMtdt ::
-  (ExtraMetadata mtdt, FromJSON (MtdtType mtdt), MonadKorrvigs m, MtdtType mtdt ~ [a]) =>
+  (ExtraMetadata mtdt, FromJSON (MtdtType mtdt), MonadKorrvigs m, MtdtType mtdt ~ [a], EntrySelector s) =>
   mtdt ->
-  Field SqlText ->
+  s ->
   m (MtdtType mtdt)
-rSelectListMtdt mtdt i = fromMaybe [] <$> rSelectMtdt mtdt i
+rSelectListMtdt mtdt s = fromMaybe [] <$> rSelectMtdt mtdt s
 
-selectMtdt :: (ExtraMetadata mtdt) => mtdt -> Field SqlInt4 -> Select (FieldNullable SqlJsonb)
-selectMtdt mtdt i =
-  fmap maybeFieldsToNullable $ optional $ limit 1 $ baseSelectMtdt mtdt i
+selectMtdt :: (ExtraMetadata mtdt, EntrySelector s) => mtdt -> s -> Select (FieldNullable SqlJsonb)
+selectMtdt mtdt s =
+  fmap maybeFieldsToNullable $ optional $ limit 1 $ baseSelectMtdt mtdt s
 
-baseSelectTextMtdt :: (ExtraMetadata mtdt, IsJsonText (MtdtType mtdt)) => mtdt -> Field SqlInt4 -> Select (Field SqlText)
-baseSelectTextMtdt mtdt i = fromNullableSelect $ do
+baseSelectTextMtdt :: (ExtraMetadata mtdt, IsJsonText (MtdtType mtdt), EntrySelector s) => mtdt -> s -> Select (Field SqlText)
+baseSelectTextMtdt mtdt s = fromNullableSelect $ do
   m <- selectTable entriesMetadataTable
+  i <- selectEntryId s
   where_ $ (m ^. sqlEntry) .== i
   where_ $ m ^. sqlKey .== sqlStrictText (CI.foldedCase $ mtdtName mtdt)
   pure $ sqlJsonToText $ toNullable $ m ^. sqlValue
 
 rSelectTextMtdt ::
-  (ExtraMetadata mtdt, IsJsonText (MtdtType mtdt), MonadKorrvigs m) =>
+  (ExtraMetadata mtdt, IsJsonText (MtdtType mtdt), MonadKorrvigs m, EntrySelector s) =>
   mtdt ->
-  Field SqlText ->
+  s ->
   m (Maybe Text)
-rSelectTextMtdt mtdt i = rSelectOne (fromName (baseSelectTextMtdt mtdt) i)
+rSelectTextMtdt mtdt s = rSelectOne (baseSelectTextMtdt mtdt s)
 
-selectTextMtdt :: (ExtraMetadata mtdt, IsJsonText (MtdtType mtdt)) => mtdt -> Field SqlInt4 -> Select (FieldNullable SqlText)
-selectTextMtdt mtdt i = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtdt mtdt i
+selectTextMtdt :: (ExtraMetadata mtdt, IsJsonText (MtdtType mtdt), EntrySelector s) => mtdt -> s -> Select (FieldNullable SqlText)
+selectTextMtdt mtdt s = fmap joinMField $ optional $ limit 1 $ baseSelectTextMtdt mtdt s
   where
     joinMField :: MaybeFields (Field a) -> FieldNullable a
     joinMField mfield = matchMaybe mfield $ \case

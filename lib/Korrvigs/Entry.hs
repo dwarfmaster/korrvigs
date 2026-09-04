@@ -19,7 +19,6 @@ module Korrvigs.Entry
     pEntryRow,
     entriesTable,
     nameKindField,
-    fromName,
     nameFor,
     MetadataRowImpl (..),
     pMetadataRow,

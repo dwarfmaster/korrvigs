@@ -77,7 +77,7 @@ makeLenses ''BlogStructure
 
 loadMtdt :: (MonadKorrvigs m) => BlogConfig -> m (Map Text Text)
 loadMtdt cfg = do
-  mtdt <- rSelectOne $ fromName (baseSelectMtdt BlogMtdt) $ sqlId $ cfg ^. blogCfgNote
+  mtdt <- rSelectOne $ baseSelectMtdt BlogMtdt $ cfg ^. blogCfgNote
   let m = fromMaybe M.empty $ mtdt >>= fromJSONM
   pure $ m <> common
   where
@@ -93,7 +93,7 @@ loadMtdt cfg = do
 
 loadFiles :: (MonadKorrvigs m) => BlogConfig -> m (Map BlogUrl BlogContent)
 loadFiles cfg = do
-  topLevelsSQL <- rSelectOne $ fromName (baseSelectMtdt BlogFiles) $ sqlId $ cfg ^. blogCfgNote
+  topLevelsSQL <- rSelectOne $ baseSelectMtdt BlogFiles $ cfg ^. blogCfgNote
   let topLevels =
         M.fromList $
           fmap (BlogTopLevel *** parseBlogTopContent cfg) $

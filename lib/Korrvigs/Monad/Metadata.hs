@@ -33,7 +33,7 @@ import qualified Korrvigs.Kind as Kd
 import Korrvigs.Metadata
 import Korrvigs.Monad.Class
 import qualified Korrvigs.Monad.Metadata.Hooks as Hooks
-import Korrvigs.Monad.SQL (idMetadata, indexedMetadata, loadSql)
+import Korrvigs.Monad.SQL (idMetadata, indexedMetadata, load)
 import Korrvigs.Monad.Sync (syncOne)
 import Korrvigs.Note.SQL
 import qualified Korrvigs.Note.Sync as Note
@@ -196,10 +196,10 @@ listCompute i =
 
 updateRefs :: (MonadKorrvigs m) => Entry -> Maybe Id -> m ()
 updateRefs oldEntry new = do
-  subs <- rSelect $ selectSourcesFor entriesSubTable $ sqlInt4 $ oldEntry ^. entryId
-  refs <- rSelect $ selectSourcesFor entriesRefTable $ sqlInt4 $ oldEntry ^. entryId
+  subs :: [Int] <- rSelect $ selectSourcesFor entriesSubTable $ sqlInt4 $ oldEntry ^. entryId
+  refs :: [Int] <- rSelect $ selectSourcesFor entriesRefTable $ sqlInt4 $ oldEntry ^. entryId
   forM_ (S.fromList subs <> S.fromList refs) $
-    loadSql >=> \case
+    load >=> \case
       Nothing -> pure ()
       Just other -> updateRef other (oldEntry ^. entryName) new
   updateRefSQL oldEntry new

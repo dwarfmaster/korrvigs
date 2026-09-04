@@ -419,8 +419,7 @@ compileBlock' (EmbedHeader ref hdLvl) = do
       lnk <- lift $ embedLnk i
       let embedAt = embedAt' & deepEmbed %~ (<> [embedL])
       (widget, checks, title) <- lift $ embedBody i lvl recOpened (sourceEntry, embedAt)
-      sqlI <- lift $ rSelectOne (fromName pure $ sqlId i) >>= throwMaybe (KMiscError $ "Couldn't load " <> unId i)
-      task <- lift $ loadTask i sqlI title
+      task <- lift $ loadTask i i title
       taskW <- lift $ Wdgs.taskWidget i (SubLoc []) task
       titleW <- lift $ compileHeader lvl [whamlet|^{taskW} #{fromMaybe "" title} ^{checksDisplay checks} ^{lnk}|]
       pure $ do
@@ -784,7 +783,7 @@ compileInline (MtdtLink mtitle mtdt) = do
   i <- use currentEntry
   mtdtVal <- lift $ rSelectOne $ do
     m <- selectTable entriesMetadataTable
-    sqlI <- fromName pure $ sqlId i
+    sqlI <- selectEntryId i
     where_ $ m ^. sqlEntry .== sqlI
     where_ $ m ^. sqlKey .== sqlStrictText mtdt
     pure $ sqlJsonToText $ toNullable $ m ^. sqlValue

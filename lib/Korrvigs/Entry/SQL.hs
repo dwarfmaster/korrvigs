@@ -69,12 +69,6 @@ entriesTable =
         (tableField "text")
         (tableField "title")
 
-fromName :: (Field SqlInt4 -> Select a) -> Field SqlText -> Select a
-fromName query i = do
-  entry <- selectTable entriesTable
-  where_ $ entry ^. sqlEntryName .== i
-  query $ entry ^. sqlEntryId
-
 nameFor :: Field SqlInt4 -> Select (Field SqlText)
 nameFor i = do
   entry <- selectTable entriesTable

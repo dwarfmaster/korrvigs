@@ -142,11 +142,11 @@ runSyndicateTitle = const "Run syndication"
 doRunSyndicate :: Syndicate -> Handler Bool
 doRunSyndicate syn = do
   run <- Syn.run syn
-  entries <- rSelect $ do
+  entries :: [Int] <- rSelect $ do
     e <- selectTable entriesTable
     syndicate <- baseSelectTextMtdt SyndicateMtdt $ e ^. sqlEntryId
     where_ $ syndicate .== sqlId (syn ^. synEntry . entryName)
-    pure $ e ^. sqlEntryName
+    pure $ e ^. sqlEntryId
   forM_ entries $ load >=> mapM_ (`updateAggregate` syn)
   pure run
 
@@ -191,7 +191,7 @@ runRunSyndicate _ _ = pure def
 doRunSyndicates :: [Int] -> Handler ActionReaction
 doRunSyndicates synIds = do
   runResults <- fmap catMaybes <$> forM synIds $ \sqlI -> do
-    entry <- loadSql sqlI
+    entry <- load sqlI
     forM (entry ^? _Just . _Syndicate) $ \syn ->
       (syn ^. synEntry . entryName,) <$> doRunSyndicate syn
   render <- getUrlRenderParams

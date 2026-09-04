@@ -72,7 +72,7 @@ otherQuery display entry = case display of
     pure $ optDef & optTask .~ tsk & optAggregCount .~ agCount
   ColLibrary -> do
     cover <- baseSelectTextMtdt Cover (entry ^. sqlEntryId)
-    coverId <- fromName pure cover
+    coverId <- selectEntryId cover
     mime <- galleryQueryFor coverId
     tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryId
     agCount <- selectMtdt AggregateCount $ entry ^. sqlEntryId
@@ -143,7 +143,7 @@ addToCollection i col item = fromMaybeT False $ do
   let checkForCol = anyOf (docContent . each . bkCollection col . _3) (const True)
   r <- lift $ Note.updateImpl' note $ pure . (doUpdate &&& checkForCol)
   forM_ (Pandoc.extractItem item) $ \colI -> lift $ do
-    mSqlI :: Maybe Int <- rSelectOne $ fromName pure $ sqlId colI
+    mSqlI :: Maybe Int <- rSelectOne $ selectEntryId $ sqlId colI
     forM_ mSqlI $ \sqlI -> atomicSQL $ \conn ->
       runInsert conn $
         Insert
@@ -163,7 +163,8 @@ allCollections = rSelect $ do
   pure (entry ^. sqlEntryName, col)
 
 collectionsFor :: (MonadKorrvigs m) => Id -> m [Text]
-collectionsFor i = fmap (fromMaybe []) $ rSelectOne $ flip fromName (sqlId i) $ \sqlI -> do
+collectionsFor i = fmap (fromMaybe []) $ rSelectOne $ do
+  sqlI <- selectEntryId i
   note <- selectTable notesTable
   where_ $ note ^. sqlNoteId .== sqlI
   pure $ note ^. sqlNoteCollections

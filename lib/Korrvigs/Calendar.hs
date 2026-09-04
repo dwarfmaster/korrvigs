@@ -10,8 +10,8 @@ import Opaleye
 
 listCalendars :: (MonadKorrvigs m) => m [Calendar]
 listCalendars = do
-  calIds <- rSelect $ view sqlCalId <$> selectTable calendarsTable
-  calEntries <- mapM loadSql calIds
+  calIds :: [Int] <- rSelect $ view sqlCalId <$> selectTable calendarsTable
+  calEntries <- mapM load calIds
   let toCal entry = case entry ^. entryKindData of
         CalendarD cal -> Just cal
         _ -> Nothing

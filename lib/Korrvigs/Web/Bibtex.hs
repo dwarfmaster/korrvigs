@@ -37,7 +37,7 @@ getSearchBibtexR = do
 getEntryBibtexR :: WebId -> Handler TypedContent
 getEntryBibtexR (WId i) = do
   subs <- rSelect $ do
-    src <- fromName (selectSourcesFor entriesSubTable) $ sqlId i
+    src <- selectSourcesFor entriesSubTable =<< selectEntryId i
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryId .== src
     pure $ entry ^. sqlEntryName
@@ -58,7 +58,7 @@ getNoteColBibtexR (WId i) col = do
       entry <- compile q $ const $ pure ()
       pure $ entry ^. _1 . sqlEntryName
     loadIDs (ColItemSubOf ni) = rSelect $ do
-      src <- fromName (selectSourcesFor entriesSubTable) $ sqlId ni
+      src <- selectSourcesFor entriesSubTable =<< selectEntryId ni
       entry <- selectTable entriesTable
       where_ $ entry ^. sqlEntryId .== src
       pure $ entry ^. sqlEntryName

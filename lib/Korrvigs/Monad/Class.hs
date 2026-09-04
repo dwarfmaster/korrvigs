@@ -140,3 +140,25 @@ catchIOWith d act =
   liftIO (catch (Right <$> act) $ pure . Left) >>= \case
     Left (_ :: IOException) -> pure d
     Right v -> pure v
+
+class EntrySelector s where
+  selectEntry :: s -> EntryRowSQLR -> Select ()
+  selectEntryId :: s -> Select (Field SqlInt4)
+  selectEntryId s = do
+    entry <- selectTable entriesTable
+    selectEntry s entry
+    pure $ entry ^. sqlEntryId
+
+instance EntrySelector (Field SqlText) where
+  selectEntry i entry = where_ $ entry ^. sqlEntryName .== i
+
+instance EntrySelector Id where
+  selectEntry = selectEntry . sqlId
+
+instance EntrySelector (Field SqlInt4) where
+  selectEntry sqlI entry = where_ $ entry ^. sqlEntryId .== sqlI
+  selectEntryId = pure
+
+instance EntrySelector Int where
+  selectEntry = selectEntry . sqlInt4
+  selectEntryId = selectEntryId . sqlInt4

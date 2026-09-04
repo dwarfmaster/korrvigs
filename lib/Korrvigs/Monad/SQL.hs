@@ -1,6 +1,6 @@
 module Korrvigs.Monad.SQL
-  ( load,
-    loadSql,
+  ( EntrySelector (..),
+    load,
     loadSelect,
     loadMetadata,
     removeKindDB,
@@ -112,16 +112,10 @@ loadSelect s = do
 loadSelect' :: (MonadKorrvigs m) => Select (EntryRowSQLR) -> m (Maybe Entry)
 loadSelect' s = fmap (fmap snd) $ loadSelect $ (,) <$> pure () <*> s
 
-loadSql :: (MonadKorrvigs m) => Int -> m (Maybe Entry)
-loadSql sqlI = loadSelect' $ do
-  entry <- selectTable entriesTable
-  where_ $ entry ^. sqlEntryId .== sqlInt4 sqlI
-  pure entry
-
-load :: (MonadKorrvigs m) => Id -> m (Maybe Entry)
+load :: (MonadKorrvigs m, EntrySelector s) => s -> m (Maybe Entry)
 load i = loadSelect' $ do
   entry <- selectTable entriesTable
-  where_ $ entry ^. sqlEntryName .== sqlId i
+  selectEntry i entry
   pure entry
 
 loadMetadata :: (MonadKorrvigs m) => Id -> m Metadata

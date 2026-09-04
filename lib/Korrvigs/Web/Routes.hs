@@ -102,5 +102,6 @@ korrvigsRoutes =
 
 -- Public
 /public PublicR GET
-/public/#Text PublicSubR PublicSubSite getPublicSubSite
+/public/#Text/always PublicSubR PublicSubSite getPublicSubSite
+/public/#Text/until/#Day PublicSubDayR PublicSubSite getPublicSubSiteDay
 |]

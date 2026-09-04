@@ -6,6 +6,7 @@ import Control.Monad.Extra (whenMaybe)
 import Data.Default
 import Data.Maybe
 import Data.Text (Text)
+import Data.Time
 import Korrvigs.Compute
 import Korrvigs.Entry
 import Korrvigs.Metadata
@@ -28,20 +29,20 @@ shareTarget (TargetNoteCollection _ _) = ActCondAlways
 shareTarget (TargetNoteSub _ _) = ActCondAlways
 shareTarget (TargetNoteCode _ _) = ActCondAlways
 
-shareForm :: AForm Handler ()
-shareForm = pure ()
+shareForm :: AForm Handler (Maybe Day)
+shareForm = aopt dayField "Until" Nothing
 
 shareTitle :: ActionTarget -> Text
 shareTitle = const "Share"
 
-runShare :: () -> ActionTarget -> Handler ActionReaction
-runShare () (TargetEntry entry) = do
-  public <- Public.mkPublicAlways (EntryR $ WId i) []
-  publicDl <- Public.mkPublicAlways (EntryDownloadR $ WId i) []
+runShare :: Maybe Day -> ActionTarget -> Handler ActionReaction
+runShare deadline (TargetEntry entry) = do
+  public <- Public.mkPublicAlways (EntryR $ WId i) [] deadline
+  publicDl <- Public.mkPublicAlways (EntryDownloadR $ WId i) [] deadline
   render <- getUrlRenderParams
   blogpost <- rSelectMtdt BlogPost $ sqlId $ entry ^. entryName
   signedpost <- forM blogpost $ \post -> do
-    Public.mkPublicAlways (BlogPostR post) []
+    Public.mkPublicAlways (BlogPostR post) [] deadline
   let html = htmlUrl public publicDl signedpost render
   pure $ def & reactMsg ?~ html
   where
@@ -58,10 +59,10 @@ runShare () (TargetEntry entry) = do
             <a href=@{post}>
               Share the blogpost
     |]
-runShare () TargetHome = pure def
-runShare () (TargetSearch q disp) = do
+runShare _ TargetHome = pure def
+runShare deadline (TargetSearch q disp) = do
   let params = Search.getParameters Nothing q disp
-  public <- Public.mkPublicAlways SearchR params
+  public <- Public.mkPublicAlways SearchR params deadline
   render <- getUrlRenderParams
   let html = htmlUrl public params render render
   pure $ def & reactMsg ?~ html
@@ -73,8 +74,8 @@ runShare () (TargetSearch q disp) = do
             <a href=#{render public params}>
               Share this query
       |]
-runShare () (TargetNoteCollection note col) = do
-  public <- Public.mkPublicAlways (NoteColR (WId i) col) []
+runShare deadline (TargetNoteCollection note col) = do
+  public <- Public.mkPublicAlways (NoteColR (WId i) col) [] deadline
   render <- getUrlRenderParams
   let html = htmlUrl public render
   pure $ def & reactMsg ?~ html
@@ -87,8 +88,8 @@ runShare () (TargetNoteCollection note col) = do
             <a href=@{public}>
               Share this collection
       |]
-runShare () (TargetNoteSub note sb) = do
-  public <- Public.mkPublicAlways (NoteNamedSubR (WId i) sb) []
+runShare deadline (TargetNoteSub note sb) = do
+  public <- Public.mkPublicAlways (NoteNamedSubR (WId i) sb) [] deadline
   render <- getUrlRenderParams
   let html = htmlUrl public render
   pure $ def & reactMsg ?~ html
@@ -101,13 +102,13 @@ runShare () (TargetNoteSub note sb) = do
             <a href=@{public}>
               Share this subtree
       |]
-runShare () (TargetNoteCode note cd) = do
-  public <- Public.mkPublicAlways (NoteNamedCodeR (WId i) cd) []
+runShare deadline (TargetNoteCode note cd) = do
+  public <- Public.mkPublicAlways (NoteNamedCodeR (WId i) cd) [] deadline
   isCached <- fmap isJust $ rSelectOne $ do
     cmp <- selComp (sqlInt4 $ note ^. noteEntry . entryId) cd
     where_ $ O.not $ isNull $ cmp ^. sqlCompLastRun
     pure ()
-  publicCache <- whenMaybe isCached $ Public.mkPublicAlways (EntryComputeR (WId i) cd) []
+  publicCache <- whenMaybe isCached $ Public.mkPublicAlways (EntryComputeR (WId i) cd) [] deadline
   render <- getUrlRenderParams
   let html = htmlUrl public publicCache render
   pure $ def & reactMsg ?~ html

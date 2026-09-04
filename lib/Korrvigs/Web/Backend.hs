@@ -35,7 +35,7 @@ data WebData = WebData
     web_static_redirect :: Maybe Text,
     web_mime_database :: FilePath,
     web_mac_secret :: ByteString,
-    web_route_signer :: (Route WebData -> [(Text, Text)] -> Text) -> Route WebData -> [(Text, Text)] -> Text,
+    web_route_signer :: (Route WebData -> [(Text, Text)] -> Text) -> Route WebData -> [(Text, Text)] -> Maybe Day -> Text,
     web_capture_root :: FilePath,
     web_credentials :: Map Text Value,
     web_manager :: IORef (Maybe Manager),
@@ -47,14 +47,18 @@ getStaticR :: WebData -> Static
 getStaticR = web_static
 
 data PublicSubSite = PublicSubSite
-  { _publicHash :: Text
+  { _publicHash :: Text,
+    _publicDeadline :: Maybe Day
   }
 
 mkYesodSubData "PublicSubSite" publicRoutes
 makeLenses ''PublicSubSite
 
 getPublicSubSite :: WebData -> Text -> PublicSubSite
-getPublicSubSite _ hsh = PublicSubSite hsh
+getPublicSubSite _ hsh = PublicSubSite hsh Nothing
+
+getPublicSubSiteDay :: WebData -> Text -> Day -> PublicSubSite
+getPublicSubSiteDay _ hsh day = PublicSubSite hsh $ Just day
 
 mkYesodData "WebData" korrvigsRoutes
 
@@ -97,7 +101,7 @@ mkCss =
     True -> do
       render <- getUrlRenderParams
       signer <- getsYesod web_route_signer
-      pure $ \css -> PublicSubR (signer render (CssR css) []) $ PublicCssR css
+      pure $ \css -> PublicSubR (signer render (CssR css) [] Nothing) $ PublicCssR css
     False -> pure CssR
 
 mkHeader :: Handler Widget
@@ -118,6 +122,7 @@ mkQuery (key, val) = (Enc.encodeUtf8 key, Just $ Enc.encodeUtf8 val)
 isPublicRoute :: Route WebData -> Bool
 isPublicRoute PublicR = True
 isPublicRoute (PublicSubR _ _) = True
+isPublicRoute (PublicSubDayR _ _ _) = True
 isPublicRoute _ = False
 
 isPublic :: Handler Bool

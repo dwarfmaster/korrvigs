@@ -3,6 +3,7 @@
 module Korrvigs.Web.Public.Crypto where
 
 import Control.Lens
+import Control.Monad
 import Crypto.Hash.Algorithms
 import Crypto.MAC.KeyedBlake2
 import Data.Base64.Types
@@ -11,7 +12,10 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base64.URL as B64
 import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as Enc
+import Data.Time
+import Data.Time.Format.ISO8601
 import Korrvigs.Web.Backend
 import System.Directory
 import System.Entropy
@@ -41,36 +45,50 @@ loadOrGenerateKey = do
       BS.writeFile file key
       pure key
 
+renderRouteForSigning :: (Route WebData -> [(Text, Text)] -> Text) -> Route WebData -> [(Text, Text)] -> Maybe Day -> ByteString
+renderRouteForSigning render route params deadline =
+  Enc.encodeUtf8 $ deadlineStr <> "//" <> render route params
+  where
+    deadlineStr = case deadline of
+      Nothing -> "always"
+      Just d -> T.pack $ iso8601Show d
+
 mkRouteSigner ::
   ByteString ->
   (Route WebData -> [(Text, Text)] -> Text) ->
   Route WebData ->
   [(Text, Text)] ->
+  Maybe Day ->
   Text
-mkRouteSigner secret render route params =
+mkRouteSigner secret render route params deadline =
   extractBase64 . B64.encodeBase64 . BS.pack . BA.unpack . keyedBlake2GetDigest $ cmac
   where
-    url = render route params
-    cmac :: KeyedBlake2 Algo = keyedBlake2 secret $ Enc.encodeUtf8 url
+    url = renderRouteForSigning render route params deadline
+    cmac :: KeyedBlake2 Algo = keyedBlake2 secret url
 
-signRoute :: Route WebData -> [(Text, Text)] -> Handler Text
-signRoute route params =
-  getsYesod web_route_signer <*> getUrlRenderParams <*> pure route <*> pure params
+signRoute :: Route WebData -> [(Text, Text)] -> Maybe Day -> Handler Text
+signRoute route params deadline =
+  getsYesod web_route_signer <*> getUrlRenderParams <*> pure route <*> pure params <*> pure deadline
 
 checkMac :: Route WebData -> SubHandlerFor PublicSubSite WebData ()
 checkMac route = do
   sub <- getSubYesod
   let mac64 = sub ^. publicHash
+  let deadline = sub ^. publicDeadline
   secret <- getsYesod web_mac_secret
   render <- getUrlRenderParams
   params <- reqGetParams <$> getRequest
-  let troute = Enc.encodeUtf8 $ render route params
+  let troute = renderRouteForSigning render route params deadline
   let cmac :: KeyedBlake2 Algo = keyedBlake2 secret troute
   let cmacBS = BS.pack . BA.unpack . keyedBlake2GetDigest $ cmac
   case (== cmacBS) <$> B64.decodeBase64Untyped (Enc.encodeUtf8 mac64) of
     Left _ -> notFound
     Right False -> permissionDenied "Invalid MAC"
-    Right True -> pure ()
+    Right True -> do
+      forM_ deadline $ \dday -> do
+        currentDay <- liftIO $ utctDay <$> getCurrentTime
+        when (currentDay > dday) $ permissionDenied "Expired link"
+      pure ()
 
 mkPublicRoute :: Route WebData -> Maybe (Route PublicSubSite)
 mkPublicRoute (EntryR i) = Just $ PublicEntryR i
@@ -85,13 +103,20 @@ mkPublicRoute (BlogTopR blog) = Just $ PublicBlogTopR blog
 mkPublicRoute (BlogPostR post) = Just $ PublicBlogPostR post
 mkPublicRoute _ = Nothing
 
-mkPublicAlways :: Route WebData -> [(Text, Text)] -> Handler (Route WebData)
-mkPublicAlways r attrs = case mkPublicRoute r of
+mkPublicAlways :: Route WebData -> [(Text, Text)] -> Maybe Day -> Handler (Route WebData)
+mkPublicAlways r attrs deadline = case mkPublicRoute r of
   Nothing -> pure PublicR
-  Just publicR -> PublicSubR <$> signRoute r attrs <*> pure publicR
+  Just publicR -> do
+    mac <- signRoute r attrs deadline
+    pure $ case deadline of
+      Nothing -> PublicSubR mac publicR
+      Just d -> PublicSubDayR mac d publicR
 
 mkPublic :: Route WebData -> Handler (Route WebData)
 mkPublic r =
-  isPublic >>= \case
-    True -> mkPublicAlways r []
-    False -> pure r
+  getCurrentRoute >>= \case
+    Just PublicR -> mkPublicAlways r [] Nothing
+    Just (PublicSubR _ _) -> mkPublicAlways r [] Nothing
+    Nothing -> mkPublicAlways r [] Nothing
+    Just (PublicSubDayR _ deadline _) -> mkPublicAlways r [] $ Just deadline
+    _ -> pure r

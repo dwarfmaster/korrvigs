@@ -206,7 +206,7 @@ propfind dav server properties depth =
               (propToName $ DavProp "prop")
               M.empty
               [NodeElement (Element (propToName prop) M.empty [])]
-          | prop <- properties
+        | prop <- properties
         ]
 
 report :: (MonadIO m) => DavData -> Text -> Property -> [Property] -> ((Property -> Name) -> [Element]) -> PropfindDepth -> m (Either DavError (Map DavRessource PropStat))

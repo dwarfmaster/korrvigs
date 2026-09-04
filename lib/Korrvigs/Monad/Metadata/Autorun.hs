@@ -16,6 +16,7 @@ module Korrvigs.Monad.Metadata.Autorun
 where
 
 import Conduit
+import Control.Exception
 import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Maybe
@@ -238,4 +239,8 @@ targetsRun time = do
   forM_ targets $ \auto -> do
     let tgt = auto ^. autoTarget
     liftIO $ putStrLn $ "Running " <> T.unpack (displayTarget tgt)
-    targetRun tgt
+    withRunInIO $ \runInIO ->
+      tryJust Just (runInIO $ targetRun tgt) >>= \case
+        Left (err :: KorrvigsError) ->
+          TIO.putStrLn $ "Autorun " <> displayTarget (auto ^. autoTarget) <> " failed with: " <> T.pack (show err)
+        Right () -> pure ()

@@ -7,6 +7,7 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Maybe
+import Data.Aeson.Lens
 import Data.Default
 import Data.Foldable
 import Data.List (intersperse)
@@ -210,11 +211,12 @@ displayLibrary _ entries = do
     coverId <- hoistMaybe $ MkId <$> e ^. _2 . optCover
     entry <- hoistLift $ PhotoSwipe.miniatureEntry (e ^. _2 . optMime) Nothing coverId
     let title :: [(Text, Text)] = [("title", t) | t <- toList $ e ^. _1 . sqlEntryTitle]
-    caption <- lift $ mkTaskItem public (e ^. _1) (e ^. _2)
+    caption <- lift $ mkTaskItem public (e ^. _1) (e ^. _2 & optAggregCount .~ Nothing)
     pure $
       entry
         & PhotoSwipe.swpCaption .~ [whamlet|<p *{title}>^{caption}|]
         & PhotoSwipe.swpRedirect .~ (if public then Nothing else Just (EntryR $ WId $ e ^. _1 . sqlEntryName))
+        & PhotoSwipe.swpLabel .~ (e ^? _2 . optAggregCount . _Just . _Integer . to renderCount . _Just)
   library <- PhotoSwipe.photoswipe (def & PhotoSwipe.swpLibrary .~ True) $ catMaybes items
   cssR <- mkCss
   pure $ do
@@ -222,6 +224,10 @@ displayLibrary _ entries = do
     PhotoSwipe.photoswipeHeader
     Rcs.checkboxCode StaticR
     library
+  where
+    renderCount :: Integer -> Maybe Text
+    renderCount 0 = Nothing
+    renderCount i = Just . T.pack . show $ i
 
 displayFuzzy :: Bool -> [(EntryRowR, OptionalSQLData)] -> Handler Widget
 displayFuzzy _ entries = do

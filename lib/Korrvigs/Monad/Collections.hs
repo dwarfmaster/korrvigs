@@ -75,11 +75,13 @@ otherQuery display entry = case display of
     coverId <- fromName pure cover
     mime <- galleryQueryFor coverId
     tsk <- selectTextMtdt TaskMtdt $ entry ^. sqlEntryId
+    agCount <- selectMtdt AggregateCount $ entry ^. sqlEntryId
     pure $
       optDef
         & optCover .~ toNullable cover
         & optMime .~ mime
         & optTask .~ tsk
+        & optAggregCount .~ agCount
   ColPlayList -> do
     file <- selectTable filesTable
     where_ $ file ^. sqlFileId .== (entry ^. sqlEntryId)

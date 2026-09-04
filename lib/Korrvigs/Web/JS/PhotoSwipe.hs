@@ -36,6 +36,7 @@ data PhotoswipeEntry = PhotoswipeEntry
     _swpMiniaturePublic :: Route WebData,
     _swpRedirect :: Maybe (Route WebData),
     _swpCaption :: Widget,
+    _swpLabel :: Maybe Text,
     _swpWidth :: Int,
     _swpHeight :: Int,
     _swpDate :: Maybe Day
@@ -64,6 +65,7 @@ miniatureEntryImpl tp day i = do
           _swpType = tp,
           _swpRedirect = Just $ EntryR (WId i),
           _swpCaption = mempty,
+          _swpLabel = Nothing,
           _swpWidth = width,
           _swpHeight = height,
           _swpDate = day
@@ -148,9 +150,21 @@ libraryCSS =
       display: flex
       align-items: center
       justify-content: center
+      position: relative
       img
         max-width: 9.5em
         max-height: 9.5em
+    .library-label
+      z-index: 100
+      position: absolute
+      top: 50%
+      left: 50%
+      transform: translate(-50%,-50%)
+      font-size: 200%
+      background-color: var(--base00)
+      border-radius: 1.5em
+      padding-left: 0.5em
+      padding-right: 0.5em
     .library-caption
       padding: 0.1em
       width: 100%
@@ -232,6 +246,9 @@ photoswipe settings (item : items) = do
         <div .library-item>
           <div .library-miniature>
             ^{mkLink getUrl getMiniature it mempty}
+            $maybe lbl <- view swpLabel it
+              <div .library-label>
+                #{lbl}
           <div .library-caption>
             ^{_swpCaption it}
       |]

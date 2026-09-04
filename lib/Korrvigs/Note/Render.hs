@@ -267,21 +267,7 @@ renderColItem (ColItemComment comment) =
 
 renderCollection :: Collection -> Text -> RenderM ()
 renderCollection col nm =
-  writeText (colTxt <> " " <> nm) >> flush >> newline
-  where
-    colTxt = case col of
-      ColList -> "list"
-      ColMap -> "map"
-      ColGallery -> "gallery"
-      ColTimeline -> "timeline"
-      ColNetwork -> "network"
-      ColFuzzy -> "fuzzy"
-      ColCalendar -> "calendar"
-      ColKanban -> "kanban"
-      ColTaskList -> "tasklist"
-      ColLibrary -> "library"
-      ColPlayList -> "playlist"
-      ColContacts -> "contacts"
+  writeText (collectionText col <> " " <> nm) >> flush >> newline
 
 surrounded :: Text -> RenderM a -> RenderM a
 surrounded del act = do

@@ -385,20 +385,11 @@ parseColName :: Text -> ParseM (A.Collection, Text)
 parseColName hd = do
   let (coltype, rawColname) = T.break (== ' ') hd
   let colname = T.dropWhile (== ' ') rawColname
-  col <- case coltype of
-    "list" -> pure A.ColList
-    "map" -> pure A.ColMap
-    "gallery" -> pure A.ColGallery
-    "timeline" -> pure A.ColTimeline
-    "network" -> pure A.ColNetwork
-    "fuzzy" -> pure A.ColFuzzy
-    "calendar" -> pure A.ColCalendar
-    "kanban" -> pure A.ColKanban
-    "tasklist" -> pure A.ColTaskList
-    "library" -> pure A.ColLibrary
-    "playlist" -> pure A.ColPlayList
-    _ -> pure A.ColList
+  let col = fromMaybe A.ColList $ M.lookup coltype colMap
   pure (col, colname)
+  where
+    colMap :: Map Text A.Collection
+    colMap = M.fromList $ (A.collectionText &&& id) <$> [minBound .. maxBound]
 
 parseTitleInlines :: [Inline] -> ParseM [A.Inline]
 parseTitleInlines (Str stname : xs) = case matchStatus stname of

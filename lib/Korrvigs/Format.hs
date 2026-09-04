@@ -212,7 +212,6 @@ entrySpec =
     <> mtdtSpec Pages
     <> mtdtSpec Height
     <> mtdtSpec Width
-    <> mtdtSpec Gallery
     <> mtdtSpec TaskMtdt
     <> mtdtSpec TaskDeadline
     <> mtdtSpec TaskScheduled

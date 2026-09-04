@@ -76,6 +76,20 @@ data Collection
   | ColContacts
   deriving (Show, Eq, Ord, Bounded, Enum)
 
+collectionText :: Collection -> Text
+collectionText ColList = "list"
+collectionText ColMap = "map"
+collectionText ColGallery = "gallery"
+collectionText ColTimeline = "timeline"
+collectionText ColNetwork = "network"
+collectionText ColFuzzy = "fuzzy"
+collectionText ColCalendar = "calendar"
+collectionText ColKanban = "kanban"
+collectionText ColTaskList = "tasklist"
+collectionText ColLibrary = "library"
+collectionText ColPlayList = "playlist"
+collectionText ColContacts = "contacts"
+
 data CollectionItem
   = ColItemEntry Id
   | ColItemInclude Id Text

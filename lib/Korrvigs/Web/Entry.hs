@@ -3,22 +3,26 @@ module Korrvigs.Web.Entry (getEntryR, isPrivate) where
 import Control.Lens hiding (children)
 import Control.Monad
 import Data.Default
+import Data.Foldable
 import Data.List
 import qualified Data.List.NonEmpty as NE
+import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time.Format.ISO8601 (iso8601Show)
 import Data.Time.LocalTime
-import Korrvigs.Compute.SQL
 import Korrvigs.Entry
-import Korrvigs.File.SQL
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Contact
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
+import Korrvigs.Monad.Collections (loadCollectionItem)
+import Korrvigs.Note.AST hiding (Syndicate)
 import Korrvigs.Note.Loc hiding (sub, subs)
+import Korrvigs.Query
 import Korrvigs.Utils.Base16
 import Korrvigs.Utils.Opaleye (connectedComponentGraph)
 import Korrvigs.Web.Actions
@@ -35,6 +39,7 @@ import qualified Korrvigs.Web.JS.PhotoSwipe as PhotoSwipe
 import qualified Korrvigs.Web.Public.Crypto as Public
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
+import Korrvigs.Web.Search.Results (displayResults)
 import Korrvigs.Web.Utils
 import qualified Korrvigs.Web.Vis.Network as Network
 import qualified Korrvigs.Web.Widgets as Wdgs
@@ -308,42 +313,31 @@ contactWidget entry = do
                 ^{ctc}
             |]
 
-galleryWidget :: Entry -> Handler Widget
-galleryWidget entry =
-  rSelectMtdt Gallery (sqlId $ entry ^. entryName) >>= \case
+subsWidget :: Entry -> Handler Widget
+subsWidget entry =
+  rSelectMtdt SubWidgets (sqlId $ entry ^. entryName) >>= \case
     Nothing -> pure mempty
-    Just gallery -> do
-      let select = if gallery == "recursive" then selectRecSourcesFor else selectSourcesFor
-      childs <- rSelect $ orderBy (ascNullsFirst (^. _1 . sqlEntryDate)) $ do
-        sub <- select entriesSubTable $ sqlInt4 $ entry ^. entryId
-        subEntry <- selectTable entriesTable
-        where_ $ sub .== subEntry ^. sqlEntryId
-        where_ $ subEntry ^. sqlEntryKind .== sqlKind File
-        void $ selComp sub "miniature"
-        mime <- optional $ do
-          file <- selectTable filesTable
-          where_ $ file ^. sqlFileId .== sub
-          pure $ file ^. sqlFileMime
-        pure (subEntry, mime)
-      if null childs
-        then pure mempty
-        else do
-          entries <- mapM mkEntry childs
-          photoswipe <- PhotoSwipe.photoswipe def $ catMaybes entries
-          pure
-            [whamlet|
-          <details .common-details>
-            <summary>Gallery
-            <div #common-gallery>
-              ^{photoswipe}
-        |]
+    Just subs -> fmap mconcat $ forM (subs >>= toList . flip M.lookup colMap) $ \(col, rec) -> do
+      let qrel = def & queryId .~ [entry ^. entryName]
+      let query = def & querySubOf ?~ QueryRel qrel rec
+      dat <- loadCollectionItem col $ ColItemQuery query
+      widget <- displayResults col True dat
+      pure
+        [whamlet|
+        <details .common-details>
+          <summary>
+            #{displayCol col}
+          <div .common-col>
+            ^{widget}
+      |]
   where
-    mkEntry :: (EntryRowR, Maybe Text) -> Handler (Maybe PhotoSwipe.PhotoswipeEntry)
-    mkEntry (e, mime) =
-      PhotoSwipe.miniatureEntry
-        mime
-        (e ^? sqlEntryDate . _Just . to zonedTimeToLocalTime . to localDay)
-        (e ^. sqlEntryName)
+    colMap :: Map Text (Collection, Bool)
+    colMap =
+      M.fromList $
+        [minBound .. maxBound]
+          >>= \c -> [(collectionText c, (c, False)), (collectionText c <> ":rec", (c, True))]
+    displayCol :: Collection -> Text
+    displayCol = T.toTitle . collectionText
 
 contentWidget :: Entry -> Handler Widget
 contentWidget entry = case entry ^. entryKindData of
@@ -382,7 +376,7 @@ entryWidget entry = do
   refs <- refsWidget entry
   subs <- subWidget entry
   contact <- contactWidget entry
-  gallery <- galleryWidget entry
+  gallery <- subsWidget entry
   content <- contentWidget entry
   actions <- actWidget entry
   cssR <- mkCss

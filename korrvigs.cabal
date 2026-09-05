@@ -41,6 +41,9 @@ library korrvigs-lib
     Data.FIT.Messages
     Data.FIT.Parser
     Data.MBTiles
+    Data.VCard
+    Data.VCard.Defs
+    Data.VCard.Parser
     Data.Viking
     Data.Viking.Data
     Data.Viking.Parser

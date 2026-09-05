@@ -14,22 +14,22 @@ import Options.Applicative hiding (option, value)
 import Text.Parsec hiding ((<|>))
 import Text.Parsec.Number
 
-rgDigit :: (Stream s Identity Char) => Int -> Int -> Int -> Parsec s u Int
+rgDigit :: (Stream s m Char, Monad m) => Int -> Int -> Int -> ParsecT s u m Int
 rgDigit n mn mx = do
   v <- numberValue 10 <$> count n digit
   when (v < mn || v > mx) $ fail $ "Value expected in range [" <> show mn <> "-" <> show mx <> "]"
   pure v
 
-yearP :: (Stream s Identity Char) => Parsec s u Year
+yearP :: (Stream s m Char, Monad m) => ParsecT s u m Year
 yearP = numberValue 10 <$> count 4 digit
 
-monthOfYearP :: (Stream s Identity Char) => Parsec s u MonthOfYear
+monthOfYearP :: (Stream s m Char, Monad m) => ParsecT s u m MonthOfYear
 monthOfYearP = rgDigit 2 1 12
 
-dayOfMonthP :: (Stream s Identity Char) => Parsec s u DayOfMonth
+dayOfMonthP :: (Stream s m Char, Monad m) => ParsecT s u m DayOfMonth
 dayOfMonthP = rgDigit 2 1 31
 
-dayWithSepP :: (Stream s Identity Char) => Parsec s u a -> Parsec s u Day
+dayWithSepP :: (Stream s m Char, Monad m) => ParsecT s u m a -> ParsecT s u m Day
 dayWithSepP sep =
   fromGregorian
     <$> yearP
@@ -38,7 +38,7 @@ dayWithSepP sep =
     <* sep
     <*> dayOfMonthP
 
-dayP :: (Stream s Identity Char) => Parsec s u Day
+dayP :: (Stream s m Char, Monad m) => ParsecT s u m Day
 dayP = dayWithSepP $ char '-'
 
 timeOfDayP :: (Stream s Identity Char) => Parsec s u TimeOfDay

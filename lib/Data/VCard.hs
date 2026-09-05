@@ -1,0 +1,1 @@
+module Data.VCard where

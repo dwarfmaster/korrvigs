@@ -5,7 +5,6 @@ import Control.Monad
 import qualified Data.ByteString.Lazy as BSL
 import Data.Default
 import Data.Either
-import Data.Functor.Identity
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe

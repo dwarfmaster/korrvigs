@@ -162,3 +162,7 @@ instance EntrySelector (Field SqlInt4) where
 instance EntrySelector Int where
   selectEntry = selectEntry . sqlInt4
   selectEntryId = selectEntryId . sqlInt4
+
+instance EntrySelector Entry where
+  selectEntry = selectEntry . view entryId
+  selectEntryId = selectEntryId . view entryId

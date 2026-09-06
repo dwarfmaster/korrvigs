@@ -69,7 +69,7 @@ syncJsonEntry i sqlI json rows = do
   let dur = json ^. genericJson . ejsDuration
   let geom = json ^. genericJson . ejsGeo
   let title = json ^. genericJson . ejsTitle
-  let erow = EntryRow (Just sqlI) Calendar i tm dur geom Nothing title :: EntryRowW
+  let erow = EntryRow (Just sqlI) (genericKind json) i tm dur geom Nothing title :: EntryRowW
   let mtdtrows = first CI.mk <$> M.toList mtdt
   pure $ SyncData erow rows mtdtrows (json ^. genericJson . ejsText) (MkId <$> json ^. genericJson . ejsParents) [] M.empty
 

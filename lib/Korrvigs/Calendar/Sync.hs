@@ -1,30 +1,58 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Korrvigs.Calendar.Sync where
 
-import Control.Arrow (first)
-import Control.Lens
+import Control.Lens hiding ((.=))
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.ByteString.Lazy (readFile, writeFile)
-import qualified Data.CaseInsensitive as CI
 import Data.List hiding (insert)
 import Data.Map (Map)
-import qualified Data.Map as M
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.LocalTime
-import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.SQL
 import Korrvigs.Entry
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Opaleye (Insert (..), doNothing, rCount, toFields)
 import System.Directory
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
+
+data CalJSON = CalJSON
+  { _cljsServer :: Text,
+    _cljsUser :: Text,
+    _cljsCalName :: Text,
+    _cljsGen :: Gen.EntryJSON
+  }
+
+makeLenses ''CalJSON
+
+instance FromJSON CalJSON where
+  parseJSON = withObject "CalJSON" $ \v ->
+    CalJSON
+      <$> v .: "server"
+      <*> v .: "user"
+      <*> v .: "calendar"
+      <*> Gen.parseObject v
+
+instance ToJSON CalJSON where
+  toJSON (CalJSON srv user nm gen) =
+    object $
+      [ "server" .= srv,
+        "user" .= user,
+        "calendar" .= nm
+      ]
+        ++ Gen.toObjectPairs gen
+
+calJSONPath :: (MonadKorrvigs m) => m FilePath
+calJSONPath = joinPath . (: ["calendars"]) <$> root
 
 calIdFromPath :: FilePath -> Id
 calIdFromPath = MkId . T.pack . takeBaseName
@@ -43,29 +71,26 @@ calendarPath' cal = do
 calendarPath :: (MonadKorrvigs m) => Calendar -> m FilePath
 calendarPath = calendarPath' . view (calEntry . entryName)
 
-syncCalJSON :: (MonadKorrvigs m) => Id -> Int -> CalJSON -> m SyncData
-syncCalJSON i sqlI json = do
-  let mtdt = json ^. cljsMetadata
-  let tm = json ^. cljsDate
-  let dur = json ^. cljsDuration
-  let geom = json ^. cljsGeo
-  let title = json ^. cljsTitle
-  let erow = EntryRow (Just sqlI) Calendar i tm dur geom Nothing title :: EntryRowW
-  let mtdtrows = first CI.mk <$> M.toList mtdt
-  let crow = CalRow sqlI (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
-  let insert =
-        Insert
-          { iTable = calendarsTable,
-            iRows = [toFields crow],
-            iReturning = rCount,
-            iOnConflict = Just doNothing
-          }
-  pure $ SyncData erow [insert] mtdtrows (json ^. cljsText) (MkId <$> json ^. cljsParents) [] M.empty
+instance Gen.JsonEntry CalJSON Calendar where
+  genericJson = cljsGen
+  genericKind = const Calendar
+  updateImpl = updateImpl
 
 syncOne :: (MonadKorrvigs m) => Id -> FilePath -> Int -> m SyncData
 syncOne i path sqlI = do
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
-  syncCalJSON i sqlI json
+  Gen.syncJsonEntry
+    i
+    sqlI
+    json
+    [ let crow = CalRow sqlI (json ^. cljsServer) (json ^. cljsUser) (json ^. cljsCalName) :: CalRow
+       in Insert
+            { iTable = calendarsTable,
+              iRows = [toFields crow],
+              iReturning = rCount,
+              iOnConflict = Just doNothing
+            }
+    ]
 
 allCalendars :: (MonadKorrvigs m) => m [FilePath]
 allCalendars = do
@@ -95,30 +120,19 @@ updateImpl cal f = do
   updateFile i path f
 
 updateMetadata :: (MonadKorrvigs m) => Calendar -> Map Text Value -> [Text] -> m ()
-updateMetadata cal upd rm =
-  updateImpl cal $ pure . (cljsMetadata %~ M.union upd . flip (foldr M.delete) rm)
+updateMetadata = Gen.updateMetadata
 
 updateParents :: (MonadKorrvigs m) => Calendar -> [Id] -> [Id] -> m ()
-updateParents cal toAdd toRm = updateImpl cal $ pure . updParents
-  where
-    rmTxt = unId <$> toRm
-    addTxt = unId <$> toAdd
-    updParents = cljsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)
+updateParents = Gen.updateParents
 
 updateDate :: (MonadKorrvigs m) => Calendar -> Maybe ZonedTime -> m ()
-updateDate cal ntime =
-  updateImpl cal $ pure . (cljsDate .~ ntime)
+updateDate = Gen.updateDate
 
 updateDuration :: (MonadKorrvigs m) => Calendar -> Maybe CalendarDiffTime -> m ()
-updateDuration cal ndur =
-  updateImpl cal $ pure . (cljsDuration .~ ndur)
+updateDuration = Gen.updateDuration
 
 updateRef :: (MonadKorrvigs m) => Calendar -> Id -> Maybe Id -> m ()
-updateRef cal old new = updateImpl cal $ pure . (cljsParents %~ upd) . (cljsMetadata %~ updateInMetadata old new)
-  where
-    upd [] = []
-    upd (p : ps) | p == unId old = maybe id ((:) . unId) new ps
-    upd (p : ps) = p : upd ps
+updateRef = Gen.updateRef
 
 updateTitle :: (MonadKorrvigs m) => Calendar -> Maybe Text -> m ()
-updateTitle cal ntitle = updateImpl cal $ pure . (cljsTitle .~ ntitle)
+updateTitle = Gen.updateTitle

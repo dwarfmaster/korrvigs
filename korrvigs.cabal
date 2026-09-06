@@ -50,7 +50,6 @@ library korrvigs-lib
     Korrvigs
     Korrvigs.Calendar
     Korrvigs.Calendar.DAV
-    Korrvigs.Calendar.JSON
     Korrvigs.Calendar.New
     Korrvigs.Calendar.SQL
     Korrvigs.Calendar.Sync

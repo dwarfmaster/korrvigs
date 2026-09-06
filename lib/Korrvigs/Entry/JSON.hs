@@ -19,7 +19,7 @@ import Korrvigs.Kind
 import Korrvigs.Monad
 import Opaleye hiding (not)
 
-data GenericEntryJSON = GenericEntryJSON
+data EntryJSON = EntryJSON
   { _ejsMetadata :: Map Text Value,
     _ejsDate :: Maybe ZonedTime,
     _ejsDuration :: Maybe CalendarDiffTime,
@@ -29,11 +29,11 @@ data GenericEntryJSON = GenericEntryJSON
     _ejsParents :: [Text]
   }
 
-makeLenses ''GenericEntryJSON
+makeLenses ''EntryJSON
 
-parseObject :: Object -> Parser GenericEntryJSON
+parseObject :: Object -> Parser EntryJSON
 parseObject obj =
-  GenericEntryJSON
+  EntryJSON
     <$> obj .: "metadata"
     <*> obj .:? "date"
     <*> obj .:? "duration"
@@ -42,7 +42,7 @@ parseObject obj =
     <*> obj .:? "title"
     <*> obj .: "parents"
 
-toObjectPairs :: GenericEntryJSON -> [Pair]
+toObjectPairs :: EntryJSON -> [Pair]
 toObjectPairs json =
   [ "metadata" .= (json ^. ejsMetadata),
     "parents" .= (json ^. ejsParents)
@@ -54,12 +54,12 @@ toObjectPairs json =
     ++ maybe [] ((: []) . ("title" .=)) (json ^. ejsTitle)
 
 class (ToJSON j, FromJSON j) => JsonEntry j e | j -> e, e -> j where
-  genericJson :: Lens' j GenericEntryJSON
+  genericJson :: Lens' j EntryJSON
   genericKind :: j -> Kind
   updateImpl :: (MonadKorrvigs m) => e -> (j -> m j) -> m ()
 
-syncJsonEntry :: (MonadKorrvigs m, JsonEntry j e) => (j -> [Insert Int64]) -> Id -> Int -> j -> m SyncData
-syncJsonEntry mkRows i sqlI json = do
+syncJsonEntry :: (MonadKorrvigs m, JsonEntry j e) => Id -> Int -> j -> [Insert Int64] -> m SyncData
+syncJsonEntry i sqlI json rows = do
   let mtdt = json ^. genericJson . ejsMetadata
   let tm = json ^. genericJson . ejsDate
   let dur = json ^. genericJson . ejsDuration
@@ -67,8 +67,7 @@ syncJsonEntry mkRows i sqlI json = do
   let title = json ^. genericJson . ejsTitle
   let erow = EntryRow (Just sqlI) Calendar i tm dur geom Nothing title :: EntryRowW
   let mtdtrows = first CI.mk <$> M.toList mtdt
-  let insrows = mkRows json
-  pure $ SyncData erow insrows mtdtrows (json ^. genericJson . ejsText) (MkId <$> json ^. genericJson . ejsParents) [] M.empty
+  pure $ SyncData erow rows mtdtrows (json ^. genericJson . ejsText) (MkId <$> json ^. genericJson . ejsParents) [] M.empty
 
 updateMetadata :: (MonadKorrvigs m, JsonEntry j e) => e -> Map Text Value -> [Text] -> m ()
 updateMetadata e upd rm =

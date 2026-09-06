@@ -10,9 +10,9 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
-import Korrvigs.Calendar.JSON
 import Korrvigs.Calendar.Sync
 import Korrvigs.Entry
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.Entry.New
 import Korrvigs.File.New
 import Korrvigs.Kind
@@ -51,13 +51,16 @@ new nc = $withLogContext ("Creating new calendar " <> ncMsg) $ do
           { _cljsServer = nc ^. ncServer,
             _cljsUser = nc ^. ncUser,
             _cljsCalName = nc ^. ncCalendar,
-            _cljsMetadata = unmapCI $ useMtdt nentry M.empty,
-            _cljsDate = dt,
-            _cljsDuration = Nothing,
-            _cljsGeo = Nothing,
-            _cljsText = ((nc ^. ncCalendar <> " ") <>) <$> nentry ^. neTitle,
-            _cljsTitle = nentry ^. neTitle,
-            _cljsParents = unId <$> nentry ^. neParents
+            _cljsGen =
+              Gen.EntryJSON
+                { Gen._ejsMetadata = unmapCI $ useMtdt nentry M.empty,
+                  Gen._ejsDate = dt,
+                  Gen._ejsDuration = Nothing,
+                  Gen._ejsGeo = Nothing,
+                  Gen._ejsText = ((nc ^. ncCalendar <> " ") <>) <$> nentry ^. neTitle,
+                  Gen._ejsTitle = nentry ^. neTitle,
+                  Gen._ejsParents = unId <$> nentry ^. neParents
+                }
           }
   path <- calendarPath' i
   $logTrace $ MiscEvent $ "Writing calendar to " <> T.pack path

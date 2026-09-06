@@ -189,7 +189,6 @@ library korrvigs-lib
     Korrvigs.Query
     Korrvigs.Syndicate
     Korrvigs.Syndicate.Item
-    Korrvigs.Syndicate.JSON
     Korrvigs.Syndicate.New
     Korrvigs.Syndicate.Run
     Korrvigs.Syndicate.SQL

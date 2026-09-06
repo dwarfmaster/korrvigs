@@ -7,7 +7,7 @@ import qualified Data.Text as T
 import Korrvigs.Entry
 import Korrvigs.Kind
 import Korrvigs.Monad.Sync
-import Korrvigs.Syndicate.JSON
+import Korrvigs.Syndicate.Sync
 import qualified Korrvigs.Syndicate.Sync as Sync
 import Korrvigs.Web.Actions.Defs
 import qualified Korrvigs.Web.Actions.New as New

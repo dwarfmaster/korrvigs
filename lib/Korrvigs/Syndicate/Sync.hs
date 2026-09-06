@@ -1,29 +1,32 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Korrvigs.Syndicate.Sync where
 
-import Control.Arrow (first)
-import Control.Lens
+import Control.Lens hiding ((.=))
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.Aeson.Types
 import Data.ByteString.Lazy (readFile, writeFile)
-import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.Foldable
 import Data.List hiding (insert)
 import Data.Map (Map)
-import qualified Data.Map as M
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time.Clock (UTCTime)
 import Data.Time.LocalTime
+import Data.Vector ((!))
+import qualified Data.Vector as V
 import Korrvigs.Entry
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Syndicate.Item
-import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.SQL
 import Korrvigs.Utils (recursiveRemoveFile)
 import Korrvigs.Utils.DateTree
@@ -31,6 +34,54 @@ import Opaleye hiding (not, null)
 import System.Directory
 import System.FilePath
 import Prelude hiding (readFile, writeFile)
+
+data SyndicateJSON = SyndicateJSON
+  { _synjsUrl :: Maybe Text,
+    _synjsETag :: Maybe Text,
+    _synjsFilters :: [(Id, Text)],
+    _synjsExpiration :: Maybe UTCTime,
+    _synjsItems :: [SyndicatedItem],
+    _synjsGen :: Gen.EntryJSON
+  }
+
+makeLenses ''SyndicateJSON
+
+parseFilter :: Value -> Parser (Id, Text)
+parseFilter = withArray "SyndicateJSON filter" $ \arr -> do
+  guard $ V.length arr == 2
+  i <- parseJSON $ arr ! 0
+  code <- parseJSON $ arr ! 1
+  pure (MkId i, code)
+
+parseFilters :: Maybe [Value] -> Parser [(Id, Text)]
+parseFilters Nothing = pure []
+parseFilters (Just vs) = mapM parseFilter vs
+
+instance FromJSON SyndicateJSON where
+  parseJSON = withObject "SyndicateJSON" $ \obj ->
+    SyndicateJSON
+      <$> obj .:? "url"
+      <*> obj .:? "etag"
+      <*> (obj .:? "filters" >>= parseFilters)
+      <*> obj .:? "expiration"
+      <*> obj .: "items"
+      <*> Gen.parseObject obj
+
+filterToJSON :: (Id, Text) -> Value
+filterToJSON (entry, code) = Array $ V.fromList $ toJSON <$> [unId entry, code]
+
+instance ToJSON SyndicateJSON where
+  toJSON (SyndicateJSON url etag flt expiration items gen) =
+    object $
+      ["items" .= items]
+        ++ maybe [] ((: []) . ("url" .=)) url
+        ++ ["filters" .= (filterToJSON <$> flt) | not (null flt)]
+        ++ maybe [] ((: []) . ("etag" .=)) etag
+        ++ maybe [] ((: []) . ("expiration" .=)) expiration
+        ++ Gen.toObjectPairs gen
+
+synJSONPath :: (MonadKorrvigs m) => m FilePath
+synJSONPath = joinPath . (: ["syndicate"]) <$> root
 
 synIdFromPath :: FilePath -> Id
 synIdFromPath = MkId . T.pack . takeBaseName
@@ -61,20 +112,14 @@ allSyndicates = do
 list :: (MonadKorrvigs m) => m (Set FilePath)
 list = S.fromList <$> allSyndicates
 
+instance Gen.JsonEntry SyndicateJSON Syndicate where
+  genericJson = synjsGen
+  genericKind = const Syndicate
+  genericUpdateImpl = updateImpl
+
 syncOne :: (MonadKorrvigs m) => Id -> FilePath -> Int -> m SyncData
 syncOne i path sqlI = do
   json <- liftIO (eitherDecode <$> readFile path) >>= throwEither (KCantLoad i . T.pack)
-  syncSynJSON i path sqlI json
-
-syncSynJSON :: (MonadKorrvigs m) => Id -> FilePath -> Int -> SyndicateJSON -> m SyncData
-syncSynJSON i path sqlI json = do
-  let mtdt = json ^. synjsMetadata
-  let tm = json ^. synjsDate
-  let dur = json ^. synjsDuration
-  let geom = json ^. synjsGeo
-  let title = json ^. synjsTitle
-  let erow = EntryRow (Just sqlI) Syndicate i tm dur geom Nothing title :: EntryRowW
-  let mtdtrows = first CI.mk <$> M.toList mtdt
   let renderFilter (MkId fId, fCode) = fId <> "#" <> fCode
   let srow = SyndicateRow sqlI (json ^. synjsUrl) path (json ^. synjsETag) (renderFilter <$> json ^. synjsFilters) (json ^. synjsExpiration) :: SyndicateRow
   let insert =
@@ -93,7 +138,8 @@ syncSynJSON i path sqlI json = do
             iOnConflict = Just doNothing
           }
   let refs = json ^.. synjsFilters . each . _1
-  pure $ SyncData erow [insert, insertItemRows] mtdtrows (json ^. synjsText) (MkId <$> json ^. synjsParents) refs M.empty
+  dat <- Gen.syncJsonEntry i sqlI json [insert, insertItemRows]
+  pure $ dat & syncRefs .~ refs
 
 updateFile :: (MonadKorrvigs m) => Id -> FilePath -> (SyndicateJSON -> m SyndicateJSON) -> m ()
 updateFile i path f = do
@@ -105,38 +151,25 @@ updateImpl :: (MonadKorrvigs m) => Syndicate -> (SyndicateJSON -> m SyndicateJSO
 updateImpl syn = updateFile (syn ^. synEntry . entryName) (syn ^. synPath)
 
 updateMetadata :: (MonadKorrvigs m) => Syndicate -> Map Text Value -> [Text] -> m ()
-updateMetadata syn upd rm =
-  updateImpl syn $ pure . (synjsMetadata %~ M.union upd . flip (foldr M.delete) rm)
+updateMetadata = Gen.updateMetadata
 
 updateParents :: (MonadKorrvigs m) => Syndicate -> [Id] -> [Id] -> m ()
-updateParents syn toAdd toRm = updateImpl syn $ pure . updParents
-  where
-    rmTxt = unId <$> toRm
-    addTxt = unId <$> toAdd
-    updParents = synjsParents %~ (addTxt ++) . filter (not . flip elem rmTxt)
+updateParents = Gen.updateParents
 
 updateDate :: (MonadKorrvigs m) => Syndicate -> Maybe ZonedTime -> m ()
-updateDate syn ntime = updateImpl syn $ pure . (synjsDate .~ ntime)
+updateDate = Gen.updateDate
 
 updateDuration :: (MonadKorrvigs m) => Syndicate -> Maybe CalendarDiffTime -> m ()
-updateDuration syn ndur = updateImpl syn $ pure . (synjsDuration .~ ndur)
+updateDuration = Gen.updateDuration
 
 updateRef :: (MonadKorrvigs m) => Syndicate -> Id -> Maybe Id -> m ()
-updateRef syn old new =
-  updateImpl syn $
-    pure
-      . (synjsParents %~ upd)
-      . (synjsMetadata %~ updateInMetadata old new)
-      . (synjsFilters %~ (>>= updFilter))
+updateRef syn old new = Gen.updateRef (synjsFilters %~ (>>= updFilter)) syn old new
   where
-    upd [] = []
-    upd (p : ps) | p == unId old = maybe id ((:) . unId) new ps
-    upd (p : ps) = p : upd ps
     updFilter (entry, code) | entry == old = (,code) <$> toList new
     updFilter (entry, code) = [(entry, code)]
 
 updateTitle :: (MonadKorrvigs m) => Syndicate -> Maybe Text -> m ()
-updateTitle syn ntitle = updateImpl syn $ pure . (synjsTitle .~ ntitle)
+updateTitle = Gen.updateTitle
 
 readItem :: (MonadKorrvigs m) => Syndicate -> Int -> m ()
 readItem syn item = do

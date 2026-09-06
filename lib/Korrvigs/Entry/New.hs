@@ -48,6 +48,7 @@ import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Monad.Metadata (updateParents)
 import Korrvigs.Note.AST hiding (_Syndicate)
+import Korrvigs.Utils (joinNull)
 
 data NewEntry = NewEntry
   { _neParents :: [Id],
@@ -167,8 +168,15 @@ genNewJson nentry = do
         Gen._ejsDate = dt,
         Gen._ejsDuration = Nothing,
         Gen._ejsGeo = Nothing,
-        Gen._ejsText = nentry ^. neTitle,
-        Gen._ejsTitle = nentry ^. neTitle,
+        Gen._ejsText =
+          joinNull T.null $
+            Just $
+              T.intercalate " " $
+                catMaybes
+                  [ nentry ^. neTitle,
+                    nentry ^. neContent
+                  ],
+        Gen._ejsTitle = joinNull T.null $ nentry ^. neTitle,
         Gen._ejsParents = unId <$> nentry ^. neParents
       }
   where

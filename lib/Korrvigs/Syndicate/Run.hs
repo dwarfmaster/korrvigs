@@ -32,6 +32,7 @@ import Data.Time.LocalTime
 import Data.XML.Types
 import Korrvigs.Compute
 import Korrvigs.Entry
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.Kind
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
@@ -39,8 +40,7 @@ import Korrvigs.Monad
 import Korrvigs.Monad.Computation
 import Korrvigs.Monad.Sync
 import Korrvigs.Syndicate.Item
-import Korrvigs.Syndicate.JSON
-import Korrvigs.Syndicate.Sync (updateImpl)
+import Korrvigs.Syndicate.Sync
 import Korrvigs.Utils
 import Korrvigs.Utils.JSON (sqlJsonToBool)
 import Korrvigs.Utils.Time (measureTimeMs)
@@ -135,8 +135,8 @@ run syn = case syn ^. synUrl of
                 pure $ synjs & synjsItems .~ nitems
           pure (updItems . setETag . imp, True)
     date <- liftIO getCurrentTime
-    let setTime = synjsMetadata . at (mtdtSqlName RunTime) ?~ toJSON time
-    let setDate = synjsMetadata . at (mtdtSqlName RunDate) ?~ toJSON (iso8601Show date)
+    let setTime = synjsGen . Gen.ejsMetadata . at (mtdtSqlName RunTime) ?~ toJSON time
+    let setDate = synjsGen . Gen.ejsMetadata . at (mtdtSqlName RunDate) ?~ toJSON (iso8601Show date)
     updateImpl syn $ f . setTime . setDate
     syncFileOfKind (syn ^. synEntry . entryName) (syn ^. synPath) (syn ^. synEntry . entryId) Syndicate
     pure r
@@ -214,8 +214,8 @@ normalizeURL settings url = case parseURI $ T.unpack url of
 importFromAtom :: SyndicateSettings -> Atom.Feed -> (SyndicateJSON -> SyndicateJSON, [SyndicatedItem])
 importFromAtom settings feed = (setTitle . setAuthors, mapMaybe importFromEntry $ Atom.feedEntries feed)
   where
-    setTitle = synjsTitle %~ Just . fromMaybe (extractText $ Atom.feedTitle feed)
-    setAuthors = synjsMetadata . at (mtdtSqlName Authors) ?~ toJSON (Atom.personName <$> Atom.feedAuthors feed)
+    setTitle = synjsGen . Gen.ejsTitle %~ Just . fromMaybe (extractText $ Atom.feedTitle feed)
+    setAuthors = synjsGen . Gen.ejsMetadata . at (mtdtSqlName Authors) ?~ toJSON (Atom.personName <$> Atom.feedAuthors feed)
     importFromEntry :: Atom.Entry -> Maybe SyndicatedItem
     importFromEntry entry = do
       let dt = fromMaybe (Atom.entryUpdated entry) $ Atom.entryPublished entry
@@ -249,8 +249,8 @@ importFromRSS :: SyndicateSettings -> UTCTime -> RSS.RSS -> (SyndicateJSON -> Sy
 importFromRSS settings time feed = (setTitle . setDesc . setTTL, mapMaybe importFromItem $ RSS.rssItems channel)
   where
     channel = RSS.rssChannel feed
-    setTitle = synjsTitle %~ Just . fromMaybe (RSS.rssTitle channel)
-    setDesc = synjsMetadata . at (mtdtSqlName Abstract) ?~ toJSON (RSS.rssDescription channel)
+    setTitle = synjsGen . Gen.ejsTitle %~ Just . fromMaybe (RSS.rssTitle channel)
+    setDesc = synjsGen . Gen.ejsMetadata . at (mtdtSqlName Abstract) ?~ toJSON (RSS.rssDescription channel)
     setTTL = maybe id (\ttl -> synjsExpiration ?~ addUTCTime (fromInteger $ ttl * 60) time) $ RSS.rssTTL channel
     importFromItem :: RSS.RSSItem -> Maybe SyndicatedItem
     importFromItem item = do
@@ -269,8 +269,8 @@ importFromRSS1 :: SyndicateSettings -> RSS1.Feed -> (SyndicateJSON -> SyndicateJ
 importFromRSS1 settings feed = (setTitle . setDesc, importFromItem <$> RSS1.feedItems feed)
   where
     channel = RSS1.feedChannel feed
-    setTitle = synjsTitle %~ Just . fromMaybe (RSS1.channelTitle channel)
-    setDesc = synjsMetadata . at (mtdtSqlName Abstract) ?~ toJSON (RSS1.channelDesc channel)
+    setTitle = synjsGen . Gen.ejsTitle %~ Just . fromMaybe (RSS1.channelTitle channel)
+    setDesc = synjsGen . Gen.ejsMetadata . at (mtdtSqlName Abstract) ?~ toJSON (RSS1.channelDesc channel)
     importFromItem :: RSS1.Item -> SyndicatedItem
     importFromItem item =
       SyndicatedItem
@@ -291,7 +291,7 @@ importFromXML settings xml = (appEndo synEndo, mapMaybe extractItem $ elementNod
     extractTitle :: Node -> Endo SyndicateJSON
     extractTitle (NodeElement e)
       | checkName "title" (elementName e) =
-          Endo $ synjsTitle %~ Just . fromMaybe (extractXMLText e)
+          Endo $ synjsGen . Gen.ejsTitle %~ Just . fromMaybe (extractXMLText e)
     extractTitle _ = mempty
     synEndo :: Endo SyndicateJSON
     synEndo = foldMap extractTitle $ elementNodes xml

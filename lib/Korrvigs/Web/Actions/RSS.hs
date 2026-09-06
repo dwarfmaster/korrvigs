@@ -23,10 +23,10 @@ import Korrvigs.Monad.Sync
 import Korrvigs.Note.Download
 import Korrvigs.Query
 import Korrvigs.Syndicate.Item
-import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.New
 import qualified Korrvigs.Syndicate.Run as Syn
 import Korrvigs.Syndicate.SQL
+import Korrvigs.Syndicate.Sync (synjsItems)
 import qualified Korrvigs.Syndicate.Sync as Sync
 import Korrvigs.Utils.JSON
 import Korrvigs.Web.Actions.Defs

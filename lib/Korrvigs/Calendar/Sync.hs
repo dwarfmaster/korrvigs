@@ -74,7 +74,7 @@ calendarPath = calendarPath' . view (calEntry . entryName)
 instance Gen.JsonEntry CalJSON Calendar where
   genericJson = cljsGen
   genericKind = const Calendar
-  updateImpl = updateImpl
+  genericUpdateImpl = updateImpl
 
 syncOne :: (MonadKorrvigs m) => Id -> FilePath -> Int -> m SyncData
 syncOne i path sqlI = do
@@ -132,7 +132,7 @@ updateDuration :: (MonadKorrvigs m) => Calendar -> Maybe CalendarDiffTime -> m (
 updateDuration = Gen.updateDuration
 
 updateRef :: (MonadKorrvigs m) => Calendar -> Id -> Maybe Id -> m ()
-updateRef = Gen.updateRef
+updateRef = Gen.updateRef id
 
 updateTitle :: (MonadKorrvigs m) => Calendar -> Maybe Text -> m ()
 updateTitle = Gen.updateTitle

@@ -1,12 +1,9 @@
 module Korrvigs.Syndicate.New where
 
-import Control.Arrow (first)
 import Control.Lens hiding (noneOf)
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson.Encode.Pretty (encodePretty)
-import qualified Data.CaseInsensitive as CI
-import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -22,7 +19,6 @@ import Korrvigs.Metadata.Media
 import Korrvigs.Monad
 import qualified Korrvigs.Monad.Metadata as Mtdt
 import Korrvigs.Monad.Sync (syncFileOfKind)
-import Korrvigs.Syndicate.JSON
 import Korrvigs.Syndicate.SQL
 import Korrvigs.Syndicate.Sync
 import Korrvigs.Utils (joinNull, recursiveRemoveFile)
@@ -57,12 +53,8 @@ new ns = $withLogContext "Create new syndicate" $ case ns ^. nsUrl of
 create :: (MonadKorrvigs m) => NewSyndicate -> m Id
 create ns = do
   nentry <- applyCover (ns ^. nsEntry) Nothing
-  dt <- useDate nentry Nothing
-  let mtdt = useMtdt nentry M.empty
-  let mtdtJson = M.fromList $ first CI.foldedCase <$> M.toList mtdt
-  let txt = nentry ^. neContent
-  let parents = unId <$> nentry ^. neParents
   let title = joinNull T.null $ nentry ^. neTitle
+  genjson <- genNewJson nentry
   forM_ title $ \t -> $logTrace $ MiscEvent $ "Title: " <> t
   let json =
         SyndicateJSON
@@ -71,13 +63,7 @@ create ns = do
             _synjsFilters = ns ^. nsFilters,
             _synjsExpiration = Nothing,
             _synjsItems = [],
-            _synjsMetadata = mtdtJson,
-            _synjsDate = dt,
-            _synjsDuration = Nothing,
-            _synjsGeo = Nothing,
-            _synjsText = txt,
-            _synjsTitle = title,
-            _synjsParents = parents
+            _synjsGen = genjson
           }
   idmk <- applyNewEntry nentry $ imk $ choosePrefix PrefixSyndicate
   i <- newId idmk

@@ -8,7 +8,7 @@ import qualified Data.ByteString.Lazy as BS
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Korrvigs.Entry
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.File.Sync
 import Korrvigs.Utils.Pandoc
 import Network.Mime
@@ -23,11 +23,11 @@ extract path _ = case formatFromFilePaths [path] of
       Left _ -> pure id
       Right pd -> do
         let (txt, mtdt) = pdExtractMtdt pd
-        let applyGeom = maybe id (exGeo ?~) (fromJSON' =<< mtdt ^. at "geometry")
-        let applyDate = maybe id (exDate ?~) (fromJSON' =<< mtdt ^. at "date")
-        let applyDuration = maybe id (exDuration ?~) (fromJSON' =<< mtdt ^. at "duration")
-        let applyTxt = if T.null txt then id else exText ?~ txt
-        let applyParents = maybe id ((exParents .~) . fmap MkId) (fromJSON' =<< mtdt ^. at "parents")
+        let applyGeom = maybe id (genData . Gen.ejsGeo ?~) (fromJSON' =<< mtdt ^. at "geometry")
+        let applyDate = maybe id (genData . Gen.ejsDate ?~) (fromJSON' =<< mtdt ^. at "date")
+        let applyDuration = maybe id (genData . Gen.ejsDuration ?~) (fromJSON' =<< mtdt ^. at "duration")
+        let applyTxt = if T.null txt then id else genData . Gen.ejsText ?~ txt
+        let applyParents = maybe id ((genData . Gen.ejsParents .~)) (fromJSON' =<< mtdt ^. at "parents")
         pure $ applyGeom . applyDate . applyDuration . applyTxt . applyParents
 
 fromJSON' :: (FromJSON a) => Value -> Maybe a

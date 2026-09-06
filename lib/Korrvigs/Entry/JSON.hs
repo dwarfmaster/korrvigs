@@ -7,6 +7,7 @@ import Control.Lens hiding ((.=))
 import Data.Aeson
 import Data.Aeson.Types
 import qualified Data.CaseInsensitive as CI
+import Data.Default
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -30,6 +31,9 @@ data EntryJSON = EntryJSON
   }
 
 makeLenses ''EntryJSON
+
+instance Default EntryJSON where
+  def = EntryJSON def def def def def def def
 
 parseObject :: Object -> Parser EntryJSON
 parseObject obj =

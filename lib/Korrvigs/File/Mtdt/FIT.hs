@@ -11,6 +11,7 @@ import qualified Data.Text as T
 import Data.Time.Clock
 import Data.Time.Format
 import Data.Time.LocalTime
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.File.Sync
 import Korrvigs.Geometry
 import Korrvigs.Metadata
@@ -54,13 +55,13 @@ extract path _
         foldr
           (.)
           id
-          [ annoted . at (mtdtSqlName Device) ?~ toJSON dev,
-            exGeo ?~ geo,
-            maybe id ((annoted . at (mtdtSqlName ActivityMtdt) ?~) . toJSON) act,
-            exDate ?~ utcToZonedTime tz start,
-            exDuration ?~ CalendarDiffTime 0 duration,
-            maybe id (exTitle ?~) title,
-            maybe id (annoted . at (mtdtSqlName DistanceMtdt) ?~) (toJSON <$> distance)
+          [ genData . Gen.ejsMetadata . at (mtdtSqlName Device) ?~ toJSON dev,
+            genData . Gen.ejsGeo ?~ geo,
+            maybe id ((genData . Gen.ejsMetadata . at (mtdtSqlName ActivityMtdt) ?~) . toJSON) act,
+            genData . Gen.ejsDate ?~ utcToZonedTime tz start,
+            genData . Gen.ejsDuration ?~ CalendarDiffTime 0 duration,
+            maybe id (genData . Gen.ejsTitle ?~) title,
+            maybe id (genData . Gen.ejsMetadata . at (mtdtSqlName DistanceMtdt) ?~) (toJSON <$> distance)
           ]
   | otherwise = pure id
   where

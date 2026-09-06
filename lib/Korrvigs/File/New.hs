@@ -37,6 +37,7 @@ import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.LocalTime
 import Korrvigs.Compute.SQL
 import Korrvigs.Entry
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.Entry.New
 import Korrvigs.File.Mtdt
 import Korrvigs.File.SQL
@@ -119,12 +120,12 @@ makeLenses ''NewDownloadedFile
 applyNewOptions :: (MonadIO m) => NewEntry -> m (FileMetadata -> FileMetadata)
 applyNewOptions ne = do
   dt <- useDate ne Nothing
-  pure $ foldr (.) id [parents, maybe id (exDate ?~) dt, title, lang, mtdt]
+  pure $ foldr (.) id [parents, maybe id (genData . Gen.ejsDate ?~) dt, title, lang, mtdt]
   where
-    parents = exParents %~ (++ (ne ^. neParents))
-    title = maybe id (exTitle ?~) $ joinNull T.null $ ne ^. neTitle
-    lang = maybe id ((annoted . at (mtdtSqlName Language) ?~) . toJSON) $ ne ^. neLanguage
-    mtdt = annoted %~ unCIMtdt . useMtdt ne . reCIMtdt
+    parents = genData . Gen.ejsParents %~ (++ (unId <$> ne ^. neParents))
+    title = maybe id (genData . Gen.ejsTitle ?~) $ joinNull T.null $ ne ^. neTitle
+    lang = maybe id ((genData . Gen.ejsMetadata . at (mtdtSqlName Language) ?~) . toJSON) $ ne ^. neLanguage
+    mtdt = genData . Gen.ejsMetadata %~ unCIMtdt . useMtdt ne . reCIMtdt
 
 update :: (MonadKorrvigs m) => File -> FilePath -> m ()
 update file nfile = do
@@ -189,8 +190,8 @@ isDevicePresent dev dt = rSelectOne $ do
 
 isAlreadyPresent :: (MonadKorrvigs m) => FileMetadata -> m (Maybe Id)
 isAlreadyPresent mtdt = runMaybeT $ do
-  dev <- hoistMaybe $ mtdt ^? annoted . at (mtdtSqlName Device) . _Just . to fromJSONM . _Just
-  dt <- hoistMaybe $ mtdt ^. exDate
+  dev <- hoistMaybe $ mtdt ^? genData . Gen.ejsMetadata . at (mtdtSqlName Device) . _Just . to fromJSONM . _Just
+  dt <- hoistMaybe $ mtdt ^. genData . Gen.ejsDate
   hoistLift $ isDevicePresent dev dt
 
 new :: (MonadKorrvigs m) => FilePath -> NewFile -> m Id
@@ -210,9 +211,9 @@ new path' options' = $withLogContext ("Creating new file from " <> T.pack path')
   mime <- liftIO $ findMime db path
   let mimeTxt = Enc.decodeUtf8 mime
   $logTrace $ MiscEvent $ "Found mime: " <> mimeTxt
-  let mtdt' = FileMetadata mimeTxt M.empty Nothing Nothing Nothing Nothing basename [] M.empty
+  let mtdt' = FileMetadata mimeTxt (def & Gen.ejsTitle .~ basename) M.empty
   mtdt'' <- liftIO $ ($ mtdt') <$> extractMetadata path mime
-  let title = mtdt'' ^. exTitle <|> joinNull T.null (options ^. nfEntry . neTitle)
+  let title = mtdt'' ^. genData . Gen.ejsTitle <|> joinNull T.null (options ^. nfEntry . neTitle)
   forM_ title $ \t -> $logTrace $ MiscEvent $ "Title: \"" <> t <> "\""
   nentry <- applyCover (options ^. nfEntry) title
   mtdt <- ($ mtdt'') <$> applyNewOptions nentry
@@ -225,14 +226,14 @@ new path' options' = $withLogContext ("Creating new file from " <> T.pack path')
       let idmk' =
             imk (choosePrefix $ PrefixFile mime)
               & idTitle .~ title
-              & idDate .~ mtdt ^. exDate
+              & idDate .~ mtdt ^. genData . Gen.ejsDate
       idmk <- applyNewEntry nentry idmk'
       i <- newId idmk
       $log $ NewEntryEvent File i
       let ext = T.pack $ takeExtension path
       let nm = unId i <> ext
       dir <- filesDirectory
-      let day = localDay . zonedTimeToLocalTime <$> mtdt ^. exDate
+      let day = localDay . zonedTimeToLocalTime <$> mtdt ^. genData . Gen.ejsDate
       content <-
         if alreadyAnnexed
           then pure $ (if options ^. nfRemove then FileMove else FileCopy) path'

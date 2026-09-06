@@ -5,6 +5,7 @@ import Control.Monad
 import Data.Char
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TLIO
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.File.Sync
 import Network.Mime
 import System.IO
@@ -22,5 +23,5 @@ extract path "application/pdf" =
     txt <- TLIO.readFile tmp
     let final = TL.filter (\c -> isAlphaNum c || isSpace c) txt
     let str = TL.toStrict final
-    pure $ exText %~ Just . maybe str (<> str)
+    pure $ genData . Gen.ejsText %~ Just . maybe str (<> str)
 extract _ _ = pure id

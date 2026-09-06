@@ -5,6 +5,7 @@ import Data.Default
 import qualified Data.Map as M
 import Data.Maybe
 import qualified Data.Text as T
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.File.Sync
 import Korrvigs.Geometry
 import Linear.V2
@@ -37,5 +38,5 @@ extract path _
       pure $
         if null pts
           then id
-          else exGeo ?~ GeoPath pts
+          else genData . Gen.ejsGeo ?~ GeoPath pts
   | otherwise = pure id

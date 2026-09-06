@@ -6,6 +6,7 @@ import Control.Monad.Trans.Resource
 import Data.Aeson
 import Data.MBTiles
 import Data.Maybe
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.File.Sync
 import Korrvigs.Geometry
 import Korrvigs.Metadata
@@ -24,9 +25,9 @@ extract path _ | takeExtension path == ".mbtiles" = runResourceT $ do
         foldr
           (.)
           id
-          [ exTitle %~ Just . fromMaybe (mtdt ^. mbName),
-            maybe id (annoted . at (mtdtSqlName Abstract) ?~) (toJSON <$> mtdt ^. mbDescription),
-            maybe id (exGeo ?~) (mkBounds <$> mtdt ^. mbBounds)
+          [ genData . Gen.ejsTitle %~ Just . fromMaybe (mtdt ^. mbName),
+            maybe id (genData . Gen.ejsMetadata . at (mtdtSqlName Abstract) ?~) (toJSON <$> mtdt ^. mbDescription),
+            maybe id (genData . Gen.ejsGeo ?~) (mkBounds <$> mtdt ^. mbBounds)
           ]
   where
     mkBounds :: MBBounds -> Geometry

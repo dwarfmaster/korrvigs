@@ -18,6 +18,7 @@ import Data.Time.Calendar
 import Data.Time.Format
 import Data.Time.Format.ISO8601
 import Data.Time.LocalTime hiding (getTimeZone)
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.File.Sync
 import Korrvigs.Geometry
 import Korrvigs.Metadata
@@ -72,13 +73,13 @@ seqLookup mp (key : keys) = M.lookup key mp <|> seqLookup mp keys
 
 getTitle :: Mapping -> Extractor
 getTitle mtdt = case seqLookup mtdt ["Title", "BookName", "UpdatedTitle"] of
-  Just ((_, title) :| _) -> exTitle %~ Just . fromMaybe title
+  Just ((_, title) :| _) -> genData . Gen.ejsTitle %~ Just . fromMaybe title
   Nothing -> id
 
 getPageCount :: Mapping -> Extractor
 getPageCount mtdt = case seqLookup mtdt ["PageCount"] of
   Just ((_, cnt) :| _) -> case readMaybe (T.unpack cnt) :: Maybe Int of
-    Just c -> annoted . at (mtdtSqlName Pages) %~ Just . fromMaybe (toJSON c)
+    Just c -> genData . Gen.ejsMetadata . at (mtdtSqlName Pages) %~ Just . fromMaybe (toJSON c)
     Nothing -> id
   Nothing -> id
 
@@ -87,15 +88,15 @@ getDate mtdt = case seqLookup mtdt ["DateTimeOriginal", "CreateDate", "GpxMetada
   Just ((_, dt) :| _) ->
     let formats = ["%Y:%m:%d %T%Ez", "%Y:%m:%d %TZ", "%Y:%m:%d %T"]
      in let results = (\f -> parseTimeM True defaultTimeLocale f (T.unpack dt)) <$> formats :: [Maybe ZonedTime]
-         in maybe id (\d -> exDate %~ Just . fromMaybe d) $ asum results
+         in maybe id (\d -> genData . Gen.ejsDate %~ Just . fromMaybe d) $ asum results
   Nothing -> id
 
 getTimeZone :: Mapping -> Extractor
 getTimeZone mtdt = case seqLookup mtdt ["OffsetTimeOriginal", "OffsetTimeDigitized", "OffsetTime"] of
   Just ((_, tz) :| _) -> case formatParseM (timeOffsetFormat ExtendedFormat) $ T.unpack tz of
-    Just offset -> exDate . _Just %~ setTimezone offset
-    Nothing -> exDate . _Just %~ setDefaultTimezone
-  Nothing -> exDate . _Just %~ setDefaultTimezone
+    Just offset -> genData . Gen.ejsDate . _Just %~ setTimezone offset
+    Nothing -> genData . Gen.ejsDate . _Just %~ setDefaultTimezone
+  Nothing -> genData . Gen.ejsDate . _Just %~ setDefaultTimezone
   where
     setTimezone :: TimeZone -> ZonedTime -> ZonedTime
     setTimezone tz (ZonedTime local _) = ZonedTime local tz
@@ -112,13 +113,13 @@ getDimensions mtdt = case (M.lookup "ImageWidth" mtdt, M.lookup "ImageHeight" mt
   (Just ((_, width) :| _), Just ((_, height) :| _)) ->
     case (readMaybe (T.unpack width), readMaybe (T.unpack height)) :: (Maybe Int, Maybe Int) of
       (Just w, Just h) ->
-        (annoted . at (mtdtSqlName Width) ?~ toJSON w) . (annoted . at (mtdtSqlName Height) ?~ toJSON h)
+        (genData . Gen.ejsMetadata . at (mtdtSqlName Width) ?~ toJSON w) . (genData . Gen.ejsMetadata . at (mtdtSqlName Height) ?~ toJSON h)
       _ -> id
   _ -> case M.lookup "ImageSize" mtdt of
     Just ((_, size) :| _) -> case parse parseSize "" size of
       Left _ -> id
       Right (w, h) ->
-        (annoted . at (mtdtSqlName Width) ?~ toJSON w) . (annoted . at (mtdtSqlName Height) ?~ toJSON h)
+        (genData . Gen.ejsMetadata . at (mtdtSqlName Width) ?~ toJSON w) . (genData . Gen.ejsMetadata . at (mtdtSqlName Height) ?~ toJSON h)
     Nothing -> id
   where
     parseSize :: (Stream s Identity Char) => Parsec s u (Int, Int)
@@ -169,5 +170,5 @@ getPosition mtdt =
     Just ((_, pos) :| _) ->
       case parse gpsParser "" pos of
         Left _ -> id
-        Right pt -> exGeo ?~ GeoPoint pt
+        Right pt -> genData . Gen.ejsGeo ?~ GeoPoint pt
     Nothing -> id

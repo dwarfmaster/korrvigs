@@ -1,6 +1,7 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Korrvigs.File.Sync where
 
-import Control.Arrow (first)
 import Control.Lens hiding ((.=))
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
@@ -8,7 +9,6 @@ import Data.Aeson
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Aeson.Types
 import Data.ByteString.Lazy (readFile, writeFile)
-import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.List hiding (insert)
 import Data.Map (Map)
@@ -26,9 +26,9 @@ import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.File.Computation
 import Korrvigs.File.SQL
-import Korrvigs.Geometry
 import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Utils (recursiveRemoveFile, resolveSymbolicLink)
@@ -41,13 +41,7 @@ import Prelude hiding (readFile, writeFile)
 
 data FileMetadata = FileMetadata
   { _savedMime :: Text,
-    _annoted :: Map Text Value,
-    _exDate :: Maybe ZonedTime,
-    _exDuration :: Maybe CalendarDiffTime,
-    _exGeo :: Maybe Geometry,
-    _exText :: Maybe Text,
-    _exTitle :: Maybe Text,
-    _exParents :: [Id],
+    _genData :: Gen.EntryJSON,
     _computations :: Map Text ComputationResult
   }
 
@@ -76,13 +70,7 @@ instance FromJSON FileMetadata where
   parseJSON (Object v) =
     FileMetadata
       <$> v .: "mime"
-      <*> v .: "metadata"
-      <*> v .:? "date"
-      <*> v .:? "duration"
-      <*> v .:? "geometry"
-      <*> v .:? "textContent"
-      <*> v .:? "title"
-      <*> (fmap MkId <$> v .: "parents")
+      <*> Gen.parseObject v
       <*> (mapM parseCompResult . fromMaybe def =<< v .:? "computations")
   parseJSON invalid =
     prependFailure "parsing file metadata failed, " $ typeMismatch "Object" invalid
@@ -90,16 +78,10 @@ instance FromJSON FileMetadata where
 instance ToJSON FileMetadata where
   toJSON mtdt =
     object $
-      [ "metadata" .= (mtdt ^. annoted),
-        "mime" .= (mtdt ^. savedMime),
-        "parents" .= (unId <$> mtdt ^. exParents)
+      [ "mime" .= (mtdt ^. savedMime)
       ]
-        ++ maybe [] ((: []) . ("date" .=)) (mtdt ^. exDate)
-        ++ maybe [] ((: []) . ("duration" .=)) (mtdt ^. exDuration)
-        ++ maybe [] ((: []) . ("geometry" .=)) (mtdt ^. exGeo)
-        ++ maybe [] ((: []) . ("title" .=)) (mtdt ^. exTitle)
-        ++ maybe [] ((: []) . ("textContent" .=)) (mtdt ^. exText)
         ++ addComps (mtdt ^. computations)
+        ++ Gen.toObjectPairs (mtdt ^. genData)
     where
       addComps cmps =
         ["computations" .= (compResultToJSON <$> cmps) | not (M.null cmps)]
@@ -160,16 +142,9 @@ syncOne :: (MonadKorrvigs m) => Id -> FilePath -> Int -> m SyncData
 syncOne i path sqlI = do
   let meta = metaPath path
   json <- liftIO (eitherDecode <$> readFile meta) >>= throwEither (KCantLoad i . T.pack)
-  let mtdt = json ^. annoted
   let mime = Enc.encodeUtf8 $ json ^. savedMime
   let cmps = M.mapWithKey (prepComp json) $ fileComputations i mime
   status <- liftIO $ computeStatus path
-  let geom = json ^. exGeo
-  let tm = json ^. exDate
-  let dur = json ^. exDuration
-  let title = json ^. exTitle
-  let erow = EntryRow (Just sqlI) File i tm dur geom Nothing title
-  let mtdtrows = first CI.mk <$> M.toList mtdt
   let frow = FileRow sqlI path (metaPath path) status mime :: FileRow
   let insert =
         Insert
@@ -178,9 +153,8 @@ syncOne i path sqlI = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
-  let txt = json ^. exText
-  let sdt = SyncData erow [insert] mtdtrows txt (json ^. exParents) [] cmps
-  pure sdt
+  sdt <- Gen.syncJsonEntry i sqlI json [insert]
+  pure $ sdt & syncCompute .~ cmps
 
 updateImpl :: (MonadKorrvigs m) => File -> (FileMetadata -> m FileMetadata) -> m ()
 updateImpl file f = do
@@ -196,31 +170,28 @@ updateImpl file f = do
               fileComputations i (file ^. fileMime)
        in meta & computations .~ ncomps
 
+instance Gen.JsonEntry FileMetadata File where
+  genericJson = genData
+  genericKind = const File
+  genericUpdateImpl = updateImpl
+
 updateMetadata :: (MonadKorrvigs m) => File -> Map Text Value -> [Text] -> m ()
-updateMetadata file upd rm = do
-  updateImpl file $ pure . (annoted %~ M.union upd . flip (foldr M.delete) rm)
+updateMetadata = Gen.updateMetadata
 
 updateParents :: (MonadKorrvigs m) => File -> [Id] -> [Id] -> m ()
-updateParents file toAdd toRm =
-  updateImpl file $ pure . (exParents %~ updParents)
-  where
-    updParents = (toAdd ++) . filter (not . flip elem toRm)
+updateParents = Gen.updateParents
 
 updateDate :: (MonadKorrvigs m) => File -> Maybe ZonedTime -> m ()
-updateDate file ntime = updateImpl file $ pure . (exDate .~ ntime)
+updateDate = Gen.updateDate
 
 updateDuration :: (MonadKorrvigs m) => File -> Maybe CalendarDiffTime -> m ()
-updateDuration file ndur = updateImpl file $ pure . (exDuration .~ ndur)
+updateDuration = Gen.updateDuration
 
 updateRef :: (MonadKorrvigs m) => File -> Id -> Maybe Id -> m ()
-updateRef file old new = updateImpl file $ pure . (exParents %~ upd) . (annoted %~ updateInMetadata old new)
-  where
-    upd [] = []
-    upd (p : ps) | p == old = maybe id (:) new ps
-    upd (p : ps) = p : upd ps
+updateRef = Gen.updateRef id
 
 updateTitle :: (MonadKorrvigs m) => File -> Maybe Text -> m ()
-updateTitle file ntitle = updateImpl file $ pure . (exTitle .~ ntitle)
+updateTitle = Gen.updateTitle
 
 getComputation :: (MonadKorrvigs m) => File -> Text -> m (Maybe Computation)
 getComputation file cmp = case M.lookup cmp comps of

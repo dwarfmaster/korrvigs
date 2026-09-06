@@ -84,6 +84,7 @@ library korrvigs-lib
     Korrvigs.Entry.Ident
     Korrvigs.Entry.Ident.English
     Korrvigs.Entry.Ident.French
+    Korrvigs.Entry.JSON
     Korrvigs.Entry.New
     Korrvigs.Entry.SQL
     Korrvigs.Event

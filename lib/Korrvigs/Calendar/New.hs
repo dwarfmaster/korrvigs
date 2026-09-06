@@ -1,13 +1,8 @@
 module Korrvigs.Calendar.New where
 
-import Control.Arrow (first)
 import Control.Lens
 import Control.Monad.IO.Class
 import qualified Data.ByteString.Lazy as BSL
-import Data.CaseInsensitive (CI)
-import qualified Data.CaseInsensitive as CI
-import Data.Map (Map)
-import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Text as T
 import Korrvigs.Calendar.Sync
@@ -31,9 +26,6 @@ data NewCalendar = NewCalendar
 
 makeLenses ''NewCalendar
 
-unmapCI :: Map (CI Text) a -> Map Text a
-unmapCI = M.fromList . fmap (first CI.foldedCase) . M.toList
-
 new :: (MonadKorrvigs m) => NewCalendar -> m Id
 new nc = $withLogContext ("Creating new calendar " <> ncMsg) $ do
   nentry <- applyCover (nc ^. ncEntry) $ Just $ nc ^. ncCalendar
@@ -45,22 +37,14 @@ new nc = $withLogContext ("Creating new calendar " <> ncMsg) $ do
   dir <- calJSONPath
   liftIO $ createDirectoryIfMissing True dir
   -- Create JSON
-  dt <- useDate nentry Nothing
+  genjson' <- genNewJson nentry
+  let genjson = genjson' & Gen.ejsText %~ (((nc ^. ncCalendar <> " ") <>) <$>)
   let json =
         CalJSON
           { _cljsServer = nc ^. ncServer,
             _cljsUser = nc ^. ncUser,
             _cljsCalName = nc ^. ncCalendar,
-            _cljsGen =
-              Gen.EntryJSON
-                { Gen._ejsMetadata = unmapCI $ useMtdt nentry M.empty,
-                  Gen._ejsDate = dt,
-                  Gen._ejsDuration = Nothing,
-                  Gen._ejsGeo = Nothing,
-                  Gen._ejsText = ((nc ^. ncCalendar <> " ") <>) <$> nentry ^. neTitle,
-                  Gen._ejsTitle = nentry ^. neTitle,
-                  Gen._ejsParents = unId <$> nentry ^. neParents
-                }
+            _cljsGen = genjson
           }
   path <- calendarPath' i
   $logTrace $ MiscEvent $ "Writing calendar to " <> T.pack path

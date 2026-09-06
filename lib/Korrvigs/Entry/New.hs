@@ -21,14 +21,17 @@ module Korrvigs.Entry.New
     setMtdtValueM,
     setMtdtValueLazyM,
     reifyNew,
+    genNewJson,
   )
 where
 
+import Control.Arrow (first)
 import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
 import Data.CaseInsensitive (CI)
+import qualified Data.CaseInsensitive as CI
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -38,6 +41,7 @@ import qualified Data.Text as T
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Korrvigs.Entry
+import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Monad
@@ -153,3 +157,20 @@ reifyNew ne = case ne ^. neLanguage of
     p : _ -> do
       language <- rSelectTextMtdt Language $ sqlId p
       pure $ ne & neLanguage .~ language
+
+genNewJson :: (MonadKorrvigs m) => NewEntry -> m Gen.EntryJSON
+genNewJson nentry = do
+  dt <- useDate nentry Nothing
+  pure $
+    Gen.EntryJSON
+      { Gen._ejsMetadata = unmapCI $ useMtdt nentry M.empty,
+        Gen._ejsDate = dt,
+        Gen._ejsDuration = Nothing,
+        Gen._ejsGeo = Nothing,
+        Gen._ejsText = nentry ^. neTitle,
+        Gen._ejsTitle = nentry ^. neTitle,
+        Gen._ejsParents = unId <$> nentry ^. neParents
+      }
+  where
+    unmapCI :: Map (CI Text) a -> Map Text a
+    unmapCI = M.fromList . fmap (first CI.foldedCase) . M.toList

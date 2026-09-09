@@ -44,7 +44,8 @@ updateAggregate updateMetadata entry syn =
         url <- fromNullableSelect $ pure $ sqlJsonToText $ toNullable $ mtdt ^. sqlValue
         item <- selectTable syndicatedItemsTable
         where_ $ item ^. sqlSynItSyndicate .== sqlInt4 (syn ^. synEntry . entryId)
-        where_ $ item ^. sqlSynItUrl .== url
+        let norm = flip sqlSubstring "://(.*)$"
+        where_ $ norm (item ^. sqlSynItUrl) .== norm url
         pure (item ^. sqlSynItSequence, isStrict)
       forM_ mseq $ \(sq, isStrict) -> do
         mcnt :: Maybe Int64 <- rSelectOne $ countRows $ do

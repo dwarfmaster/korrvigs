@@ -109,6 +109,9 @@ sqlStartsWith = ap2 "starts_with"
 sqlUnnest :: Field (SqlArray a) -> Select (Field a)
 sqlUnnest = sel1 "unnest"
 
+sqlSubstring :: Field SqlText -> Field SqlText -> Field SqlText
+sqlSubstring = ap2 "substring"
+
 sqlMatchRegexCaseInsensitive :: Field SqlText -> Field SqlText -> Field SqlBool
 sqlMatchRegexCaseInsensitive = C.binOp (HPQ.OpOther "~*")
 

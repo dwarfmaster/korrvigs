@@ -237,7 +237,7 @@ parseTopBlock (Header lvl attr title) = do
   isTask <- isJust <$> use (stack . bszTask)
   when isTask $ do
     stack . bszTask . _Just . tskLabel .= rendered
-    let look = fmap toJSON . flip M.lookup (parsed ^. A.attrMtdt) . CI.foldedCase
+    let look = fmap (toJSON . mconcat) . flip M.lookup (parsed ^. A.attrMtdt) . CI.foldedCase
     stack . bszTask . _Just %= applyTaskMtdt look
 parseTopBlock bk = mapM_ pushBlock =<< parseBlock bk
 

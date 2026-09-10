@@ -23,7 +23,6 @@ newHeader lvl =
       _hdTitle = "NEW HEADER",
       _hdRefTo = S.empty,
       _hdTask = Nothing,
-      _hdTasks = [],
       _hdChecks = Checks 0 0 0 0 0 0,
       _hdLevel = lvl,
       _hdContent = [],

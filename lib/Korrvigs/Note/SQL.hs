@@ -6,6 +6,7 @@ import Control.Lens
 import Data.Profunctor.Product.Default
 import Data.Profunctor.Product.TH (makeAdaptorAndInstanceInferrable)
 import Data.Text (Text)
+import Data.Time
 import GHC.Int (Int64)
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -79,3 +80,41 @@ sqlRemove :: Int -> [Delete Int64]
 sqlRemove i =
   genSqlRemove notesCollectionsTable (view sqlNoteColId) i
     ++ genSqlRemove notesTable (view sqlNoteId) i
+
+-- notes_tasks table
+data NoteTaskRowImpl a b c d e f g h = NoteTaskRow
+  { _noteTaskNote :: a,
+    _noteTaskTitle :: b,
+    _noteTaskRef :: c,
+    _noteTaskStatus :: d,
+    _noteTaskScheduled :: e,
+    _noteTaskDeadline :: f,
+    _noteTaskStarted :: g,
+    _noteTaskFinished :: h
+  }
+
+makeLenses ''NoteTaskRowImpl
+$(makeAdaptorAndInstanceInferrable "pNoteTaskRow" ''NoteTaskRowImpl)
+
+type NoteTaskRow =
+  NoteTaskRowImpl Int Text Text Text (Maybe ZonedTime) (Maybe ZonedTime) (Maybe ZonedTime) (Maybe ZonedTime)
+
+type NoteTaskRowSQL =
+  NoteTaskRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlTimestamptz) (FieldNullable SqlTimestamptz) (FieldNullable SqlTimestamptz)
+
+instance Default ToFields NoteTaskRow NoteTaskRowSQL where
+  def = pNoteTaskRow $ NoteTaskRow def def def def def def def def
+
+notesTasksTable :: Table NoteTaskRowSQL NoteTaskRowSQL
+notesTasksTable =
+  table "notes_tasks" $
+    pNoteTaskRow $
+      NoteTaskRow
+        (tableField "note")
+        (tableField "title")
+        (tableField "hdref")
+        (tableField "status")
+        (tableField "scheduled")
+        (tableField "deadline")
+        (tableField "started")
+        (tableField "finished")

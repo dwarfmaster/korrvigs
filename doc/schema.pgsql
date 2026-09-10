@@ -82,6 +82,17 @@ CREATE TABLE IF NOT EXISTS notes_collections (
   entry TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS notes_tasks (
+  note INTEGER NOT NULL REFERENCES notes(id),
+  title TEXT NOT NULL,
+  hdref TEXT NOT NULL,
+  status TEXT NOT NULL,
+  scheduled TIMESTAMP WITH TIME ZONE,
+  deadline TIMESTAMP WITH TIME ZONE,
+  started TIMESTAMP WITH TIME ZONE,
+  finished TIMESTAMP WITH TIME ZONE
+);
+
 DO $$ BEGIN
   CREATE TYPE FILESTATUS AS ENUM ('fileplain', 'filepresent', 'fileabsent');
 EXCEPTION

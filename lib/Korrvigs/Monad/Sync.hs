@@ -83,7 +83,7 @@ doSync lookupSqlI kd i path sqlI =
 sync :: (MonadKorrvigs m) => m ()
 sync = do
   withSQL $ \conn ->
-    void $ liftIO $ Simple.execute_ conn "truncate entries, entries_metadata, entries_sub, entries_ref_to, computations, computations_dep, notes, notes_collections, files, events, calendars, syndicates, syndicated_items"
+    void $ liftIO $ Simple.execute_ conn "truncate entries, entries_metadata, entries_sub, entries_ref_to, computations, computations_dep, notes, notes_collections, notes_tasks, files, events, calendars, syndicates, syndicated_items"
   ids <- loadIDs
   let conflict = (_2 %~ NE.toList . fmap snd) <$> M.toList (M.filter ((>= 2) . length) ids)
   unless (null conflict) $ throwM $ KDuplicateId conflict

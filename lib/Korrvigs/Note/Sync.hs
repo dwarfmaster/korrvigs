@@ -9,6 +9,7 @@ import Data.Aeson
 import Data.ByteString.Lazy (writeFile)
 import qualified Data.CaseInsensitive as CI
 import Data.Default
+import Data.Foldable
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -23,10 +24,12 @@ import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Note.AST
 import Korrvigs.Note.Code (toRunnable, updateRefInAttr)
 import Korrvigs.Note.Helpers
+import Korrvigs.Note.Loc (SubLoc (..), renderSubLoc)
 import Korrvigs.Note.Pandoc
 import Korrvigs.Note.Render (writeNoteLazy)
 import Korrvigs.Note.SQL
@@ -71,6 +74,30 @@ syncOne i path sqlI = do
   doc <- readNote path >>= throwEither (KCantLoad i)
   syncDocument i path sqlI doc
 
+mkTaskRow :: Int -> [Int] -> Task -> NoteTaskRow
+mkTaskRow sqlI offsets tsk =
+  NoteTaskRow
+    { _noteTaskNote = sqlI,
+      _noteTaskTitle = tsk ^. tskLabel,
+      _noteTaskRef = renderSubLoc $ SubLoc (reverse offsets),
+      _noteTaskStatus = renderTaskStatus $ tsk ^. tskStatus,
+      _noteTaskScheduled = tsk ^. tskScheduled,
+      _noteTaskDeadline = tsk ^. tskDeadline,
+      _noteTaskStarted = tsk ^. tskStarted,
+      _noteTaskFinished = tsk ^. tskFinished
+    }
+
+taskRows :: Int -> Document -> [NoteTaskRow]
+taskRows sqlI = rec [] . view docContent
+  where
+    taskRowsImpl :: [Int] -> Header -> [NoteTaskRow]
+    taskRowsImpl offsets hd =
+      toList (mkTaskRow sqlI offsets <$> hd ^. hdTask) <> rec offsets (hd ^. hdContent)
+    rec :: [Int] -> [Block] -> [NoteTaskRow]
+    rec offsets bks =
+      flip concatMap (zip (bks ^.. each . _Sub) [(0 :: Int) ..]) $
+        \(hd, c) -> taskRowsImpl (c : offsets) hd
+
 syncDocument :: (MonadKorrvigs m) => Id -> FilePath -> Int -> Document -> m SyncData
 syncDocument i path sqlI doc = do
   let mtdt = doc ^. docMtdt
@@ -113,8 +140,15 @@ syncDocument i path sqlI doc = do
             iReturning = rCount,
             iOnConflict = Just doNothing
           }
+  let insertTaskRows =
+        Insert
+          { iTable = notesTasksTable,
+            iRows = toFields <$> taskRows sqlI doc,
+            iReturning = rCount,
+            iOnConflict = Just doNothing
+          }
   let txt = renderDocument doc
-  pure $ SyncData erow [insertNoteRow, insertColRows] mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) (M.fromList cmps)
+  pure $ SyncData erow [insertNoteRow, insertColRows, insertTaskRows] mrows (Just txt) (S.toList $ doc ^. docParents) (S.toList $ doc ^. docRefTo) (M.fromList cmps)
   where
     raiseMaybe (_, (_, Nothing)) = Nothing
     raiseMaybe (a, (b, Just c)) = Just (a, (b, c))

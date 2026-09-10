@@ -24,7 +24,6 @@ module Korrvigs.Note
     hdLevel,
     hdContent,
     hdTask,
-    hdTasks,
     hdCollections,
     Block (..),
     EntryView (..),

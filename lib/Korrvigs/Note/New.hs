@@ -104,7 +104,6 @@ create note = do
             _docChecks = def,
             _docParents = S.fromList $ nentry ^. neParents,
             _docTask = Nothing,
-            _docTasks = [],
             _docCollections = M.empty,
             _docNamedSubs = S.empty,
             _docNamedCode = S.empty,

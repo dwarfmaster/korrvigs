@@ -55,7 +55,6 @@ data BlockStackZipper = BSZ
     _bszRefTo :: Set Id,
     _bszChecks :: A.Checks,
     _bszLeft :: [A.Block],
-    _bszTasks :: [Task],
     _bszCollections :: Map Text [Id],
     _bszNamedSubs :: Set Text,
     _bszNamedCode :: Set Text,
@@ -82,7 +81,7 @@ pushBlock blk = stack . bszLeft %= (blk :)
 
 pushHeader :: Int -> A.Attr -> ParseM ()
 pushHeader lvl attr =
-  stack %= BSZ lvl attr "" Nothing S.empty def [] [] M.empty S.empty S.empty M.empty . Just
+  stack %= BSZ lvl attr "" Nothing S.empty def [] M.empty S.empty S.empty M.empty . Just
 
 headerLvl :: ParseM Int
 headerLvl = use $ stack . bszLevel
@@ -95,7 +94,6 @@ bszToHeader bsz =
             A._hdTitle = bsz ^. bszTitle,
             A._hdRefTo = bsz ^. bszRefTo,
             A._hdTask = bsz ^. bszTask,
-            A._hdTasks = bsz ^. bszTasks,
             A._hdChecks = bsz ^. bszChecks,
             A._hdLevel = bsz ^. bszLevel,
             A._hdContent = reverse $ bsz ^. bszLeft,
@@ -140,7 +138,6 @@ popHeader = do
     Just parent -> do
       stack .= parent
       stack . bszRefTo %= S.union (bsz ^. bszRefTo)
-      stack . bszTasks %= (++ (toList (bsz ^. bszTask) ++ bsz ^. bszTasks))
       stack . bszCollections %= M.union (bsz ^. bszCollections)
       stack . bszNamedSubs %= S.union (bsz ^. bszNamedSubs)
       stack . bszNamedCode %= S.union (bsz ^. bszNamedCode)
@@ -168,7 +165,6 @@ run act mtdt bks =
             A._docTitle = st ^. stack . bszTitle,
             A._docRefTo = st ^. stack . bszRefTo,
             A._docTask = st ^. stack . bszTask,
-            A._docTasks = st ^. stack . bszTasks,
             A._docChecks = st ^. stack . bszChecks,
             A._docParents = S.fromList $ fmap MkId $ join $ toList $ maybe (Success []) fromJSON $ M.lookup (CI.mk "parents") cimtdt,
             A._docCollections = st ^. stack . bszCollections,
@@ -181,7 +177,7 @@ run act mtdt bks =
     cimtdt = M.fromList $ first CI.mk <$> M.toList mtdt
     st =
       execState (act >> iterateWhile id popHeader) $
-        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] [] M.empty S.empty S.empty M.empty Nothing)
+        ParseState bks (BSZ 0 emptyAttr "" Nothing S.empty def [] M.empty S.empty S.empty M.empty Nothing)
 
 readNote :: (MonadIO m) => FilePath -> m (Either Text A.Document)
 readNote pth = liftIO $ do

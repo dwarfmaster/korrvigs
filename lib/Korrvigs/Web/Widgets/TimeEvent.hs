@@ -10,10 +10,16 @@ import Data.Time
 import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Contact
+import Korrvigs.Metadata.Task
 import Korrvigs.Monad
+import Korrvigs.Note.Loc
+import Korrvigs.Note.SQL
 import Korrvigs.Utils.JSON
+import Korrvigs.Utils.Opaleye
+import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
+import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye hiding (not, null)
 import Yesod hiding (Attr, Field)
 
@@ -21,7 +27,6 @@ data TimeEventKind
   = Anniversary
   | ScheduledTask
   | DeadlineTask
-  | StartedTask
 
 -- The two times must be less than one year appart
 birthdayTimeEvents :: Day -> Day -> Handler [(TimeEventKind, Day, Widget)]
@@ -70,6 +75,46 @@ birthdayTimeEvents startDay endDay = do
     ageAt byear bday@(BirthDay mth day) =
       snd $ computeAgeAt (floor byear) (Just bday) $ fromGregorian (birthYear bday) mth day
 
+deadlineEvents :: Day -> Day -> Handler [(TimeEventKind, Day, Widget)]
+deadlineEvents _ endDay = do
+  tz <- liftIO getCurrentTimeZone
+  -- let startTime = ZonedTime (LocalTime startDay (TimeOfDay 0 0 0)) tz
+  let endTime = ZonedTime (LocalTime (addDays 1 endDay) (TimeOfDay 0 0 0)) tz
+  evs <- rSelect $ do
+    tsk <- selectTaskRows
+    deadline <- fromNullableSelect $ pure $ tsk ^. noteTaskDeadline
+    where_ $ deadline .<= sqlZonedTime endTime
+    where_ $ tsk ^. noteTaskStatus ./= sqlStrictText (renderTaskStatus TaskDone)
+    where_ $ tsk ^. noteTaskStatus ./= sqlStrictText (renderTaskStatus TaskDont)
+    entry <- selectTable entriesTable
+    where_ $ entry ^. sqlEntryId .== tsk ^. noteTaskNote
+    pure (entry ^. sqlEntryName, tsk ^. noteTaskTitle, tsk ^. noteTaskRef, tsk ^. noteTaskStatus, deadline)
+  forM evs $ \(i, title :: Text, ref, status, deadline) -> do
+    render <- getUrlRenderParams
+    let actualStatus = fromMaybe TaskTodo $ parseStatusName status
+    let (openUrl, postUrl) = renderUrl render i ref
+    (h, cbw, _) <- Wdgs.checkBox actualStatus postUrl
+    let checkbox = cbw >> toWidget h
+    let widget =
+          [whamlet|
+           ^{checkbox}
+           <a href=#{openUrl}>
+             #{title}
+           #{mconcat ["before ", renderTime deadline]}
+         |]
+    pure (DeadlineTask, zonedDay deadline, widget)
+  where
+    renderTime :: ZonedTime -> Text
+    renderTime = T.pack . formatTime defaultTimeLocale "%R, %A %d, %B"
+    renderUrl :: (Route WebData -> [(Text, Text)] -> Text) -> Id -> Maybe Text -> (Text, Route WebData)
+    renderUrl render i sb =
+      case parseLoc <$> sb of
+        Just (Right (LocSub loc)) ->
+          let openUrl = render (EntryR $ WId i) [("open", renderEmbeddedLoc (DeepEmbedLoc [], loc))]
+           in (openUrl, NoteSubR (WId i) (WLoc $ LocTask $ TaskLoc loc))
+        _ ->
+          (render (EntryR $ WId i) [], EntryMtdtR $ WId i)
+
 timeWidget :: [(TimeEventKind, Day, Widget)] -> Handler Widget
 timeWidget timeEvents = do
   currentDay <- utctDay <$> liftIO getCurrentTime
@@ -94,13 +139,13 @@ timeWidget timeEvents = do
     kdWidget Anniversary = "🎉"
     kdWidget ScheduledTask = "📅"
     kdWidget DeadlineTask = "🛑"
-    kdWidget StartedTask = "🕒"
 
 -- The two times must be less than one year appart
 timeEventsWidget :: Day -> Day -> Handler (Maybe Widget)
 timeEventsWidget startDay endDay = do
   bdays <- birthdayTimeEvents startDay endDay
-  let allEvents = mconcat [bdays]
+  deadlines <- deadlineEvents startDay endDay
+  let allEvents = mconcat [bdays, deadlines]
   case allEvents of
     [] -> pure Nothing
     _ -> Just <$> timeWidget allEvents

@@ -69,18 +69,6 @@ notesCollectionsTable =
         (tableField "name")
         (tableField "entry")
 
--- Functions
-noteFromRow :: NoteRow -> Entry -> Note
-noteFromRow nrow entry = MkNote entry (nrow ^. sqlNotePath)
-
-sqlLoad :: (MonadKorrvigs m) => Int -> ((Entry -> Note) -> Entry) -> m (Maybe Entry)
-sqlLoad = genSqlLoad notesTable (view sqlNoteId) noteFromRow
-
-sqlRemove :: Int -> [Delete Int64]
-sqlRemove i =
-  genSqlRemove notesCollectionsTable (view sqlNoteColId) i
-    ++ genSqlRemove notesTable (view sqlNoteId) i
-
 -- notes_tasks table
 data NoteTaskRowImpl a b c d e f g h = NoteTaskRow
   { _noteTaskNote :: a,
@@ -127,3 +115,16 @@ notesTasksTable =
 
 makeGenTaskRow :: NoteTaskRowSQL -> NoteTaskRowGenSQL
 makeGenTaskRow = noteTaskRef %~ toNullable
+
+-- Functions
+noteFromRow :: NoteRow -> Entry -> Note
+noteFromRow nrow entry = MkNote entry (nrow ^. sqlNotePath)
+
+sqlLoad :: (MonadKorrvigs m) => Int -> ((Entry -> Note) -> Entry) -> m (Maybe Entry)
+sqlLoad = genSqlLoad notesTable (view sqlNoteId) noteFromRow
+
+sqlRemove :: Int -> [Delete Int64]
+sqlRemove i =
+  genSqlRemove notesCollectionsTable (view sqlNoteColId) i
+    ++ genSqlRemove notesTasksTable (view noteTaskNote) i
+    ++ genSqlRemove notesTable (view sqlNoteId) i

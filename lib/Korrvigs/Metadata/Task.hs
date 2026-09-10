@@ -12,7 +12,11 @@ import Korrvigs.Entry
 import Korrvigs.Metadata
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad
+import Korrvigs.Note.SQL
 import Korrvigs.Utils.JSON (fromJSONM)
+import Korrvigs.Utils.Opaleye
+import Opaleye
+import qualified Opaleye as O
 
 data TaskStatus
   = TaskTodo
@@ -109,3 +113,29 @@ loadTask i s title = do
       let started' = started >>= fromJSONM
       let finished' = finished >>= fromJSONM
       pure $ Just $ Task st tsk title' deadline' scheduled' started' finished'
+
+selectTaskRowFromEntries :: Select NoteTaskRowGenSQL
+selectTaskRowFromEntries = do
+  entry <- selectTable entriesTable
+  let sqlI = entry ^. sqlEntryId
+  title <- fromNullableSelect $ pure $ entry ^. sqlEntryTitle
+  status <- baseSelectTextMtdt TaskMtdt sqlI
+  scheduled <- selectTextMtdt TaskScheduled sqlI
+  deadline <- selectTextMtdt TaskDeadline sqlI
+  started <- selectTextMtdt TaskStarted sqlI
+  finished <- selectTextMtdt TaskFinished sqlI
+  pure $
+    NoteTaskRow
+      { _noteTaskNote = sqlI,
+        _noteTaskTitle = title,
+        _noteTaskRef = O.null,
+        _noteTaskStatus = status,
+        _noteTaskScheduled = sqlCast scheduled,
+        _noteTaskDeadline = sqlCast deadline,
+        _noteTaskStarted = sqlCast started,
+        _noteTaskFinished = sqlCast finished
+      }
+
+selectTaskRows :: Select NoteTaskRowGenSQL
+selectTaskRows =
+  unionAll selectTaskRowFromEntries $ makeGenTaskRow <$> selectTable notesTasksTable

@@ -102,6 +102,12 @@ type NoteTaskRow =
 type NoteTaskRowSQL =
   NoteTaskRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlTimestamptz) (FieldNullable SqlTimestamptz) (FieldNullable SqlTimestamptz)
 
+type NoteTaskRowGen =
+  NoteTaskRowImpl Int Text (Maybe Text) Text (Maybe ZonedTime) (Maybe ZonedTime) (Maybe ZonedTime) (Maybe ZonedTime)
+
+type NoteTaskRowGenSQL =
+  NoteTaskRowImpl (Field SqlInt4) (Field SqlText) (FieldNullable SqlText) (Field SqlText) (FieldNullable SqlTimestamptz) (FieldNullable SqlTimestamptz) (FieldNullable SqlTimestamptz) (FieldNullable SqlTimestamptz)
+
 instance Default ToFields NoteTaskRow NoteTaskRowSQL where
   def = pNoteTaskRow $ NoteTaskRow def def def def def def def def
 
@@ -118,3 +124,6 @@ notesTasksTable =
         (tableField "deadline")
         (tableField "started")
         (tableField "finished")
+
+makeGenTaskRow :: NoteTaskRowSQL -> NoteTaskRowGenSQL
+makeGenTaskRow = noteTaskRef %~ toNullable

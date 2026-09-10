@@ -11,6 +11,8 @@ import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
+import Data.Time
+import Data.Time.Format.ISO8601 (iso8601Show)
 import Korrvigs.Entry
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad.Class
@@ -38,6 +40,9 @@ class IsJsonText mtdt where
 
 instance IsJsonText Text where
   jsonText = id
+
+instance IsJsonText ZonedTime where
+  jsonText = T.pack . iso8601Show
 
 mkToJSONText :: (IsJsonText mtdt) => mtdt -> Value
 mkToJSONText = String . jsonText

@@ -81,6 +81,7 @@ knownLanguages =
     -- Build
     l "makefile" "make" n (j "makefile") (j "Makefile"),
     l "cabal" "cabal" n (j "haskell_cabal") n,
+    l "diff" "diff" n (j "diff") (j "Diff"),
     -- Data
     l "yaml" "yaml" n (j "yaml") (j "YAML"),
     l "json" "json" (j PlainJson) (j "json") (j "JSON"),

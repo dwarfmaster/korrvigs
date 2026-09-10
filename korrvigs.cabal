@@ -273,6 +273,7 @@ library korrvigs-lib
     Korrvigs.Web.Vis.Network
     Korrvigs.Web.Vis.Timeline
     Korrvigs.Web.Widgets
+    Korrvigs.Web.Widgets.TimeEvent
 
   build-depends:
     , aeson                 ^>=2.2.3.0

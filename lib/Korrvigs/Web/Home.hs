@@ -23,6 +23,7 @@ import qualified Korrvigs.Web.JS.FullCalendar as FC
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Widgets
+import qualified Korrvigs.Web.Widgets.TimeEvent as TEWidgets
 import Yesod hiding (Field, joinPath)
 
 getEvents :: ZonedTime -> Handler [EntryRowR]
@@ -89,12 +90,12 @@ displayHome = do
   -- Events widget
   let eventsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🕑"} Calendar|]
   evs <- eventsWidget
-  -- Birthday Widget
+  -- Time event Widget
   time <- liftIO getCurrentTime
   let startDay = utctDay time
   let endDay = addGregorianDurationClip calendarMonth startDay
-  births <- Widgets.birthdaysWidget startDay endDay
-  let birthsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🎉"} Birthdays|]
+  timeEvents <- TEWidgets.timeEventsWidget startDay endDay
+  let timeEventsHd = [whamlet|<h2> ^{Widgets.headerSymbol "⌚"} Time events|]
   -- Composition
   cssR <- mkCss
   defaultLayout $ do
@@ -108,8 +109,8 @@ displayHome = do
     [whamlet|
     <h1>Welcome to Korrvigs
     ^{void $ Widgets.mkSection 1 [] [] actionsHd actions}
-    $maybe bwidget <- births
-      ^{void $ Widgets.mkSection 1 [] [] birthsHd bwidget}
+    $maybe tewidget <- timeEvents
+      ^{void $ Widgets.mkSection 1 [] [] timeEventsHd tewidget}
     ^{void $ Widgets.mkSection 1 [] [] favsHd favs}
     ^{void $ Widgets.mkSection 1 [] [] eventsHd evs}
   |]

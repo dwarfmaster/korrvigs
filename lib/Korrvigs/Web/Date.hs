@@ -27,6 +27,7 @@ import qualified Korrvigs.Web.JS.FullCalendar as FC
 import qualified Korrvigs.Web.Ressources as Rcs
 import Korrvigs.Web.Search.Results
 import qualified Korrvigs.Web.Widgets as Widgets
+import qualified Korrvigs.Web.Widgets.TimeEvent as TEWidgets
 import Opaleye hiding (not, null)
 import Text.Blaze
 import qualified Text.Blaze.Html5 as H
@@ -66,9 +67,9 @@ periodPage title marker linkedDays startTime endTime = do
   evsEntries <- mapM FC.entryToEvent evs
   calendar <- FC.widget $ marker : catMaybes evsEntries
   let eventsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🕑"} Calendar|]
-  -- Birthdays
-  birthdaysW <- Widgets.birthdaysWidget (zonedDay startTime) (zonedDay endTime)
-  let birthsHd = [whamlet|<h2> ^{Widgets.headerSymbol "🎉"} Birthdays|]
+  -- Time events
+  timeEventsW <- TEWidgets.timeEventsWidget (zonedDay startTime) (zonedDay endTime)
+  let timeEventsHd = [whamlet|<h2> ^{Widgets.headerSymbol "⌚"} Time events|]
   -- All entries
   entries <- runQuery ColList query
   entriesW <- displayResults ColList False entries
@@ -97,7 +98,7 @@ periodPage title marker linkedDays startTime endTime = do
     linked
     void $ Widgets.mkSection 1 [] [] eventsHd calendar
     let cls = [("class", "collapsed")]
-    forM_ birthdaysW $ Widgets.mkSection 1 cls [] birthsHd
+    forM_ timeEventsW $ Widgets.mkSection 1 cls [] timeEventsHd
     unless (null entries) $ void $ Widgets.mkSection 1 cls [] entriesHd entriesW
     unless (null photos) $ void $ Widgets.mkSection 1 cls [] galleryHd gallery
     unless (null geo) $ void $ Widgets.mkSection 1 cls [] geoHd $ do

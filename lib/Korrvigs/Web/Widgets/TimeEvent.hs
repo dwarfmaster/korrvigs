@@ -75,14 +75,22 @@ birthdayTimeEvents startDay endDay = do
     ageAt byear bday@(BirthDay mth day) =
       snd $ computeAgeAt (floor byear) (Just bday) $ fromGregorian (birthYear bday) mth day
 
-deadlineEvents :: Day -> Day -> Handler [(TimeEventKind, Day, Widget)]
-deadlineEvents _ endDay = do
+taskEvents ::
+  TimeEventKind ->
+  Text ->
+  (NoteTaskRowGenSQL -> FieldNullable SqlTimestamptz) ->
+  (Field SqlTimestamptz -> Field SqlTimestamptz -> Field SqlTimestamptz -> Select ()) ->
+  Day ->
+  Day ->
+  Handler [(TimeEventKind, Day, Widget)]
+taskEvents teKind connector focusedTime selTime startDay endDay = do
   tz <- liftIO getCurrentTimeZone
-  -- let startTime = ZonedTime (LocalTime startDay (TimeOfDay 0 0 0)) tz
+  let startTime = ZonedTime (LocalTime startDay (TimeOfDay 0 0 0)) tz
   let endTime = ZonedTime (LocalTime (addDays 1 endDay) (TimeOfDay 0 0 0)) tz
   evs <- rSelect $ do
     tsk <- selectTaskRows
-    deadline <- fromNullableSelect $ pure $ tsk ^. noteTaskDeadline
+    deadline <- fromNullableSelect $ pure $ focusedTime tsk
+    selTime deadline (sqlZonedTime startTime) (sqlZonedTime endTime)
     where_ $ deadline .<= sqlZonedTime endTime
     where_ $ tsk ^. noteTaskStatus ./= sqlStrictText (renderTaskStatus TaskDone)
     where_ $ tsk ^. noteTaskStatus ./= sqlStrictText (renderTaskStatus TaskDont)
@@ -100,9 +108,9 @@ deadlineEvents _ endDay = do
            ^{checkbox}
            <a href=#{openUrl}>
              #{title}
-           #{mconcat ["before ", renderTime deadline]}
+           #{mconcat [connector, " ", renderTime deadline]}
          |]
-    pure (DeadlineTask, zonedDay deadline, widget)
+    pure (teKind, zonedDay deadline, widget)
   where
     renderTime :: ZonedTime -> Text
     renderTime = T.pack . formatTime defaultTimeLocale "%R, %A %d, %B"
@@ -114,6 +122,18 @@ deadlineEvents _ endDay = do
            in (openUrl, NoteSubR (WId i) (WLoc $ LocTask $ TaskLoc loc))
         _ ->
           (render (EntryR $ WId i) [], EntryMtdtR $ WId i)
+
+deadlineEvents :: Day -> Day -> Handler [(TimeEventKind, Day, Widget)]
+deadlineEvents = taskEvents DeadlineTask "before" (view noteTaskDeadline) selTime
+  where
+    selTime deadline _ endTime = where_ $ deadline .<= endTime
+
+scheduledEvents :: Day -> Day -> Handler [(TimeEventKind, Day, Widget)]
+scheduledEvents = taskEvents ScheduledTask "scheduled for" (view noteTaskScheduled) selTime
+  where
+    selTime scheduled startTime endTime = do
+      where_ $ scheduled .>= startTime
+      where_ $ scheduled .<= endTime
 
 timeWidget :: [(TimeEventKind, Day, Widget)] -> Handler Widget
 timeWidget timeEvents = do
@@ -145,7 +165,8 @@ timeEventsWidget :: Day -> Day -> Handler (Maybe Widget)
 timeEventsWidget startDay endDay = do
   bdays <- birthdayTimeEvents startDay endDay
   deadlines <- deadlineEvents startDay endDay
-  let allEvents = mconcat [bdays, deadlines]
+  scheduleds <- scheduledEvents startDay endDay
+  let allEvents = mconcat [bdays, deadlines, scheduleds]
   case allEvents of
     [] -> pure Nothing
     _ -> Just <$> timeWidget allEvents

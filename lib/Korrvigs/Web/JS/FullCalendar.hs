@@ -96,7 +96,7 @@ widget :: [CalendarEvent] -> Handler Widget
 widget events = do
   calId <- newIdent
   pure $ do
-    toWidget [julius|setupFullCalendar(#{calId}, #{rawJSON events})|]
+    toWidget [julius|setupFullCalendar(#{calId}, #{rawJSON events});|]
     [whamlet|
       <div ##{calId}>
     |]

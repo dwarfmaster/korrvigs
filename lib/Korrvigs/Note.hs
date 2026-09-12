@@ -50,6 +50,7 @@ module Korrvigs.Note
     writeNote,
     writeNoteLazy,
     writeHeaderLazy,
+    writeBlocksLazy,
     module Korrvigs.Note.Loc,
   )
 where

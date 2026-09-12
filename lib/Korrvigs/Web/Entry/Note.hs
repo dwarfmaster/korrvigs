@@ -239,12 +239,6 @@ isEmbedOpen = do
 content :: Note -> Handler Widget
 content = fmap fst . embed 0
 
-splitStartingParagraph :: [Block] -> ([Block], [Block])
-splitStartingParagraph = span (not . isSub)
-  where
-    isSub :: Block -> Bool
-    isSub = isJust . (^? _Sub)
-
 -- The first widget correspond to the blocks before the first sub, and the second widget
 -- to the other blocks.
 compileBlocksImpl :: [Block] -> CompileM (Widget, Widget)
@@ -558,7 +552,7 @@ compileBlock' (Sub hd) = do
   deepOpened <- use $ deepOpenedSub . _1 . deepEmbed
   shouldEdit <- use editOpen
   let openEdit = shouldEdit && subL == openedLoc && deepOpened == []
-  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent openEdit (hd ^. hdTask) (hd ^. hdChecks) subL enableEdit embedAt
+  hdW <- lift $ compileHead entry lvl hdId (hd ^. hdTitle) editIdent firstId openEdit (hd ^. hdTask) (hd ^. hdChecks) subL enableEdit embedAt
   let collapsedClass :: [Text] = ["collapsed" | not (subPrefix subL openedLoc)]
   let taskClass :: [Text] = ["task-section" | isJust (hd ^. hdTask)]
   classes <- compileAttrWithClasses (collapsedClass ++ taskClass) $ hd ^. hdAttr
@@ -652,17 +646,21 @@ compileAttr' (MkAttr i clss _) html = do
     applyId usedId = if T.null usedId then id else applyAttr $ Attr.id $ textValue usedId
     applyClasses = if null clss then id else applyAttr $ Attr.class_ $ textValue $ T.intercalate " " clss
 
-compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Bool -> Maybe Task -> Checks -> SubLoc -> Bool -> (Id, DeepEmbedLoc) -> Handler Widget
-compileHead entry n hdId t edit openEdit task checks subL enableEdit (sourceEntry, embedL) = do
+compileHead :: Id -> Int -> Maybe Text -> Text -> Text -> Text -> Bool -> Maybe Task -> Checks -> SubLoc -> Bool -> (Id, DeepEmbedLoc) -> Handler Widget
+compileHead entry n hdId t edit editFirst openEdit task checks subL enableEdit (sourceEntry, embedL) = do
   public <- isPublic
   editFn <- if enableEdit then newIdent else pure "null"
+  editFirstFn <- if enableEdit then newIdent else pure "null"
   menuW <- whenMaybe (not public) $ do
     -- Edit
+    redirUrl <- aceRedirect sourceEntry hdId (embedL, subL)
     editFnJs <-
       if enableEdit
-        then do
-          redirUrl <- aceRedirect sourceEntry hdId (embedL, subL)
-          Ace.editFn editFn edit "pandoc" link redirUrl
+        then Ace.editFn editFn edit "pandoc" link redirUrl
+        else pure mempty
+    editFnFirstJs <-
+      if enableEdit
+        then Ace.editFn editFirstFn editFirst "pandoc" (NoteSubR (WId entry) $ WLoc $ LocFirst $ FirstLoc subL) redirUrl
         else pure mempty
     -- Open
     render <- getUrlRender
@@ -673,8 +671,9 @@ compileHead entry n hdId t edit openEdit task checks subL enableEdit (sourceEntr
     buttonId <- newIdent
     pure $ do
       editFnJs
+      editFnFirstJs
       let route = if T.null (unId sourceEntry) then HomeR else EntryR (WId sourceEntry)
-      toWidget [julius|setupHeaderMenu(#{buttonId}, #{rawJS editFn}, #{rawJS openUrl}, "@{NoteSubActR (WId entry) (WLoc (LocSub subL))}", "@{route}", #{renderDeepEmbedLoc embedL});|]
+      toWidget [julius|setupHeaderMenu(#{buttonId}, #{rawJS editFn}, #{rawJS editFirstFn}, #{rawJS openUrl}, "@{NoteSubActR (WId entry) (WLoc (LocSub subL))}", "@{route}", #{renderDeepEmbedLoc embedL});|]
       [whamlet|<span ##{buttonId} .hd-menu>⋯</span>|]
   tsk <- Wdgs.taskWidget entry subL task
   hd <- compileHeader n [whamlet|^{tsk} #{t} ^{checksDisplay checks} ^{fromMaybe mempty menuW}|]

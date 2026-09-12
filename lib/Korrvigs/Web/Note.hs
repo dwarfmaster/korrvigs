@@ -128,7 +128,26 @@ getNoteSubR (WId i) (WLoc loc) =
                 render <- getUrlRender
                 let content = fmap ((unId . view _1) &&& (render . EntryR . WId . view _1)) ids
                 pure $ toTypedContent $ toJSON content
+            LocFirst lc -> case doc ^? sub (lc ^. fstSub) of
+              Nothing -> notFound
+              Just hd -> do
+                let firstBlocks = fst $ splitStartingParagraph $ hd ^. hdContent
+                pure $ toTypedContent $ LEnc.decodeUtf8 $ writeBlocksLazy firstBlocks (doc ^. docComputations)
       _ -> notFound
+
+writeToDoc :: Text -> SubLoc -> Document -> ([Block] -> Document -> Document) -> Handler Document
+writeToDoc txt lc doc upd = do
+  let lvl = length $ lc ^. subOffsets
+  hd <- readNoteFromText (parseTopBlocks lvl) txt
+  case hd of
+    Left err -> throwM $ KMiscError err
+    Right bks -> do
+      let shifted = bks & each . _Sub %~ shiftSubTo lvl
+      pure $ upd shifted doc
+  where
+    shiftSubTo :: Int -> Header -> Header
+    shiftSubTo lvl hd | hd ^. hdLevel == lvl = hd
+    shiftSubTo lvl hd = transform (hdLevel %~ (+ (lvl - hd ^. hdLevel))) hd
 
 postNoteSubR :: WebId -> WebAnyLoc -> Handler LT.Text
 postNoteSubR (WId i) (WLoc loc) =
@@ -143,14 +162,9 @@ postNoteSubR (WId i) (WLoc loc) =
             let txt = Enc.decodeUtf8 body
             mdoc <- case loc of
               LocCode lc -> pure $ Just $ setCode lc doc txt
-              LocSub lc -> do
-                let lvl = length $ lc ^. subOffsets
-                hd <- readNoteFromText (parseTopBlocks lvl) txt
-                case hd of
-                  Left err -> throwM $ KMiscError err
-                  Right bks -> do
-                    let shifted = bks & each . _Sub %~ shiftSubTo lvl
-                    pure $ Just $ doc & subs lc .~ shifted
+              LocSub lc -> Just <$> writeToDoc txt lc doc (subs lc .~)
+              LocFirst lc -> fmap Just $ writeToDoc txt (lc ^. fstSub) doc $ \shifted ->
+                sub (lc ^. fstSub) . hdContent %~ updFirst shifted
               LocCheck lc -> do
                 cb <- parseTaskStatus txt
                 pure $ Just $ setCheck lc doc cb
@@ -190,9 +204,10 @@ postNoteSubR (WId i) (WLoc loc) =
       _ -> notFound
   where
     parseTaskStatus txt = maybe (throwM $ KMiscError $ "\"" <> txt <> "\" is not a valid task state") pure $ parseStatusName txt
-    shiftSubTo :: Int -> Header -> Header
-    shiftSubTo lvl hd | hd ^. hdLevel == lvl = hd
-    shiftSubTo lvl hd = transform (hdLevel %~ (+ (lvl - hd ^. hdLevel))) hd
+    updFirst :: [Block] -> [Block] -> [Block]
+    updFirst nfirst content =
+      let (_, other) = splitStartingParagraph content
+       in nfirst ++ other
 
 postNoteSubActR :: WebId -> WebAnyLoc -> Handler Text
 postNoteSubActR (WId i) (WLoc (LocSub loc)) =

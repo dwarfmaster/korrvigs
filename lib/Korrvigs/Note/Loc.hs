@@ -17,6 +17,8 @@ module Korrvigs.Note.Loc
     SynLoc (..),
     synSub,
     synOffset,
+    FirstLoc (..),
+    fstSub,
     AnyLoc (..),
     extractSubLoc,
     subLvl,
@@ -106,6 +108,11 @@ data SynLoc = SynLoc
   }
   deriving (Eq, Ord, Show, Read)
 
+data FirstLoc = FirstLoc
+  { _fstSub :: SubLoc
+  }
+  deriving (Eq, Ord, Show, Read)
+
 makeLenses ''SubLoc
 makeLenses ''CodeLoc
 makeLenses ''EmbedLoc
@@ -113,6 +120,7 @@ makeLenses ''DeepEmbedLoc
 makeLenses ''CheckLoc
 makeLenses ''TaskLoc
 makeLenses ''SynLoc
+makeLenses ''FirstLoc
 
 data AnyLoc
   = LocSub SubLoc
@@ -120,6 +128,7 @@ data AnyLoc
   | LocCheck CheckLoc
   | LocTask TaskLoc
   | LocSyn SynLoc
+  | LocFirst FirstLoc
   deriving (Eq, Ord, Show, Read)
 
 extractSubLoc :: AnyLoc -> SubLoc
@@ -128,6 +137,7 @@ extractSubLoc (LocCode loc) = loc ^. codeSub
 extractSubLoc (LocCheck loc) = loc ^. checkSub
 extractSubLoc (LocTask loc) = loc ^. taskSub
 extractSubLoc (LocSyn loc) = loc ^. synSub
+extractSubLoc (LocFirst loc) = loc ^. fstSub
 
 subOff :: (Applicative f) => Int -> (Header -> f Header) -> [Block] -> f [Block]
 subOff = elementOf (each . _Sub)
@@ -255,12 +265,20 @@ buildSynLoc loc =
 renderSynLoc :: SynLoc -> Text
 renderSynLoc = doRender . buildSynLoc
 
+buildFirstLoc :: FirstLoc -> Builder
+buildFirstLoc loc =
+  buildSubLoc (loc ^. fstSub . subOffsets) <> buildText ":f:"
+
+renderFirstLoc :: FirstLoc -> Text
+renderFirstLoc = doRender . buildFirstLoc
+
 renderLoc :: AnyLoc -> Text
 renderLoc (LocSub loc) = renderSubLoc loc
 renderLoc (LocCode loc) = renderCodeLoc loc
 renderLoc (LocCheck loc) = renderCheckLoc loc
 renderLoc (LocTask loc) = renderTaskLoc loc
 renderLoc (LocSyn loc) = renderSynLoc loc
+renderLoc (LocFirst loc) = renderFirstLoc loc
 
 buildDeepEmbedLoc :: [EmbedLoc] -> Builder
 buildDeepEmbedLoc [] = mempty
@@ -293,6 +311,7 @@ anyLocP sb =
     <|> locPrefixP 'x' *> (LocCheck . CheckLoc sb <$> decimal)
     <|> (locPrefixP 't' $> (LocTask . TaskLoc) sb)
     <|> locPrefixP 's' *> (LocSyn . SynLoc sb <$> decimal)
+    <|> locPrefixP 'f' $> ((LocFirst . FirstLoc) sb)
 
 locP :: (Stream s Identity Char) => Parsec s u AnyLoc
 locP = do

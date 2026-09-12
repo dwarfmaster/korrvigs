@@ -12,7 +12,7 @@ function sendHeaderAction(actUrl, redirUrl, deepEmbed, action) {
   });
 }
 
-function setupHeaderMenu(buttonId, editFn, openUrl, actUrl, redirUrl, deepEmbed) {
+function setupHeaderMenu(buttonId, editFn, editFirstFn, openUrl, actUrl, redirUrl, deepEmbed) {
   const elem = document.getElementById(buttonId);
   if(!editFn && !openUrl && !actUrl) {
     elem.remove();
@@ -30,6 +30,16 @@ function setupHeaderMenu(buttonId, editFn, openUrl, actUrl, redirUrl, deepEmbed)
       edit.addEventListener("click", (ev) => {
         elem.parentElement.parentElement.classList.remove("collapsed");
         editFn()
+      });
+      menu.appendChild(edit);
+    }
+
+    if(editFirstFn) {
+      let edit = document.createElement("p");
+      edit.innerText = "Edit first";
+      edit.addEventListener("click", (ev) => {
+        elem.parentElement.parentElement.classList.remove("collapsed");
+        editFirstFn()
       });
       menu.appendChild(edit);
     }

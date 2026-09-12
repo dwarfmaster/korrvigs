@@ -8,6 +8,7 @@ import Data.Array
 import Data.CaseInsensitive (CI)
 import Data.Default
 import Data.Map (Map)
+import Data.Maybe
 import Data.Set (Set)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -282,3 +283,9 @@ bkNamedCode i = bkSubBlocks . _CodeBlock . filtered ((== i) . view (_1 . attrId)
 
 bkNamedSyn :: (Applicative f) => Text -> ((Text, Bool, Maybe Int, [(Id, Maybe Text)]) -> f (Text, Bool, Maybe Int, [(Id, Maybe Text)])) -> Block -> f Block
 bkNamedSyn i = bkSubBlocks . _Syndicate . filtered ((== i) . view _1)
+
+splitStartingParagraph :: [Block] -> ([Block], [Block])
+splitStartingParagraph = span (not . isSub)
+  where
+    isSub :: Block -> Bool
+    isSub = isJust . (^? _Sub)

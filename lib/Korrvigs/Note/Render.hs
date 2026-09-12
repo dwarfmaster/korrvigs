@@ -1,4 +1,4 @@
-module Korrvigs.Note.Render (writeNote, writeNoteLazy, writeHeaderLazy) where
+module Korrvigs.Note.Render (writeNote, writeNoteLazy, writeHeaderLazy, writeBlocksLazy) where
 
 import Control.Exception (SomeException, try)
 import Control.Lens
@@ -83,6 +83,9 @@ writeNoteLazy doc = runRenderM 80 (doc ^. docComputations) (render doc)
 
 writeHeaderLazy :: Header -> Map Text ComputationResult -> BSL.ByteString
 writeHeaderLazy hd comps = runRenderM 80 comps $ renderBlock $ Sub hd
+
+writeBlocksLazy :: [Block] -> Map Text ComputationResult -> BSL.ByteString
+writeBlocksLazy bks comps = runRenderM 80 comps $ mapM_ renderBlock bks
 
 render :: Document -> RenderM ()
 render doc = do

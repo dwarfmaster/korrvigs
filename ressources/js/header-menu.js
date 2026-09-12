@@ -27,7 +27,10 @@ function setupHeaderMenu(buttonId, editFn, openUrl, actUrl, redirUrl, deepEmbed)
     if(editFn) {
       let edit = document.createElement("p");
       edit.innerText = "Edit";
-      edit.addEventListener("click", (ev) => editFn());
+      edit.addEventListener("click", (ev) => {
+        elem.parentElement.parentElement.classList.remove("collapsed");
+        editFn()
+      });
       menu.appendChild(edit);
     }
 

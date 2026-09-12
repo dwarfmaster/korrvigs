@@ -42,6 +42,7 @@ import Korrvigs.Monad
 import Korrvigs.Monad.Collections
 import Korrvigs.Monad.Syndicate
 import Korrvigs.Note hiding (code, task)
+import Korrvigs.Note.AST
 import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
 import qualified Korrvigs.Web.Entry.Calendar as Cal
@@ -206,7 +207,8 @@ embedContent enableEdit repComps lvl subL embedAt i doc cnt checks = do
             & deepOpenedSub .~ (d, loc)
             & editOpen .~ edit
         Nothing -> st'
-  markdown <- runCompile st $ compileBlocks cnt
+  firstId <- newIdent
+  markdown <- runCompile st $ compileBlocksWithFirstId (Just firstId) cnt
   let w = do
         Ace.setup
         Rcs.mathjax StaticR
@@ -237,8 +239,37 @@ isEmbedOpen = do
 content :: Note -> Handler Widget
 content = fmap fst . embed 0
 
+splitStartingParagraph :: [Block] -> ([Block], [Block])
+splitStartingParagraph = span (not . isSub)
+  where
+    isSub :: Block -> Bool
+    isSub = isJust . (^? _Sub)
+
+-- The first widget correspond to the blocks before the first sub, and the second widget
+-- to the other blocks.
+compileBlocksImpl :: [Block] -> CompileM (Widget, Widget)
+compileBlocksImpl bks = do
+  startingWs <- mapM compileBlock starting
+  otherWs <- mapM compileBlock other
+  pure (mconcat startingWs, mconcat otherWs)
+  where
+    (starting, other) = splitStartingParagraph bks
+
+compileBlocksWithFirstId :: Maybe Text -> [Block] -> CompileM Widget
+compileBlocksWithFirstId firstId bks = do
+  (contentFirstW, contentOtherW) <- compileBlocksImpl bks
+  pure
+    [whamlet|
+    $maybe i <- firstId
+      <div ##{i}>
+        ^{contentFirstW}
+    $nothing
+      ^{contentFirstW}
+    ^{contentOtherW}
+    |]
+
 compileBlocks :: [Block] -> CompileM Widget
-compileBlocks = fmap mconcat . mapM compileBlock
+compileBlocks = compileBlocksWithFirstId Nothing
 
 compileBlock :: Block -> CompileM Widget
 compileBlock bk = do
@@ -510,7 +541,8 @@ compileBlock' (Sub hd) = do
   oldSynCount <- use synCount
   embedCount .= 0
   synCount .= 0
-  contentW <- withLevel lvl $ compileBlocks $ hd ^. hdContent
+  firstId <- newIdent
+  contentW <- withLevel lvl $ compileBlocksWithFirstId (Just firstId) $ hd ^. hdContent
   subLoc . subOffsets %= drop 1
   subCount .= subC + 1
   codeCount .= oldCodeCount

@@ -39,7 +39,7 @@ instance ToJSON BirthDay where
 instance FromJSON BirthDay where
   parseJSON = withText "BirthDay" $ \txt ->
     case parseTimeM True defaultTimeLocale "%m-%d" $ T.unpack txt of
-      Nothing -> undefined
+      Nothing -> fail $ T.unpack txt <> " is not a valid birthday"
       Just date -> let (_, month, day) = toGregorian date in pure $ BirthDay month day
 
 mkMtdt "FullName" "fullname" [t|Text|]

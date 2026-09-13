@@ -14,6 +14,7 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Data.Time
 import qualified Korrvigs.Cli.Info as Info
 import Korrvigs.Cli.Monad
 import Korrvigs.Cli.New (parseCollection)
@@ -25,6 +26,7 @@ import Korrvigs.Kind
 import Korrvigs.Monad
 import Korrvigs.Query
 import Korrvigs.Utils.DateParser
+import Korrvigs.Utils.JSON
 import Options.Applicative
 import System.Exit
 import Text.Parsec (char, parse)
@@ -33,6 +35,7 @@ import Text.Parsec.Number
 data Cmd = Cmd
   { _query :: Query,
     _format :: Maybe Text,
+    _importJson :: Maybe Text,
     _json :: Bool
   }
 
@@ -132,6 +135,7 @@ parser' =
   Cmd
     <$> queryParser
     <*> optional (strOption (long "format" <> help "How to format found entries"))
+    <*> optional (strOption (long "import" <> help "Import query from json file"))
     <*> switch (long "json" <> help "Each entry is displayed as JSON")
 
 parser :: ParserInfo Cmd
@@ -148,8 +152,13 @@ run cmd = do
     Left err -> liftIO $ do
       putStrLn $ "Failed to parse format: " <> T.unpack err
       exitFailure
+  actualQuery <- case cmd ^. importJson of
+    Nothing -> pure $ cmd ^. query
+    Just path -> do
+      imported <- fromMaybe def <$> readJsonFromFile (T.unpack path)
+      pure $ mergeQueries imported $ cmd ^. query
   ids <- rSelect $ do
-    entry <- compile (cmd ^. query) (pure . view sqlEntryName)
+    entry <- compile actualQuery (pure . view sqlEntryName)
     pure $ entry ^. _2
   forM_ ids $ \i ->
     load i >>= \case
@@ -167,3 +176,44 @@ run cmd = do
             liftIO $ putStrLn $ BSL8.toString obj
   where
     defaultFormat = "[{kind}] {name}: {title::}"
+
+-- In case of conflicting values, the second query has priority
+mergeQueries :: Query -> Query -> Query
+mergeQueries q1 q2 =
+  Query
+    { _queryId = q1 ^. queryId ++ q2 ^. queryId,
+      _queryTitle = q2 ^. queryTitle <|> q1 ^. queryTitle,
+      _queryText = q2 ^. queryText <|> q1 ^. queryText,
+      _queryBefore = mergeMaybe (mgTime min) (q1 ^. queryBefore) (q2 ^. queryBefore),
+      _queryAfter = mergeMaybe (mgTime max) (q1 ^. queryAfter) (q2 ^. queryAfter),
+      _queryGeo = q2 ^. queryGeo <|> q1 ^. queryGeo,
+      _queryDist = q2 ^. queryDist <|> q1 ^. queryDist,
+      _queryKind = mergeMaybe mergeKindQuery (q1 ^. queryKind) (q2 ^. queryKind),
+      _queryMtdt = q1 ^. queryMtdt ++ q2 ^. queryMtdt,
+      _queryInCollection = q2 ^. queryInCollection <|> q1 ^. queryInCollection,
+      _querySubOf = mergeMaybe mergeRel (q1 ^. querySubOf) (q2 ^. querySubOf),
+      _queryParentOf = mergeMaybe mergeRel (q1 ^. queryParentOf) (q2 ^. queryParentOf),
+      _queryMentioning = mergeMaybe mergeRel (q1 ^. queryMentioning) (q2 ^. queryMentioning),
+      _queryMentionedBy = mergeMaybe mergeRel (q1 ^. queryMentionedBy) (q2 ^. queryMentionedBy),
+      _queryShowHidden = q1 ^. queryShowHidden || q2 ^. queryShowHidden,
+      _querySort = q2 ^. querySort,
+      _queryMaxResults = q2 ^. queryMaxResults <|> q1 ^. queryMaxResults
+    }
+  where
+    mergeMaybe :: (a -> a -> a) -> Maybe a -> Maybe a -> Maybe a
+    mergeMaybe mg (Just a) (Just b) = Just $ mg a b
+    mergeMaybe _ ma mb = ma <|> mb
+    mergeKindQuery :: KindQuery -> KindQuery -> KindQuery
+    mergeKindQuery (KindQueryFile (FileQuery mime1)) (KindQueryFile (FileQuery mime2)) =
+      KindQueryFile $ FileQuery $ mime2 <|> mime1
+    mergeKindQuery (KindQuerySyndicate (SyndicateQuery url1)) (KindQuerySyndicate (SyndicateQuery url2)) = KindQuerySyndicate $ SyndicateQuery $ url2 <|> url1
+    mergeKindQuery _ kq2 = kq2
+    mergeRel :: QueryRel -> QueryRel -> QueryRel
+    mergeRel rel1 rel2 =
+      QueryRel
+        { _relOther = mergeQueries (rel1 ^. relOther) (rel2 ^. relOther),
+          _relRec = rel1 ^. relRec || rel2 ^. relRec
+        }
+    mgTime :: (UTCTime -> UTCTime -> UTCTime) -> ZonedTime -> ZonedTime -> ZonedTime
+    mgTime mg z1 z2 =
+      utcToZonedTime (zonedTimeZone z2) $ mg (zonedTimeToUTC z1) (zonedTimeToUTC z2)

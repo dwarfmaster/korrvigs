@@ -22,6 +22,13 @@ writePrettyJsonToFile :: (MonadIO m, ToJSON x) => FilePath -> x -> m ()
 writePrettyJsonToFile path val =
   liftIO $ LBS.writeFile path $ encodePretty val
 
+readJsonFromFile :: (MonadIO m, FromJSON x) => FilePath -> m (Maybe x)
+readJsonFromFile path = do
+  file <- liftIO $ LBS.readFile path
+  pure $ case eitherDecode file of
+    Left _ -> Nothing
+    Right v -> Just v
+
 fromJSONM :: (FromJSON a) => Value -> Maybe a
 fromJSONM v = case fromJSON v of
   Error _ -> Nothing

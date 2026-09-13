@@ -160,6 +160,7 @@ gpsParser = do
   longitude <- gpsCoordinate
   longitudeRef <- oneOf "EW"
   eof
+  when (latitude == 0.0 && longitude == 0.0) $ fail "Invalid null GPS Position"
   let lat = if latitudeRef == 'N' then latitude else -latitude
   let long = if longitudeRef == 'E' then longitude else -longitude
   pure $ V2 long lat

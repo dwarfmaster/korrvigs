@@ -89,6 +89,7 @@ data PrefixData
   | PrefixEvent
   | PrefixCalendar
   | PrefixSyndicate
+  | PrefixAddressBook
 
 choosePrefix :: PrefixData -> Text
 choosePrefix PrefixNote = "note"
@@ -102,6 +103,7 @@ choosePrefix (PrefixFile mime)
 choosePrefix PrefixEvent = "ics"
 choosePrefix PrefixCalendar = "cal"
 choosePrefix PrefixSyndicate = "syn"
+choosePrefix PrefixAddressBook = "abook"
 
 newId :: (MonadKorrvigs m) => IdMaker -> m Id
 newId = newId' S.empty

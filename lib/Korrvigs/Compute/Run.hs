@@ -15,6 +15,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import Data.Time.Clock
+import qualified Korrvigs.AddressBook.Sync as Abook
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Compute.Runnable
 import Korrvigs.Compute.SQL
@@ -42,6 +43,7 @@ entryFile entry = case entry ^. entryKindData of
   EventD event -> pure $ event ^. eventFile
   CalendarD cal -> Cal.calendarPath cal
   SyndicateD syn -> pure $ syn ^. synPath
+  AddressBookD abook -> Abook.abookPath abook
 
 getCompHash ::
   (MonadKorrvigs m, MonadTrans t, MonadFail (t m)) =>

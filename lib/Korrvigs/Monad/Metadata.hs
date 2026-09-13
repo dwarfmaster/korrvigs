@@ -24,6 +24,7 @@ import Data.Maybe
 import qualified Data.Set as S
 import Data.Text (Text)
 import Data.Time.LocalTime
+import qualified Korrvigs.AddressBook.Sync as Abook
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Compute.SQL
 import Korrvigs.Entry
@@ -80,6 +81,7 @@ updateMetadataImpl enableHooks entry upd rm = do
     EventD event -> Event.updateMetadata event upd rm
     CalendarD cal -> Cal.updateMetadata cal upd rm
     SyndicateD syn -> Syn.updateMetadata syn upd rm
+    AddressBookD abook -> Abook.updateMetadata abook upd rm
   let touchedMetadata = S.fromList $ CI.mk <$> M.keys upd ++ rm
   if S.disjoint idMetadata touchedMetadata
     then updateMetadataSQL entry upd rm
@@ -121,6 +123,7 @@ updateParents entry toAdd toRm = do
     EventD event -> Event.updateParents event toAdd toRm
     CalendarD cal -> Cal.updateParents cal toAdd toRm
     SyndicateD syn -> Syn.updateParents syn toAdd toRm
+    AddressBookD abook -> Abook.updateParents abook toAdd toRm
   rmSql <- fmap catMaybes $ forM toRm $ \rm -> rSelectOne $ do
     e <- selectTable entriesTable
     where_ $ e ^. sqlEntryName .== sqlId rm
@@ -157,6 +160,7 @@ updateDate entry ntime = do
     EventD _ -> undefined
     CalendarD cal -> Cal.updateDate cal ntime
     SyndicateD syn -> Syn.updateDate syn ntime
+    AddressBookD abook -> Abook.updateDate abook ntime
   atomicSQL $ \conn -> do
     void $
       runUpdate conn $
@@ -176,6 +180,7 @@ updateDuration entry ndur = do
     EventD _ -> undefined
     CalendarD cal -> Cal.updateDuration cal ndur
     SyndicateD syn -> Syn.updateDuration syn ndur
+    AddressBookD abook -> Abook.updateDuration abook ndur
   atomicSQL $ \conn ->
     void $
       runUpdate conn $
@@ -212,6 +217,7 @@ updateRef entry old new = do
     EventD ev -> Event.updateRef ev old new
     CalendarD cal -> Cal.updateRef cal old new
     SyndicateD syn -> Syn.updateRef syn old new
+    AddressBookD abook -> Abook.updateRef abook old new
 
 updateRefSQL :: (MonadKorrvigs m) => Entry -> Maybe Id -> m ()
 updateRefSQL oldEntry new = do
@@ -287,6 +293,7 @@ updateTitle entry ntitle = do
     EventD ev -> Event.updateTitle ev ntitle
     CalendarD cal -> Cal.updateTitle cal ntitle
     SyndicateD syn -> Syn.updateTitle syn ntitle
+    AddressBookD abook -> Abook.updateTitle abook ntitle
   unless (isNothing ntitle && entry ^. kind == Kd.Note) $
     withSQL $ \conn -> do
       void $

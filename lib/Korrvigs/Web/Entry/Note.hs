@@ -45,6 +45,7 @@ import Korrvigs.Note hiding (code, task)
 import Korrvigs.Note.AST
 import Korrvigs.Utils.JSON
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Entry.AddressBook as Abook
 import qualified Korrvigs.Web.Entry.Calendar as Cal
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
@@ -639,6 +640,7 @@ embedBody i lvl opened embedAt =
         CalendarD cal -> (,def,title) <$> Cal.embed lvl cal
         NoteD note -> (\(w, c, _, _) -> (w, c, title)) <$> embedOpen lvl note embedAt opened
         SyndicateD syn -> (,def,title) <$> Syn.embed lvl syn
+        AddressBookD abook -> (,def,title) <$> Abook.embed lvl abook
 
 compileAttrWithClasses :: [Text] -> Attr -> CompileM [(Text, Text)]
 compileAttrWithClasses cls attr = do

@@ -48,6 +48,9 @@ library korrvigs-lib
     Data.Viking.Data
     Data.Viking.Parser
     Korrvigs
+    Korrvigs.AddressBook
+    Korrvigs.AddressBook.SQL
+    Korrvigs.AddressBook.Sync
     Korrvigs.Calendar
     Korrvigs.Calendar.DAV
     Korrvigs.Calendar.New
@@ -241,6 +244,7 @@ library korrvigs-lib
     Korrvigs.Web.Date
     Korrvigs.Web.Download
     Korrvigs.Web.Entry
+    Korrvigs.Web.Entry.AddressBook
     Korrvigs.Web.Entry.Calendar
     Korrvigs.Web.Entry.Event
     Korrvigs.Web.Entry.File

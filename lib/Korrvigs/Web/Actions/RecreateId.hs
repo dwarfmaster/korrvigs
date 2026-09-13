@@ -4,6 +4,7 @@ import Control.Lens
 import Control.Monad.Extra
 import Data.Default
 import Data.Text (Text)
+import qualified Korrvigs.AddressBook.Sync as Abook
 import qualified Korrvigs.Calendar.New as Cal
 import Korrvigs.Entry
 import qualified Korrvigs.Event.New as Ev
@@ -67,6 +68,7 @@ runRecreateId True (TargetEntry entry) = do
       EventD _ -> PrefixEvent
       CalendarD _ -> PrefixCalendar
       SyndicateD _ -> PrefixSyndicate
+      AddressBookD _ -> PrefixAddressBook
     moveFile :: Id -> Handler ()
     moveFile ni = case entry ^. entryKindData of
       FileD file -> File.moveFile file ni
@@ -74,4 +76,5 @@ runRecreateId True (TargetEntry entry) = do
       EventD ev -> Ev.moveFile ev ni
       CalendarD cal -> Cal.moveFile cal ni
       SyndicateD syn -> Syn.moveFile syn ni
+      AddressBookD abook -> Abook.moveFile abook ni
 runRecreateId True _ = pure def

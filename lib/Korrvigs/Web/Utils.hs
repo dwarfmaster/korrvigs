@@ -30,6 +30,7 @@ colorKind File = Base09
 colorKind Event = Base0B
 colorKind Calendar = Base0C
 colorKind Syndicate = Base0D
+colorKind AddressBook = Base0E
 
 htmlKind' :: Kind -> Handler Html
 htmlKind' Note = mkHtmlKind "Note" $ colorKind Note
@@ -37,6 +38,7 @@ htmlKind' File = mkHtmlKind "File" $ colorKind File
 htmlKind' Event = mkHtmlKind "Event" $ colorKind Event
 htmlKind' Calendar = mkHtmlKind "Calendar" $ colorKind Calendar
 htmlKind' Syndicate = mkHtmlKind "Syndicate" $ colorKind Syndicate
+htmlKind' AddressBook = mkHtmlKind "AddressBook" $ colorKind AddressBook
 
 htmlKind :: Kind -> Widget
 htmlKind kd = do

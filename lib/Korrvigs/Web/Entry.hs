@@ -27,6 +27,7 @@ import Korrvigs.Utils.Base16
 import Korrvigs.Utils.Opaleye (connectedComponentGraph)
 import Korrvigs.Web.Actions
 import Korrvigs.Web.Backend
+import qualified Korrvigs.Web.Entry.AddressBook as Abook
 import qualified Korrvigs.Web.Entry.Calendar as Cal
 import qualified Korrvigs.Web.Entry.Event as Event
 import qualified Korrvigs.Web.Entry.File as File
@@ -87,6 +88,7 @@ titleWidget entry contentId firstId = do
       CalendarD _ -> pure Nothing
       SyndicateD _ -> pure Nothing
       NoteD _ -> Just <$> editButton (entry ^. entryName) contentId firstId
+      AddressBookD _ -> pure Nothing
 
 editButton :: Id -> Text -> Text -> Handler Widget
 editButton entry edit firstId = do
@@ -354,6 +356,7 @@ contentWidget entry = case entry ^. entryKindData of
   EventD event -> (,"","") <$> Event.content event
   CalendarD cal -> (,"","") <$> Cal.content cal
   SyndicateD syn -> (,"","") <$> Syn.content syn
+  AddressBookD abook -> (,"","") <$> Abook.content abook
 
 actWidget :: Entry -> Handler Widget
 actWidget entry = do

@@ -1,5 +1,5 @@
 DO $$ BEGIN
-  CREATE TYPE KIND AS ENUM ('note', 'file', 'event', 'calendar', 'syndicate');
+  CREATE TYPE KIND AS ENUM ('note', 'file', 'event', 'calendar', 'syndicate', 'addressbook');
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
@@ -150,6 +150,15 @@ CREATE TABLE IF NOT EXISTS syndicated_items (
   read BOOLEAN NOT NULL,
   guid TEXT,
   date TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS addressbooks (
+  id INTEGER NOT NULL PRIMARY KEY,
+  kind KIND NOT NULL CHECK(kind = 'addressbook'),
+  server TEXT NOT NULL,
+  usr TEXT NOT NULL,
+  CONSTRAINT addressbooks_entries
+    FOREIGN KEY (id,kind) references entries(id,kind)
 );
 
 CREATE TABLE IF NOT EXISTS blog_math_cache (

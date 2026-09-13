@@ -195,13 +195,15 @@ selectKindQuery ::
   Maybe EventQuery ->
   Maybe CalendarQuery ->
   Maybe SyndicateQuery ->
+  Maybe AddressBookQuery ->
   Maybe KindQuery
-selectKindQuery (Just Note) (Just nq) _ _ _ _ = Just $ KindQueryNote nq
-selectKindQuery (Just File) _ (Just fq) _ _ _ = Just $ KindQueryFile fq
-selectKindQuery (Just Event) _ _ (Just eq) _ _ = Just $ KindQueryEvent eq
-selectKindQuery (Just Calendar) _ _ _ (Just cq) _ = Just $ KindQueryCalendar cq
-selectKindQuery (Just Syndicate) _ _ _ _ (Just sq) = Just $ KindQuerySyndicate sq
-selectKindQuery _ _ _ _ _ _ = Nothing
+selectKindQuery (Just Note) (Just nq) _ _ _ _ _ = Just $ KindQueryNote nq
+selectKindQuery (Just File) _ (Just fq) _ _ _ _ = Just $ KindQueryFile fq
+selectKindQuery (Just Event) _ _ (Just eq) _ _ _ = Just $ KindQueryEvent eq
+selectKindQuery (Just Calendar) _ _ _ (Just cq) _ _ = Just $ KindQueryCalendar cq
+selectKindQuery (Just Syndicate) _ _ _ _ (Just sq) _ = Just $ KindQuerySyndicate sq
+selectKindQuery (Just AddressBook) _ _ _ _ _ (Just aq) = Just $ KindQueryAddressBook aq
+selectKindQuery _ _ _ _ _ _ _ = Nothing
 
 kindQueryForm :: Maybe Text -> FormInput Handler (Maybe KindQuery)
 kindQueryForm prefix =
@@ -218,6 +220,7 @@ kindQueryForm prefix =
             <*> ( Just . SyndicateQuery . joinNull T.null
                     <$> iopt textField (applyPrefix prefix "syn-url")
                 )
+            <*> pure (Just AddressBookQuery)
         )
 
 queryRelForm :: (Maybe LocalTime -> Maybe ZonedTime) -> Text -> FormInput Handler (Maybe QueryRel)
@@ -242,6 +245,7 @@ getKindParameters _ (KindQueryEvent EventQuery) = []
 getKindParameters _ (KindQueryCalendar CalendarQuery) = []
 getKindParameters prefix (KindQuerySyndicate sq) =
   maybe [] (\url -> [(applyPrefix prefix "syn-url", url)]) (sq ^. querySyndicateUrl)
+getKindParameters _ (KindQueryAddressBook AddressBookQuery) = []
 
 getParameters :: Maybe Text -> Query -> Collection -> [(Text, Text)]
 getParameters prefix q display =

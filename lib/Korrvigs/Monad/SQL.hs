@@ -40,6 +40,7 @@ import qualified Data.Text as T
 import Data.Time.Clock
 import qualified Database.PostgreSQL.Simple as Simple
 import GHC.Int (Int64)
+import qualified Korrvigs.AddressBook.SQL as Abook
 import qualified Korrvigs.Calendar.SQL as Cal
 import Korrvigs.Compute.SQL
 import Korrvigs.Compute.Type
@@ -102,6 +103,7 @@ loadImpl (Just row) =
         Event -> Event.sqlLoad sqlI $ mkEntry row
         Calendar -> Cal.sqlLoad sqlI $ mkEntry row
         Syndicate -> Syn.sqlLoad sqlI $ mkEntry row
+        AddressBook -> Abook.sqlLoad sqlI $ mkEntry row
 
 loadSelect :: (MonadKorrvigs m, Default FromFields a b) => Select (a, EntryRowSQLR) -> m (Maybe (b, Entry))
 loadSelect s = do
@@ -139,6 +141,8 @@ dispatchRemove rm (CalendarD cal) =
   let i = cal ^. calEntry . entryId in rm i $ Cal.sqlRemove i
 dispatchRemove rm (SyndicateD syn) =
   let i = syn ^. synEntry . entryId in rm i $ Syn.sqlRemove i
+dispatchRemove rm (AddressBookD abook) =
+  let i = abook ^. abookEntry . entryId in rm i $ Abook.sqlRemove i
 
 removeKindDB :: (MonadKorrvigs m) => Entry -> m ()
 removeKindDB entry = dispatchRemove (\_ dels -> atomicSQL $ \conn -> forM_ dels $ runDelete conn) $ entry ^. entryKindData
@@ -222,6 +226,7 @@ syncSQL update nameToId kd sqlI dt = do
         Event -> mapM_ (runDelete conn) $ Event.sqlRemove sqlI
         Calendar -> mapM_ (runDelete conn) $ Cal.sqlRemove sqlI
         Syndicate -> mapM_ (runDelete conn) $ Syn.sqlRemove sqlI
+        AddressBook -> mapM_ (runDelete conn) $ Abook.sqlRemove sqlI
     -- Update entry
     void $
       runUpdate conn $

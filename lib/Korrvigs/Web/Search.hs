@@ -136,6 +136,9 @@ kindForm prefix kdQ = do
           <label for=#{synUrlId}>
             URL:
           <input ##{synUrlId} type=text name=#{applyPrefix prefix "syn-url"} value=#{fromMaybe "" synUrlV}>
+        <li>
+          <input type=radio name=#{applyPrefix prefix "kind"} value=#{displayKind AddressBook} *{sattr "checked" $ Just AddressBook == kd}>
+          AddressBook
   |]
   where
     kd = queryToKind <$> kdQ

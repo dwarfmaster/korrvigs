@@ -20,6 +20,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.IO (putStrLn)
 import qualified Database.PostgreSQL.Simple as Simple
+import qualified Korrvigs.AddressBook.Sync as Abook
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Entry
 import qualified Korrvigs.Event.Sync as Event
@@ -45,6 +46,7 @@ remove entry = do
     EventD ev -> Event.remove ev
     CalendarD cal -> Cal.remove cal
     SyndicateD syn -> Syn.remove syn
+    AddressBookD abook -> Abook.remove abook
 
 loadIDsFor :: forall m. (MonadKorrvigs m) => Text -> (FilePath -> Id) -> m (Set FilePath) -> m (Map Id (NonEmpty FilePath))
 loadIDsFor kdTxt extractId doList = do
@@ -58,6 +60,7 @@ loadIDsOn File = loadIDsFor (displayKind File) File.fileIdFromPath File.list
 loadIDsOn Event = loadIDsFor (displayKind Event) (fst . Event.eventIdFromPath) Event.list
 loadIDsOn Calendar = loadIDsFor (displayKind Calendar) Cal.calIdFromPath Cal.list
 loadIDsOn Syndicate = loadIDsFor (displayKind Syndicate) Syn.synIdFromPath Syn.list
+loadIDsOn AddressBook = loadIDsFor (displayKind AddressBook) Abook.abookIdFromPath Abook.list
 
 loadIDs :: (MonadKorrvigs m) => m (Map Id (NonEmpty (Kind, FilePath)))
 loadIDs = do
@@ -75,6 +78,7 @@ runSync File = File.syncOne
 runSync Event = Event.syncOne
 runSync Calendar = Cal.syncOne
 runSync Syndicate = Syn.syncOne
+runSync AddressBook = Abook.syncOne
 
 doSync :: (MonadKorrvigs m) => (Id -> Maybe Int) -> Kind -> Id -> FilePath -> Int -> m ()
 doSync lookupSqlI kd i path sqlI =
@@ -83,7 +87,7 @@ doSync lookupSqlI kd i path sqlI =
 sync :: (MonadKorrvigs m) => m ()
 sync = do
   withSQL $ \conn ->
-    void $ liftIO $ Simple.execute_ conn "truncate entries, entries_metadata, entries_sub, entries_ref_to, computations, computations_dep, notes, notes_collections, notes_tasks, files, events, calendars, syndicates, syndicated_items"
+    void $ liftIO $ Simple.execute_ conn "truncate entries, entries_metadata, entries_sub, entries_ref_to, computations, computations_dep, notes, notes_collections, notes_tasks, files, events, calendars, syndicates, syndicated_items, addressbooks"
   ids <- loadIDs
   let conflict = (_2 %~ NE.toList . fmap snd) <$> M.toList (M.filter ((>= 2) . length) ids)
   unless (null conflict) $ throwM $ KDuplicateId conflict
@@ -148,3 +152,5 @@ syncOne entry = case entry ^. entryKindData of
   EventD event -> syncFileOfKind (entry ^. entryName) (event ^. eventFile) (entry ^. entryId) Event
   CalendarD cal -> Cal.calendarPath cal >>= \path -> syncFileOfKind (entry ^. entryName) path (entry ^. entryId) Calendar
   SyndicateD syn -> syncFileOfKind (entry ^. entryName) (syn ^. synPath) (entry ^. entryId) Syndicate
+  AddressBookD abook ->
+    Abook.abookPath abook >>= \path -> syncFileOfKind (entry ^. entryName) path (entry ^. entryId) AddressBook

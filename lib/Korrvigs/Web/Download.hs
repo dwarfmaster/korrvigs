@@ -4,6 +4,7 @@ import Control.Lens
 import Control.Monad
 import Data.Text (Text)
 import qualified Data.Text as T
+import Korrvigs.AddressBook (abookPath)
 import Korrvigs.Calendar (calendarPath)
 import Korrvigs.Entry
 import Korrvigs.Monad
@@ -27,6 +28,9 @@ downloadEntry (CalendarD cal) = do
   pure $ toTypedContent (typeJson, ContentFile path Nothing)
 downloadEntry (SyndicateD syn) =
   pure $ toTypedContent (typeJson, ContentFile (syn ^. synPath) Nothing)
+downloadEntry (AddressBookD abook) = do
+  path <- abookPath abook
+  pure $ toTypedContent (typeJson, ContentFile path Nothing)
 
 suggestExtension :: KindData -> Text
 suggestExtension (FileD file) = T.pack $ takeExtension $ file ^. filePath
@@ -34,6 +38,7 @@ suggestExtension (NoteD _) = ".md"
 suggestExtension (EventD _) = ".ics"
 suggestExtension (CalendarD _) = ".json"
 suggestExtension (SyndicateD _) = ".json"
+suggestExtension (AddressBookD _) = ".json"
 
 filenameHint :: Text -> KindData -> Handler ()
 filenameHint i dat =

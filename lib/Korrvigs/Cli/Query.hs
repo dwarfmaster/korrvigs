@@ -57,6 +57,7 @@ kindNames File = "file"
 kindNames Event = "event"
 kindNames Calendar = "calendar"
 kindNames Syndicate = "syndicate"
+kindNames AddressBook = "addressbook"
 
 kindParser :: ReadM KindQuery
 kindParser = eitherReader $ \s -> case M.lookup s names of

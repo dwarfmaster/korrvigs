@@ -128,12 +128,15 @@ newtype SyndicateQuery = SyndicateQuery
   }
   deriving (Show, Eq)
 
+data AddressBookQuery = AddressBookQuery deriving (Show, Eq)
+
 data KindQuery
   = KindQueryNote NoteQuery
   | KindQueryFile FileQuery
   | KindQueryEvent EventQuery
   | KindQueryCalendar CalendarQuery
   | KindQuerySyndicate SyndicateQuery
+  | KindQueryAddressBook AddressBookQuery
   deriving (Show, Eq)
 
 data QueryRel = QueryRel
@@ -277,12 +280,22 @@ instance FromJSON SyndicateQuery where
 instance Default SyndicateQuery where
   def = SyndicateQuery def
 
+instance ToJSON AddressBookQuery where
+  toJSON AddressBookQuery = object []
+
+instance FromJSON AddressBookQuery where
+  parseJSON = withObject "AddressBookQuery" $ const $ pure AddressBookQuery
+
+instance Default AddressBookQuery where
+  def = AddressBookQuery
+
 instance ToJSON KindQuery where
   toJSON (KindQueryNote nq) = object ["kind" .= Note, "query" .= nq]
   toJSON (KindQueryFile fq) = object ["kind" .= File, "query" .= fq]
   toJSON (KindQueryEvent eq) = object ["kind" .= Event, "query" .= eq]
   toJSON (KindQueryCalendar cq) = object ["kind" .= Calendar, "query" .= cq]
   toJSON (KindQuerySyndicate sq) = object ["kind" .= Syndicate, "query" .= sq]
+  toJSON (KindQueryAddressBook ab) = object ["kind" .= AddressBook, "query" .= ab]
 
 queryFromKind :: Kind -> KindQuery
 queryFromKind = \case
@@ -291,6 +304,7 @@ queryFromKind = \case
   Event -> KindQueryEvent def
   Calendar -> KindQueryCalendar def
   Syndicate -> KindQuerySyndicate def
+  AddressBook -> KindQueryAddressBook def
 
 queryToKind :: KindQuery -> Kind
 queryToKind (KindQueryNote _) = Note
@@ -298,6 +312,7 @@ queryToKind (KindQueryFile _) = File
 queryToKind (KindQueryEvent _) = Event
 queryToKind (KindQueryCalendar _) = Calendar
 queryToKind (KindQuerySyndicate _) = Syndicate
+queryToKind (KindQueryAddressBook _) = AddressBook
 
 instance FromJSON KindQuery where
   parseJSON (String txt) = queryFromKind <$> parseJSON (String txt)
@@ -311,6 +326,7 @@ instance FromJSON KindQuery where
             Event -> KindQueryEvent <$> obj .: "query"
             Calendar -> KindQueryCalendar <$> obj .: "query"
             Syndicate -> KindQuerySyndicate <$> obj .: "query"
+            AddressBook -> KindQueryAddressBook <$> obj .: "query"
       )
       v
 
@@ -398,6 +414,10 @@ compileSyndicateQuery entry sq = do
     let sqlUrl = fromNullable (sqlStrictText "") (syn ^. sqlSynUrl)
      in where_ $ sqlMatchRegexCaseInsensitive sqlUrl (sqlStrictText url)
 
+compileAddressBookQuery :: EntryRowSQLR -> AddressBookQuery -> Select ()
+compileAddressBookQuery entry AddressBookQuery =
+  where_ $ entry ^. sqlEntryKind .== sqlKind AddressBook
+
 -- Match all that are related by the relation table to the result of the query
 compileRel :: EntryRowSQLR -> Table a RelRowSQL -> Bool -> QueryRel -> Select ()
 compileRel entry tbl direct q = limit 1 $ do
@@ -458,6 +478,7 @@ compileQuery query = do
     KindQueryEvent eq -> compileEventQuery entry eq
     KindQueryCalendar cq -> compileCalendarQuery entry cq
     KindQuerySyndicate sq -> compileSyndicateQuery entry sq
+    KindQueryAddressBook ab -> compileAddressBookQuery entry ab
   -- Checks against metadata
   forM_ (query ^. queryMtdt) $ \q -> do
     mtdt <- selectTable entriesMetadataTable

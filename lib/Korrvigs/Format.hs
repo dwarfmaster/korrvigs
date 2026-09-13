@@ -18,6 +18,7 @@ import qualified Data.Text.Encoding as Enc
 import Data.Time.Calendar
 import Data.Time.Format.ISO8601
 import Data.Time.LocalTime
+import qualified Korrvigs.AddressBook.Sync as Abook
 import qualified Korrvigs.Calendar.Sync as Cal
 import Korrvigs.Entry
 import Korrvigs.Kind
@@ -195,12 +196,21 @@ synSpec =
       ("url", fromLens $ synUrl . _Just)
     ]
 
+abookSpec :: (MonadKorrvigs m) => FormatSpec m AddressBook
+abookSpec =
+  singleton "path" (fmap ((: []) . Bld.string) . Abook.abookPath)
+    <> fromList
+      [ ("server", fromLens abookServer),
+        ("user", fromLens abookUser)
+      ]
+
 kindDataSpec :: (MonadKorrvigs m) => Kind -> FormatSpec m Entry
 kindDataSpec Note = liftSpec _Note noteSpec
 kindDataSpec File = liftSpec _File fileSpec
 kindDataSpec Event = liftSpec _Event eventSpec
 kindDataSpec Calendar = liftSpec _Calendar calSpec
 kindDataSpec Syndicate = liftSpec _Syndicate synSpec
+kindDataSpec AddressBook = liftSpec _AddressBook abookSpec
 
 renderMtdt :: (MonadKorrvigs m, ExtraMetadata mtdt, Buildable m (MtdtType mtdt), FromJSON (MtdtType mtdt)) => mtdt -> Entry -> m [TextBuilder]
 renderMtdt mtdt entry =

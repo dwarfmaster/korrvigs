@@ -14,6 +14,7 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO.Utf8 as TIO8
+import Korrvigs.AddressBook.Sync (abookPath)
 import Korrvigs.Calendar.Sync (calendarPath)
 import Korrvigs.Cli.Monad
 import Korrvigs.Compute
@@ -194,6 +195,7 @@ entryPath entry = case entry ^. entryKindData of
   EventD ev -> pure $ ev ^. eventFile
   CalendarD cal -> calendarPath cal
   SyndicateD syn -> pure $ syn ^. synPath
+  AddressBookD abook -> abookPath abook
 
 yuiCompress :: Text -> FilePath -> Text -> IO ()
 yuiCompress tp tgt content = do

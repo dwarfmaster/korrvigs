@@ -69,12 +69,20 @@ data Syndicate = MkSyndicate
   }
   deriving (Show)
 
+data AddressBook = MkAddressBook
+  { _abookEntry :: Entry,
+    _abookServer :: Text,
+    _abookUser :: Text
+  }
+  deriving (Show)
+
 data KindData
   = NoteD Note
   | FileD File
   | EventD Event
   | CalendarD Calendar
   | SyndicateD Syndicate
+  | AddressBookD AddressBook
   deriving (Show)
 
 kindDataKind :: KindData -> Kind
@@ -83,6 +91,7 @@ kindDataKind (FileD _) = File
 kindDataKind (EventD _) = Event
 kindDataKind (CalendarD _) = Calendar
 kindDataKind (SyndicateD _) = Syndicate
+kindDataKind (AddressBookD _) = AddressBook
 
 data Entry = MkEntry
   { _entryId :: Int,
@@ -100,6 +109,7 @@ makeLenses ''Event
 makeLenses ''Note
 makeLenses ''File
 makeLenses ''Syndicate
+makeLenses ''AddressBook
 makePrisms ''KindData
 makeLenses ''Entry
 
@@ -120,6 +130,9 @@ _Calendar = entryKindData . _CalendarD
 
 _Syndicate :: Traversal' Entry Syndicate
 _Syndicate = entryKindData . _SyndicateD
+
+_AddressBook :: Traversal' Entry AddressBook
+_AddressBook = entryKindData . _AddressBookD
 
 class IsKindData a where
   kdEntry :: a -> Entry
@@ -150,3 +163,8 @@ instance IsKindData Syndicate where
   kdEntry = view synEntry
   kdKind = const Syndicate
   kdKindData = SyndicateD
+
+instance IsKindData AddressBook where
+  kdEntry = view abookEntry
+  kdKind = const AddressBook
+  kdKindData = AddressBookD

@@ -14,6 +14,7 @@ toSqlKind File = "file"
 toSqlKind Event = "event"
 toSqlKind Calendar = "calendar"
 toSqlKind Syndicate = "syndicate"
+toSqlKind AddressBook = "addressbook"
 
 sqlKindMapper :: EnumMapper SqlKind Kind
 sqlKindMapper = makeSqlMapper "kind" toSqlKind

@@ -166,6 +166,7 @@ fileSpec :: (MonadKorrvigs m) => FormatSpec m File
 fileSpec =
   fromList
     [ ("path", fromLens $ filePath . to T.pack),
+      ("meta", fromLens $ fileMeta . to T.pack),
       ("status", fromLens $ fileStatus . to displayFileStatus),
       ("mime", fromLens $ fileMime . to Enc.decodeUtf8)
     ]

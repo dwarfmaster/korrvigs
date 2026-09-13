@@ -226,9 +226,9 @@ postNoteSubActR (WId i) (WLoc (LocSub loc)) =
           Right doc -> do
             body <- runConduit $ rawRequestBody .| fold
             let dat = T.strip <$> T.lines (Enc.decodeUtf8 body)
-            (redirUrl, redirEmbed, act) <- case dat of
-              [redirUrl, redirEmbed, act] -> case parseDeepEmbedLoc redirEmbed of
-                Right l -> pure (redirUrl, l, act)
+            (redirUrl, redirEmbed, act, payload) <- case dat of
+              redirUrl : redirEmbed : act : payload -> case parseDeepEmbedLoc redirEmbed of
+                Right l -> pure (redirUrl, l, act, payload)
                 Left err -> invalidArgs [err]
               _ -> invalidArgs []
             ndoc <- case act of
@@ -237,6 +237,7 @@ postNoteSubActR (WId i) (WLoc (LocSub loc)) =
               "header-after" -> pure $ addHeaderAfter loc doc
               "header-before" -> pure $ addHeaderBefore loc doc
               "finish-task" -> pure $ finishTask loc doc
+              "set-metadata" -> setHdMetadata loc doc payload
               _ -> notFound
             let path = note ^. notePath
             fd <- liftIO $ openFile path WriteMode
@@ -255,11 +256,16 @@ postNoteSubActR (WId i) (WLoc (LocSub loc)) =
                   "header-after" -> loc & subOffsets . _head %~ (+ 1)
                   _ -> loc
             let locParam = URI.escapeURIString URI.isUnescapedInURIComponent $ T.unpack $ renderEmbeddedLoc (redirEmbed, nloc)
-            let param = case act of
-                  "finish-task" -> "open"
-                  _ -> "edit"
-            pure $ redirUrl <> "?" <> param <> "=" <> T.pack locParam
+            case act of
+              "finish-task" -> pure $ redirUrl <> "?open=" <> T.pack locParam
+              "set-metadata" -> pure ""
+              _ -> pure $ redirUrl <> "?edit=" <> T.pack locParam
       _ -> notFound
+  where
+    setHdMetadata :: SubLoc -> Document -> [Text] -> Handler Document
+    setHdMetadata lc doc [mtdt, payload] =
+      pure $ doc & sub lc . hdAttr . attrMtdt . at mtdt ?~ [payload]
+    setHdMetadata _ _ _ = invalidArgs []
 postNoteSubActR _ _ = notFound
 
 getNoteColR :: WebId -> Text -> Handler TypedContent

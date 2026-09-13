@@ -46,11 +46,12 @@ import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye hiding (groupBy, not, null)
 import qualified Opaleye as O
 import Text.Blaze (toMarkup)
+import Text.Julius (rawJS)
 import Yesod hiding (Field)
 
 -- Takes the ID of the div containing the content
-titleWidget :: Entry -> Text -> Handler Widget
-titleWidget entry contentId = do
+titleWidget :: Entry -> Text -> Text -> Handler Widget
+titleWidget entry contentId firstId = do
   public <- isPublic
   let title = entry ^. entryTitle
   taskW <- Wdgs.taskWidget (entry ^. entryName) (SubLoc []) =<< loadTask (entry ^. entryName) (entry ^. entryId) title
@@ -85,22 +86,29 @@ titleWidget entry contentId = do
       EventD _ -> pure Nothing
       CalendarD _ -> pure Nothing
       SyndicateD _ -> pure Nothing
-      NoteD _ -> Just <$> editButton (entry ^. entryName) contentId
+      NoteD _ -> Just <$> editButton (entry ^. entryName) contentId firstId
 
-editButton :: Id -> Text -> Handler Widget
-editButton entry edit = do
+editButton :: Id -> Text -> Text -> Handler Widget
+editButton entry edit firstId = do
   public <- isPublic
   buttonId <- newIdent
   redirUrl <- Note.aceRedirect entry Nothing (DeepEmbedLoc [], SubLoc [])
-  js <- Ace.editOnClick buttonId edit "pandoc" (NoteR $ WId entry) redirUrl
+  -- Edit functions
+  editFn <- newIdent
+  editFirstFn <- newIdent
+  editFnJs <- Ace.editFn editFn edit "pandoc" (NoteR $ WId entry) redirUrl
+  editFirstFnJs <- Ace.editFn editFirstFn firstId "pandoc" (NoteSubR (WId entry) (WLoc $ LocFirst $ FirstLoc $ SubLoc [])) redirUrl
   pure $
     if public
       then mempty
       else do
-        js
+        Rcs.headerMenuCode StaticR
+        editFnJs
+        editFirstFnJs
+        toWidget [julius|setupHeaderMenu(#{buttonId}, #{rawJS editFn}, #{rawJS editFirstFn}, null, null, #{redirUrl}, "");|]
         [whamlet|
-        <span ##{buttonId} .edit-header>
-          ✎
+        <span ##{buttonId} .hd-menu>
+          ⋯
       |]
 
 dateWidget :: Entry -> Handler Widget
@@ -339,13 +347,13 @@ subsWidget entry =
     displayCol :: Collection -> Text
     displayCol = T.toTitle . collectionText
 
-contentWidget :: Entry -> Handler Widget
+contentWidget :: Entry -> Handler (Widget, Text, Text)
 contentWidget entry = case entry ^. entryKindData of
   NoteD note -> Note.content note
-  FileD file -> File.content file
-  EventD event -> Event.content event
-  CalendarD cal -> Cal.content cal
-  SyndicateD syn -> Syn.content syn
+  FileD file -> (,"","") <$> File.content file
+  EventD event -> (,"","") <$> Event.content event
+  CalendarD cal -> (,"","") <$> Cal.content cal
+  SyndicateD syn -> (,"","") <$> Syn.content syn
 
 actWidget :: Entry -> Handler Widget
 actWidget entry = do
@@ -368,8 +376,8 @@ entryWidget entry = do
   public <- isPublic
   private <- isPrivate entry
   when (public && private) $ permissionDenied "Tried to access a private entry"
-  contentId <- newIdent
-  title <- titleWidget entry contentId
+  (content, contentId, firstId) <- contentWidget entry
+  title <- titleWidget entry contentId firstId
   dt <- dateWidget entry
   geom <- geometryWidget entry
   mtdt <- Mtdt.widget entry
@@ -377,7 +385,6 @@ entryWidget entry = do
   subs <- subWidget entry
   contact <- contactWidget entry
   gallery <- subsWidget entry
-  content <- contentWidget entry
   actions <- actWidget entry
   cssR <- mkCss
   pure $ do
@@ -395,10 +402,7 @@ entryWidget entry = do
       subs
       contact
       gallery
-    [whamlet|
-      <div ##{contentId}>
-        ^{content}
-    |]
+    content
 
 getEntryR :: WebId -> Handler Html
 getEntryR (WId i) =

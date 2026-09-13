@@ -166,10 +166,15 @@ getOpenParam = do
 
 embed :: Int -> Note -> Handler (Widget, Checks)
 embed lvl note = do
+  (wdgs, checks, _, _) <- embedImpl lvl note
+  pure (wdgs, checks)
+
+embedImpl :: Int -> Note -> Handler (Widget, Checks, Text, Text)
+embedImpl lvl note = do
   msubL <- getOpenParam
   embedOpen lvl note (note ^. noteEntry . entryName, DeepEmbedLoc []) msubL
 
-embedOpen :: Int -> Note -> (Id, DeepEmbedLoc) -> Maybe (Bool, DeepEmbedLoc, SubLoc) -> Handler (Widget, Checks)
+embedOpen :: Int -> Note -> (Id, DeepEmbedLoc) -> Maybe (Bool, DeepEmbedLoc, SubLoc) -> Handler (Widget, Checks, Text, Text)
 embedOpen lvl note embedAt opened = do
   let path = note ^. notePath
   mmd <- readNote path
@@ -184,12 +189,14 @@ embedOpen lvl note embedAt opened = do
         <code>
           #{err}
       |],
-          def
+          def,
+          "",
+          ""
         )
     Right md -> do
       embedContent True True lvl opened embedAt (note ^. noteEntry . entryName) md (md ^. docContent) (md ^. docChecks)
 
-embedContent :: Bool -> Bool -> Int -> Maybe (Bool, DeepEmbedLoc, SubLoc) -> (Id, DeepEmbedLoc) -> Id -> Document -> [Block] -> Checks -> Handler (Widget, Checks)
+embedContent :: Bool -> Bool -> Int -> Maybe (Bool, DeepEmbedLoc, SubLoc) -> (Id, DeepEmbedLoc) -> Id -> Document -> [Block] -> Checks -> Handler (Widget, Checks, Text, Text)
 embedContent enableEdit repComps lvl subL embedAt i doc cnt checks = do
   let isEmbedded = lvl > 0
   let st' =
@@ -207,6 +214,7 @@ embedContent enableEdit repComps lvl subL embedAt i doc cnt checks = do
             & deepOpenedSub .~ (d, loc)
             & editOpen .~ edit
         Nothing -> st'
+  contentId <- newIdent
   firstId <- newIdent
   markdown <- runCompile st $ compileBlocksWithFirstId (Just firstId) cnt
   let w = do
@@ -218,13 +226,16 @@ embedContent enableEdit repComps lvl subL embedAt i doc cnt checks = do
          $if not isEmbedded
            <p .checks-top>
              ^{checksDisplay checks}
-       |]
-        markdown
+        |]
+        [whamlet|
+          <div ##{contentId}>
+            ^{markdown}
+        |]
         unless isEmbedded $ do
           toWidgetHead skyStyle
           Wdgs.sectionLogic
           toWidget [julius|checkboxCleanSpans()|]
-  pure (w, checks)
+  pure (w, checks, contentId, firstId)
 
 isEmbedOpen :: CompileM (Maybe (Bool, DeepEmbedLoc, SubLoc))
 isEmbedOpen = do
@@ -236,8 +247,10 @@ isEmbedOpen = do
       then Just (edit, openedL & deepEmbed %~ drop 1, subL)
       else Nothing
 
-content :: Note -> Handler Widget
-content = fmap fst . embed 0
+content :: Note -> Handler (Widget, Text, Text)
+content note = do
+  (wdg, _, contentId, firstId) <- embedImpl 0 note
+  pure (wdg, contentId, firstId)
 
 -- The first widget correspond to the blocks before the first sub, and the second widget
 -- to the other blocks.
@@ -624,7 +637,7 @@ embedBody i lvl opened embedAt =
         FileD file -> (,def,title) <$> File.embed lvl file
         EventD event -> (,def,title) <$> Event.embed lvl event
         CalendarD cal -> (,def,title) <$> Cal.embed lvl cal
-        NoteD note -> (\(w, c) -> (w, c, title)) <$> embedOpen lvl note embedAt opened
+        NoteD note -> (\(w, c, _, _) -> (w, c, title)) <$> embedOpen lvl note embedAt opened
         SyndicateD syn -> (,def,title) <$> Syn.embed lvl syn
 
 compileAttrWithClasses :: [Text] -> Attr -> CompileM [(Text, Text)]

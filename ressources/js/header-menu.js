@@ -14,7 +14,7 @@ function sendHeaderAction(actUrl, redirUrl, deepEmbed, action) {
 
 function setupHeaderMenu(buttonId, editFn, editFirstFn, openUrl, actUrl, redirUrl, deepEmbed) {
   const elem = document.getElementById(buttonId);
-  if(!editFn && !openUrl && !actUrl) {
+  if(!editFn && !editFirstFn && !openUrl && !actUrl) {
     elem.remove();
     return;
   }

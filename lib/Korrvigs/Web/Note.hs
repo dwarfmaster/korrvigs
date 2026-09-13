@@ -128,6 +128,9 @@ getNoteSubR (WId i) (WLoc loc) =
                 render <- getUrlRender
                 let content = fmap ((unId . view _1) &&& (render . EntryR . WId . view _1)) ids
                 pure $ toTypedContent $ toJSON content
+            LocFirst (FirstLoc (SubLoc [])) -> do
+              let firstBlocks = fst $ splitStartingParagraph $ doc ^. docContent
+              pure $ toTypedContent $ LEnc.decodeUtf8 $ writeBlocksLazy firstBlocks (doc ^. docComputations)
             LocFirst lc -> case doc ^? sub (lc ^. fstSub) of
               Nothing -> notFound
               Just hd -> do
@@ -163,6 +166,9 @@ postNoteSubR (WId i) (WLoc loc) =
             mdoc <- case loc of
               LocCode lc -> pure $ Just $ setCode lc doc txt
               LocSub lc -> Just <$> writeToDoc txt lc doc (subs lc .~)
+              LocFirst (FirstLoc (SubLoc [])) ->
+                fmap Just $ writeToDoc txt (SubLoc []) doc $ \shifted ->
+                  docContent %~ updFirst shifted
               LocFirst lc -> fmap Just $ writeToDoc txt (lc ^. fstSub) doc $ \shifted ->
                 sub (lc ^. fstSub) . hdContent %~ updFirst shifted
               LocCheck lc -> do
@@ -339,7 +345,7 @@ getNoteNamedSubR (WId i) sb = do
   actions <- actionsWidget $ TargetNoteSub note sb
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   hd <- maybe notFound pure $ md ^? docContent . each . bkNamedSub sb
-  (widget, _) <- embedContent False False 0 Nothing (i, DeepEmbedLoc []) i md [Sub hd] (hd ^. hdChecks)
+  (widget, _, _, _) <- embedContent False False 0 Nothing (i, DeepEmbedLoc []) i md [Sub hd] (hd ^. hdChecks)
   public <- isPublic
   cssR <- mkCss
   defaultLayout $ do
@@ -357,7 +363,7 @@ getNoteNamedCodeR (WId i) cd = do
   actions <- actionsWidget $ TargetNoteCode note cd
   md <- readNote (note ^. notePath) >>= throwEither (\err -> KMiscError $ "Failed to load node " <> T.pack (note ^. notePath) <> ": " <> err)
   (attrs, txt) <- maybe notFound pure $ md ^? docContent . each . bkNamedCode cd
-  (widget, _) <- embedContent False False 0 Nothing (i, DeepEmbedLoc []) i md [CodeBlock attrs txt] def
+  (widget, _, _, _) <- embedContent False False 0 Nothing (i, DeepEmbedLoc []) i md [CodeBlock attrs txt] def
   let result = M.lookup cd $ md ^. docComputations
   rwidget <- case result of
     Nothing -> pure mempty

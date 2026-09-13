@@ -85,7 +85,7 @@ writeHeaderLazy :: Header -> Map Text ComputationResult -> BSL.ByteString
 writeHeaderLazy hd comps = runRenderM 80 comps $ renderBlock $ Sub hd
 
 writeBlocksLazy :: [Block] -> Map Text ComputationResult -> BSL.ByteString
-writeBlocksLazy bks comps = runRenderM 80 comps $ mapM_ renderBlock bks
+writeBlocksLazy bks comps = runRenderM 80 comps $ renderTopLevel True bks
 
 render :: Document -> RenderM ()
 render doc = do

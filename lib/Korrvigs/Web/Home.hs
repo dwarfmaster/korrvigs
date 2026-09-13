@@ -68,7 +68,7 @@ favouritesWidget = fromMaybeT notFoundWidget $ do
   entry <- hoistLift $ load i
   note <- hoistMaybe $ entry ^? entryKindData . _NoteD
   msubL <- lift Note.getOpenParam
-  (widget, _) <- lift $ Note.embedOpen 1 note (MkId "", DeepEmbedLoc []) msubL
+  (widget, _, _, _) <- lift $ Note.embedOpen 1 note (MkId "", DeepEmbedLoc []) msubL
   pure widget
   where
     notFoundWidget :: Widget

@@ -29,6 +29,7 @@ import Korrvigs.Query
 import Korrvigs.Utils.Base16
 import Korrvigs.Web.Actions.Bibtex
 import Korrvigs.Web.Actions.Blog
+import Korrvigs.Web.Actions.CardSync
 import Korrvigs.Web.Actions.Collection
 import Korrvigs.Web.Actions.Complete
 import Korrvigs.Web.Actions.Compute
@@ -76,6 +77,7 @@ data ActionLabel
   | LabNewSyndicate
   | LabRunSyndicate
   | LabEventSync
+  | LabCardPull
   | LabExport
   | LabImport
   | LabCollection
@@ -111,6 +113,7 @@ actIcon LabImportRSS = mkIcon "rss" Base0F
 actIcon LabNewSyndicate = mkIcon "rss" Base0E
 actIcon LabRunSyndicate = mkIcon "rss" Base0E
 actIcon LabEventSync = mkIcon "eventsync" Base0E
+actIcon LabCardPull = mkIcon "contacts" Base0B
 actIcon LabExport = mkIcon "export" Base0E
 actIcon LabImport = mkIcon "downloads" Base0E
 actIcon LabCollection = mkIcon "collection" Base0B
@@ -142,6 +145,7 @@ actName LabImportRSS = "importrss"
 actName LabNewSyndicate = "newsyndicate"
 actName LabRunSyndicate = "runsyndicate"
 actName LabEventSync = "eventsync"
+actName LabCardPull = "cardpull"
 actName LabExport = "export"
 actName LabImport = "import"
 actName LabCollection = "collection"
@@ -225,6 +229,7 @@ actForm l@LabImportRSS = genForm importRssForm importRssTitle $ actUrl l
 actForm l@LabNewSyndicate = genForm syndicateForm syndicateTitle $ actUrl l
 actForm l@LabRunSyndicate = genFormM runSyndicateForm runSyndicateTitle $ actUrl l
 actForm l@LabEventSync = genForm syncEvForm syncEvTitle $ actUrl l
+actForm l@LabCardPull = genForm cardPullForm cardPullTitle $ actUrl l
 actForm l@LabExport = genForm exportForm exportTitle $ actUrl l
 actForm l@LabImport = genForm importForm importTitle $ actUrl l
 actForm l@LabCollection = genForm colForm colTitle $ actUrl l
@@ -290,6 +295,7 @@ actPost LabImportRSS = runPost importRssForm runImportRSS
 actPost LabNewSyndicate = runPost syndicateForm runSyndicate
 actPost LabRunSyndicate = runPostM runSyndicateForm runRunSyndicate
 actPost LabEventSync = runPost syncEvForm runSyncEv
+actPost LabCardPull = runPost cardPullForm runCardPull
 actPost LabExport = runPost exportForm runExport
 actPost LabImport = runPost importForm runImport
 actPost LabCollection = runPost colForm runCol
@@ -348,6 +354,7 @@ actCond LabImportRSS = runActCond importRssTarget
 actCond LabNewSyndicate = runActCond syndicateTarget
 actCond LabRunSyndicate = runActCond runSyndicateTarget
 actCond LabEventSync = runActCond syncEvTarget
+actCond LabCardPull = runActCond cardPullTarget
 actCond LabExport = runActCond exportTarget
 actCond LabImport = runActCond importTarget
 actCond LabCollection = runActCond colTarget

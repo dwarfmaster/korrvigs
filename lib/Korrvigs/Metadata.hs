@@ -136,6 +136,11 @@ mkMtdt "Hidden" "hidden" [t|Text|]
 mkMtdt "DownloadURL" "download-url" [t|[Text]|]
 mkMtdt "Device" "device" [t|Text|]
 
+-- DAV metadata
+mkMtdt "DAVCTag" "ctag" [t|Text|]
+mkMtdt "DAVPath" "davpath" [t|Text|]
+mkMtdt "DAVETag" "etag" [t|Text|]
+
 -- RSS metadata
 mkMtdt "SyndicateMtdt" "syndicate" [t|Text|]
 mkMtdt "SyndicateCapture" "capture" [t|Text|]

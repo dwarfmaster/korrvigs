@@ -1,4 +1,14 @@
-module Korrvigs.Note.New (new, NewNote (..), nnEntry, nnTitle, nnTitleOverride, nnIgnoreUrl, moveFile) where
+module Korrvigs.Note.New
+  ( new,
+    NewNote (..),
+    nnEntry,
+    nnTitle,
+    nnTitleOverride,
+    nnIgnoreUrl,
+    nnAllowDuplicateTitle,
+    moveFile,
+  )
+where
 
 import Control.Lens
 import Control.Monad
@@ -42,13 +52,14 @@ data NewNote = NewNote
   { _nnEntry :: NewEntry,
     _nnTitle :: Text,
     _nnTitleOverride :: Bool,
-    _nnIgnoreUrl :: Bool
+    _nnIgnoreUrl :: Bool,
+    _nnAllowDuplicateTitle :: Bool
   }
 
 makeLenses ''NewNote
 
 new :: (MonadKorrvigs m) => NewNote -> m Id
-new note = $withLogContext ("Creating note \"" <> note ^. nnTitle <> "\"") $ do
+new note | not (note ^. nnAllowDuplicateTitle) = $withLogContext ("Creating note \"" <> note ^. nnTitle <> "\"") $ do
   mi <- rSelect $ do
     entry <- selectTable entriesTable
     where_ $ entry ^. sqlEntryKind .== sqlKind Note
@@ -59,6 +70,7 @@ new note = $withLogContext ("Creating note \"" <> note ^. nnTitle <> "\"") $ do
       $log $ EntryAlreadyExistsEvent Note i
       pure i
     [] -> create note
+new note = create note
 
 initContent :: Map (CI Text) Value -> [Block]
 initContent mtdt =

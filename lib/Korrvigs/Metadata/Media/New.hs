@@ -116,7 +116,7 @@ prepareNewMedia nm = $(withLogContext) "Prepare new media" $ do
           & neMtdt %~ M.insert (mtdtName TaskMtdt) "todo"
   let tp = fromMaybe Blogpost $ ne ^? neMtdt . at (mtdtName MediaMtdt) . _Just . _JSON
   let title = fromMaybe (medTxt tp <> " " <> nm ^. nmInput) $ ne ^. neTitle
-  pure $ Note.NewNote ne title (isNothing $ ne ^. neTitle) True
+  pure $ Note.NewNote ne title (isNothing $ ne ^. neTitle) True True
   where
     medTxt :: MediaType -> Text
     medTxt Article = "Article"

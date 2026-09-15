@@ -72,6 +72,7 @@ parser' =
                             <*> argument str (metavar "TITLE")
                             <*> switch (long "allow-override" <> help "If a url is present, use the title extracted from this URL instead")
                             <*> pure False
+                            <*> pure False
                         )
                 )
                   <**> helper
@@ -205,7 +206,8 @@ run (Attach note isPath cmd) =
                   { _nnTitle = nt,
                     _nnEntry = def & neParents .~ [i],
                     _nnTitleOverride = False,
-                    _nnIgnoreUrl = False
+                    _nnIgnoreUrl = False,
+                    _nnAllowDuplicateTitle = False
                   }
           ni <- new options
           liftIO $ putStrLn $ unId ni

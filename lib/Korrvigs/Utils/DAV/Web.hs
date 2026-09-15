@@ -169,12 +169,14 @@ data Property
   = DavProp Text
   | CalDavProp Text
   | CalProp Text
+  | CardProp Text
   | MiscProp Text Text
 
 propToName :: Property -> Name
 propToName (DavProp nm) = Name nm (Just "DAV:") (Just "d")
 propToName (CalDavProp nm) = Name nm (Just "http://calendarserver.org/ns/") (Just "cs")
 propToName (CalProp nm) = Name nm (Just "urn:ietf:params:xml:ns:caldav") (Just "c")
+propToName (CardProp nm) = Name nm (Just "urn:ietf:params:xml:ns:carddav") (Just "card")
 propToName (MiscProp nm ns) = Name nm (Just ns) Nothing
 
 propfind :: (MonadIO m) => DavData -> Text -> [Property] -> PropfindDepth -> m (Either DavError (Map DavRessource PropStat))

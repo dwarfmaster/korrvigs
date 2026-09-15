@@ -50,6 +50,7 @@ mkMtdt "ContactMtdt" "contact" [t|Map Text [Text]|]
 mkMtdt "Gender" "gender" [t|Text|]
 mkMtdt "Pronouns" "pronouns" [t|Map Text Text|]
 mkMtdt "Nicknames" "nicknames" [t|[Text]|]
+mkMtdt "VCardUID" "vcard-uid" [t|Text|]
 
 data ContactDataImpl a b c d e f g h i j = ContactData
   { _contactName :: a,

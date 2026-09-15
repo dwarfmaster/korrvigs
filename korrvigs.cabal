@@ -49,6 +49,7 @@ library korrvigs-lib
     Data.Viking.Parser
     Korrvigs
     Korrvigs.AddressBook
+    Korrvigs.AddressBook.DAV
     Korrvigs.AddressBook.SQL
     Korrvigs.AddressBook.Sync
     Korrvigs.Calendar
@@ -203,6 +204,7 @@ library korrvigs-lib
     Korrvigs.Utils.DateTree
     Korrvigs.Utils.DAV
     Korrvigs.Utils.DAV.Cal
+    Korrvigs.Utils.DAV.Card
     Korrvigs.Utils.DAV.Web
     Korrvigs.Utils.Git
     Korrvigs.Utils.Git.Annex
@@ -220,6 +222,7 @@ library korrvigs-lib
     Korrvigs.Web.Actions
     Korrvigs.Web.Actions.Bibtex
     Korrvigs.Web.Actions.Blog
+    Korrvigs.Web.Actions.CardSync
     Korrvigs.Web.Actions.Collection
     Korrvigs.Web.Actions.Complete
     Korrvigs.Web.Actions.Compute

@@ -159,6 +159,7 @@ in
     ln -s ${./ressources/icons/update.png} $out/icons/update.png
     ln -s ${./ressources/icons/blog.png} $out/icons/blog.png
     ln -s ${./ressources/icons/complete.png} $out/icons/complete.png
+    ln -s ${./ressources/icons/contacts.png} $out/icons/contacts.png
 
     mkdir $out/platforms
     ln -s ${./ressources/icons/platforms/github.png} $out/platforms/github.png

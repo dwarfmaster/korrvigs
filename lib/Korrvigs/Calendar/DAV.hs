@@ -27,7 +27,6 @@ import Korrvigs.Event.Sync (eventsDirectory)
 import qualified Korrvigs.Event.Sync as Ev
 import Korrvigs.Kind
 import Korrvigs.Metadata
-import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 import Korrvigs.Monad.Metadata
 import Korrvigs.Monad.Remove
@@ -41,10 +40,6 @@ import Network.URI hiding (path)
 import Opaleye hiding (null)
 
 -- New
-mkMtdt "DAVCTag" "ctag" [t|Text|]
-mkMtdt "DAVPath" "davpath" [t|Text|]
-mkMtdt "DAVETag" "etag" [t|Text|]
-
 setupCDD :: (MonadKorrvigs m) => Calendar -> Text -> m DAV.CalDavData
 setupCDD cal pwd = do
   man <- manager

@@ -31,6 +31,8 @@ import Data.Text.Encoding.Base64
 import Data.Time.Calendar hiding (periodLength)
 import Data.Time.Clock
 import Data.Time.Format.ISO8601
+import qualified Korrvigs.AddressBook.DAV as Card
+import Korrvigs.AddressBook.SQL
 import qualified Korrvigs.Calendar.DAV as Cal
 import Korrvigs.Calendar.SQL
 import qualified Korrvigs.Compute.Run as Comp
@@ -88,6 +90,7 @@ parsePeriod txt = case parse periodParser "<period>" txt of
 data AutoRunnableTarget
   = AutoSyn Syndicate
   | AutoCal Calendar
+  | AutoCard AddressBook
   | AutoCode Id Text
   deriving (Show)
 
@@ -163,12 +166,17 @@ listCalendarTargets :: (MonadKorrvigs m) => m [AutoRunnable]
 listCalendarTargets =
   listEntryTargets calendarsTable (view sqlCalId) CalendarD calFromRow AutoCal
 
+listAddressBookTargets :: (MonadKorrvigs m) => m [AutoRunnable]
+listAddressBookTargets =
+  listEntryTargets addressBooksTable (view sqlAbookId) AddressBookD abookFromRow AutoCard
+
 listTargets :: (MonadKorrvigs m) => m [AutoRunnable]
 listTargets =
   mconcat
     <$> sequence
       [ listSyndicateTargets,
         listCalendarTargets,
+        listAddressBookTargets,
         listComputationTargets
       ]
 
@@ -220,6 +228,11 @@ targetRun (AutoCal cal) = fromMaybeT () $ do
   pwdEnc <- hoistMaybe $ M.lookup (cal ^. calServer) davCreds
   let pwd = T.strip $ decodeBase64Lenient pwdEnc
   void $ lift $ Cal.syncCalendar ($logTrace . MiscEvent) cal pwd
+targetRun (AutoCard abook) = fromMaybeT () $ do
+  davCreds <- hoistLift $ getCredential "carddav"
+  pwdEnc <- hoistMaybe $ M.lookup (abook ^. abookServer) davCreds
+  let pwd = T.strip $ decodeBase64Lenient pwdEnc
+  void $ lift $ Card.pullAddressBook ($logTrace . MiscEvent) abook pwd
 targetRun (AutoCode i code) = fromMaybeT () $ do
   comp <- hoistLift $ getComputation i code
   r <- lift $ Comp.runForce comp
@@ -231,6 +244,7 @@ targetRun (AutoCode i code) = fromMaybeT () $ do
 displayTarget :: AutoRunnableTarget -> Text
 displayTarget (AutoSyn syn) = "syn:" <> unId (syn ^. synEntry . entryName)
 displayTarget (AutoCal cal) = "cal:" <> unId (cal ^. calEntry . entryName)
+displayTarget (AutoCard abook) = "abook:" <> unId (abook ^. abookEntry . entryName)
 displayTarget (AutoCode i code) = "code:" <> unId i <> "#" <> code
 
 targetsRun :: (MonadKorrvigs m) => Int -> m ()

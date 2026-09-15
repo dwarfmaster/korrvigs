@@ -72,7 +72,8 @@ data Syndicate = MkSyndicate
 data AddressBook = MkAddressBook
   { _abookEntry :: Entry,
     _abookServer :: Text,
-    _abookUser :: Text
+    _abookUser :: Text,
+    _abookName :: Text
   }
   deriving (Show)
 

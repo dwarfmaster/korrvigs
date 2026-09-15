@@ -41,7 +41,7 @@ setupCDD abook pwd = do
         DAV._cardPwd = pwd,
         DAV._cardManager = man,
         DAV._cardServer = abook ^. abookServer,
-        DAV._cardAbook = "contacts" -- undefined
+        DAV._cardAbook = abook ^. abookName
       }
 
 reportErr :: (Text -> m ()) -> Web.DavError -> m ()

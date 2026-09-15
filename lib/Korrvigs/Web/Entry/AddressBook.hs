@@ -16,6 +16,9 @@ embed _ abook = do
       <tr>
         <td>User
         <td>#{abook ^. abookUser}
+      <tr>
+        <td>Addressbook name
+        <td>#{abook ^. abookName}
   |]
 
 content :: AddressBook -> Handler Widget

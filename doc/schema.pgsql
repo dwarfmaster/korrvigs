@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS addressbooks (
   kind KIND NOT NULL CHECK(kind = 'addressbook'),
   server TEXT NOT NULL,
   usr TEXT NOT NULL,
+  abookname TEXT NOT NULL,
   CONSTRAINT addressbooks_entries
     FOREIGN KEY (id,kind) references entries(id,kind)
 );

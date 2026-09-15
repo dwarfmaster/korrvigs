@@ -29,6 +29,7 @@ import Prelude hiding (readFile, writeFile)
 data AbookJSON = AbookJSON
   { _abjsServer :: Text,
     _abjsUser :: Text,
+    _abjsName :: Text,
     _abjsGen :: Gen.EntryJSON
   }
 
@@ -39,13 +40,15 @@ instance FromJSON AbookJSON where
     AbookJSON
       <$> v .: "server"
       <*> v .: "user"
+      <*> v .: "name"
       <*> Gen.parseObject v
 
 instance ToJSON AbookJSON where
-  toJSON (AbookJSON server user gen) =
+  toJSON (AbookJSON server user abookname gen) =
     object $
       [ "server" .= server,
-        "user" .= user
+        "user" .= user,
+        "name" .= abookname
       ]
         ++ Gen.toObjectPairs gen
 
@@ -81,7 +84,7 @@ syncOne i path sqlI = do
     i
     sqlI
     json
-    [ let abrow = AddressBookRow sqlI (json ^. abjsServer) (json ^. abjsUser) :: AddressBookRow
+    [ let abrow = AddressBookRow sqlI (json ^. abjsServer) (json ^. abjsUser) (json ^. abjsName) :: AddressBookRow
        in Insert
             { iTable = addressBooksTable,
               iRows = [toFields abrow],

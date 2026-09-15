@@ -16,21 +16,22 @@ import Opaleye
 
 -- Address books table
 
-data AddressBookRowImpl a b c = AddressBookRow
+data AddressBookRowImpl a b c d = AddressBookRow
   { _sqlAbookId :: a,
     _sqlAbookServer :: b,
-    _sqlAbookUser :: c
+    _sqlAbookUser :: c,
+    _sqlAbookName :: d
   }
 
 makeLenses ''AddressBookRowImpl
 $(makeAdaptorAndInstanceInferrable "pAddressBookRow" ''AddressBookRowImpl)
 
-type AddressBookRow = AddressBookRowImpl Int Text Text
+type AddressBookRow = AddressBookRowImpl Int Text Text Text
 
-type AddressBookRowSQL = AddressBookRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText)
+type AddressBookRowSQL = AddressBookRowImpl (Field SqlInt4) (Field SqlText) (Field SqlText) (Field SqlText)
 
 instance Default ToFields AddressBookRow AddressBookRowSQL where
-  def = pAddressBookRow $ AddressBookRow def def def
+  def = pAddressBookRow $ AddressBookRow def def def def
 
 addressBooksTable :: Table AddressBookRowSQL AddressBookRowSQL
 addressBooksTable =
@@ -40,13 +41,15 @@ addressBooksTable =
         (nameKindField AddressBook)
         (tableField "server")
         (tableField "usr")
+        (tableField "abookname")
 
 abookFromRow :: AddressBookRow -> Entry -> AddressBook
 abookFromRow row entry =
   MkAddressBook
     { _abookEntry = entry,
       _abookServer = row ^. sqlAbookServer,
-      _abookUser = row ^. sqlAbookUser
+      _abookUser = row ^. sqlAbookUser,
+      _abookName = row ^. sqlAbookName
     }
 
 sqlLoad :: (MonadKorrvigs m) => Int -> ((Entry -> AddressBook) -> Entry) -> m (Maybe Entry)

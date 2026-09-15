@@ -92,7 +92,7 @@ taskRows sqlI = rec [] . view docContent
   where
     taskRowsImpl :: [Int] -> Header -> [NoteTaskRow]
     taskRowsImpl offsets hd =
-      toList (mkTaskRow sqlI offsets <$> hd ^. hdTask) <> rec offsets (hd ^. hdContent)
+      toList (mkTaskRow sqlI (reverse offsets) <$> hd ^. hdTask) <> rec offsets (hd ^. hdContent)
     rec :: [Int] -> [Block] -> [NoteTaskRow]
     rec offsets bks =
       flip concatMap (zip (bks ^.. each . _Sub) [(0 :: Int) ..]) $

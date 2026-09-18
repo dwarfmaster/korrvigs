@@ -11,6 +11,7 @@ import Data.Default
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Text (Text)
 import Data.Time.LocalTime
 import GHC.Int (Int64)
@@ -29,6 +30,7 @@ data EntryJSON = EntryJSON
     _ejsTitle :: Maybe Text,
     _ejsParents :: [Text]
   }
+  deriving (Show)
 
 makeLenses ''EntryJSON
 
@@ -44,7 +46,10 @@ parseObject obj =
     <*> obj .:? "geometry"
     <*> obj .:? "textContent"
     <*> obj .:? "title"
-    <*> obj .: "parents"
+    <*> (fromMaybe [] <$> obj .:? "parents")
+
+instance FromJSON EntryJSON where
+  parseJSON = withObject "EntryJSON" parseObject
 
 toObjectPairs :: EntryJSON -> [Pair]
 toObjectPairs json =
@@ -56,6 +61,9 @@ toObjectPairs json =
     ++ maybe [] ((: []) . ("geometry" .=)) (json ^. ejsGeo)
     ++ maybe [] ((: []) . ("textContent" .=)) (json ^. ejsText)
     ++ maybe [] ((: []) . ("title" .=)) (json ^. ejsTitle)
+
+instance ToJSON EntryJSON where
+  toJSON = object . toObjectPairs
 
 class (ToJSON j, FromJSON j) => JsonEntry j e | j -> e, e -> j where
   genericJson :: Lens' j EntryJSON

@@ -101,6 +101,22 @@ taskWidget i subL (Just tsk) = do
       TaskDone -> "task-done"
       TaskDont -> "task-dont"
 
+checkBoxUninteractive :: Maybe Text -> TaskStatus -> Handler Html
+checkBoxUninteractive mid ck = do
+  render <- getUrlRender
+  pure $
+    maybe id (applyAttr . Attr.id . textValue) mid $
+      applyAttr (Attr.src $ textValue $ render $ checkImg ck) $
+        applyAttr (Attr.class_ "checkBox") Html.img
+
+checkImg :: TaskStatus -> Route WebData
+checkImg TaskTodo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []
+checkImg TaskImportant = StaticR $ StaticRoute ["icons", "checkbox-important.svg"] []
+checkImg TaskOngoing = StaticR $ StaticRoute ["icons", "checkbox-ongoing.svg"] []
+checkImg TaskBlocked = StaticR $ StaticRoute ["icons", "checkbox-blocked.svg"] []
+checkImg TaskDone = StaticR $ StaticRoute ["icons", "checkbox-done.svg"] []
+checkImg TaskDont = StaticR $ StaticRoute ["icons", "checkbox-dont.svg"] []
+
 checkBox :: TaskStatus -> Route WebData -> Handler (Html, Widget, Text)
 checkBox ck postRoute = do
   render <- getUrlRender
@@ -113,20 +129,9 @@ checkBox ck postRoute = do
   let doneUrl = render $ checkImg TaskDone
   let dontUrl = render $ checkImg TaskDont
   let postUrl = render postRoute
-  let h =
-        applyAttr (Attr.id $ textValue cid) $
-          applyAttr (Attr.src $ textValue $ render $ checkImg ck) $
-            applyAttr (Attr.class_ "checkBox") Html.img
+  h <- checkBoxUninteractive (Just cid) ck
   let w = toWidget [julius|setupCheckbox(#{postUrl}, #{todoUrl}, #{importantUrl}, #{ongoingUrl}, #{blockedUrl}, #{doneUrl}, #{dontUrl}, #{cid});|]
   pure (h, if public then mempty else w, cid)
-  where
-    checkImg :: TaskStatus -> Route WebData
-    checkImg TaskTodo = StaticR $ StaticRoute ["icons", "checkbox-todo.svg"] []
-    checkImg TaskImportant = StaticR $ StaticRoute ["icons", "checkbox-important.svg"] []
-    checkImg TaskOngoing = StaticR $ StaticRoute ["icons", "checkbox-ongoing.svg"] []
-    checkImg TaskBlocked = StaticR $ StaticRoute ["icons", "checkbox-blocked.svg"] []
-    checkImg TaskDone = StaticR $ StaticRoute ["icons", "checkbox-done.svg"] []
-    checkImg TaskDont = StaticR $ StaticRoute ["icons", "checkbox-dont.svg"] []
 
 checkBoxDWIM :: Id -> Maybe Text -> Handler Widget
 checkBoxDWIM _ Nothing = pure mempty
@@ -134,6 +139,12 @@ checkBoxDWIM i (Just tsName) = case parseStatusName tsName of
   Just ts -> do
     (h, w, _) <- checkBox ts (EntryMtdtR $ WId i)
     pure $ w >> toWidget h
+  Nothing -> pure mempty
+
+checkBoxUninteractiveDWIM :: Maybe Text -> Handler Widget
+checkBoxUninteractiveDWIM Nothing = pure mempty
+checkBoxUninteractiveDWIM (Just tsName) = case parseStatusName tsName of
+  Just ts -> toWidget <$> checkBoxUninteractive Nothing ts
   Nothing -> pure mempty
 
 applyAttr :: Attribute -> Html -> Html

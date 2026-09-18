@@ -62,6 +62,7 @@ getNoteColBibtexR (WId i) col = do
       entry <- selectTable entriesTable
       where_ $ entry ^. sqlEntryId .== src
       pure $ entry ^. sqlEntryName
+    loadIDs (ColItemDummy _) = pure []
     loadIDs (ColItemComment _) = pure []
 
 getBibtex :: Text -> [Id] -> Handler TypedContent

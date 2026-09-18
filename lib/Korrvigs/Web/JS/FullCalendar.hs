@@ -7,6 +7,7 @@ import Data.Text (Text)
 import Data.Time.Clock
 import Data.Time.LocalTime
 import Korrvigs.Entry
+import Korrvigs.Monad.Collections
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Time
 import Korrvigs.Web.Backend
@@ -36,8 +37,9 @@ instance ToJSON CalendarEvent where
         ++ maybe [] (\url -> ["url" .= url]) (ev ^. evUrl)
         ++ maybe [] (\col -> ["color" .= col]) (ev ^. evColor)
 
-entryToEvent :: EntryRowR -> Handler (Maybe CalendarEvent)
-entryToEvent entry = runMaybeT $ do
+colEntryToEvent :: ColEntry -> Handler (Maybe CalendarEvent)
+colEntryToEvent entry = runMaybeT $ do
+  let isDummy = isNothing $ entry ^. sqlEntryKind
   let title = entry ^. sqlEntryTitle
   render <- lift getUrlRender
   public <- lift isPublic
@@ -46,13 +48,14 @@ entryToEvent entry = runMaybeT $ do
   let hasDur = isJust $ entry ^. sqlEntryDuration
   let end = addCalendar dur start
   let allDay = extractTime start == daySep && hasDur && extractTime end == daySep
+  evT <- if isDummy then hoistMaybe title else pure $ fromMaybe ("@" <> unId i) title
   pure $
     CalendarEvent
-      { _evTitle = fromMaybe ("@" <> unId i) title,
+      { _evTitle = evT,
         _evStart = start,
         _evEnd = if hasDur then Just end else Nothing,
         _evAllDay = Just allDay,
-        _evUrl = if public then Nothing else Just $ render $ EntryR $ WId i,
+        _evUrl = if public || isDummy then Nothing else Just $ render $ EntryR $ WId i,
         _evColor = Nothing
       }
   where
@@ -60,6 +63,9 @@ entryToEvent entry = runMaybeT $ do
     daySep = TimeOfDay 0 0 0
     extractTime = localTimeOfDay . zonedTimeToLocalTime
     noDuration = CalendarDiffTime 0 $ secondsToNominalDiffTime 0
+
+entryToEvent :: EntryRowR -> Handler (Maybe CalendarEvent)
+entryToEvent = colEntryToEvent . toColEntry
 
 logic :: JavascriptUrl url
 logic =

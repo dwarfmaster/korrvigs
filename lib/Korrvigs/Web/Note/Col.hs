@@ -87,6 +87,7 @@ getNoteColEditR (WId i) col = do
                 <a href=@{EntryR $ WId $ view sqlEntryName row}>
                   #{fromMaybe ("#" <> unId (view sqlEntryName row)) (view sqlEntryTitle row)}
       |]
+    ColItemDummy _ -> pure mempty
     ColItemComment _ -> pure mempty
   cssR <- mkCss
   defaultLayout $ do

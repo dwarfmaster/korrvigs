@@ -358,6 +358,9 @@ parseColItem line = case prefix of
     Left err -> A.ColItemComment $ suffix <> ": " <> T.pack err
     Right q -> A.ColItemQuery q
   "s " -> A.ColItemSubOf $ suffixId suffix
+  "v " -> case eitherDecode (LEnc.encodeUtf8 $ LT.fromStrict suffix) of
+    Left err -> A.ColItemComment $ suffix <> ": " <> T.pack err
+    Right v -> A.ColItemDummy v
   "# " -> A.ColItemComment suffix
   _ -> A.ColItemComment line
   where

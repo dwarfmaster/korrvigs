@@ -169,6 +169,8 @@ computeAgeAt yr mbday currentDay = do
 mergeFromVCard :: (MonadKorrvigs m) => Entry -> VCardFile -> m ()
 mergeFromVCard entry vcard = do
   -- Atomic update metadata
+  oldFullName <- rSelectMtdt FullName entry
+  oldUrl <- rSelectMtdt Url entry
   upd <- liftIO $ do
     upd <- newIORef M.empty
     forM_ (vcard ^. vcAnniversary) $ \day -> do
@@ -179,10 +181,12 @@ mergeFromVCard entry vcard = do
       let (yr, month, d) = toGregorian day
       modifyIORef upd $ M.insert (mtdtSqlName BirthDayMtdt) $ toJSON $ BirthDay month d
       modifyIORef upd $ M.insert (mtdtSqlName BirthYear) $ toJSON yr
-    forM_ (vcard ^. vcFullName) $ \fn ->
-      modifyIORef upd $ M.insert (mtdtSqlName FullName) $ toJSON fn
-    forM_ (vcard ^. vcUrl) $ \url ->
-      modifyIORef upd $ M.insert (mtdtSqlName Url) $ toJSON url
+    when (isNothing oldFullName) $
+      forM_ (vcard ^. vcFullName) $ \fn ->
+        modifyIORef upd $ M.insert (mtdtSqlName FullName) $ toJSON fn
+    when (isNothing oldUrl) $
+      forM_ (vcard ^. vcUrl) $ \url ->
+        modifyIORef upd $ M.insert (mtdtSqlName Url) $ toJSON url
     readIORef upd
   updateMetadata entry upd []
   -- Merge nicknames

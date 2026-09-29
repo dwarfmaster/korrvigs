@@ -36,6 +36,7 @@ import qualified Korrvigs.Note.Download.Video as Vid
 import Korrvigs.Utils (liftEndo, rightToMaybe)
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Pandoc (pdExtractMtdt)
+import Network.HTTP.Client
 import Network.HTTP.Simple
 import Network.HTTP.Types.Status
 import Network.Mime
@@ -252,7 +253,10 @@ downloadInformation url =
 
 downloadInformationWithExtractor :: (MonadKorrvigs m) => ASetter' a NewEntry -> [MetaExtractor m a] -> Text -> m (Endo a)
 downloadInformationWithExtractor neLens extractors uri = do
-  req <- parseRequest $ T.unpack uri
+  req' <- parseRequest $ T.unpack uri
+  let userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0"
+  let headers = ("User-Agent", userAgent) : requestHeaders req'
+  let req = req' {requestHeaders = headers}
   resp <- liftIO $ tryJust extractHttpException $ httpBS req
   case resp of
     Left httpException -> do

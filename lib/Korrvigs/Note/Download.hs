@@ -27,6 +27,7 @@ import Data.Time.Format.ISO8601
 import Data.Time.LocalTime
 import qualified Data.Vector as V
 import Korrvigs.Entry.New
+import Korrvigs.Log (LogEventData (..))
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
 import Korrvigs.Monad
@@ -63,9 +64,6 @@ contentTypeP = do
       "iso-8859-1" -> Just . Enc.decodeLatin1
       _ -> decUtf8
   pure (Enc.encodeUtf8 $ T.pack mime, charset)
-
-isHttpException :: SomeException -> Bool
-isHttpException e = isJust (fromException e :: Maybe HttpException)
 
 extractImage :: Text -> Text -> Endo NewEntry
 extractImage website url =
@@ -255,13 +253,17 @@ downloadInformation url =
 downloadInformationWithExtractor :: (MonadKorrvigs m) => ASetter' a NewEntry -> [MetaExtractor m a] -> Text -> m (Endo a)
 downloadInformationWithExtractor neLens extractors uri = do
   req <- parseRequest $ T.unpack uri
-  resp <- liftIO $ tryJust (guard . isHttpException) $ httpBS req
+  resp <- liftIO $ tryJust extractHttpException $ httpBS req
   case resp of
-    Left _ -> pure mempty
+    Left httpException -> do
+      $logError $ MiscEvent $ "Failed to download with: " <> T.pack (show httpException)
+      pure mempty
     Right response -> do
       let status = getResponseStatus response
       if statusCode status /= 200
-        then pure mempty
+        then do
+          $logError $ MiscEvent $ "Failed to download (" <> T.pack (show $ statusCode status) <> "): " <> T.pack (show status)
+          pure mempty
         else do
           let ct = getResponseHeader "Content-Type" response
           let r = parse contentTypeP "" <$> ct
@@ -274,3 +276,6 @@ downloadInformationWithExtractor neLens extractors uri = do
                   Right pd -> pure $ htmlMeta <> liftEndo neLens (extractPandocMtdt pd)
               Nothing -> pure mempty
             _ -> pure mempty
+  where
+    extractHttpException :: SomeException -> Maybe HttpException
+    extractHttpException = fromException

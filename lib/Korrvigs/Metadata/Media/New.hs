@@ -10,7 +10,6 @@ where
 
 import Conduit (throwM)
 import Control.Lens
-import Control.Monad ((>=>))
 import Data.Aeson.Lens
 import Data.Foldable
 import qualified Data.Map as M
@@ -153,4 +152,4 @@ prepareNewMedia nm = $(withLogContext) "Prepare new media" $ do
     medTxt Misc = "Misc"
 
 new :: (MonadKorrvigs m) => NewMedia -> m Id
-new = prepareNewMedia >=> Note.new
+new nmed = $(withLogContext) "New entry from media" $ prepareNewMedia nmed >>= Note.new

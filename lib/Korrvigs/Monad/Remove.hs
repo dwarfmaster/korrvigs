@@ -8,10 +8,12 @@ import qualified Data.Map as M
 import Data.Time
 import Korrvigs.Entry
 import Korrvigs.Kind
+import Korrvigs.Log
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Android
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad.Class
+import Korrvigs.Monad.Log
 import Korrvigs.Monad.Metadata
 import Korrvigs.Monad.SQL
 import Korrvigs.Monad.Sync
@@ -22,6 +24,7 @@ mkMtdt "OrphanedNote" "orphaned" [t|UTCTime|]
 
 removeDWIM :: (MonadKorrvigs m) => Entry -> m ()
 removeDWIM entry = do
+  $logTrace $ MiscEvent $ "Remove entry " <> unId (entry ^. entryName)
   -- If some entries were sub only to this one, remove them also
   subs :: [Int] <- rSelect $ do
     sub <- selectSourcesFor entriesSubTable $ sqlInt4 $ entry ^. entryId

@@ -1,28 +1,31 @@
 {
   runCommand,
   mathjax,
+  imagemagick,
   fetchzip,
   fetchurl,
   fetchFromGitHub,
   gnused,
   theme ? {
-    base01 = "#302b25";
-    base02 = "#48413a";
-    base03 = "#9d8b70";
-    base04 = "#b4a490";
-    base05 = "#cabcb1";
-    base06 = "#d7c8bc";
-    base07 = "#e4d4c8";
-    base08 = "#d35c5c";
-    base09 = "#ca7f32";
-    base0A = "#e0ac16";
-    base0B = "#b7ba53";
-    base0C = "#6eb958";
-    base0D = "#88a4d3";
-    base0E = "#bb90e2";
-    base0F = "#b49368";
+    base00 = "#1d1f21";
+    base01 = "#282a2e";
+    base02 = "#373b41";
+    base03 = "#969896";
+    base04 = "#b4b7b4";
+    base05 = "#c5c8c6";
+    base06 = "#e0e0e0";
+    base07 = "#ffffff";
+    base08 = "#cc6666";
+    base09 = "#de935f";
+    base0A = "#f0c674";
+    base0B = "#b5bd68";
+    base0C = "#8abeb7";
+    base0D = "#81a2be";
+    base0E = "#b294bb";
+    base0F = "#a3685a";
   },
 }: let
+  magick = "${imagemagick}/bin/magick";
   leaflet = fetchzip {
     url = "https://leafletjs-cdn.s3.amazonaws.com/content/leaflet/v1.9.4/leaflet.zip";
     sha256 = "0bjl1f911qdmnsrxl2jprnaz0sgkbm5dq4fqmh6mr6r90brnlf5x";
@@ -160,6 +163,9 @@ in
     ln -s ${./ressources/icons/blog.png} $out/icons/blog.png
     ln -s ${./ressources/icons/complete.png} $out/icons/complete.png
     ln -s ${./ressources/icons/contacts.png} $out/icons/contacts.png
+    ${magick} ${./ressources/icons/birthday.png} -fill "${theme.base05}" -opaque black PNG32:- > $out/icons/birthday.png
+    ${magick} ${./ressources/icons/scheduled.png} -fill "${theme.base05}" -opaque black PNG32:- > $out/icons/scheduled.png
+    ${magick} ${./ressources/icons/deadline.png} -fill "${theme.base05}" -opaque black PNG32:- > $out/icons/deadline.png
 
     mkdir $out/platforms
     ln -s ${./ressources/icons/platforms/github.png} $out/platforms/github.png

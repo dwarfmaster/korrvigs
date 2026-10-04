@@ -22,6 +22,7 @@ import Korrvigs.Web.Routes
 import qualified Korrvigs.Web.Widgets as Wdgs
 import Opaleye hiding (not, null)
 import Yesod hiding (Attr, Field)
+import Yesod.Static
 
 data TimeEventKind
   = Anniversary
@@ -148,17 +149,20 @@ timeWidget timeEvents = do
     |]
   where
     timeEventsSorted = sortBy (\t1 t2 -> compare (t1 ^. _2) (t2 ^. _2)) timeEvents
+    prepEvent :: Day -> (TimeEventKind, Day, Widget) -> Widget
     prepEvent currentDay (kd, day, widget) =
       let dist = diffDays day currentDay
        in let printedDist = if dist == 0 then "Today" else if dist > 0 then "In " <> T.pack (show dist) <> " days" else T.pack (show $ -dist) <> " days ago"
-           in [whamlet|
-        #{mconcat [kdWidget kd, " ", printedDist]},
-        ^{widget}
-      |]
-    kdWidget :: TimeEventKind -> Text
-    kdWidget Anniversary = "🎉"
-    kdWidget ScheduledTask = "📅"
-    kdWidget DeadlineTask = "🛑"
+           in do
+                kdWidget kd
+                toWidget $ printedDist <> " "
+                widget
+    kdWidget :: TimeEventKind -> Widget
+    kdWidget Anniversary = mkIcon "birthday"
+    kdWidget ScheduledTask = mkIcon "scheduled"
+    kdWidget DeadlineTask = mkIcon "deadline"
+    mkIcon :: Text -> Widget
+    mkIcon ic = [whamlet|<img .icon src=@{StaticR (StaticRoute ["icons", ic <> ".png"] [])}>|]
 
 -- The two times must be less than one year appart
 timeEventsWidget :: Day -> Day -> Handler (Maybe Widget)

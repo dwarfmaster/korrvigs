@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Korrvigs.Web.Entry.Note
   ( content,
     embed,
@@ -32,6 +34,7 @@ import qualified Data.Text.Encoding as Enc
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LEnc
 import Data.Time.Format
+import Data.Time.LocalTime
 import Data.Vector (Vector)
 import qualified Data.Vector as V
 import Korrvigs.Compute
@@ -64,6 +67,7 @@ import qualified Text.Blaze.Html5 as Html
 import qualified Text.Blaze.Html5.Attributes as Attr
 import Text.Julius hiding (js)
 import Yesod hiding (Attr, get, (.=))
+import Yesod.Static hiding (embed)
 
 data CompileState = CState
   { _noteCounter :: Int,
@@ -691,7 +695,7 @@ compileHead entry n hdId t edit editFirst openEdit task checks subL enableEdit (
       toWidget [julius|setupHeaderMenu(#{buttonId}, #{rawJS editFn}, #{rawJS editFirstFn}, #{rawJS openUrl}, "@{NoteSubActR (WId entry) (WLoc (LocSub subL))}", "@{route}", #{renderDeepEmbedLoc embedL});|]
       [whamlet|<span ##{buttonId} .hd-menu>⋯</span>|]
   tsk <- Wdgs.taskWidget entry subL task
-  hd <- compileHeader n [whamlet|^{tsk} #{t} ^{checksDisplay checks} ^{fromMaybe mempty menuW}|]
+  hd <- compileHeader n [whamlet|^{tsk} #{t} ^{scheduledW task} ^{deadlineW task} ^{checksDisplay checks} ^{fromMaybe mempty menuW}|]
   pure $ do
     hd
     when (enableEdit && openEdit) $ toWidget [julius|#{rawJS editFn}();|]
@@ -703,6 +707,16 @@ compileHead entry n hdId t edit editFirst openEdit task checks subL enableEdit (
       if null (subL ^. subOffsets)
         then NoteR (WId entry)
         else NoteSubR (WId entry) $ WLoc $ LocSub subL
+    deadlineW tsk =
+      maybe mempty (timeIcon "deadline") $ tsk ^? _Just . tskDeadline . _Just
+    scheduledW tsk =
+      maybe mempty (timeIcon "scheduled") $ tsk ^? _Just . tskScheduled . _Just
+    timeIcon :: Text -> ZonedTime -> Widget
+    timeIcon ic tm =
+      let time = formatTime defaultTimeLocale "%R, %A %d, %B" tm
+       in [whamlet|
+        <img .icon .hdicon src=@{StaticR (StaticRoute ["icons", ic <> ".png"] [])} title=#{time}>
+      |]
 
 compileHeader :: Int -> Widget -> Handler Widget
 compileHeader 0 tit =

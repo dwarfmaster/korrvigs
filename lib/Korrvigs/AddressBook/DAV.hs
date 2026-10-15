@@ -7,6 +7,7 @@ import Control.Monad.State.Lazy
 import Control.Monad.Trans.Maybe
 import Data.Aeson
 import Data.Default
+import Data.List (sort)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -134,8 +135,14 @@ pullAndMerge report abook cdd = do
         lift $ report $ "Merging with " <> unId i
         mergeInto report i vcard (vcard ^. vcUID) etag davref
       Nothing -> do
-        i <- newFrom vcard (abook ^. abookEntry . entryName) etag davref
-        lift $ report $ "Created new " <> unId i
+        fromName <- lift $ lookupFromName $ vcard ^. vcFullName
+        case fromName of
+          Just ni -> do
+            lift $ report $ "Merging from name with " <> unId ni
+            mergeInto report ni vcard (vcard ^. vcUID) etag davref
+          Nothing -> do
+            i <- newFrom vcard (abook ^. abookEntry . entryName) etag davref
+            lift $ report $ "Created new " <> unId i
 
   -- Updates contacts present on both
   lift $ report $ ">> Updating " <> T.pack (show $ M.size changed) <> " contacts"
@@ -147,6 +154,14 @@ pullAndMerge report abook cdd = do
         Left err -> lift (report $ "Failed to parse data for " <> extractDavRc davref <> ": " <> err) >> mzero
         Right ical -> pure ical
     mergeInto report i vcard uid netag davref
+
+lookupFromName :: (MonadKorrvigs m) => Maybe Text -> m (Maybe Id)
+lookupFromName Nothing = pure Nothing
+lookupFromName (Just fn) = rSelectOne $ do
+  entry <- selectTable entriesTable
+  rm <- baseSelectTextMtdt RemoteName $ entry ^. sqlEntryId
+  where_ $ rm .== sqlStrictText fn
+  pure $ entry ^. sqlEntryName
 
 newFrom :: (MonadKorrvigs m) => VCardFile -> Id -> DavTag -> DavRessource -> MaybeT m Id
 newFrom vcard abook etag davref = do
@@ -178,10 +193,13 @@ mergeInto report i vcard uid netag davref = do
       Nothing -> lift (report $ "Failed to load " <> unId i) >> mzero
       Just entry -> pure entry
   oldvcard <- hoistLift $ rSelectMtdt VCardMtdt entry
-  let nvcard =
-        oldvcard
-          & each . filtered (\vc -> vc ^. vcdatUID == uid)
-            %~ (vcdatETag .~ netag) . (vcdatPath .~ davref)
+  let vcardData =
+        VCardData
+          { _vcdatUID = uid,
+            _vcdatPath = davref,
+            _vcdatETag = netag
+          }
+  let nvcard = sort $ vcardData : filter (\vc -> vc ^. vcdatUID /= uid) oldvcard
   let mtdt = M.singleton (mtdtSqlName VCardMtdt) (toJSON nvcard)
   lift $ updateMetadata entry mtdt []
   lift $ mergeFromVCard entry vcard

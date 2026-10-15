@@ -68,6 +68,7 @@ instance FromJSON VCardData where
       <*> obj .: "etag"
 
 mkMtdt "FullName" "fullname" [t|Text|]
+mkMtdt "RemoteName" "remote-name" [t|Text|]
 mkMtdt "BirthDayMtdt" "birthday" [t|BirthDay|]
 mkMtdt "BirthYear" "birthyear" [t|Year|]
 mkMtdt "Death" "death" [t|Day|]
@@ -209,6 +210,8 @@ mergeFromVCard entry vcard = do
     when (isNothing oldFullName) $
       forM_ (vcard ^. vcFullName) $ \fn ->
         modifyIORef upd $ M.insert (mtdtSqlName FullName) $ toJSON fn
+    forM_ (vcard ^. vcFullName) $ \fn ->
+      modifyIORef upd $ M.insert (mtdtSqlName RemoteName) $ toJSON fn
     when (isNothing oldUrl) $
       forM_ (vcard ^. vcUrl) $ \url ->
         modifyIORef upd $ M.insert (mtdtSqlName Url) $ toJSON url

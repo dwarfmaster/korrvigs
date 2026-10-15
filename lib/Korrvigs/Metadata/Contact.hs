@@ -2,7 +2,7 @@
 
 module Korrvigs.Metadata.Contact where
 
-import Control.Lens
+import Control.Lens hiding ((.=))
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
@@ -22,6 +22,7 @@ import Korrvigs.Metadata.Media
 import Korrvigs.Metadata.TH
 import Korrvigs.Monad
 import Korrvigs.Monad.Metadata
+import Korrvigs.Utils.DAV.Web
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Opaleye
 import Opaleye hiding (null)
@@ -42,6 +43,30 @@ instance FromJSON BirthDay where
       Nothing -> fail $ T.unpack txt <> " is not a valid birthday"
       Just date -> let (_, month, day) = toGregorian date in pure $ BirthDay month day
 
+data VCardData = VCardData
+  { _vcdatUID :: Text,
+    _vcdatPath :: DavRessource,
+    _vcdatETag :: DavTag
+  }
+  deriving (Eq, Ord, Show)
+
+makeLenses ''VCardData
+
+instance ToJSON VCardData where
+  toJSON vcdat =
+    object
+      [ "uid" .= (vcdat ^. vcdatUID),
+        "path" .= (vcdat ^. vcdatPath),
+        "etag" .= (vcdat ^. vcdatETag)
+      ]
+
+instance FromJSON VCardData where
+  parseJSON = withObject "VCardData" $ \obj ->
+    VCardData
+      <$> obj .: "uid"
+      <*> obj .: "path"
+      <*> obj .: "etag"
+
 mkMtdt "FullName" "fullname" [t|Text|]
 mkMtdt "BirthDayMtdt" "birthday" [t|BirthDay|]
 mkMtdt "BirthYear" "birthyear" [t|Year|]
@@ -50,7 +75,7 @@ mkMtdt "ContactMtdt" "contact" [t|Map Text [Text]|]
 mkMtdt "Gender" "gender" [t|Text|]
 mkMtdt "Pronouns" "pronouns" [t|Map Text Text|]
 mkMtdt "Nicknames" "nicknames" [t|[Text]|]
-mkMtdt "VCardUID" "vcard-uid" [t|Text|]
+mkMtdt "VCardMtdt" "vcards" [t|[VCardData]|]
 
 data ContactDataImpl a b c d e f g h i j = ContactData
   { _contactName :: a,

@@ -25,8 +25,8 @@ data KorrvigsError
   | KDuplicateId [(Id, [FilePath])]
   | KCantLoad Id Text
   | KSubCycle [Id]
-  | KRelToUnknown Id
-  | KSubOfUnknown Id
+  | KRelToUnknown Id Id
+  | KSubOfUnknown Id Id
   | KIdNotFound Id
   | KMiscError Text
   deriving (Typeable, Show)

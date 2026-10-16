@@ -82,7 +82,7 @@ runSync AddressBook = Abook.syncOne
 
 doSync :: (MonadKorrvigs m) => (Id -> Maybe Int) -> Kind -> Id -> FilePath -> Int -> m ()
 doSync lookupSqlI kd i path sqlI =
-  syncSQL False lookupSqlI kd sqlI . fixSyncData =<< runSync kd i path sqlI
+  syncSQL False lookupSqlI kd i sqlI . fixSyncData =<< runSync kd i path sqlI
 
 sync :: (MonadKorrvigs m) => m ()
 sync = do
@@ -122,13 +122,14 @@ sync = do
 syncFileImpl ::
   (MonadKorrvigs m) =>
   Kind ->
+  Id ->
   Int ->
   SyncData ->
   m ()
-syncFileImpl kd sqlI sdt' = do
+syncFileImpl kd i sqlI sdt' = do
   let sdt = fixSyncData sdt'
   nameToId <- nameToIdMap
-  syncSQL True (flip M.lookup nameToId) kd sqlI sdt
+  syncSQL True (flip M.lookup nameToId) kd i sqlI sdt
 
 fixSyncData :: SyncData -> SyncData
 fixSyncData sdt = sdt & syncRefs %~ (addRefs ++)
@@ -143,7 +144,7 @@ refsFromMetadata _ _ = []
 
 syncFileOfKind :: (MonadKorrvigs m) => Id -> FilePath -> Int -> Kind -> m ()
 syncFileOfKind i path sqlI kd =
-  syncFileImpl kd sqlI =<< runSync kd i path sqlI
+  syncFileImpl kd i sqlI =<< runSync kd i path sqlI
 
 syncOne :: (MonadKorrvigs m) => Entry -> m ()
 syncOne entry = case entry ^. entryKindData of

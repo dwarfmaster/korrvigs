@@ -211,10 +211,10 @@ data SyncData = SyncData
 
 makeLenses ''SyncData
 
-syncSQL :: (MonadKorrvigs m) => Bool -> (Id -> Maybe Int) -> Kind -> Int -> SyncData -> m ()
-syncSQL update nameToId kd sqlI dt = do
-  parents <- forM (dt ^. syncParents) $ \p -> throwMaybe (KSubOfUnknown p) (nameToId p)
-  refs <- forM (dt ^. syncRefs) $ \r -> throwMaybe (KRelToUnknown r) (nameToId r)
+syncSQL :: (MonadKorrvigs m) => Bool -> (Id -> Maybe Int) -> Kind -> Id -> Int -> SyncData -> m ()
+syncSQL update nameToId kd i sqlI dt = do
+  parents <- forM (dt ^. syncParents) $ \p -> throwMaybe (KSubOfUnknown i p) (nameToId p)
+  refs <- forM (dt ^. syncRefs) $ \r -> throwMaybe (KRelToUnknown i r) (nameToId r)
   atomicSQL $ \conn -> do
     -- Suppress messages for this transaction
     void $ Simple.execute_ conn "SET LOCAL client_min_messages TO WARNING"

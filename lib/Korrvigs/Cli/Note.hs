@@ -33,7 +33,7 @@ data Cmd
   | New {_newNote :: NewNote}
   | Attach {_attachRef :: Text, _attachIsPath :: Bool, _attachSub :: AttachCmd}
   | Col {_colNote :: Maybe Text, _colName :: Maybe Text, _colInsert :: Maybe Text}
-  | ImportOrg {_orgPath :: FilePath}
+  | ImportOrg {_orgPath :: FilePath, _orgNEntry :: NewEntry}
 
 data AttachCmd
   = AttachFiles [FilePath] Bool
@@ -114,7 +114,7 @@ parser' =
         <> command
           "import-org"
           ( info
-              ((ImportOrg <$> argument str (metavar "ORG")) <**> helper)
+              ((ImportOrg <$> argument str (metavar "ORG") <*> newEntryOptions) <**> helper)
               ( progDesc "Import org files from old annex"
                   <> header "korr note import-org -- Import org files"
               )
@@ -248,6 +248,6 @@ run (Col (Just note) mnm (Just toinsert)) = do
     else liftIO $ do
       putStrLn "Inclusion failed"
       exitFailure
-run (ImportOrg org) = do
-  i <- importOrgFile org
+run (ImportOrg org nentry) = do
+  i <- importOrgFile nentry org
   liftIO $ putStrLn $ unId i

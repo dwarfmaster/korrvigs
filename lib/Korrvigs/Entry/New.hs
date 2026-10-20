@@ -38,7 +38,7 @@ import qualified Data.Map as M
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Time.Calendar
+import Data.Time.Calendar.OrdinalDate
 import Data.Time.LocalTime
 import Korrvigs.Entry
 import qualified Korrvigs.Entry.JSON as Gen
@@ -49,6 +49,7 @@ import Korrvigs.Monad.Collections
 import Korrvigs.Monad.Metadata (updateParents)
 import Korrvigs.Note.AST hiding (_Syndicate)
 import Korrvigs.Utils (joinNull)
+import Korrvigs.Utils.Time
 
 data NewEntry = NewEntry
   { _neParents :: [Id],
@@ -75,7 +76,10 @@ zonedTimeFromDay tz day =
 useDate :: (MonadIO m) => NewEntry -> Maybe ZonedTime -> m (Maybe ZonedTime)
 useDate ne dt = do
   tz <- liftIO getCurrentTimeZone
-  pure $ mplus (zonedTimeFromDay tz <$> ne ^. neDate) dt
+  let zdt = zonedTimeFromDay tz <$> ne ^. neDate
+  if isValidDate zdt
+    then pure $ mplus zdt dt
+    else pure dt
 
 useMtdt :: NewEntry -> Metadata -> Metadata
 useMtdt ne = M.union $ ne ^. neMtdt

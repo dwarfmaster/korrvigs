@@ -22,6 +22,7 @@ import qualified Korrvigs.Entry.JSON as Gen
 import Korrvigs.File.Sync
 import Korrvigs.Geometry
 import Korrvigs.Metadata
+import Korrvigs.Utils.Time
 import Linear.V2
 import Network.Mime
 import System.FilePath
@@ -87,8 +88,10 @@ getDate :: Mapping -> Extractor
 getDate mtdt = case seqLookup mtdt ["DateTimeOriginal", "CreateDate", "GpxMetadataTime", "ModifyDate", "FileModifyDate"] of
   Just ((_, dt) :| _) ->
     let formats = ["%Y:%m:%d %T%Ez", "%Y:%m:%d %TZ", "%Y:%m:%d %T"]
-     in let results = (\f -> parseTimeM True defaultTimeLocale f (T.unpack dt)) <$> formats :: [Maybe ZonedTime]
-         in maybe id (\d -> genData . Gen.ejsDate %~ Just . fromMaybe d) $ asum results
+     in let result = asum $ (\f -> parseTimeM True defaultTimeLocale f (T.unpack dt)) <$> formats :: Maybe ZonedTime
+         in if isValidDate result
+              then maybe id (\d -> genData . Gen.ejsDate %~ Just . fromMaybe d) result
+              else id
   Nothing -> id
 
 getTimeZone :: Mapping -> Extractor

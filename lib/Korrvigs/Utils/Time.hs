@@ -5,17 +5,20 @@ module Korrvigs.Utils.Time
     dayToZonedTime,
     zonedDay,
     getCurrentZonedTime,
+    isValidDate,
     measureTime,
     measureTimeMs,
     measureTime_,
   )
 where
 
+import Control.Lens
 import Control.Monad.IO.Class
 import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Calendar
+import Data.Time.Calendar.OrdinalDate
 import Data.Time.Clock
 import Data.Time.LocalTime
 import System.Clock
@@ -48,6 +51,10 @@ getCurrentZonedTime = do
   tz <- getCurrentTimeZone
   local <- utcToLocalTime tz <$> getCurrentTime
   pure $ ZonedTime local tz
+
+isValidDate :: Maybe ZonedTime -> Bool
+isValidDate dt =
+  (dt ^? _Just . to zonedTimeToLocalTime . to localDay . to toOrdinalDate . _1) /= Just 0
 
 measureTime :: (MonadIO m) => m a -> m (Text, a)
 measureTime = measureTimeImpl printTime

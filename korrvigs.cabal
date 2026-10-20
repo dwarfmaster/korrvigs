@@ -184,6 +184,7 @@ library korrvigs-lib
     Korrvigs.Note.Languages
     Korrvigs.Note.Loc
     Korrvigs.Note.New
+    Korrvigs.Note.Org
     Korrvigs.Note.Pandoc
     Korrvigs.Note.Render
     Korrvigs.Note.Render.Monad

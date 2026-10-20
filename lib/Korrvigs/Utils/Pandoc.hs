@@ -73,6 +73,13 @@ parseMetaValue (MetaInlines inls) =
 parseMetaValue (MetaBlocks bks) =
   parseStringOrNumber . toStrict . toLazyText $ pdBlocksToText bks
 
+metaAsText :: MetaValue -> Text
+metaAsText (MetaString txt) = txt
+metaAsText (MetaInlines inls) =
+  toStrict . toLazyText . mconcat $ pdInlineToText <$> inls
+metaAsText (MetaBlocks bks) = pdBlocksToRenderedText bks
+metaAsText _ = ""
+
 parseStringOrNumber :: Text -> Value
 parseStringOrNumber txt = case T.stripPrefix "n:" txt of
   Just n -> Number $ fromMaybe 0 $ readMaybe $ T.unpack n

@@ -19,6 +19,7 @@ import Korrvigs.Monad.Collections
 import Korrvigs.Note
 import Korrvigs.Note.AST (bkCollection)
 import Korrvigs.Note.New
+import Korrvigs.Note.Org
 import Korrvigs.Note.SQL
 import Opaleye hiding (optional)
 import Options.Applicative
@@ -32,6 +33,7 @@ data Cmd
   | New {_newNote :: NewNote}
   | Attach {_attachRef :: Text, _attachIsPath :: Bool, _attachSub :: AttachCmd}
   | Col {_colNote :: Maybe Text, _colName :: Maybe Text, _colInsert :: Maybe Text}
+  | ImportOrg {_orgPath :: FilePath}
 
 data AttachCmd
   = AttachFiles [FilePath] Bool
@@ -107,6 +109,14 @@ parser' =
               )
               ( progDesc "Deal with note collections"
                   <> header "korr note col -- Deal with collections"
+              )
+          )
+        <> command
+          "import-org"
+          ( info
+              ((ImportOrg <$> argument str (metavar "ORG")) <**> helper)
+              ( progDesc "Import org files from old annex"
+                  <> header "korr note import-org -- Import org files"
               )
           )
     )
@@ -238,3 +248,6 @@ run (Col (Just note) mnm (Just toinsert)) = do
     else liftIO $ do
       putStrLn "Inclusion failed"
       exitFailure
+run (ImportOrg org) = do
+  i <- importOrgFile org
+  liftIO $ putStrLn $ unId i

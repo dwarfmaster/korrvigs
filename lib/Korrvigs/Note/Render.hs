@@ -331,6 +331,14 @@ renderInline (DateLink Nothing day) = do
   writeText "](date:"
   writeText $ date
   writeText ")"
+renderInline (MailtoLink Nothing mail) = do
+  writeText "<mailto:" >> writeText mail >> writeText ">"
+renderInline (MailtoLink (Just title) mail) = do
+  writeText "["
+  forM_ title renderInline
+  writeText "](mailto:"
+  writeText mail
+  writeText ")"
 renderInline (PlainLink Nothing uri) =
   writeText "<" >> writeText (T.pack $ show uri) >> writeText ">"
 renderInline (PlainLink (Just title) uri) = do

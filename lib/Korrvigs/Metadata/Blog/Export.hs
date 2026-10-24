@@ -374,6 +374,9 @@ renderInline (DateLink (Just txt) _) = renderInlines txt
 renderInline (DateLink Nothing day) = do
   let txt = formatTime defaultTimeLocale "%Y-%m-%d" day
   renderInline $ Plain $ T.pack txt
+renderInline (MailtoLink txt mail) = do
+  cpt <- maybe (pure $ toMarkup mail) renderInlines txt
+  pure $ a cpt ! A.href (toValue $ "mailto:" <> mail)
 renderInline (PlainLink txt tgt) = do
   let url = show tgt
   cpt <- maybe (pure $ toMarkup url) renderInlines txt

@@ -455,19 +455,24 @@ parseInline (Link attr txt (url, _)) = do
             let mtitle = if titleTxt == date then Nothing else Just title
             pure . pure $ A.DateLink mtitle day
           Nothing -> pure []
-        Nothing ->
-          if T.isInfixOf "://" url
-            then do
-              let mtitle = if null txt then Nothing else Just title
-              pure . pure $ A.PlainLink mtitle $ fromMaybe nullURI $ parseURI $ T.unpack url
-            else do
-              let (i, vw) = case T.split (== '?') url of
-                    [part, "syn"] -> (MkId part, A.ViewSyndicate)
-                    [part, "syn-unread"] -> (MkId part, A.ViewSyndicateUnread)
-                    (part : _) -> (MkId part, A.ViewEntry)
-                    _ -> (MkId url, A.ViewEntry)
-              refTo i
-              pure . pure $ A.Link (parseAttr attr) title i vw
+        Nothing -> case T.stripPrefix "mailto:" url of
+          Just mail -> do
+            let titleTxt = renderInlines title
+            let mtitle = if titleTxt == mail then Nothing else Just title
+            pure . pure $ A.MailtoLink mtitle mail
+          Nothing ->
+            if T.isInfixOf "://" url
+              then do
+                let mtitle = if null txt then Nothing else Just title
+                pure . pure $ A.PlainLink mtitle $ fromMaybe nullURI $ parseURI $ T.unpack url
+              else do
+                let (i, vw) = case T.split (== '?') url of
+                      [part, "syn"] -> (MkId part, A.ViewSyndicate)
+                      [part, "syn-unread"] -> (MkId part, A.ViewSyndicateUnread)
+                      (part : _) -> (MkId part, A.ViewEntry)
+                      _ -> (MkId url, A.ViewEntry)
+                refTo i
+                pure . pure $ A.Link (parseAttr attr) title i vw
 parseInline (Image attr txt url) = parseInline $ Link attr txt url
 parseInline (Note bks) = pure . A.Sidenote <$> concatMapM parseBlock bks
 parseInline (Span _ inls) = parseInlines inls

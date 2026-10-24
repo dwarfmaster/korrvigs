@@ -157,6 +157,7 @@ data Inline
   | Cite Id -- Citation to entry
   | MtdtLink (Maybe [Inline]) Text -- Named link to the content of a metadata
   | DateLink (Maybe [Inline]) Day -- Named link to a day page
+  | MailtoLink (Maybe [Inline]) Text -- Named link to a mail address
   | PlainLink (Maybe [Inline]) URI -- Named link to URI
   | Space
   | Break

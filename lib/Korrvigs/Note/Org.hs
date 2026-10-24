@@ -92,7 +92,9 @@ replaceAttachment note orgIds title attachment = flip firstJustM orgIds $ \orgId
 importAttachments :: (MonadKorrvigs m) => Id -> Set Text -> Text -> A.Inline -> m A.Inline
 importAttachments note orgIds prefix (A.Link attr txt i vw) =
   case T.stripPrefix "attachment:" (unId i) of
-    Nothing -> pure $ A.Link attr txt i vw
+    Nothing -> case T.stripPrefix "id:" (unId i) of
+      Nothing -> pure $ A.Link attr txt i vw
+      Just _ -> pure $ A.Styled A.Emph txt
     Just file ->
       replaceAttachment note orgIds title file >>= \case
         Nothing -> pure $ A.Styled A.Emph txt

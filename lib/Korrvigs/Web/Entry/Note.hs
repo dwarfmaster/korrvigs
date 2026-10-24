@@ -856,6 +856,8 @@ compileInline (DateLink mtitle day) = do
   let date = formatTime defaultTimeLocale "%Y-%m-%d" day
   let title = Just $ fromMaybe [Plain $ T.pack date] mtitle
   plainLink title url
+compileInline (MailtoLink mtitle mail) =
+  plainLink mtitle $ "mailto:" <> mail
 compileInline (PlainLink mtitle uri) =
   plainLink mtitle $ T.pack $ show uri
 compileInline Space = pure (toMarkup (" " :: Text), mempty)

@@ -31,14 +31,14 @@ mapChildren = multiplate
 mapChildrenM :: (Multiplate p, Monad m) => p m -> p m
 mapChildrenM = multiplate
 
-kleisliComposePlate :: forall p m. (Multiplate p, Monad m) => p m -> p m -> p m
-kleisliComposePlate f1 f2 = mkPlate build
+kleisliSequencePlate :: forall p m. (Multiplate p, Monad m) => p m -> p m -> p m
+kleisliSequencePlate f1 f2 = mkPlate build
   where
     build :: Projector p a -> a -> m a
     build proj = proj f1 >=> proj f2
 
 mapFamilyM :: (Multiplate p, Monad m) => p m -> p m
-mapFamilyM f = (multiplate $ mapFamilyM f) `kleisliComposePlate` f
+mapFamilyM f = (multiplate $ mapFamilyM f) `kleisliSequencePlate` f
 
 mapFamily :: (Multiplate p) => p Identity -> p Identity
 mapFamily = mapFamilyM

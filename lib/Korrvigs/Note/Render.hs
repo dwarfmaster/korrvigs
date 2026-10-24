@@ -250,9 +250,12 @@ renderBlock (Sub hd) = do
   unless (null $ hd ^. hdContent) $ replicateM_ 2 newline
   renderTopLevel True $ hd ^. hdContent
 renderBlock (Table tbl) = do
-  width <- view _1
-  comps <- view _2
-  renderTable width (\w -> runRenderM w comps . renderTopLevel False) tbl
+  -- TODO
+  pure ()
+
+-- width <- view _1
+-- comps <- view _2
+-- renderTable width (\w -> runRenderM w comps . renderTopLevel False) tbl
 
 renderEmbedRef :: Either Text Id -> RenderM ()
 renderEmbedRef (Left mtdt) = writeText "mtdt:" >> writeText mtdt

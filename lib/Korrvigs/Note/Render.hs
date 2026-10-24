@@ -236,19 +236,19 @@ renderBlock (Syndicate nm onlyNew limit ids) = do
     forM_ w $ \part -> writeText "#" >> writeText part
     flush >> newline
   writeText "```"
-renderBlock (Sub header) = do
-  writeText $ mconcat $ replicate (header ^. hdLevel) "#"
+renderBlock (Sub hd) = do
+  writeText $ mconcat $ replicate (hd ^. hdLevel) "#"
   writeText " "
-  forM_ (header ^. hdTask) $ \task -> do
+  forM_ (hd ^. hdTask) $ \task -> do
     writeText "["
     writeText $ task ^. tskStatusName
     writeText "] "
-  writeText $ header ^. hdTitle
+  writeText $ hd ^. hdTitle
   writeText " "
-  renderAttr $ header ^. hdAttr
+  renderAttr $ hd ^. hdAttr
   flush
-  unless (null $ header ^. hdContent) $ replicateM_ 2 newline
-  renderTopLevel True $ header ^. hdContent
+  unless (null $ hd ^. hdContent) $ replicateM_ 2 newline
+  renderTopLevel True $ hd ^. hdContent
 renderBlock (Table tbl) = do
   width <- view _1
   comps <- view _2

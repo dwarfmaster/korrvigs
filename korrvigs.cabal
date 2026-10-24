@@ -213,6 +213,7 @@ library korrvigs-lib
     Korrvigs.Utils.Git.Status
     Korrvigs.Utils.JSON
     Korrvigs.Utils.Lens
+    Korrvigs.Utils.Multiplate
     Korrvigs.Utils.Opaleye
     Korrvigs.Utils.Pandoc
     Korrvigs.Utils.Process

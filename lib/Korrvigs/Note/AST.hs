@@ -19,6 +19,7 @@ import Korrvigs.Entry.JSON
 import Korrvigs.Metadata.Task
 import Korrvigs.Query
 import Korrvigs.Utils
+import Korrvigs.Utils.Multiplate
 import Network.URI
 
 data Checks = Checks
@@ -207,66 +208,108 @@ makePrisms ''Block
 makePrisms ''Inline
 makePrisms ''CollectionItem
 
+-- Plate instances
 instance Plated Header where
   plate = hdContent . each . _Sub
 
--- Traversal over all the inlines of a block, not recursing into subs
-bkInlines :: Traversal' Block Inline
-bkInlines f (Para inls) = Para <$> each f inls
-bkInlines f (LineBlock inls) = LineBlock <$> each (each f) inls
-bkInlines f (BlockQuote bks) = BlockQuote <$> each (bkInlines f) bks
-bkInlines f (OrderedList bks) = OrderedList <$> each (each $ bkInlines f) bks
-bkInlines f (BulletList bks) = BulletList <$> each (each $ bkInlines f) bks
-bkInlines f (DefinitionList lst) = DefinitionList <$> each (defInlines f) lst
+data ASTPlate f = ASTPlate
+  { block :: Block -> f Block,
+    inline :: Inline -> f Inline,
+    header :: Header -> f Header
+  }
+
+buildBlock :: (Applicative f) => ASTPlate f -> Block -> f Block
+buildBlock f (Para inls) = Para <$> each (inline f) inls
+buildBlock f (LineBlock inls) = LineBlock <$> each (each $ inline f) inls
+buildBlock f (BlockQuote bks) = BlockQuote <$> each (block f) bks
+buildBlock f (OrderedList bks) = OrderedList <$> each (each $ block f) bks
+buildBlock f (BulletList bks) = BulletList <$> each (each $ block f) bks
+buildBlock f (DefinitionList defs) = DefinitionList <$> each defInlines defs
   where
-    defInlines :: Traversal' ([Inline], [[Block]]) Inline
-    defInlines g (df, content) =
-      (,) <$> each g df <*> each (each $ bkInlines g) content
-bkInlines f (Figure attr caption content) =
-  Figure attr <$> each (bkInlines f) caption <*> each (bkInlines f) content
-bkInlines f (Table (MkTable caption cells attr hd ft)) =
+    defInlines (inls, bks) = (,) <$> each (inline f) inls <*> each (each $ block f) bks
+buildBlock f (Figure attr caption bks) =
+  Figure attr <$> each (block f) caption <*> each (block f) bks
+buildBlock f (Sub hd) = Sub <$> header f hd
+buildBlock f (Table (MkTable caption cells attr hd ft)) =
   Table
     <$> ( MkTable
-            <$> each (bkInlines f) caption
-            <*> each (cellInlines f) cells
+            <$> each (block f) caption
+            <*> each cell cells
             <*> pure attr
             <*> pure hd
             <*> pure ft
         )
   where
-    cellInlines :: Traversal' Cell Inline
-    cellInlines g (Cell orig width height dat) =
-      Cell orig width height <$> each (bkInlines g) dat
-bkInlines _ b = pure b
+    cell (Cell orig w h dat) = Cell orig w h <$> each (block f) dat
+buildBlock _ bk = pure bk
+
+buildInline :: (Applicative f) => ASTPlate f -> Inline -> f Inline
+buildInline f (Styled stl inls) = Styled stl <$> each (inline f) inls
+buildInline f (Link attr caption i vw) =
+  Link attr <$> each (inline f) caption <*> pure i <*> pure vw
+buildInline f (MtdtLink (Just inls) txt) =
+  MtdtLink . Just <$> each (inline f) inls <*> pure txt
+buildInline f (DateLink (Just inls) day) =
+  DateLink . Just <$> each (inline f) inls <*> pure day
+buildInline f (PlainLink (Just inls) uri) =
+  PlainLink . Just <$> each (inline f) inls <*> pure uri
+buildInline f (Sidenote bks) =
+  Sidenote <$> each (block f) bks
+buildInline _ inl = pure inl
+
+buildHeader :: (Applicative f) => ASTPlate f -> Header -> f Header
+buildHeader child = hdContent . each $ block child
+
+instance Multiplate ASTPlate where
+  multiplate child =
+    ASTPlate (buildBlock child) (buildInline child) (buildHeader child)
+  mkPlate build = ASTPlate (build block) (build inline) (build header)
+
+-- Traversal over all the inlines of a block, not recursing into subs
+bkInlines :: Traversal' Block Inline
+bkInlines f =
+  block $
+    multiplate $
+      ASTPlate
+        { block = bkInlines f,
+          inline = f,
+          header = pure
+        }
 
 -- Traversal over the recursive inlines. It is a singleton on the non-recursive inlines.
 inlInlines :: Traversal' Inline Inline
-inlInlines f (Styled st inls) = Styled st <$> each f inls
-inlInlines f (Link attr txt i vw) = Link attr <$> each f txt <*> pure i <*> pure vw
-inlInlines f (PlainLink (Just txt) uri) =
-  (PlainLink . Just <$> each f txt) <*> pure uri
-inlInlines f (Sidenote bks) = Sidenote <$> each (bkInlines $ inlInlines f) bks
-inlInlines f i = f i
+inlInlines f =
+  inline $
+    multiplate $
+      ASTPlate
+        { block = bkInlines $ inlInlines f,
+          inline = f,
+          header = pure
+        }
+
+bkBlocksImpl :: (Applicative f) => ASTPlate f -> (Block -> f Block) -> (Block -> f Block)
+bkBlocksImpl _ f bk@(Para _) = f bk
+bkBlocksImpl _ f bk@(LineBlock _) = f bk
+bkBlocksImpl _ f bk@(CodeBlock _ _) = f bk
+bkBlocksImpl _ f bk@(Embed _) = f bk
+bkBlocksImpl _ f bk@(EmbedHeader _ _) = f bk
+bkBlocksImpl _ f bk@(Collection _ _ _) = f bk
+bkBlocksImpl p _ bk = block (multiplate p) bk
 
 -- Traversal over all blocks in block, not descending into headers
 bkBlocks :: Traversal' Block Block
-bkBlocks f (BlockQuote bks) = BlockQuote <$> each (bkBlocks f) bks
-bkBlocks f (OrderedList bks) = OrderedList <$> each (each $ bkBlocks f) bks
-bkBlocks f (BulletList bks) = BulletList <$> each (each $ bkBlocks f) bks
-bkBlocks f (DefinitionList defs) = DefinitionList <$> each (defBlocks f) defs
-  where
-    defBlocks :: Traversal' ([Inline], [[Block]]) Block
-    defBlocks g (df, content) = (df,) <$> each (each $ bkBlocks g) content
-bkBlocks f (Figure attr caption content) =
-  Figure attr <$> each (bkBlocks f) caption <*> each (bkBlocks f) content
-bkBlocks f x = f x
+bkBlocks f (Sub h) = f $ Sub h
+bkBlocks f bk = bkBlocksImpl (purePlate {block = bkBlocks f}) f bk
 
 -- Traversal over all blocks in block, descending into subs, not including headers
 bkSubBlocks :: Traversal' Block Block
-bkSubBlocks f (Sub sub) = Sub . setBks <$> each (bkSubBlocks f) (sub ^. hdContent)
+bkSubBlocks f = bkBlocksImpl plt f
   where
-    setBks bks = sub & hdContent .~ bks
-bkSubBlocks f x = bkBlocks f x
+    plt =
+      purePlate
+        { block = bkSubBlocks f,
+          header = hdContent . each $ bkSubBlocks f
+        }
 
 -- Traversal over collections
 bkCollections' :: Traversal' Block (Collection, Text, [CollectionItem])

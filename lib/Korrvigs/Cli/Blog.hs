@@ -23,7 +23,7 @@ import Korrvigs.Metadata.Blog
 import Korrvigs.Monad
 import Korrvigs.Monad.Computation
 import Korrvigs.Note
-import Korrvigs.Note.AST
+import Korrvigs.Note.AST hiding (header)
 import Options.Applicative
 import System.Directory
 import System.Exit

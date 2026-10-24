@@ -18,6 +18,7 @@ import qualified Korrvigs.File.New as NF
 import qualified Korrvigs.Kind as Kd
 import Korrvigs.Metadata
 import Korrvigs.Metadata.Media
+import Korrvigs.Metadata.TH
 import Korrvigs.Metadata.Task
 import Korrvigs.Monad
 import Korrvigs.Monad.Sync (syncFileOfKind)
@@ -26,14 +27,18 @@ import Korrvigs.Note.Helpers (renderInlines)
 import qualified Korrvigs.Note.New as NN
 import Korrvigs.Note.Pandoc
 import Korrvigs.Note.Sync (updateImpl)
+import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Multiplate
 import Korrvigs.Utils.Pandoc
+import Opaleye hiding (not, optional)
 import System.Directory
 import Text.Pandoc
 import qualified Text.Pandoc.Walk as W
 import Text.Parsec hiding (try)
 import qualified Text.Parsec as P
 import Text.Parsec.Number
+
+mkMtdt "RoamRefs" "roam-refs" [t|[Text]|]
 
 importOrgFile :: (MonadKorrvigs m) => NE.NewEntry -> FilePath -> m Id
 importOrgFile ne org = $withLogContext ("Importing org file \"" <> T.pack org <> "\"") $ do
@@ -59,7 +64,7 @@ importOrgFile ne org = $withLogContext ("Importing org file \"" <> T.pack org <>
   let orgIds = orgId <> W.query findIDs file
   let orgContent = parseTopBlocks 0 $ W.walk removeIDs file
   noteContent <- mapM (A.block $ mapFamilyM $ mapOrgNote i orgIds title) orgContent
-  updateImpl note $ pure . (A.docContent .~ noteContent)
+  updateImpl note $ pure . ((A.docContent .~ noteContent) . (A.docMtdt . at (mtdtName RoamRefs) ?~ toJSON orgIds))
   syncFileOfKind i (note ^. notePath) (entry ^. entryId) Kd.Note
   pure i
 
@@ -94,7 +99,17 @@ importAttachments note orgIds prefix (A.Link attr txt i vw) =
   case T.stripPrefix "attachment:" (unId i) of
     Nothing -> case T.stripPrefix "id:" (unId i) of
       Nothing -> pure $ A.Link attr txt i vw
-      Just _ -> pure $ A.Styled A.Emph txt
+      Just ref -> do
+        other <- rSelectOne $ do
+          entry <- selectTable entriesTable
+          let sqlI = entry ^. sqlEntryId
+          refs <- baseSelectMtdt RoamRefs sqlI
+          rf <- sqlJsonElementsText $ toNullable refs
+          where_ $ rf .== sqlStrictText ref
+          pure $ entry ^. sqlEntryName
+        case other of
+          Nothing -> pure $ A.Styled A.Emph txt
+          Just otherId -> pure $ A.Link attr txt otherId vw
     Just file ->
       replaceAttachment note orgIds title file >>= \case
         Nothing -> pure $ A.Styled A.Emph txt

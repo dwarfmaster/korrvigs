@@ -39,7 +39,7 @@ importOrgFile :: (MonadKorrvigs m) => NE.NewEntry -> FilePath -> m Id
 importOrgFile ne org = $withLogContext ("Importing org file \"" <> T.pack org <> "\"") $ do
   contentE <- liftIO $ (try $ TIO.readFile org :: IO (Either SomeException Text))
   content <- throwEither (\e -> KMiscError . T.pack $ "IO error: " <> show e) contentE
-  fileE <- liftIO $ runIO $ readOrg def content
+  fileE <- liftIO $ runIO $ readOrg def $ "#+OPTIONS: H:9\n" <> content
   file@(Pandoc meta _) <- throwEither (\e -> KMiscError . T.pack $ "Pandoc error: " <> show e) fileE
   titleV <- throwMaybe (KMiscError "Org note has no title") $ M.lookup "title" $ unMeta meta
   let title = metaAsText titleV
@@ -116,23 +116,24 @@ taskP =
 
 countP :: forall s u m. (Stream s m Char) => ParsecT s u m ()
 countP =
-  P.try
-    ( do
-        void $ char '['
-        dec
-        void $ char '/'
-        dec
-        void $ char ']'
-    )
-    >> eof
+  P.try $ do
+    void $ char '['
+    dec
+    void $ char '/'
+    dec
+    void $ char ']'
+    spaces
   where
     dec = void (decimal :: ParsecT s u m Int)
 
 headerP :: (Stream s m Char) => ParsecT s u m (Maybe TaskStatus, Text)
 headerP = do
-  tsk <- optionMaybe taskP
-  chars <- manyTill anyChar countP
+  spaces
+  tsk <- optionMaybe $ taskP <* spaces
+  chars <- manyTill anyChar ending
   pure (tsk, T.pack chars)
+  where
+    ending = P.try $ spaces >> optional countP >> P.try (optional $ string "attach" >> spaces) >> eof
 
 parseHdTitle :: Text -> (Maybe Task, Text)
 parseHdTitle title = case runParser headerP () "hd title" title of
@@ -154,7 +155,4 @@ parseHdTitle title = case runParser headerP () "hd title" title of
 prepareHeader :: A.Header -> A.Header
 prepareHeader hd =
   let (tsk, ntitle) = parseHdTitle (hd ^. A.hdTitle)
-   in hd
-        & A.hdTitle .~ ntitle
-        & A.hdTask .~ tsk
-        & A.hdAttr . A.attrClasses %~ filter (/= "attach")
+   in hd & A.hdTitle .~ ntitle & A.hdTask .~ tsk

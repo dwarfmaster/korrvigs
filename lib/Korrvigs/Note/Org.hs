@@ -32,7 +32,7 @@ import Korrvigs.Note.Sync (updateImpl)
 import Korrvigs.Utils.JSON
 import Korrvigs.Utils.Multiplate
 import Korrvigs.Utils.Pandoc
-import Opaleye hiding (not, optional)
+import Opaleye hiding (not, null, optional)
 import System.Directory
 import Text.Pandoc
 import qualified Text.Pandoc.Walk as W
@@ -116,8 +116,8 @@ removeIDs bk = bk
 mapOrgNote :: (MonadKorrvigs m) => Id -> Set Text -> Text -> Int -> A.ASTPlate m
 mapOrgNote note orgIds title shiftLvl =
   A.ASTPlate
-    { A.block = pure,
-      A.inline = importAttachments note orgIds title,
+    { A.block = pure . fixAttrs,
+      A.inline = importAttachments note orgIds title . fixAttrsInlines,
       A.header = pure . prepareHeader shiftLvl
     }
 
@@ -204,7 +204,31 @@ parseHdTitle title = case runParser headerP () "hd title" title of
             }
      in (Just tsk, ntitle)
 
+fixAttr :: A.Attr -> A.Attr
+fixAttr (A.MkAttr i classes vals) =
+  A.MkAttr
+    { A._attrId = if hasSpc i then "" else i,
+      A._attrClasses = filter (not . hasSpc) classes,
+      A._attrMtdt = M.filterWithKey (\k _ -> not $ hasSpc k) vals
+    }
+  where
+    hasSpc = T.elem ' '
+
 prepareHeader :: Int -> A.Header -> A.Header
 prepareHeader shiftLvl hd =
   let (tsk, ntitle) = parseHdTitle (hd ^. A.hdTitle)
-   in hd & A.hdTitle .~ ntitle & A.hdTask .~ tsk & A.hdLevel %~ (+ shiftLvl)
+   in hd
+        & A.hdTitle .~ ntitle
+        & A.hdTask .~ tsk
+        & A.hdLevel %~ (+ shiftLvl)
+        & A.hdAttr %~ fixAttr
+
+fixAttrs :: A.Block -> A.Block
+fixAttrs (A.CodeBlock attr txt) = A.CodeBlock (fixAttr attr) txt
+fixAttrs (A.Figure attr caption bks) = A.Figure (fixAttr attr) caption bks
+fixAttrs bk = bk
+
+fixAttrsInlines :: A.Inline -> A.Inline
+fixAttrsInlines (A.Code attr txt) = A.Code (fixAttr attr) txt
+fixAttrsInlines (A.Link attr inls i vw) = A.Link (fixAttr attr) inls i vw
+fixAttrsInlines inl = inl

@@ -43,6 +43,7 @@ module Korrvigs.Note.Loc
     renderSubLoc,
     renderCodeLoc,
     renderLoc,
+    parseSubLoc,
     parseLoc,
     subPrefix,
     renderDeepEmbedLoc,
@@ -317,6 +318,11 @@ locP :: (Stream s Identity Char) => Parsec s u AnyLoc
 locP = do
   sb <- subLocP
   eof $> LocSub sb <|> char ':' *> anyLocP sb
+
+parseSubLoc :: Text -> Either Text SubLoc
+parseSubLoc loc = case parse subLocP "<subloc>" loc of
+  Left err -> Left . T.pack $ show err
+  Right l -> Right l
 
 parseLoc :: Text -> Either Text AnyLoc
 parseLoc loc = case parse locP "<loc>" loc of

@@ -1,4 +1,4 @@
-module Korrvigs.Note.Org (importOrgFile) where
+module Korrvigs.Note.Org (importOrgFile, importOrgFileAt) where
 
 import Control.Exception
 import Control.Lens
@@ -7,6 +7,7 @@ import Control.Monad.IO.Class
 import Data.Aeson
 import Data.Foldable.Extra (firstJustM)
 import qualified Data.Map as M
+import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as S
 import Data.Text (Text)
@@ -24,6 +25,7 @@ import Korrvigs.Monad
 import Korrvigs.Monad.Sync (syncFileOfKind)
 import qualified Korrvigs.Note.AST as A
 import Korrvigs.Note.Helpers (renderInlines)
+import Korrvigs.Note.Loc
 import qualified Korrvigs.Note.New as NN
 import Korrvigs.Note.Pandoc
 import Korrvigs.Note.Sync (updateImpl)
@@ -41,31 +43,66 @@ import Text.Parsec.Number
 mkMtdt "RoamRefs" "roam-refs" [t|[Text]|]
 
 importOrgFile :: (MonadKorrvigs m) => NE.NewEntry -> FilePath -> m Id
-importOrgFile ne org = $withLogContext ("Importing org file \"" <> T.pack org <> "\"") $ do
+importOrgFile ne org =
+  $withLogContext ("Importing org file \"" <> T.pack org <> "\" to new entry") $
+    importOrgFileImpl (Right ne) org
+
+importOrgFileAt :: (MonadKorrvigs m) => Id -> SubLoc -> FilePath -> m ()
+importOrgFileAt i loc org =
+  $withLogContext ("Importing org file \"" <> T.pack org <> "\" to entry " <> unId i) $
+    void $
+      importOrgFileImpl (Left (i, loc)) org
+
+importOrgFileImpl :: (MonadKorrvigs m) => Either (Id, SubLoc) NE.NewEntry -> FilePath -> m Id
+importOrgFileImpl entrySpec org = do
+  -- Load org file
   contentE <- liftIO $ (try $ TIO.readFile org :: IO (Either SomeException Text))
   content <- throwEither (\e -> KMiscError . T.pack $ "IO error: " <> show e) contentE
   fileE <- liftIO $ runIO $ readOrg def $ "#+OPTIONS: H:9\n" <> content
   file@(Pandoc meta _) <- throwEither (\e -> KMiscError . T.pack $ "Pandoc error: " <> show e) fileE
   titleV <- throwMaybe (KMiscError "Org note has no title") $ M.lookup "title" $ unMeta meta
   let title = metaAsText titleV
-  let url = fmap (toJSON . metaAsText) $ M.lookup "roam_refs" $ unMeta meta
-  let nnote =
-        NN.NewNote
-          { NN._nnEntry = ne & maybe id (NE.neMtdt . at (mtdtName Url) ?~) url,
-            NN._nnTitle = title,
-            NN._nnTitleOverride = False,
-            NN._nnIgnoreUrl = True,
-            NN._nnAllowDuplicateTitle = True
-          }
-  i <- NN.new nnote
+  -- Load entry
+  i <- case entrySpec of
+    Left (i, _) -> pure i
+    Right ne -> do
+      let url = fmap (toJSON . metaAsText) $ M.lookup "roam_refs" $ unMeta meta
+      let nnote =
+            NN.NewNote
+              { NN._nnEntry = ne & maybe id (NE.neMtdt . at (mtdtName Url) ?~) url,
+                NN._nnTitle = title,
+                NN._nnTitleOverride = False,
+                NN._nnIgnoreUrl = True,
+                NN._nnAllowDuplicateTitle = True
+              }
+      NN.new nnote
   entry <- load i >>= throwMaybe (KCantLoad i "Failed to load newly created note")
   note <- throwMaybe (KMiscError $ "Note " <> unId i <> " is not a note") $ entry ^? _Note
+  -- Prepare content
+  let shiftLvl = either (\(_, loc) -> 1 + length (loc ^. subOffsets)) (const 0) entrySpec
   let orgId = maybe mempty (S.singleton . metaAsText) $ M.lookup "id" $ unMeta meta
   let orgIds = orgId <> W.query findIDs file
   let orgContent = parseTopBlocks 0 $ W.walk removeIDs file
-  noteContent <- mapM (A.block $ mapFamilyM $ mapOrgNote i orgIds title) orgContent
-  updateImpl note $ pure . ((A.docContent .~ noteContent) . (A.docMtdt . at (mtdtName RoamRefs) ?~ toJSON orgIds))
-  syncFileOfKind i (note ^. notePath) (entry ^. entryId) Kd.Note
+  noteContent <- mapM (A.block $ mapFamilyM $ mapOrgNote i orgIds title shiftLvl) orgContent
+  -- Prepare metadata
+  let updRefs = Just . toJSON . (<> orgIds) . S.fromList . fromMaybe [] . (>>= fromJSONM)
+  let updContent = case entrySpec of
+        Right _ -> A.docContent .~ noteContent
+        Left (_, loc) -> do
+          let wrappedContent =
+                A.Header
+                  { A._hdAttr = A.MkAttr "" [] M.empty,
+                    A._hdTitle = title,
+                    A._hdRefTo = S.empty,
+                    A._hdTask = Nothing,
+                    A._hdChecks = def,
+                    A._hdLevel = shiftLvl,
+                    A._hdContent = noteContent,
+                    A._hdCollections = M.empty
+                  }
+          (if shiftLvl == 1 then A.docContent else sub loc . A.hdContent) %~ (++ [A.Sub wrappedContent])
+  updateImpl note $ pure . (updContent . (A.docMtdt . at (mtdtName RoamRefs) %~ updRefs))
+  syncFileOfKind (entry ^. entryName) (note ^. notePath) (entry ^. entryId) Kd.Note
   pure i
 
 findIDs :: Block -> Set Text
@@ -76,12 +113,12 @@ removeIDs :: Block -> Block
 removeIDs (Header lvl (_, cls, attrs) content) = Header lvl ("", cls, attrs) content
 removeIDs bk = bk
 
-mapOrgNote :: (MonadKorrvigs m) => Id -> Set Text -> Text -> A.ASTPlate m
-mapOrgNote note orgIds title =
+mapOrgNote :: (MonadKorrvigs m) => Id -> Set Text -> Text -> Int -> A.ASTPlate m
+mapOrgNote note orgIds title shiftLvl =
   A.ASTPlate
     { A.block = pure,
       A.inline = importAttachments note orgIds title,
-      A.header = pure . prepareHeader
+      A.header = pure . prepareHeader shiftLvl
     }
 
 replaceAttachment :: (MonadKorrvigs m) => Id -> Set Text -> Text -> Text -> m (Maybe Id)
@@ -167,7 +204,7 @@ parseHdTitle title = case runParser headerP () "hd title" title of
             }
      in (Just tsk, ntitle)
 
-prepareHeader :: A.Header -> A.Header
-prepareHeader hd =
+prepareHeader :: Int -> A.Header -> A.Header
+prepareHeader shiftLvl hd =
   let (tsk, ntitle) = parseHdTitle (hd ^. A.hdTitle)
-   in hd & A.hdTitle .~ ntitle & A.hdTask .~ tsk
+   in hd & A.hdTitle .~ ntitle & A.hdTask .~ tsk & A.hdLevel %~ (+ shiftLvl)

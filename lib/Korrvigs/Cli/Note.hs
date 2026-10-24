@@ -16,7 +16,7 @@ import Korrvigs.Entry.New
 import qualified Korrvigs.File.New as NF
 import Korrvigs.Monad
 import Korrvigs.Monad.Collections
-import Korrvigs.Note
+import Korrvigs.Note hiding (parseLoc)
 import Korrvigs.Note.AST (bkCollection)
 import Korrvigs.Note.New
 import Korrvigs.Note.Org
@@ -33,13 +33,21 @@ data Cmd
   | New {_newNote :: NewNote}
   | Attach {_attachRef :: Text, _attachIsPath :: Bool, _attachSub :: AttachCmd}
   | Col {_colNote :: Maybe Text, _colName :: Maybe Text, _colInsert :: Maybe Text}
-  | ImportOrg {_orgPath :: FilePath, _orgNEntry :: NewEntry}
+  | ImportOrg {_orgPath :: FilePath, _orgNEntry :: NewEntry, _orgAt :: Maybe (Id, SubLoc)}
 
 data AttachCmd
   = AttachFiles [FilePath] Bool
   | AttachNotes [Text]
 
 makeLenses ''Cmd
+
+parseLoc :: Text -> Either String (Id, SubLoc)
+parseLoc loc = case T.split (== '#') loc of
+  [i, sloc] -> either (Left . T.unpack) (Right . (MkId i,)) (parseSubLoc sloc)
+  _ -> Right (MkId loc, SubLoc [])
+
+locParser :: ReadM (Id, SubLoc)
+locParser = eitherReader $ parseLoc . T.pack
 
 parser' :: Parser Cmd
 parser' =
@@ -114,7 +122,13 @@ parser' =
         <> command
           "import-org"
           ( info
-              ((ImportOrg <$> argument str (metavar "ORG") <*> newEntryOptions) <**> helper)
+              ( ( ImportOrg
+                    <$> argument str (metavar "ORG")
+                    <*> newEntryOptions
+                    <*> optional (option locParser $ long "at" <> help "Import to existing entry")
+                )
+                  <**> helper
+              )
               ( progDesc "Import org files from old annex"
                   <> header "korr note import-org -- Import org files"
               )
@@ -248,6 +262,8 @@ run (Col (Just note) mnm (Just toinsert)) = do
     else liftIO $ do
       putStrLn "Inclusion failed"
       exitFailure
-run (ImportOrg org nentry) = do
-  i <- importOrgFile nentry org
-  liftIO $ putStrLn $ unId i
+run (ImportOrg org nentry mloc) = case mloc of
+  Nothing -> do
+    i <- importOrgFile nentry org
+    liftIO $ putStrLn $ unId i
+  Just (i, loc) -> importOrgFileAt i loc org

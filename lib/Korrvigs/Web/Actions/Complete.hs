@@ -16,6 +16,7 @@ import Korrvigs.Query
 import Korrvigs.Utils
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
+import Korrvigs.Web.Metadata
 import Korrvigs.Web.Routes
 import Yesod
 
@@ -38,7 +39,13 @@ runComplete dont (TargetEntry entry) = do
   render <- getUrlRender
   forM_ (entry ^? _Note) $ \note ->
     Note.updateImpl note $ pure . (docContent %~ filter (not . shouldDelete))
-  updateMetadata entry (M.singleton (mtdtSqlName TaskMtdt) (toJSON ntask)) mtdtToRm
+  postMtdt <-
+    handlePostTask (entry ^. entryName) $
+      MtdtPost
+        { _mtdtAdd = M.singleton (mtdtSqlName TaskMtdt) (toJSON ntask),
+          _mtdtRm = mtdtToRm
+        }
+  updateMetadata entry (postMtdt ^. mtdtAdd) (postMtdt ^. mtdtRm)
   fromMaybeT () $ do
     syn <- hoistLift $ rSelectTextMtdt SyndicateMtdt $ sqlId i
     entrySyn <- hoistLift $ load $ MkId syn

@@ -1,4 +1,12 @@
-module Korrvigs.Web.Metadata (getEntryMtdtR, postEntryMtdtR) where
+module Korrvigs.Web.Metadata
+  ( getEntryMtdtR,
+    postEntryMtdtR,
+    MtdtPost (..),
+    mtdtAdd,
+    mtdtRm,
+    handlePostTask,
+  )
+where
 
 import Control.Arrow (first)
 import Control.Lens hiding ((.=))

@@ -98,7 +98,9 @@ periodPage title marker linkedDays startTime endTime = do
     linked
     void $ Widgets.mkSection 1 [] [] eventsHd calendar
     let cls = [("class", "collapsed")]
-    forM_ timeEventsW $ Widgets.mkSection 1 cls [] timeEventsHd
+    forM_ timeEventsW $ \events -> do
+      Rcs.checkboxCode StaticR
+      Widgets.mkSection 1 cls [] timeEventsHd events
     unless (null entries) $ void $ Widgets.mkSection 1 cls [] entriesHd entriesW
     unless (null photos) $ void $ Widgets.mkSection 1 cls [] galleryHd gallery
     unless (null geo) $ void $ Widgets.mkSection 1 cls [] geoHd $ do

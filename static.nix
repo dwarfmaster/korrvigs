@@ -163,6 +163,7 @@ in
     ln -s ${./ressources/icons/blog.png} $out/icons/blog.png
     ln -s ${./ressources/icons/complete.png} $out/icons/complete.png
     ln -s ${./ressources/icons/contacts.png} $out/icons/contacts.png
+    ln -s ${./ressources/icons/files.png} $out/icons/files.png
     ${magick} ${./ressources/icons/birthday.png} -fill "${theme.base05}" -opaque black PNG32:- > $out/icons/birthday.png
     ${magick} ${./ressources/icons/scheduled.png} -fill "${theme.base05}" -opaque black PNG32:- > $out/icons/scheduled.png
     ${magick} ${./ressources/icons/deadline.png} -fill "${theme.base05}" -opaque black PNG32:- > $out/icons/deadline.png

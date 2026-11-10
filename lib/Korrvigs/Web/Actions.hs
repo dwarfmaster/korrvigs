@@ -59,6 +59,7 @@ data ActionLabel
   = LabRemove
   | LabRecreateId
   | LabNewFile
+  | LabNewFiles
   | LabNewFileDownload
   | LabNewNote
   | LabNewMedia
@@ -95,6 +96,7 @@ actIcon :: ActionLabel -> (Route WebData, Base16Index)
 actIcon LabRemove = mkIcon "remove" Base08
 actIcon LabRecreateId = mkIcon "update" Base0B
 actIcon LabNewFile = mkIcon "file" Base0B
+actIcon LabNewFiles = mkIcon "files" Base0B
 actIcon LabNewFileDownload = mkIcon "downloads" Base0B
 actIcon LabNewNote = mkIcon "note" Base0B
 actIcon LabNewMedia = mkIcon "media" Base0B
@@ -127,6 +129,7 @@ actName :: ActionLabel -> Text
 actName LabRemove = "remove"
 actName LabRecreateId = "recreateid"
 actName LabNewFile = "newfile"
+actName LabNewFiles = "newfiles"
 actName LabNewFileDownload = "newfiledl"
 actName LabNewNote = "newnote"
 actName LabNewMedia = "newmedia"
@@ -211,6 +214,7 @@ actForm :: ActionLabel -> ActionTarget -> Handler Widget
 actForm l@LabRemove = genForm removeForm removeTitle $ actUrl l
 actForm l@LabRecreateId = genForm recreateIdForm recreateIdTitle $ actUrl l
 actForm l@LabNewFile = genForm newFileForm newFileTitle $ actUrl l
+actForm l@LabNewFiles = genForm newFilesForm newFilesTitle $ actUrl l
 actForm l@LabNewFileDownload = genForm newFileDlForm newFileDlTitle $ actUrl l
 actForm l@LabNewNote = genForm newNoteForm newNoteTitle $ actUrl l
 actForm l@LabNewMedia = genForm newMediaForm newMediaTitle $ actUrl l
@@ -277,6 +281,7 @@ actPost :: ActionLabel -> ActionTarget -> Handler ActionReaction
 actPost LabRemove = runPost removeForm runRemove
 actPost LabRecreateId = runPost recreateIdForm runRecreateId
 actPost LabNewFile = runPost newFileForm runNewFile
+actPost LabNewFiles = runPost newFilesForm runNewFiles
 actPost LabNewFileDownload = runPost newFileDlForm runNewFileDl
 actPost LabNewNote = runPost newNoteForm runNewNote
 actPost LabNewMedia = runPost newMediaForm runNewMedia
@@ -336,6 +341,7 @@ actCond :: ActionLabel -> ActionTarget -> Handler Bool
 actCond LabRemove = runActCond removeTarget
 actCond LabRecreateId = runActCond recreateIdTarget
 actCond LabNewFile = runActCond newTarget
+actCond LabNewFiles = runActCond newTarget
 actCond LabNewFileDownload = runActCond newTarget
 actCond LabNewNote = runActCond newTarget
 actCond LabNewMedia = runActCond newTarget

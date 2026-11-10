@@ -23,6 +23,7 @@ import qualified Korrvigs.Syndicate.New as NSyn
 import Korrvigs.Web.Actions.Defs
 import Korrvigs.Web.Backend
 import Korrvigs.Web.Routes
+import Korrvigs.Web.Utils
 import System.FilePath
 import System.IO.Temp
 import Yesod hiding (joinPath)
@@ -33,6 +34,8 @@ data NewFile = NewFile {_nfileTitle :: Maybe Text, _nfileContent :: FileInfo, _n
 
 data NewFileDl = NewFileDl {_nfileDlTitle :: Maybe Text, _nfileDlUrl :: Text, _nfileDlLanguage :: Maybe Text}
 
+data NewFiles = NewFiles {_nfilesContent :: [FileInfo], _nfilesLang :: Maybe Text}
+
 data NewMedia = NewMedia {_nmedInput :: Text, _nmedType :: Maybe MediaType, _nmedLang :: Maybe Text}
 
 data NewSyndicate = NewSyn {_nsynTitle :: Maybe Text, _nsynUrl :: Maybe Text, _nsynFilter :: Maybe Text, _nsynMkSyndicate :: Bool, _nsynRunJS :: Bool, _nsynLang :: Maybe Text}
@@ -40,6 +43,7 @@ data NewSyndicate = NewSyn {_nsynTitle :: Maybe Text, _nsynUrl :: Maybe Text, _n
 makeLenses ''NewNote
 makeLenses ''NewFile
 makeLenses ''NewFileDl
+makeLenses ''NewFiles
 makeLenses ''NewMedia
 makeLenses ''NewSyndicate
 
@@ -134,22 +138,53 @@ newFileForm =
 newFileTitle :: ActionTarget -> Text
 newFileTitle = mkNewTitle "new file"
 
+uploadFile :: (Handler Id -> IO Id) -> FilePath -> ActionTarget -> NewFile -> IO Id
+uploadFile runInIO tmpdir tgt nfile = do
+  let filename = T.unpack $ fileName $ nfile ^. nfileContent
+  let path = joinPath [tmpdir, filename]
+  fileMove (nfile ^. nfileContent) path
+  let settings =
+        flip NFile.NewFile False $
+          def
+            & neTitle .~ nfile ^. nfileTitle
+            & neParents .~ maybeToList (extractParent tgt)
+            & neLanguage .~ nfile ^. nfileLang
+  runInIO $ NFile.new path settings
+
 runNewFile :: NewFile -> ActionTarget -> Handler ActionReaction
 runNewFile nfile tgt =
-  withRunInIO $ \runIO ->
+  withRunInIO $ \runInIO ->
     withSystemTempDirectory "korrUpload" $ \dir -> do
-      let filename = T.unpack $ fileName $ nfile ^. nfileContent
-      let path = joinPath [dir, filename]
-      fileMove (nfile ^. nfileContent) path
-      let settings =
-            flip NFile.NewFile False $
-              def
-                & neTitle .~ nfile ^. nfileTitle
-                & neParents .~ maybeToList (extractParent tgt)
-                & neLanguage .~ nfile ^. nfileLang
-      runIO $ do
-        i <- NFile.new path settings
-        mkReaction tgt "new file" i
+      i <- uploadFile runInIO dir tgt nfile
+      runInIO $ mkReaction tgt "new file" i
+
+newFilesForm :: AForm Handler NewFiles
+newFilesForm =
+  NewFiles
+    <$> fileAFormMult ("" {fsLabel = "File"})
+    <*> langForm
+
+newFilesTitle :: ActionTarget -> Text
+newFilesTitle = mkNewTitle "upload files"
+
+runNewFiles :: NewFiles -> ActionTarget -> Handler ActionReaction
+runNewFiles nfiles tgt =
+  withRunInIO $ \runInIO ->
+    withSystemTempDirectory "korrUpload" $ \dir -> do
+      ids <- forM (nfiles ^. nfilesContent) $ \fileInfo ->
+        uploadFile runInIO dir tgt $ NewFile Nothing fileInfo (nfiles ^. nfilesLang)
+      let htmlUrl =
+            [hamlet|
+<p>
+  Created new files:
+  <ul>
+    $forall i <- ids
+      <li>
+        <a href=@{EntryR (WId i)}>
+          #{"@" <> unId i}
+|]
+      render <- runInIO getUrlRenderParams
+      pure $ def & reactMsg ?~ htmlUrl render
 
 newFileDlForm :: AForm Handler NewFileDl
 newFileDlForm =

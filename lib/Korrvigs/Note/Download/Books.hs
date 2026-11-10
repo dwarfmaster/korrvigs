@@ -17,16 +17,6 @@ import Korrvigs.Monad
 import Text.HTML.TagSoup
 import Text.Read (readMaybe)
 
-manytoon :: (MonadKorrvigs m) => Text -> [Tag Text] -> m (Endo NewEntry)
-manytoon url _
-  | "https://manytoon.com/comic/" `T.isPrefixOf` url =
-      pure $ Endo $ setMtdtValue MediaMtdt Manga . delFeed . fixTitle
-  where
-    delFeed = neMtdt . at (mtdtName Feed) .~ Nothing
-    fixTitle = neTitle . _Just %~ cutTitle
-    cutTitle = T.intercalate " - " . init . T.splitOn " - "
-manytoon _ _ = pure mempty
-
 goodreads :: (MonadKorrvigs m) => Text -> [Tag Text] -> m (Endo NewEntry)
 goodreads url _
   | "https://www.goodreads.com/book" `T.isPrefixOf` url =

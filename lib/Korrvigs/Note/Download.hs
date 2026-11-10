@@ -180,7 +180,6 @@ extractHTMLMeta neLens extractors url txt =
     alwaysExtract =
       fmap (liftEndo neLens)
         <$> [ Vid.nebula url tags,
-              Books.manytoon url tags,
               Books.goodreads url tags,
               Books.bedetheque url tags,
               Books.webtoons url tags,

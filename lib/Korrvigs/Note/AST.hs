@@ -244,26 +244,26 @@ buildBlock f (Table (MkTable caption cells attr hd ft)) =
     cell (Cell orig w h dat) = Cell orig w h <$> each (block f) dat
 buildBlock _ bk = pure bk
 
-buildInline :: (Applicative f) => ASTPlate f -> Inline -> f Inline
-buildInline f (Styled stl inls) = Styled stl <$> each (inline f) inls
-buildInline f (Link attr caption i vw) =
+buildInline :: (Applicative f) => (Inline -> f Inline) -> ASTPlate f -> Inline -> f Inline
+buildInline _ f (Styled stl inls) = Styled stl <$> each (inline f) inls
+buildInline _ f (Link attr caption i vw) =
   Link attr <$> each (inline f) caption <*> pure i <*> pure vw
-buildInline f (MtdtLink (Just inls) txt) =
+buildInline _ f (MtdtLink (Just inls) txt) =
   MtdtLink . Just <$> each (inline f) inls <*> pure txt
-buildInline f (DateLink (Just inls) day) =
+buildInline _ f (DateLink (Just inls) day) =
   DateLink . Just <$> each (inline f) inls <*> pure day
-buildInline f (PlainLink (Just inls) uri) =
+buildInline _ f (PlainLink (Just inls) uri) =
   PlainLink . Just <$> each (inline f) inls <*> pure uri
-buildInline f (Sidenote bks) =
+buildInline _ f (Sidenote bks) =
   Sidenote <$> each (block f) bks
-buildInline _ inl = pure inl
+buildInline base _ inl = base inl
 
 buildHeader :: (Applicative f) => ASTPlate f -> Header -> f Header
 buildHeader child = hdContent . each $ block child
 
 instance Multiplate ASTPlate where
   multiplate child =
-    ASTPlate (buildBlock child) (buildInline child) (buildHeader child)
+    ASTPlate (buildBlock child) (buildInline pure child) (buildHeader child)
   mkPlate build = ASTPlate (build block) (build inline) (build header)
 
 -- Traversal over all the inlines of a block, not recursing into subs
@@ -280,11 +280,12 @@ bkInlines f =
 -- Traversal over the recursive inlines. It is a singleton on the non-recursive inlines.
 inlInlines :: Traversal' Inline Inline
 inlInlines f =
-  inline $
-    multiplate $
+  inline $ ASTPlate (buildBlock child) (buildInline f child) (buildHeader child)
+  where
+    child =
       ASTPlate
         { block = bkInlines $ inlInlines f,
-          inline = f,
+          inline = inlInlines f,
           header = pure
         }
 

@@ -45,19 +45,22 @@ birthdayTimeEvents startDay endDay = do
     where_ $ entry ^. sqlEntryId .== bdaymtdt ^. sqlEntry
     pure (entry ^. sqlEntryName, entry ^. sqlEntryTitle, (bdayYear, bdaymtdt ^. sqlValue))
   let birthersPrepared = mapMaybe prepBirther birthers
-  forM birthersPrepared $ \(nm, title, (byear, bday)) -> do
+  forM birthersPrepared $ \(nm, title, (mbyear, bday)) -> do
     let widget =
           [whamlet|
             <a href=@{EntryR (WId nm)}>
               #{title}
-            #{mconcat [" (", T.pack (show $ ageAt byear bday), " years old on ", rdrBday bday, ")"]}
+            $maybe byear <- mbyear
+              #{mconcat [" (", T.pack (show $ ageAt byear bday), " years old on ", rdrBday bday, ")"]}
+            $nothing
+              #{mconcat [" (on ", rdrBday bday, ")"]}
          |]
     let BirthDay bdayMonth bdayDay = bday
     let actualDay = fromGregorian (birthYear bday) bdayMonth bdayDay
     pure (Anniversary, actualDay, widget)
   where
-    prepBirther :: (Id, Maybe Text, (Maybe Double, Value)) -> Maybe (Id, Text, (Double, BirthDay))
-    prepBirther (nm, Just title, (Just yr, bdayJS)) =
+    prepBirther :: (Id, Maybe Text, (Maybe Double, Value)) -> Maybe (Id, Text, (Maybe Double, BirthDay))
+    prepBirther (nm, Just title, (yr, bdayJS)) =
       (nm,title,) . (yr,) <$> fromJSONM bdayJS
     prepBirther _ = Nothing
     (year, month, dnum) = toGregorian startDay

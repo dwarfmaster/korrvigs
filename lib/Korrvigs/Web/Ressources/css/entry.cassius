@@ -159,6 +159,8 @@ p
   text-align: justify
 li p
   margin: 0
+table p
+  margin: 0
 div.sourceWrapper
   background-color: var(--base00)
   padding: 0

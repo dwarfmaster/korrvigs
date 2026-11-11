@@ -98,8 +98,8 @@ drawTable tbl varS rcs = do
         flush >> newline
     let lineChar
           | row == tbl ^. tableHeader = '='
-          | nrows - row == tbl ^. tableFooter && row /= nrows = '='
-          | row == nrows && tbl ^. tableFooter /= nrows = '='
+          | row + 1 == tbl ^. tableFooter && row /= nrows = '='
+          | row == nrows && tbl ^. tableFooter <= nrows = '='
           | otherwise = '-'
     forM_ [0 .. ncols] $ \col -> do
       let spanLeft =

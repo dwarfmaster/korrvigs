@@ -326,13 +326,14 @@ parseBlock (DefinitionList lst) =
   pure . A.DefinitionList
     <$> mapM (bimapM parseInlines (mapM (concatMapM parseBlock))) lst
 parseBlock HorizontalRule = pure []
-parseBlock (Table attr (Caption _ caption) _ (TableHead _ headR) body (TableFoot _ footR)) = do
+parseBlock (Table attr (Caption _ caption) colspec (TableHead _ headR) body (TableFoot _ footR)) = do
   let a = parseAttr attr
   capt <- concatMapM parseBlock caption
   let bodyR = concatMap (\(TableBody _ _ _ rows) -> rows) body
-  let headN = tableSize headR ^. _2
-  let (width, height) = tableSize bodyR
-  let footN = tableSize footR ^. _2
+  let width = length colspec
+  let headN = tableHeight headR
+  let height = tableHeight bodyR
+  let footN = tableHeight footR
   cells <- mapM buildCell $ SAr.runSTArray $ buildCells width (headN + height + footN) $ join [headR, bodyR, footR]
   pure . pure . A.Table $
     A.MkTable
@@ -340,7 +341,7 @@ parseBlock (Table attr (Caption _ caption) _ (TableHead _ headR) body (TableFoot
         A._tableCells = cells,
         A._tableAttr = a,
         A._tableHeader = headN,
-        A._tableFooter = footN
+        A._tableFooter = headN + height + 1
       }
 parseBlock (Figure attr (Caption _ caption) bks) = do
   capt <- concatMapM parseBlock caption
@@ -482,15 +483,11 @@ parseAttr (i, cls, mtdt) =
   A.MkAttr i cls $ M.fromListWith (<>) $ second singleton <$> mtdt
 
 -- Tables
-tableSize :: [Row] -> (Int, Int)
-tableSize rows = (maybe 0 width $ listToMaybe rows, height)
+tableHeight :: [Row] -> Int
+tableHeight rows = mmax $ uncurry rowHeight <$> zip [1 ..] rows
   where
     rowHeight :: Int -> Row -> Int
-    rowHeight y (Row _ cells) = mmax $ map (\(Cell _ _ (RowSpan h) _ _) -> y + h) cells
-    height :: Int
-    height = mmax $ uncurry rowHeight <$> zip [0 ..] rows
-    width :: Row -> Int
-    width (Row _ cells) = sum $ map (\(Cell _ _ _ (ColSpan w) _) -> w) cells
+    rowHeight y (Row _ cells) = mmax $ map (\(Cell _ _ (RowSpan h) _ _) -> y + h - 1) cells
     mmax :: [Int] -> Int
     mmax [] = 0
     mmax l = maximum l
